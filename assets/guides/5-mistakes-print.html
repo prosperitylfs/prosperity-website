@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>5 Mistakes to Avoid When Moving Retirement Accounts — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* ── Variables ── */
+    :root {
+      --navy:      #0d3b7a;
+      --navy-dark: #082a5e;
+      --amber:     #e8930a;
+      --green:     #1a7a4a;
+      --red:       #b91c1c;
+      --text:      #1a2332;
+      --muted:     #5a6b7e;
+      --border:    #d0dae8;
+      --bg-light:  #f4f7fb;
+    }
+
+    /* ── Screen chrome reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.6;
+      color: var(--text);
+      background: #e8ecf0;
+    }
+
+    /* ─────────────────────────────────────────
+       PRINT BUTTON (screen only)
+    ───────────────────────────────────────── */
+    .print-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--navy-dark);
+      color: #fff;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      gap: 12px;
+    }
+    .print-bar p { color: rgba(255,255,255,0.8); }
+    .print-bar p strong { color: #fff; }
+    .btn-print {
+      background: var(--amber);
+      color: #fff;
+      border: none;
+      padding: 9px 22px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.18s;
+    }
+    .btn-print:hover { background: #c67c08; }
+    .back-link {
+      color: rgba(255,255,255,0.75);
+      font-size: 0.82rem;
+      text-decoration: none;
+    }
+    .back-link:hover { color: #fff; }
+
+    /* ─────────────────────────────────────────
+       PAGE WRAPPER — mimics letter sheets on screen
+    ───────────────────────────────────────── */
+    .doc {
+      max-width: 816px;      /* 8.5in at 96dpi */
+      margin: 24px auto 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* Each .page = one letter sheet */
+    .page {
+      background: #fff;
+      width: 100%;
+      min-height: 1056px;    /* 11in at 96dpi */
+      padding: 64px 72px;
+      position: relative;
+      box-shadow: 0 2px 18px rgba(0,0,0,0.18);
+    }
+    .page + .page { margin-top: 16px; }
+
+    /* ─────────────────────────────────────────
+       RUNNING FOOTER (every page except cover)
+    ───────────────────────────────────────── */
+    .page-footer {
+      position: absolute;
+      bottom: 36px;
+      left: 72px;
+      right: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 8pt;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+
+    /* ─────────────────────────────────────────
+       COVER PAGE
+    ───────────────────────────────────────── */
+    .cover {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .cover-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 40px;
+      border-bottom: 3px solid var(--navy);
+    }
+    .cover-brand {
+      font-size: 9pt;
+      font-weight: 700;
+      color: var(--navy);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1.5;
+    }
+    .cover-brand span {
+      display: block;
+      font-weight: 400;
+      font-size: 8.5pt;
+      color: var(--muted);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .cover-tag {
+      background: var(--amber);
+      color: #fff;
+      font-size: 7.5pt;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 12px;
+    }
+
+    .cover-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 56px 0 32px;
+    }
+    .cover-number-band {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .cover-big-num {
+      font-size: 96pt;
+      font-weight: 800;
+      color: var(--navy);
+      line-height: 1;
+      letter-spacing: -4px;
+    }
+    .cover-num-label {
+      font-size: 11pt;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      line-height: 1.3;
+      padding-bottom: 4px;
+      border-bottom: 2px solid var(--amber);
+    }
+
+    .cover h1 {
+      font-size: 26pt;
+      font-weight: 800;
+      color: var(--navy);
+      line-height: 1.18;
+      margin-bottom: 20px;
+      max-width: 520px;
+    }
+    .cover h1 em {
+      font-style: normal;
+      color: var(--amber);
+    }
+    .cover-subtitle {
+      font-size: 11.5pt;
+      color: var(--muted);
+      line-height: 1.5;
+      max-width: 480px;
+      margin-bottom: 40px;
+    }
+
+    .cover-toc {
+      background: var(--bg-light);
+      border-left: 4px solid var(--navy);
+      border-radius: 0 6px 6px 0;
+      padding: 20px 24px;
+      max-width: 440px;
+    }
+    .cover-toc-label {
+      font-size: 7.5pt;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--navy);
+      margin-bottom: 12px;
+    }
+    .cover-toc ol {
+      padding-left: 0;
+      list-style: none;
+      counter-reset: toc;
+    }
+    .cover-toc ol li {
+      counter-increment: toc;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-size: 9pt;
+      color: var(--text);
+      padding: 4px 0;
+      border-bottom: 1px dotted var(--border);
+    }
+    .cover-toc ol li:last-child { border-bottom: none; }
+    .cover-toc ol li::before {
+      content: counter(toc);
+      font-weight: 700;
+      color: var(--navy);
+      font-size: 8.5pt;
+      min-width: 16px;
+    }
+
+    .cover-bottom {
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .cover-author {
+      font-size: 9pt;
+      color: var(--text);
+    }
+    .cover-author strong { font-weight: 700; display: block; font-size: 10pt; }
+    .cover-author span { color: var(--muted); }
+    .cover-year { font-size: 8.5pt; color: var(--muted); }
+
+    /* ─────────────────────────────────────────
+       INTRO PAGE
+    ───────────────────────────────────────── */
+    .intro-page h2 {
+      font-size: 16pt;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--navy);
+    }
+    .intro-page p { margin-bottom: 12px; font-size: 10.5pt; }
+
+    .audience-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--navy);
+      border-radius: 0 6px 6px 0;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+    .audience-box strong {
+      display: block;
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+    .audience-box p { margin-bottom: 6px; font-size: 10pt; }
+    .audience-box p:last-child { margin-bottom: 0; }
+
+    /* ─────────────────────────────────────────
+       MISTAKE SECTIONS
+    ───────────────────────────────────────── */
+    .mistake-section {
+      margin-bottom: 32px;
+    }
+    .mistake-section:last-of-type { margin-bottom: 0; }
+
+    .mistake-head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .m-num {
+      width: 38px;
+      height: 38px;
+      background: var(--navy);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13pt;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .m-title-block {}
+    .m-tag {
+      font-size: 7pt;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 2px;
+    }
+    .m-title {
+      font-size: 12.5pt;
+      font-weight: 700;
+      color: var(--navy);
+      line-height: 1.25;
+    }
+
+    .mistake-section p { font-size: 10.5pt; margin-bottom: 10px; }
+    .mistake-section p:last-child { margin-bottom: 0; }
+
+    /* Callout boxes within mistakes */
+    .callout {
+      border-radius: 4px;
+      padding: 12px 16px;
+      margin: 12px 0;
+      font-size: 9.5pt;
+    }
+    .callout-warn {
+      background: #fef2f2;
+      border-left: 3px solid var(--red);
+    }
+    .callout-warn strong { color: var(--red); }
+    .callout-tip {
+      background: #f0fdf4;
+      border-left: 3px solid var(--green);
+    }
+    .callout-tip strong { color: var(--green); }
+    .callout-amber {
+      background: #fffbeb;
+      border-left: 3px solid var(--amber);
+    }
+    .callout-amber strong { color: #92400e; }
+
+    /* Bullet lists */
+    ul.doc-list {
+      padding-left: 0;
+      list-style: none;
+      margin: 8px 0 10px;
+    }
+    ul.doc-list li {
+      font-size: 10pt;
+      padding: 3px 0 3px 20px;
+      position: relative;
+      color: var(--text);
+    }
+    ul.doc-list.check li::before { content: '✓'; color: var(--green); position: absolute; left: 0; font-weight: 700; }
+    ul.doc-list.cross li::before { content: '✗'; color: var(--red); position: absolute; left: 0; font-weight: 700; }
+
+    /* Scenario box */
+    .scenario {
+      background: #f0f4ff;
+      border: 1px solid #c0d0f0;
+      border-radius: 4px;
+      padding: 12px 16px;
+      margin: 12px 0;
+    }
+    .scenario-label {
+      font-size: 7.5pt;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--navy);
+      margin-bottom: 5px;
+    }
+    .scenario p { font-size: 9.5pt; margin-bottom: 0; }
+
+    /* Section divider */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 28px 0;
+    }
+
+    /* ─────────────────────────────────────────
+       CONCLUSION & CTA PAGE
+    ───────────────────────────────────────── */
+    .conclusion-head {
+      font-size: 16pt;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--navy);
+    }
+
+    .cta-box {
+      background: var(--navy);
+      color: #fff;
+      border-radius: 8px;
+      padding: 28px 32px;
+      margin-top: 28px;
+    }
+    .cta-box h3 {
+      font-size: 14pt;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+    .cta-box p {
+      font-size: 10pt;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 16px;
+    }
+    .cta-box .cta-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .cta-item {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 4px;
+      padding: 6px 14px;
+      font-size: 9pt;
+      color: rgba(255,255,255,0.9);
+    }
+    .cta-item strong { color: #fff; display: block; font-size: 9.5pt; }
+    .cta-url {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #fbbf24;
+    }
+
+    /* Disclaimer */
+    .disclaimer {
+      font-size: 7.5pt;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ─────────────────────────────────────────
+       PRINT RULES
+    ───────────────────────────────────────── */
+    @media print {
+      @page {
+        size: letter;
+        margin: 0.7in 0.75in 0.75in 0.75in;
+      }
+
+      body {
+        background: #fff;
+        font-size: 10pt;
+      }
+
+      .print-bar { display: none !important; }
+
+      .doc {
+        max-width: 100%;
+        margin: 0;
+        gap: 0;
+      }
+
+      .page {
+        width: 100%;
+        min-height: 0;
+        padding: 0;
+        box-shadow: none;
+        margin: 0;
+        page-break-after: always;
+      }
+      .page:last-child { page-break-after: avoid; }
+      .page + .page { margin-top: 0; }
+
+      .page-footer {
+        position: running(footer);
+        bottom: auto;
+        left: auto;
+        right: auto;
+      }
+
+      /* Force background colors to print */
+      .m-num,
+      .cta-box,
+      .cover-tag {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .callout-warn,
+      .callout-tip,
+      .callout-amber,
+      .scenario,
+      .audience-box,
+      .cover-toc,
+      .cover-bottom { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+      a { color: inherit; text-decoration: none; }
+
+      /* Page breaks */
+      .mistake-section { page-break-inside: avoid; }
+      .callout { page-break-inside: avoid; }
+      .scenario { page-break-inside: avoid; }
+      .cta-box { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Print Bar (screen only) ── -->
+<div class="print-bar">
+  <div>
+    <p><strong>Ready to save as PDF</strong> — Click the button, then choose "Save as PDF" in your browser's print dialog.</p>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center;">
+    <a href="5-mistakes.html" class="back-link">← View web version</a>
+    <button class="btn-print" onclick="window.print()">&#128438; Print / Save as PDF</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     DOCUMENT
+════════════════════════════════════════ -->
+<div class="doc">
+
+  <!-- ══ PAGE 1 — COVER ══ -->
+  <div class="page cover">
+
+    <div class="cover-top">
+      <div class="cover-brand">
+        Prosperity Life &amp; Financial Solutions
+        <span>Loretta Stewart &nbsp;|&nbsp; Licensed Financial Professional</span>
+      </div>
+      <div class="cover-tag">Free Guide</div>
+    </div>
+
+    <div class="cover-body">
+      <div class="cover-number-band">
+        <div class="cover-big-num">5</div>
+        <div class="cover-num-label">Mistakes<br>to Avoid</div>
+      </div>
+      <h1>When Moving<br><em>Retirement Accounts</em></h1>
+      <p class="cover-subtitle">What every adult 45+ should know before rolling over a 401(k), 403(b), TSP, or traditional IRA — and how to avoid the costly errors that can't be undone.</p>
+
+      <div class="cover-toc">
+        <div class="cover-toc-label">What's Inside</div>
+        <ol>
+          <li>Taking a cash distribution instead of a direct rollover</li>
+          <li>Rolling over without reviewing fees and investment options</li>
+          <li>Missing a Roth conversion opportunity</li>
+          <li>Making the move without a retirement income plan</li>
+          <li>Deciding without reviewing all of your options</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="cover-bottom">
+      <div class="cover-author">
+        <strong>Loretta Stewart</strong>
+        <span>Prosperity Life &amp; Financial Solutions</span>
+      </div>
+      <div class="cover-year">2025 Edition</div>
+    </div>
+
+  </div><!-- /cover -->
+
+  <!-- ══ PAGE 2 — INTRODUCTION + MISTAKES 1 & 2 ══ -->
+  <div class="page intro-page">
+
+    <h2>Introduction</h2>
+
+    <p>Moving money from a workplace retirement plan — or from one IRA to another — sounds straightforward. In reality, it's one of the most consequential financial decisions you'll make. Done right, a rollover can protect your savings from unnecessary taxes, preserve your growth potential, and set you up for reliable retirement income.</p>
+
+    <p>Done wrong, a single mistake can cost thousands of dollars in taxes and penalties, lock your money into a high-fee account, or disrupt your entire retirement plan.</p>
+
+    <div class="audience-box">
+      <strong>Who This Guide Is For</strong>
+      <p>Adults age 45+ who have a 401(k), 403(b), TSP, or traditional IRA and are considering moving those funds — whether due to a job change, retirement, or a routine account review.</p>
+    </div>
+
+    <p>This guide walks you through the five most common mistakes I see when people move retirement accounts — and what to do instead.</p>
+
+    <hr class="divider">
+
+    <!-- Mistake 1 -->
+    <div class="mistake-section">
+      <div class="mistake-head">
+        <div class="m-num">1</div>
+        <div class="m-title-block">
+          <div class="m-tag">Mistake #1</div>
+          <div class="m-title">Taking a Cash Distribution Instead of a Direct Rollover</div>
+        </div>
+      </div>
+
+      <p>When you leave an employer, you may be offered a check for your 401(k) balance. Accepting it is almost always the most expensive way to move your money.</p>
+
+      <div class="callout callout-warn">
+        <strong>What happens:</strong> Your employer must withhold 20% for federal taxes automatically. Under age 59½, you'll also owe a 10% early withdrawal penalty — plus state income tax.
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-label">Example</div>
+        <p>A $120,000 account triggers $24,000 in automatic withholding. If you're in the 22% bracket and under 59½, total taxes and penalties could reduce your balance by $38,400 or more.</p>
+      </div>
+
+      <div class="callout callout-tip">
+        <strong>What to do instead:</strong> Request a <em>direct rollover</em> — the funds transfer directly to your new IRA or plan. No taxes withheld, no penalties. If you receive a check made out to you, you have 60 days to deposit the full amount (including the withheld 20%) into a qualified account to avoid taxes.
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Mistake 2 -->
+    <div class="mistake-section">
+      <div class="mistake-head">
+        <div class="m-num">2</div>
+        <div class="m-title-block">
+          <div class="m-tag">Mistake #2</div>
+          <div class="m-title">Rolling Over Without Reviewing Fees and Investment Options</div>
+        </div>
+      </div>
+
+      <p>Many people roll their 401(k) into the first account they're offered without comparing fees or investment options. An expense ratio difference of just 0.5%–1% per year can cost tens of thousands of dollars in lost growth over 15 years on a $200,000 account.</p>
+
+      <div class="callout callout-warn">
+        <strong>Watch out for:</strong>
+        <ul class="doc-list cross">
+          <li>High fund expense ratios buried in the fine print</li>
+          <li>Annual maintenance or custodian fees</li>
+          <li>Surrender charges and lock-up periods</li>
+          <li>Limited investment menus that don't fit your strategy</li>
+        </ul>
+      </div>
+
+      <div class="callout callout-tip">
+        <strong>What to do instead:</strong> Request a full fee disclosure before completing the rollover. Compare at least two or three options, and make sure the investment lineup aligns with your timeline, risk tolerance, and income goals.
+      </div>
+    </div>
+
+    <!-- Running footer -->
+    <div class="page-footer">
+      <span>Prosperity Life &amp; Financial Solutions &nbsp;|&nbsp; Loretta Stewart</span>
+      <span>5 Mistakes to Avoid When Moving Retirement Accounts</span>
+    </div>
+
+  </div><!-- /page 2 -->
+
+  <!-- ══ PAGE 3 — MISTAKES 3, 4 & 5 ══ -->
+  <div class="page">
+
+    <!-- Mistake 3 -->
+    <div class="mistake-section">
+      <div class="mistake-head">
+        <div class="m-num">3</div>
+        <div class="m-title-block">
+          <div class="m-tag">Mistake #3</div>
+          <div class="m-title">Missing a Roth Conversion Opportunity</div>
+        </div>
+      </div>
+
+      <p>Most rollovers move pre-tax money into a traditional IRA — keeping it tax-deferred. That's often correct. But for some people at certain income levels, a rollover is the best opportunity they'll have to convert some or all of those funds to a Roth IRA, which grows and distributes tax-free.</p>
+
+      <div class="callout callout-amber">
+        <strong>Timing matters:</strong> The years between leaving a job and starting Social Security or Required Minimum Distributions often create a window of lower taxable income — making this the ideal time to convert at a lower rate.
+      </div>
+
+      <p>Consider a Roth conversion if:</p>
+      <ul class="doc-list check">
+        <li>You're in a lower tax bracket than you expect to be in retirement</li>
+        <li>You have cash outside your retirement accounts to pay the conversion tax</li>
+        <li>You want to reduce future Required Minimum Distributions (RMDs)</li>
+        <li>You want to leave tax-free inheritance to beneficiaries</li>
+      </ul>
+
+      <div class="callout callout-tip">
+        <strong>What to do instead:</strong> Before completing a rollover, discuss whether a full or partial Roth conversion makes sense. Under current tax law, conversions cannot be undone — so this decision must be made before the rollover is finalized.
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Mistake 4 -->
+    <div class="mistake-section">
+      <div class="mistake-head">
+        <div class="m-num">4</div>
+        <div class="m-title-block">
+          <div class="m-tag">Mistake #4</div>
+          <div class="m-title">Making the Move Without a Retirement Income Plan</div>
+        </div>
+      </div>
+
+      <p>A rollover moves your money. It doesn't tell your money what to do next. One of the most common oversights is completing a rollover without a clear plan for how and when you'll draw income from it in retirement.</p>
+
+      <div class="callout callout-warn">
+        <strong>Common coordination mistakes:</strong>
+        <ul class="doc-list cross">
+          <li>Withdrawing from tax-deferred accounts before claiming Social Security, raising taxable income unnecessarily</li>
+          <li>Not planning for Required Minimum Distributions starting at age 73</li>
+          <li>Ignoring how IRA distributions affect Medicare Part B &amp; D premiums (IRMAA)</li>
+          <li>Leaving all assets in growth investments past the point where income reliability matters</li>
+        </ul>
+      </div>
+
+      <div class="callout callout-tip">
+        <strong>What to do instead:</strong> Use the rollover as a catalyst to build or revisit your retirement income plan. Where will monthly income come from? In what order will you draw from different accounts? Answering these questions before you move the money helps you place it where it will work best.
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Mistake 5 -->
+    <div class="mistake-section">
+      <div class="mistake-head">
+        <div class="m-num">5</div>
+        <div class="m-title-block">
+          <div class="m-tag">Mistake #5</div>
+          <div class="m-title">Deciding Without Reviewing All of Your Options</div>
+        </div>
+      </div>
+
+      <p>When you leave a job, you typically have four options: leave the money in your former plan, roll it to an IRA, roll it to a new employer's plan, or take a cash distribution. Most people know to avoid the cash-out — but fewer genuinely compare the first three.</p>
+
+      <p><strong>Leave it in the former plan</strong> — may make sense if the plan has excellent low-cost institutional funds or strong creditor protection. You lose the Rule of 55 benefit once you've left that employer.</p>
+
+      <p><strong>Roll to an IRA</strong> — typically provides broader investment flexibility, direct control, Roth conversion options, and simpler estate planning.</p>
+
+      <p><strong>Roll to a new employer's plan</strong> — can be useful to preserve loan access, or to delay RMDs past age 73 if you're still employed.</p>
+
+      <div class="callout callout-tip">
+        <strong>What to do instead:</strong> Request a full fee disclosure and plan document from your former employer. Compare it against the IRA or plan you're considering. Some older plans include annuity income options or stable-value funds worth preserving — don't roll out of something good simply because it's the default move.
+      </div>
+    </div>
+
+    <!-- Running footer -->
+    <div class="page-footer">
+      <span>Prosperity Life &amp; Financial Solutions &nbsp;|&nbsp; Loretta Stewart</span>
+      <span>5 Mistakes to Avoid When Moving Retirement Accounts</span>
+    </div>
+
+  </div><!-- /page 3 -->
+
+  <!-- ══ PAGE 4 — CONCLUSION + CTA ══ -->
+  <div class="page">
+
+    <h2 class="conclusion-head">Putting It All Together</h2>
+
+    <p>A retirement account rollover is more than a paperwork transaction. It's a financial decision that affects your taxes, your investment growth, and your retirement income for decades. The five mistakes in this guide are all avoidable — but only if you know to look for them before you act.</p>
+
+    <p>The most important thing you can do is slow down. You are not required to move quickly. You have time to compare options, consult a professional, and choose the path that's right for your situation — not just the easiest one or the one your HR department recommends.</p>
+
+    <p>The years approaching retirement are the most impactful financial planning years of your life. The decisions you make with your retirement accounts in this window — where you hold the money, how it's positioned, whether you convert any of it, and how you coordinate withdrawals — will shape your income and tax situation for the rest of your life.</p>
+
+    <p>Working with an independent financial professional who specializes in retirement planning can make this process significantly simpler. The right advisor can model different scenarios side-by-side, explain the tax implications clearly, and help you choose the path that aligns with your goals — without pushing you toward any single product or company.</p>
+
+    <p>If this guide raised questions about your own retirement accounts, I'd be glad to help. I offer a complimentary, no-obligation review for adults approaching or in retirement, and I'm happy to work through your specific situation at your own pace.</p>
+
+    <div class="cta-box">
+      <h3>Schedule Your Free Rollover Review</h3>
+      <p>A no-cost, no-pressure consultation to review your retirement accounts and make sure your strategy is working for you — not against you.</p>
+      <div class="cta-items">
+        <div class="cta-item"><strong>No Cost</strong>Complimentary review</div>
+        <div class="cta-item"><strong>No Obligation</strong>Information only</div>
+        <div class="cta-item"><strong>No Pressure</strong>Your timeline, your pace</div>
+      </div>
+      <div class="cta-url">&#127760; www.prosperitylifefinancial.com &nbsp;&nbsp;&nbsp; &#128222; Schedule online or by phone</div>
+    </div>
+
+    <div class="disclaimer">
+      This guide is for educational purposes only and does not constitute tax, legal, or investment advice. Tax laws, contribution limits, and rules regarding retirement accounts are subject to change. Consult a qualified tax professional or financial advisor regarding your specific situation before making any financial decisions. Guarantees referenced in connection with insurance and annuity products are subject to the claims-paying ability of the issuing insurance company.
+    </div>
+
+    <!-- Running footer -->
+    <div class="page-footer">
+      <span>Prosperity Life &amp; Financial Solutions &nbsp;|&nbsp; Loretta Stewart</span>
+      <span>© 2025 &nbsp;|&nbsp; For informational purposes only</span>
+    </div>
+
+  </div><!-- /page 4 -->
+
+</div><!-- /doc -->
+
+<script>
+  // Auto-trigger print dialog when arriving from the guide download form
+  if (window.location.hash === '#download') {
+    window.addEventListener('load', function () {
+      // Small delay lets fonts and styles fully render before the dialog opens
+      setTimeout(function () { window.print(); }, 800);
+    });
+  }
+</script>
+</body>
+</html>

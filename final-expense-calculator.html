@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Final Expense Cost Estimator — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Estimate funeral and end-of-life costs to determine how much final expense coverage your family may need. Free calculator, no signup required.">
+</head>
+<body>
+
+    <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+  <div class="calc-page-hero">
+    <div class="container">
+      <p style="font-size:0.82rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;"><a href="calculators.html" style="color:rgba(255,255,255,0.6);text-decoration:none;">&#8592; All Calculators</a></p>
+      <h1>Final Expense Cost Estimator</h1>
+      <p>Estimate funeral and end-of-life costs to plan ahead and protect your family from unexpected expenses.</p>
+    </div>
+  </div>
+
+  <main>
+    <section class="calc-section-block" id="final-expense">
+      <div class="container">
+        <div class="calc-wrapper">
+
+          <div class="calc-form-panel">
+            <h2>Final Expense Cost Estimator</h2>
+            <p class="calc-desc">Estimates the total costs your family would face at your passing, helping you determine how much final expense coverage you may need.</p>
+
+            <div class="calc-field">
+              <label for="fe-type">Preferred Type of Service</label>
+              <select id="fe-type" onchange="calcFinalExpense()">
+                <option value="">Select a service type</option>
+                <option value="traditional">Traditional burial with funeral service</option>
+                <option value="graveside">Graveside service with burial</option>
+                <option value="cremation-service">Cremation with memorial service</option>
+                <option value="cremation-direct">Direct cremation (no service)</option>
+              </select>
+            </div>
+            <div class="calc-field">
+              <label for="fe-headstone">Headstone or Grave Marker?</label>
+              <select id="fe-headstone" onchange="calcFinalExpense()">
+                <option value="0">No / Not applicable</option>
+                <option value="2000">Basic marker ($2,000)</option>
+                <option value="4000">Standard headstone ($4,000)</option>
+                <option value="7000">Premium monument ($7,000+)</option>
+              </select>
+            </div>
+            <div class="calc-field">
+              <label for="fe-medical">Estimated Outstanding Medical Bills</label>
+              <input id="fe-medical" type="number" min="0" placeholder="e.g. 5000" value="0" inputmode="numeric" oninput="calcFinalExpense()">
+              <span class="hint">Unpaid balances after insurance, from any recent illness or hospitalization</span>
+            </div>
+            <div class="calc-field">
+              <label for="fe-debts">Other Small Debts to Settle</label>
+              <input id="fe-debts" type="number" min="0" placeholder="e.g. 3000" value="0" inputmode="numeric" oninput="calcFinalExpense()">
+              <span class="hint">Credit cards, personal loans, or other obligations</span>
+            </div>
+            <div class="calc-field">
+              <label for="fe-legacy">Legacy Gift for Family (optional)</label>
+              <input id="fe-legacy" type="number" min="0" placeholder="e.g. 5000" value="0" inputmode="numeric" oninput="calcFinalExpense()">
+              <span class="hint">Amount you'd like to leave beyond covering expenses</span>
+            </div>
+          </div>
+
+          <div class="calc-result-panel" id="fe-result-panel">
+            <div class="calc-result-empty" id="fe-empty">
+              <div class="calc-result-empty-icon">&#128203;</div>
+              <p>Select a service type above to see your estimated final expense coverage need.</p>
+            </div>
+            <div class="calc-result-content" id="fe-result">
+              <div class="result-eyebrow">Estimated Coverage Need</div>
+              <div class="result-primary" id="fe-total">—</div>
+              <div class="result-primary-label">total final expense coverage recommended</div>
+              <div class="result-breakdown">
+                <div class="result-row">
+                  <span class="r-label">Funeral &amp; burial costs</span>
+                  <span class="r-value" id="fe-r-funeral">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Headstone / marker</span>
+                  <span class="r-value" id="fe-r-headstone">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Medical bills</span>
+                  <span class="r-value" id="fe-r-medical">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Other debts</span>
+                  <span class="r-value" id="fe-r-debts">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Legacy gift</span>
+                  <span class="r-value" id="fe-r-legacy">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label"><strong>Suggested coverage</strong></span>
+                  <span class="r-value highlight" id="fe-r-suggested">—</span>
+                </div>
+              </div>
+              <p class="result-note">Funeral costs vary by location, provider, and choices. These are national average estimates for 2024–2025. Your local costs may be higher or lower.</p>
+              <a class="result-cta-btn" href="book.html">Get a Free Final Expense Review</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+                  <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+        <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+
+    function fmt(n) {
+      if (isNaN(n) || n === null) return '—';
+      return '$' + Math.round(n).toLocaleString('en-US');
+    }
+    function val(id) { return parseFloat(document.getElementById(id).value) || 0; }
+    function showResult() {
+      document.getElementById('fe-result').classList.add('show');
+      document.getElementById('fe-empty').style.display = 'none';
+    }
+
+    var funeralCosts = {
+      'traditional':       10500,
+      'graveside':          8000,
+      'cremation-service':  5500,
+      'cremation-direct':   2500
+    };
+
+    function calcFinalExpense() {
+      var type = document.getElementById('fe-type').value;
+      if (!type) return;
+
+      var funeral   = funeralCosts[type] || 0;
+      var headstone = parseFloat(document.getElementById('fe-headstone').value) || 0;
+      var medical   = val('fe-medical');
+      var debts     = val('fe-debts');
+      var legacy    = val('fe-legacy');
+      var total     = funeral + headstone + medical + debts + legacy;
+      var suggested = Math.ceil(total / 5000) * 5000;
+
+      document.getElementById('fe-total').textContent       = fmt(suggested);
+      document.getElementById('fe-r-funeral').textContent   = fmt(funeral);
+      document.getElementById('fe-r-headstone').textContent = fmt(headstone);
+      document.getElementById('fe-r-medical').textContent   = fmt(medical);
+      document.getElementById('fe-r-debts').textContent     = fmt(debts);
+      document.getElementById('fe-r-legacy').textContent    = fmt(legacy);
+      document.getElementById('fe-r-suggested').textContent = fmt(suggested);
+
+      showResult();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Roth IRA Conversion Calculator — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Estimate the potential tax impact and long-term benefit of converting traditional IRA or 401k savings to a Roth IRA. Free calculator, no signup required.">
+</head>
+<body>
+
+    <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+  <div class="calc-page-hero">
+    <div class="container">
+      <p style="font-size:0.82rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;"><a href="calculators.html" style="color:rgba(255,255,255,0.6);text-decoration:none;">&#8592; All Calculators</a></p>
+      <h1>Roth IRA Conversion Calculator</h1>
+      <p>Estimate the potential tax impact of converting traditional retirement savings into a Roth IRA — and see the long-term advantage of tax-free growth.</p>
+    </div>
+  </div>
+
+  <main>
+    <section class="calc-section-block" id="roth-conversion">
+      <div class="container">
+        <div class="calc-wrapper">
+
+          <div class="calc-form-panel">
+            <h2>Roth IRA Conversion Calculator</h2>
+            <p class="calc-desc">Estimate the potential tax impact of converting traditional retirement savings into a Roth IRA, and see the long-term tax-free growth advantage.</p>
+
+            <div class="calc-field">
+              <label for="rc-balance">Current Traditional IRA / 401k Balance</label>
+              <input id="rc-balance" type="number" min="0" placeholder="e.g. 350000" inputmode="numeric">
+              <span class="hint">Your total pre-tax retirement account balance (for reference)</span>
+            </div>
+            <div class="calc-field">
+              <label for="rc-convert">Amount to Convert</label>
+              <input id="rc-convert" type="number" min="0" placeholder="e.g. 50000" inputmode="numeric">
+              <span class="hint">The portion you are considering converting to a Roth IRA</span>
+            </div>
+            <div class="calc-field">
+              <label for="rc-bracket">Current Federal Tax Bracket</label>
+              <select id="rc-bracket">
+                <option value="">Select your bracket</option>
+                <option value="10">10%</option>
+                <option value="12">12%</option>
+                <option value="22">22%</option>
+                <option value="24">24%</option>
+                <option value="32">32%</option>
+                <option value="35">35%</option>
+                <option value="37">37%</option>
+              </select>
+              <span class="hint">Your current marginal federal income tax bracket</span>
+            </div>
+            <div class="calc-field">
+              <label for="rc-retire-bracket">Expected Retirement Tax Bracket</label>
+              <select id="rc-retire-bracket">
+                <option value="">Select expected bracket</option>
+                <option value="10">10%</option>
+                <option value="12">12%</option>
+                <option value="22">22%</option>
+                <option value="24">24%</option>
+                <option value="32">32%</option>
+                <option value="35">35%</option>
+                <option value="37">37%</option>
+              </select>
+              <span class="hint">The tax bracket you expect to be in when taking retirement withdrawals</span>
+            </div>
+            <div class="calc-field">
+              <label for="rc-years">Years Until Retirement</label>
+              <input id="rc-years" type="number" min="1" max="40" placeholder="e.g. 12" value="12" inputmode="numeric">
+            </div>
+            <button class="btn btn-amber btn-full" onclick="calcRoth()">Estimate Conversion Impact</button>
+          </div>
+
+          <div class="calc-result-panel" id="rc-result-panel">
+            <div class="calc-result-empty" id="rc-empty">
+              <div class="calc-result-empty-icon">&#128260;</div>
+              <p>Enter your conversion amount and tax brackets to see the estimated long-term impact.</p>
+            </div>
+            <div class="calc-result-content" id="rc-result">
+              <div class="result-eyebrow">Potential Tax-Free Advantage</div>
+              <div class="result-primary" id="rc-primary">—</div>
+              <div class="result-primary-label">estimated advantage over keeping funds in traditional account</div>
+              <div class="result-breakdown">
+                <div class="result-row">
+                  <span class="r-label">Taxes owed on conversion now</span>
+                  <span class="r-value" id="rc-r-tax-now">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Projected Roth value at retirement (tax-free)</span>
+                  <span class="r-value good" id="rc-r-future-roth">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Traditional value after retirement taxes</span>
+                  <span class="r-value" id="rc-r-future-trad">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label"><strong>Tax-free growth advantage</strong></span>
+                  <span class="r-value" id="rc-advantage">—</span>
+                </div>
+              </div>
+              <p class="result-note" id="rc-explanation"></p>
+              <p class="result-note" style="margin-top:8px;font-style:italic;">This calculator provides estimates only and does not constitute tax or financial advice. Assumes 6% average annual growth. Consult a qualified tax professional regarding your specific situation.</p>
+              <a class="result-cta-btn" href="book.html">Book a Roth Conversion Strategy Session</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+                  <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+        <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+
+    function fmt(n) {
+      if (isNaN(n) || n === null) return '—';
+      return '$' + Math.round(n).toLocaleString('en-US');
+    }
+    function showResult() {
+      document.getElementById('rc-result').classList.add('show');
+      document.getElementById('rc-empty').style.display = 'none';
+    }
+
+    function calcRoth() {
+      var convert  = parseFloat(document.getElementById('rc-convert').value) || 0;
+      var curRate  = parseFloat(document.getElementById('rc-bracket').value) / 100;
+      var retRate  = parseFloat(document.getElementById('rc-retire-bracket').value) / 100;
+      var years    = parseFloat(document.getElementById('rc-years').value) || 12;
+
+      if (!convert || isNaN(curRate) || isNaN(retRate)) return;
+
+      var taxNow      = convert * curRate;
+      var growth      = Math.pow(1.06, years);
+      var futureRoth  = convert * growth;
+      var futureTrad  = convert * growth * (1 - retRate);
+      var advantage   = futureRoth - futureTrad;
+
+      var explanation;
+      if (retRate > curRate) {
+        explanation = 'Your expected retirement tax rate (' + (retRate * 100).toFixed(0) + '%) is higher than your current rate (' + (curRate * 100).toFixed(0) + '%). Converting now locks in today\'s lower rate — all future growth and withdrawals from the Roth come out completely tax-free. This conversion appears favorable.';
+      } else if (retRate === curRate) {
+        explanation = 'Your current and retirement tax rates are the same (' + (curRate * 100).toFixed(0) + '%). A Roth conversion may still provide benefits through tax diversification, eliminating future Required Minimum Distributions (starting at age 73), and leaving a tax-free inheritance to heirs.';
+      } else {
+        explanation = 'Your expected retirement rate (' + (retRate * 100).toFixed(0) + '%) is lower than your current rate (' + (curRate * 100).toFixed(0) + '%). Paying taxes now at a higher rate reduces the tax advantage. A qualified professional can help evaluate whether estate planning goals, RMD reduction, or tax diversification still make a partial conversion worthwhile.';
+      }
+
+      document.getElementById('rc-primary').textContent       = advantage > 0 ? fmt(advantage) : '$0';
+      document.getElementById('rc-r-tax-now').textContent     = fmt(taxNow);
+      document.getElementById('rc-r-future-roth').textContent = fmt(futureRoth);
+      document.getElementById('rc-r-future-trad').textContent = fmt(futureTrad);
+      document.getElementById('rc-advantage').className       = 'r-value ' + (retRate > curRate ? 'good' : retRate < curRate ? 'alert' : 'highlight');
+      document.getElementById('rc-advantage').textContent     = fmt(advantage);
+      document.getElementById('rc-explanation').textContent   = explanation;
+
+      showResult();
+    }
+  </script>
+</body>
+</html>

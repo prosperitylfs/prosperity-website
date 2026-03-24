@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Annuities &amp; Safe Money — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Learn how fixed annuities and fixed indexed annuities can protect retirement savings, provide tax-deferred growth, and create guaranteed income. Free review with Loretta Stewart.">
+</head>
+<body>
+
+    <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+  <style>
+    .annuities-hero {
+      position: relative;
+      min-height: 340px;
+      background-image: url('assets/images/Couple yellow.jpg');
+      background-size: cover;
+      background-position: 75% center;
+      background-repeat: no-repeat;
+      display: flex;
+      align-items: center;
+    }
+    .annuities-hero-overlay {
+      width: 100%;
+      background: linear-gradient(
+        90deg,
+        rgba(245, 242, 220, 0.82) 0%,
+        rgba(245, 242, 220, 0.70) 34%,
+        rgba(245, 242, 220, 0.18) 60%,
+        rgba(245, 242, 220, 0.00) 100%
+      );
+    }
+    .annuities-hero-content {
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 40px 24px 40px 20px;
+      display: flex;
+    }
+    .hero-text {
+      max-width: 600px;
+      margin-left: 0;
+    }
+    @media (min-width: 1200px) {
+      .annuities-hero-content {
+        padding-left: 20px;
+        transform: translateX(-60px);
+      }
+      .hero-text { max-width: 650px; }
+    }
+    .hero-eyebrow {
+      margin: 0 0 10px 0;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #2f9e7c;
+      text-transform: uppercase;
+    }
+    .annuities-hero h1 {
+      margin: 0 0 12px 0;
+      font-size: 40px;
+      line-height: 1.1;
+      color: #2f9e7c;
+    }
+    .hero-copy {
+      margin: 0 0 16px 0;
+      font-size: 17px;
+      line-height: 1.5;
+      color: #2d2d2d;
+      max-width: 580px;
+    }
+    .annuities-hero .btn-primary {
+      background-color: #2f9e7c;
+      color: #ffffff;
+      padding: 14px 24px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 16px;
+      text-decoration: none;
+      display: inline-block;
+      margin-top: 10px;
+      transition: background-color 0.2s;
+    }
+    .annuities-hero .btn-primary:hover {
+      background-color: #27896b;
+      transform: none;
+    }
+    .annuity-review-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .annuity-review-form label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #3b2a78;
+    }
+    .annuity-review-form input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px 14px;
+      border: 1px solid #cfd8d3;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .form-compliance {
+      margin: 10px 0 14px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #555;
+    }
+    .consent-checkbox {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .consent-checkbox input {
+      width: 16px;
+      height: 16px;
+      margin-top: 4px;
+      flex: 0 0 auto;
+    }
+    .consent-checkbox span {
+      flex: 1;
+      min-width: 0;
+    }
+    .form-compliance a {
+      color: #5b3df5;
+      text-decoration: underline;
+    }
+    /* ── Full-width layout ── */
+    .page-body       { width: 100%; }
+    .content-section { width: 100%; max-width: none; }
+
+    /* ── How Loretta Helps ── */
+    .how-loretta-helps {
+      width: 100% !important;
+      padding: 60px 0 !important;
+      background: var(--bg);
+    }
+    .how-loretta-helps h2,
+    .how-loretta-helps p {
+      max-width: none !important;
+    }
+    .annuity-wide-container {
+      max-width: 1280px !important;
+      width: 92% !important;
+      margin: 0 auto !important;
+    }
+    @media (min-width: 1440px) {
+      .annuity-wide-container { max-width: 1400px !important; }
+    }
+
+    /* ── FAQ section ── */
+    .annuity-faq {
+      width: 100%;
+      padding: 60px 0;
+    }
+    .annuity-faq .container {
+      max-width: 1280px;
+      width: 92%;
+      margin: 0 auto;
+    }
+    .annuity-faq h2 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--purple-dark);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border-light);
+    }
+    .annuity-faq .faq-list,
+    .annuity-faq .faq-item {
+      width: 100%;
+      max-width: none;
+      box-sizing: border-box;
+    }
+
+    /* ── Final CTA wrapper ── */
+    .annuity-final-cta-section {
+      padding: 0 0 60px;
+    }
+    .annuity-final-cta-section .container {
+      max-width: 1280px;
+      width: 92%;
+      margin: 0 auto;
+    }
+
+    @media (min-width: 1440px) {
+      .how-loretta-helps .container,
+      .annuity-faq .container,
+      .annuity-final-cta-section .container { max-width: 1400px; }
+    }
+
+    /* ── Why People Consider Annuities ── */
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 50px;
+      align-items: start;
+    }
+    .benefits-left h2 {
+      font-size: 32px;
+      margin-bottom: 15px;
+    }
+    .benefits-left p {
+      color: #555;
+      line-height: 1.6;
+    }
+    .benefit-item {
+      margin-bottom: 24px;
+    }
+    .benefit-item:last-child { margin-bottom: 0; }
+    .benefit-item h4 {
+      color: #2f9e7c;
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    .benefit-item p {
+      margin: 0;
+      color: #555;
+      line-height: 1.6;
+      font-size: 0.97rem;
+    }
+    @media (max-width: 768px) {
+      .benefits-grid { grid-template-columns: 1fr; gap: 28px; }
+    }
+
+    /* ── Final CTA ── */
+    .annuity-final-cta {
+      text-align: center;
+      background: var(--purple-dark);
+      border-radius: 16px;
+      padding: 56px 40px;
+      margin-top: 20px;
+    }
+    .annuity-final-cta h2 {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 14px;
+    }
+    .annuity-final-cta p {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.82);
+      line-height: 1.7;
+      max-width: 540px;
+      margin: 0 auto 28px;
+    }
+    @media (max-width: 600px) {
+      .annuity-final-cta { padding: 40px 24px; }
+    }
+    @media (max-width: 900px) {
+      .annuities-hero {
+        min-height: 300px;
+        background-position: 75% center;
+      }
+      .annuities-hero-content {
+        max-width: 100%;
+        padding: 30px 20px;
+        transform: none;
+      }
+      .hero-text { margin-left: 0; }
+      .annuities-hero h1 { font-size: 28px; }
+      .hero-copy { font-size: 15px; }
+    }
+    @media (max-width: 640px) {
+      .annuities-hero {
+        min-height: 260px;
+        background-position: 70% center;
+      }
+      .annuities-hero-content { padding: 30px 18px; }
+      .hero-text { margin-left: 0; max-width: 100%; }
+      .annuities-hero h1 { font-size: 28px; }
+      .hero-copy { font-size: 15px; line-height: 1.5; }
+    }
+  </style>
+
+  <section class="annuities-hero">
+    <div class="annuities-hero-overlay">
+      <div class="annuities-hero-content">
+        <div class="hero-text">
+          <p class="hero-eyebrow">SAFE MONEY STRATEGIES FOR RETIREMENT</p>
+          <h1>Protect Your Retirement from Market Losses &mdash; While Creating Guaranteed Income for Life</h1>
+          <p class="hero-copy">Discover how to grow your money safely, avoid stock market risk, and create income you can never outlive &mdash; without unnecessary fees or confusion.</p>
+          <a href="book.html" class="btn-primary">Get Your Free Annuity Review</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="page-main">
+    <div class="container">
+
+      <div class="page-body">
+
+        <div class="content-section">
+          <h2>What Are Annuities?</h2>
+          <p>An annuity is a contract between you and an insurance company. You contribute a lump sum, and in return the insurer provides specific guarantees &mdash; a locked-in interest rate, protection from market losses, a guaranteed income stream, or a combination of all three.</p>
+          <p>Unlike stocks or mutual funds, fixed and fixed indexed annuities guarantee you will never lose principal due to a market downturn. That makes them one of the few tools that offer both growth potential and downside protection in the same product.</p>
+          <div class="highlight-box">
+            <p>Annuities are insurance products &mdash; not investments. Guarantees are backed by the financial strength of the issuing company. Loretta works with multiple highly-rated carriers to find the best fit for your situation.</p>
+          </div>
+        </div>
+
+        <div class="content-section">
+          <h2>Types of Annuities</h2>
+          <div class="info-grid">
+            <div class="info-card">
+              <div class="info-card-icon">F</div>
+              <h3>Fixed Annuities</h3>
+              <p>Earn a guaranteed, locked-in interest rate for a set period. Principal is fully protected. Simple, predictable, and one of the most conservative safe money options &mdash; similar to a CD but with tax-deferred growth.</p>
+            </div>
+            <div class="info-card">
+              <div class="info-card-icon">I</div>
+              <h3>Fixed Indexed Annuities</h3>
+              <p>Interest is credited based on a market index (like the S&amp;P 500) with a 0% floor &mdash; you participate in market gains but are fully protected from losses. Often includes optional riders for guaranteed lifetime income.</p>
+            </div>
+            <div class="info-card">
+              <div class="info-card-icon">&#9654;</div>
+              <h3>Income Annuities</h3>
+              <p>Designed to create a guaranteed income stream for life or a set period. Contribute a lump sum and receive monthly income starting immediately or at a future date you choose.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-section annuity-benefits">
+          <div class="benefits-grid">
+            <div class="benefits-left">
+              <h2>Why People Consider Annuities</h2>
+              <p>Annuities offer a unique combination of protection, growth, and guaranteed income &mdash; making them a powerful tool for retirement security.</p>
+            </div>
+            <div class="benefits-right">
+              <div class="benefit-item">
+                <h4>&#10004; Principal Protection</h4>
+                <p>Fixed and indexed annuities guarantee your savings will never decline due to market losses &mdash; no matter what the stock market does.</p>
+              </div>
+              <div class="benefit-item">
+                <h4>&#10004; Guaranteed Income for Life</h4>
+                <p>Convert a lump sum into a predictable monthly paycheck that continues for as long as you live &mdash; regardless of market conditions.</p>
+              </div>
+              <div class="benefit-item">
+                <h4>&#10004; Tax-Deferred Growth</h4>
+                <p>Earnings grow tax-deferred until you take withdrawals &mdash; allowing your money to compound faster than in a taxable account.</p>
+              </div>
+              <div class="benefit-item">
+                <h4>&#10004; Peace of Mind</h4>
+                <p>Knowing a portion of your retirement savings is fully protected and earning a predictable return lets you stop worrying about market swings.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <section class="how-loretta-helps section">
+    <div class="container annuity-wide-container">
+      <h2>How Loretta Helps</h2>
+      <p>As an independent advisor, Loretta is not tied to any single insurance company. She compares options across dozens of highly-rated carriers &mdash; evaluating caps, participation rates, surrender periods, income rider terms, and financial strength ratings side by side &mdash; so you get the product that genuinely fits your needs, not just whatever one company offers.</p>
+      <p>She explains everything in plain English, without jargon or pressure. If an annuity is not the right fit for your situation, she will tell you that too. Her goal is your long-term financial security, not a sale. <a href="about.html" style="color:var(--purple);text-decoration:underline;">Learn more about Loretta.</a></p>
+    </div>
+  </section>
+
+  <section class="annuity-faq">
+    <div class="container">
+      <h2>Frequently Asked Questions</h2>
+      <ul class="faq-list">
+
+        <li class="faq-item open">
+          <button class="faq-question" type="button">Can I lose money in an annuity? <span class="faq-chevron">&#9660;</span></button>
+          <div class="faq-answer"><p>With fixed and fixed indexed annuities, you cannot lose money due to market performance. Your principal is contractually protected. You can incur charges if you withdraw funds during the surrender period above the free withdrawal amount (typically 10% per year). Loretta focuses on fixed and indexed products for clients seeking safe money strategies.</p></div>
+        </li>
+
+        <li class="faq-item">
+          <button class="faq-question" type="button">What is a fixed indexed annuity? <span class="faq-chevron">&#9660;</span></button>
+          <div class="faq-answer"><p>A fixed indexed annuity (FIA) credits interest based on a market index &mdash; such as the S&amp;P 500 &mdash; subject to a cap or participation rate. When the index rises, you receive a portion of that gain. When it falls, you earn 0% &mdash; your principal stays intact. FIAs also commonly offer optional income riders for guaranteed lifetime income starting at a date you choose.</p></div>
+        </li>
+
+        <li class="faq-item">
+          <button class="faq-question" type="button">Are annuities good for retirement income? <span class="faq-chevron">&#9660;</span></button>
+          <div class="faq-answer"><p>For the right person, yes. Annuities with income riders can provide a guaranteed monthly payment for life, regardless of market conditions or how long you live. For retirees without a pension, this fills a critical income gap. Whether it fits your situation depends on your income needs, timeline, and overall financial picture &mdash; which is exactly what a free review with Loretta can help you assess.</p></div>
+        </li>
+
+        <li class="faq-item">
+          <button class="faq-question" type="button">How are annuities taxed? <span class="faq-chevron">&#9660;</span></button>
+          <div class="faq-answer"><p>Earnings in a non-qualified annuity (purchased with after-tax dollars) grow tax-deferred. When you take distributions, the earnings are taxed as ordinary income; your original principal is returned tax-free. For qualified annuities (held inside an IRA), all withdrawals are taxed as ordinary income. Withdrawals before age 59&frac12; may also incur a 10% IRS early withdrawal penalty.</p></div>
+        </li>
+
+        <li class="faq-item">
+          <button class="faq-question" type="button">What is a surrender charge? <span class="faq-chevron">&#9660;</span></button>
+          <div class="faq-answer"><p>A surrender charge applies when you withdraw more than the free withdrawal amount (usually 10% per year) during the surrender period, which typically ranges from 5 to 10 years. The charge starts higher and steps down to 0% by the end of the period. The key is to only place money you will not need access to during that window.</p></div>
+        </li>
+
+        <li class="faq-item">
+          <button class="faq-question" type="button">Should I put all my savings into an annuity? <span class="faq-chevron">&#9660;</span></button>
+          <div class="faq-answer"><p>No. Annuities work best for the portion of your savings you want to protect and generate guaranteed income from. You still need liquid savings for emergencies and growth-oriented assets to keep pace with inflation. The goal is a balanced income plan where each dollar has a purpose &mdash; annuities fill the role of protection and guaranteed income within that plan.</p></div>
+        </li>
+
+      </ul>
+    </div>
+  </section>
+
+  <section class="annuity-final-cta-section">
+    <div class="container">
+      <div class="annuity-final-cta">
+        <h2>Ready to Protect Your Retirement?</h2>
+        <p>Get a personalized annuity review based on your goals, income needs, and comfort with risk.</p>
+        <a href="book.html" class="btn btn-amber btn-lg">Schedule Your Free Review</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+                  <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+        <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    document.querySelectorAll('.faq-question').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var item = this.closest('.faq-item');
+        var isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach(function(i){ i.classList.remove('open'); });
+        if (!isOpen) item.classList.add('open');
+      });
+    });
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>401(k), 403(b), 457, TSP &amp; IRA Rollovers | Retirement Account Rollover Help</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Learn your rollover options for 401(k), 403(b), 457, TSP, and IRA retirement accounts. Get guidance on moving retirement funds and exploring income strategies with a free consultation.">
+
+  <style>
+    /* ── Rollover page layout ── */
+    .ro-body {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* ── Hero overrides ── */
+    .page-hero-inner { max-width: 1200px !important; }
+    .rollover-hero-content {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 40px;
+      align-items: center;
+    }
+    .rollover-hero-video-wrap {
+      width: 100%;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.18);
+      background: #000;
+    }
+    .rollover-hero-video-wrap iframe {
+      width: 100%;
+      height: 315px;
+      border: none;
+      display: block;
+    }
+    @media (max-width: 900px) {
+      .rollover-hero-content {
+        grid-template-columns: 1fr;
+      }
+      .rollover-hero-video-wrap iframe {
+        height: 260px;
+      }
+    }
+    .page-hero p     { max-width: 720px; }
+    .page-hero .page-hero-tag {
+      font-size: 20px !important;
+      font-weight: 700 !important;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .page-hero .btn.btn-amber.btn-lg {
+      padding: 18px 36px !important;
+      font-size: 18px !important;
+      font-weight: 600 !important;
+      border-radius: 8px !important;
+    }
+    .page-hero { border-bottom: 1px solid rgba(0,0,0,0.06); }
+
+    /* ── Purple band ── */
+    .ro-purple-band {
+      background: var(--purple-dark);
+      padding: 72px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .ro-purple-band h2 {
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+    .ro-purple-band p {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.82);
+      line-height: 1.8;
+      margin-bottom: 16px;
+    }
+    .ro-purple-band p:last-child { margin-bottom: 0; }
+
+    /* ── Mint band ── */
+    .ro-mint-band {
+      background: #e8f6f2;
+      padding: 72px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .ro-mint-band h2 {
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      font-weight: 800;
+      color: var(--purple-dark);
+      margin-bottom: 20px;
+    }
+    .ro-mint-band p {
+      font-size: 1.05rem;
+      color: #444;
+      line-height: 1.8;
+      margin-bottom: 16px;
+    }
+    .ro-mint-band p:last-child { margin-bottom: 0; }
+    .ro-no-divider { border-bottom: none; }
+    .ro-mint-band.ro-no-divider {
+      box-shadow: 0 6px 32px rgba(0,0,0,0.08) inset;
+      border-top: 2px solid rgba(255,255,255,0.7);
+    }
+
+    /* ── Section intro ── */
+    .ro-section-intro {
+      font-size: 1.05rem;
+      line-height: 1.8;
+      margin-bottom: 32px;
+      max-width: 680px;
+      color: #555;
+    }
+    .ro-purple-band .ro-section-intro { color: rgba(255,255,255,0.82); }
+
+    /* ── Checklist ── */
+    .ro-check-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+    }
+    .ro-check-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 1.02rem;
+      color: #333;
+      line-height: 1.6;
+    }
+    .ro-check {
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      background: var(--green);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+      color: #fff;
+      font-size: 0.68rem;
+    }
+
+    /* ── Plan type cards ── */
+    .ro-plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .ro-plan-card {
+      background: #fff;
+      border: 1px solid #d4ede6;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+    .ro-plan-label {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 8px;
+    }
+    .ro-plan-card h3 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--purple-dark);
+      margin-bottom: 8px;
+    }
+    .ro-plan-card p {
+      font-size: 14px;
+      color: #555;
+      line-height: 1.5;
+      margin-bottom: 0;
+    }
+
+    /* ── FAQ ── */
+    .ro-faq-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .ro-faq-item {
+      border-bottom: 1px solid rgba(255,255,255,0.13);
+    }
+    .ro-faq-item:first-child { border-top: 1px solid rgba(255,255,255,0.13); }
+    .ro-faq-question {
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 20px 0;
+      text-align: left;
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      line-height: 1.4;
+      font-family: inherit;
+    }
+    .ro-faq-question:hover { color: var(--green); }
+    .ro-faq-chevron {
+      font-size: 0.75rem;
+      color: var(--green);
+      flex-shrink: 0;
+      transition: transform 0.25s;
+    }
+    .ro-faq-item.open .ro-faq-chevron { transform: rotate(180deg); }
+    .ro-faq-answer {
+      display: none;
+      padding: 0 0 20px;
+    }
+    .ro-faq-item.open .ro-faq-answer { display: block; }
+    .ro-faq-answer p {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.82);
+      line-height: 1.75;
+      margin-bottom: 0;
+    }
+    .ro-faq-answer a { color: var(--green); text-decoration: underline; }
+
+    /* ── How Loretta Helps ── */
+    .ro-loretta-link { color: var(--purple); text-decoration: underline; }
+    .ro-btn-wrap { margin-top: 28px; }
+
+    /* ── Lead magnet ── */
+    .guide-container {
+      display: flex;
+      gap: 48px;
+      align-items: flex-start;
+      justify-content: center;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .guide-text {
+      flex: 1;
+      max-width: 560px;
+    }
+    .ro-guide-icon {
+      font-size: 3rem;
+      color: var(--green);
+      margin-bottom: 20px;
+    }
+    .guide-text h2 {
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+    .guide-text p {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.82);
+      line-height: 1.8;
+      margin-bottom: 0;
+    }
+
+    /* ── primary-cta (used for guide scroll button) ── */
+    a.primary-cta {
+      display: inline-block;
+      padding: 18px 36px;
+      background: var(--green);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    a.primary-cta:hover { background: var(--green-dark); }
+
+    /* ── Guide form card ── */
+    .guide-form-card {
+      flex: 0 0 460px;
+      max-width: 460px;
+      width: 100%;
+      background: #fff;
+      padding: 28px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      box-sizing: border-box;
+    }
+    .guide-form-card input,
+    .guide-form-card button {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    #guide-form label {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 6px;
+      margin-top: 18px;
+    }
+    #guide-form label:first-of-type { margin-top: 0; }
+    #guide-form input {
+      padding: 12px 14px;
+      border: 1px solid #d0d0d0;
+      border-radius: 8px;
+      background: #fff;
+      color: #222;
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #guide-form input::placeholder { color: #aaa; }
+    #guide-form input:focus { border-color: var(--green); }
+    #guide-form .ro-guide-submit {
+      display: block;
+      margin-top: 22px;
+      padding: 14px;
+      background: var(--green);
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.2s;
+    }
+    #guide-form .ro-guide-submit:hover { background: var(--green-dark); }
+    .form-compliance {
+      margin: 14px 0 18px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #555;
+    }
+    .consent-checkbox {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .consent-checkbox input[type="checkbox"] {
+      flex: 0 0 auto;
+      width: 16px;
+      height: 16px;
+      margin-top: 4px;
+      cursor: pointer;
+      accent-color: var(--green);
+    }
+    .consent-checkbox span {
+      flex: 1;
+      min-width: 0;
+      font-size: 0.78rem;
+      color: #666;
+      line-height: 1.55;
+    }
+    .form-compliance a {
+      color: #5b3df5;
+      text-decoration: underline;
+    }
+    .consent-checkbox span a:hover { color: var(--purple-dark); }
+
+    /* ── Final CTA ── */
+    .ro-cta-inner { text-align: center; }
+    .ro-cta-inner h2 { max-width: 640px; margin: 0 auto 16px; }
+    .ro-cta-inner p  { max-width: 600px; margin: 0 auto 24px; }
+    .ro-benefit-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 auto 28px;
+      display: inline-flex;
+      flex-direction: column;
+      gap: 10px;
+      text-align: left;
+    }
+    .ro-benefit-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1rem;
+      color: #333;
+      line-height: 1.5;
+    }
+    .ro-benefit-list li::before {
+      content: "\2713";
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      min-width: 20px;
+      background: var(--green);
+      border-radius: 50%;
+      font-size: 0.7rem;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .page-hero-inner  { max-width: 900px !important; }
+      .guide-container  { flex-direction: column; }
+      .guide-form-card  { flex: unset; max-width: 100%; }
+    }
+    @media (max-width: 660px) {
+      .ro-plans-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .page-hero-inner { max-width: 100% !important; }
+      .page-hero p     { max-width: 100%; }
+      .ro-purple-band,
+      .ro-mint-band    { padding: 52px 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+
+  <!-- ===== HERO — Purple ===== -->
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <div class="rollover-hero-content">
+        <div class="rollover-hero-text">
+          <div class="page-hero-tag">Rollover Options</div>
+          <h1>401(k), 403(b), 457, TSP &amp; IRA Rollovers</h1>
+          <p>Helping you understand your options when moving a 401(k), 403(b), 457, TSP, or IRA.</p>
+          <p>If you are leaving an employer, retiring, or reviewing your retirement strategy, understanding your rollover options can help you make more informed decisions.</p>
+          <p>Loretta helps individuals and families review their choices and explore strategies designed to support dependable <a href="retirement-planning.html" style="color:rgba(255,255,255,0.88);text-decoration:underline;">retirement income</a> and long-term financial security.</p>
+          <div class="hero-cta-row">
+            <a class="btn btn-amber btn-lg" href="book.html">Schedule a Free Rollover Consultation</a>
+          </div>
+        </div>
+        <div class="rollover-hero-video-wrap">
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/kIx_VZ__Rb4?rel=0&playsinline=1"
+            title="Rollover Options Video"
+            frameborder="0"
+            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen>
+          </iframe>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ===== PLANS THAT CAN BE ROLLED OVER — Mint ===== -->
+  <div class="ro-mint-band">
+    <div class="ro-body">
+      <h2>Retirement Plans That Can Be Rolled Over</h2>
+      <p class="ro-section-intro">Loretta helps clients review rollover options across all major retirement account types. Each plan has different rules and considerations — understanding your options is the first step toward a confident decision.</p>
+      <div class="ro-plans-grid">
+
+        <div class="ro-plan-card" id="401k">
+          <span class="ro-plan-label">Employer Plan</span>
+          <h3>401(k)</h3>
+          <p>One of the most common employer-sponsored retirement plans. When leaving a job or retiring, a 401(k) can often be rolled over into an IRA or a new employer's plan — typically without triggering taxes if done as a direct rollover.</p>
+        </div>
+
+        <div class="ro-plan-card" id="403b">
+          <span class="ro-plan-label">Nonprofit / Education</span>
+          <h3>403(b)</h3>
+          <p>Similar to a 401(k), the 403(b) is offered by schools, nonprofits, and certain tax-exempt organizations. Rollover rules closely mirror those for 401(k) plans, and moving funds to an IRA may open up additional income strategy options.</p>
+        </div>
+
+        <div class="ro-plan-card" id="457">
+          <span class="ro-plan-label">Government Employee</span>
+          <h3>457(b)</h3>
+          <p>Offered by state and local government employers, 457(b) plans have unique distribution rules — including no 10% early withdrawal penalty in some cases. Rollover options and eligibility can vary, so reviewing your specific plan details matters.</p>
+        </div>
+
+        <div class="ro-plan-card" id="tsp">
+          <span class="ro-plan-label">Federal Employee</span>
+          <h3>Thrift Savings Plan (TSP)</h3>
+          <p>The TSP is the retirement plan for federal government and military employees. It offers low-cost investment options and specific distribution features that may change after a rollover. Understanding what you may gain — and give up — is important before moving TSP funds.</p>
+        </div>
+
+        <div class="ro-plan-card" id="ira">
+          <span class="ro-plan-label">Individual Account</span>
+          <h3>Traditional IRA</h3>
+          <p>An existing Traditional IRA can be rolled over or transferred into another IRA or used to consolidate multiple retirement accounts. IRAs also commonly serve as the receiving account for rollovers from employer plans.</p>
+        </div>
+
+        <div class="ro-plan-card" style="background:#f5fbf8;border-color:#b8ddd4;">
+          <span class="ro-plan-label">Not Sure?</span>
+          <h3>Let's Review Your Account</h3>
+          <p>Not certain which type of account you have or what your rollover options are? Loretta can help you review your specific plan and understand your choices — at no cost and with no obligation.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ===== FAQ — Purple ===== -->
+  <div class="ro-purple-band">
+    <div class="ro-body">
+      <h2>Common Rollover Questions</h2>
+      <p class="ro-section-intro">Rollover decisions involve important tax, income, and planning considerations. These are some of the questions Loretta hears most often.</p>
+      <ul class="ro-faq-list">
+
+        <li class="ro-faq-item open">
+          <button class="ro-faq-question" type="button">
+            What happens to my retirement account when I leave a job?
+            <span class="ro-faq-chevron">&#9660;</span>
+          </button>
+          <div class="ro-faq-answer">
+            <p>When you leave an employer, you typically have several options: leave the account with your former employer (if allowed), roll it into a new employer&rsquo;s plan, roll it into an IRA, or take a cash distribution. A cash distribution may trigger taxes and early withdrawal penalties, so understanding your options before making a decision is important. A rollover review can help you evaluate which path makes the most sense for your situation.</p>
+          </div>
+        </li>
+
+        <li class="ro-faq-item">
+          <button class="ro-faq-question" type="button">
+            Should I leave my money in my old employer&rsquo;s plan?
+            <span class="ro-faq-chevron">&#9660;</span>
+          </button>
+          <div class="ro-faq-answer">
+            <p>Leaving money in a former employer&rsquo;s plan is sometimes an option, but it may come with limitations on investment choices, higher fees, or restrictions on future transactions. For many people, rolling over to an IRA offers more flexibility and control. The right decision depends on your specific plan, goals, and retirement timeline.</p>
+          </div>
+        </li>
+
+        <li class="ro-faq-item">
+          <button class="ro-faq-question" type="button">
+            Can I roll a 401(k) into an IRA?
+            <span class="ro-faq-chevron">&#9660;</span>
+          </button>
+          <div class="ro-faq-answer">
+            <p>Yes. Rolling a 401(k) into a traditional IRA is one of the most common rollover transactions. If done as a direct rollover, funds move directly from one account to another without triggering taxes or penalties. This can simplify your retirement accounts and may open up additional <a href="annuities.html">income strategies</a> as part of your broader <a href="retirement-planning.html">retirement plan</a>.</p>
+          </div>
+        </li>
+
+        <li class="ro-faq-item">
+          <button class="ro-faq-question" type="button">
+            Are there tax consequences with a rollover?
+            <span class="ro-faq-chevron">&#9660;</span>
+          </button>
+          <div class="ro-faq-answer">
+            <p>A properly executed direct rollover &mdash; where funds move directly from one retirement account to another &mdash; typically does not trigger taxes or penalties. However, an indirect rollover, where funds are first distributed to you and then deposited into a new account within 60 days, may result in mandatory withholding. Missing the 60-day window can result in the distribution being treated as taxable income. Understanding the rollover process before initiating a transfer is important.</p>
+          </div>
+        </li>
+
+        <li class="ro-faq-item">
+          <button class="ro-faq-question" type="button">
+            What is the difference between a direct and indirect rollover?
+            <span class="ro-faq-chevron">&#9660;</span>
+          </button>
+          <div class="ro-faq-answer">
+            <p>A direct rollover means funds transfer directly from your retirement account to a new account &mdash; you never receive the money personally. An indirect rollover means the funds are distributed to you first, and you must deposit them into a new qualified account within 60 days. Your plan is typically required to withhold 20% for federal taxes on indirect rollovers, which you would need to make up out of pocket and reclaim when filing your taxes. Direct rollovers are generally simpler and carry less risk of error.</p>
+          </div>
+        </li>
+
+        <li class="ro-faq-item">
+          <button class="ro-faq-question" type="button">
+            What should I know before rolling over a TSP or 457 account?
+            <span class="ro-faq-chevron">&#9660;</span>
+          </button>
+          <div class="ro-faq-answer">
+            <p>TSP and 457 plans have unique rules, distribution options, and rollover considerations that differ from standard 401(k) plans. TSP accounts, used by federal employees, offer specific low-cost investment options and withdrawal features that may or may not be available after a rollover. 457 plans, common for state and local government employees, can also have different distribution rules. Reviewing your specific plan details and understanding your options before moving funds can help you avoid unintended consequences and make a more informed decision.</p>
+          </div>
+        </li>
+
+        <li class="ro-faq-item">
+          <button class="ro-faq-question" type="button">
+            Should I review income options before moving retirement money?
+            <span class="ro-faq-chevron">&#9660;</span>
+          </button>
+          <div class="ro-faq-answer">
+            <p>Yes &mdash; ideally before initiating any rollover. Once funds are moved, certain options may no longer be available or may require additional steps. A consultation can help you understand how your rollover decision connects to your broader <a href="retirement-planning.html">retirement income planning</a> strategy, including options designed to create more predictable income throughout retirement.</p>
+          </div>
+        </li>
+
+      </ul>
+    </div>
+  </div>
+
+
+  <!-- ===== HOW LORETTA HELPS — Mint ===== -->
+  <div class="ro-mint-band">
+    <div class="ro-body">
+      <h2>How Loretta Helps</h2>
+      <p>Loretta helps individuals and families review retirement account rollover options with a focus on clarity, education, and long-term planning. During a consultation, she can help you understand the choices available, review how different rollover strategies may affect your retirement income, and explore options designed to support your goals.</p>
+      <p>As an independent advisor, Loretta is not tied to any one company or product. She works with a range of carriers to help clients find strategies that align with their individual situation. <a class="ro-loretta-link" href="about.html">Learn more about Loretta</a> and her approach to retirement planning.</p>
+      <p>Whether you have a 401(k) from a previous employer, a TSP account approaching retirement, or multiple old accounts you want to consolidate, Loretta can help you understand your options and make a more informed decision at your own pace.</p>
+      <div class="ro-btn-wrap">
+        <a class="btn btn-amber" href="book.html">Schedule a Consultation</a>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ===== LEAD MAGNET — Purple ===== -->
+  <div class="ro-purple-band">
+    <div class="ro-body">
+      <div class="guide-container">
+
+        <div class="guide-text">
+          <div class="ro-guide-icon"><i class="fa-solid fa-book-open" aria-hidden="true"></i></div>
+          <h2>Avoid the 13 Costly Mistakes People Make When Moving Retirement Accounts</h2>
+          <p>Download this free guide to learn common rollover mistakes, questions to ask before moving retirement funds, and key issues to consider when reviewing your options.</p>
+        </div>
+
+        <div class="guide-form-card" id="guide-form">
+          <label for="ro-guide-fname">First Name</label>
+          <input type="text" id="ro-guide-fname" name="first_name" placeholder="Your first name" autocomplete="given-name">
+          <label for="ro-guide-email">Email</label>
+          <input type="email" id="ro-guide-email" name="email" placeholder="Your email address" autocomplete="email">
+          <label for="ro-guide-phone">Phone Number</label>
+          <input type="tel" id="ro-guide-phone" name="phone" placeholder="Your phone number" autocomplete="tel">
+          <div class="form-compliance">
+            <label class="sms-consent">
+              <input type="checkbox" required>
+              <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="terms.html" target="_blank">Terms &amp; Conditions</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>.</span>
+            </label>
+          </div>
+          <button type="submit" class="ro-guide-submit">Send Me the Free Guide</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ===== FINAL CTA — Mint, no divider ===== -->
+  <div class="ro-mint-band ro-no-divider">
+    <div class="ro-body">
+      <div class="ro-cta-inner">
+        <h2>See If Your Rollover Strategy Is On Track</h2>
+        <p>Schedule a consultation with Loretta to review your rollover options, identify questions to address before moving retirement funds, and explore strategies that may support more dependable <a href="retirement-planning.html" style="color:var(--purple);text-decoration:underline;">retirement income</a>.</p>
+        <ul class="ro-benefit-list">
+          <li>Review your rollover options clearly</li>
+          <li>Identify important questions before moving funds</li>
+          <li>Explore retirement income strategies</li>
+        </ul>
+        <div class="btn-row">
+          <a class="btn btn-amber btn-lg" href="book.html">Schedule a Free Rollover Consultation</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    // FAQ accordion
+    document.querySelectorAll('.ro-faq-question').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var item = this.closest('.ro-faq-item');
+        var isOpen = item.classList.contains('open');
+        document.querySelectorAll('.ro-faq-item').forEach(function(i){ i.classList.remove('open'); });
+        if (!isOpen) item.classList.add('open');
+      });
+    });
+    // Mobile nav
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+  </script>
+</body>
+</html>

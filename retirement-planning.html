@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Retirement Planning | Retirement Income Strategies &amp; Consultation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Explore retirement income planning strategies designed to help protect savings, create reliable income, and prepare for retirement with confidence. Schedule a free consultation.">
+
+  <style>
+    /* ── Retirement Planning page — single column layout ── */
+    .rp-body {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* ── Core Pillars: always 4 columns on desktop ── */
+    .rp-section .info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+    }
+    @media (max-width: 900px) {
+      .rp-section .info-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 540px) {
+      .rp-section .info-grid { grid-template-columns: 1fr; }
+    }
+
+    .rp-section {
+      padding: 72px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .rp-section:last-of-type { border-bottom: none; }
+    .rp-section h2 {
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      font-weight: 800;
+      color: var(--purple-dark);
+      margin-bottom: 20px;
+    }
+    .rp-section p {
+      font-size: 1.05rem;
+      color: #444;
+      line-height: 1.8;
+      margin-bottom: 16px;
+    }
+    .rp-section p:last-child { margin-bottom: 0; }
+
+    /* ── Hero credibility line ── */
+    .hero-credibility {
+      font-size: 0.93rem;
+      color: rgba(255,255,255,0.72);
+      margin-top: 10px;
+      margin-bottom: 0;
+      font-style: italic;
+      line-height: 1.5;
+    }
+
+
+    /* ── SEO intro paragraph above Core Pillars ── */
+    .rp-seo-intro {
+      font-size: 1.05rem;
+      color: #555;
+      line-height: 1.8;
+      margin-bottom: 32px;
+    }
+    .rp-seo-intro a {
+      color: var(--purple);
+      text-decoration: underline;
+    }
+
+    /* ── Loretta Helps section — mint bg ── */
+    .rp-loretta-section {
+      background: #e8f6f2;
+      padding: 72px 0;
+    }
+    .rp-loretta-section h2 {
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      font-weight: 800;
+      color: var(--purple-dark);
+      margin-bottom: 20px;
+    }
+    .rp-loretta-section p {
+      font-size: 1.05rem;
+      color: #444;
+      line-height: 1.8;
+      margin-bottom: 16px;
+    }
+    .rp-loretta-section p:last-of-type { margin-bottom: 0; }
+    .rp-loretta-section a.inline-link {
+      color: var(--purple);
+      text-decoration: underline;
+    }
+    .rp-loretta-section .rp-btn-wrap {
+      margin-top: 28px;
+    }
+
+    /* ── Testimonials section ── */
+    .rp-testimonials {
+      background: var(--purple-dark);
+      padding: 72px 0;
+    }
+    .rp-testimonials h2 {
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+    .rp-testimonial-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+    }
+    .rp-testimonial-card {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px;
+      padding: 32px;
+    }
+    .rp-testimonial-quote {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.9);
+      line-height: 1.78;
+      font-style: italic;
+      margin-bottom: 20px;
+    }
+    .rp-testimonial-attr {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.58);
+    }
+
+    /* ── Calculator section ── */
+    .rp-calc-section {
+      padding: 72px 0 0;
+    }
+    .rp-calc-section h2 {
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      font-weight: 800;
+      color: var(--purple-dark);
+      margin-bottom: 12px;
+    }
+    .rp-calc-section .calc-intro {
+      font-size: 1.05rem;
+      color: #555;
+      margin-bottom: 28px;
+      line-height: 1.7;
+    }
+
+    /* ── Post-calculator follow-up ── */
+    .calc-follow-up {
+      margin-top: 32px;
+      padding: 28px 32px;
+      background: #f5fbf8;
+      border-left: 4px solid var(--green);
+      border-radius: 0 10px 10px 0;
+    }
+    .calc-follow-up p {
+      font-size: 1rem;
+      color: #444;
+      line-height: 1.7;
+      margin-bottom: 18px;
+    }
+
+    /* ── Final CTA benefit bullets ── */
+    .rp-benefit-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 auto 28px;
+      display: inline-flex;
+      flex-direction: column;
+      gap: 10px;
+      text-align: left;
+    }
+    .rp-benefit-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1rem;
+      color: #333;
+      line-height: 1.5;
+    }
+    .rp-benefit-list li::before {
+      content: "\2713";
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      min-width: 20px;
+      background: var(--green);
+      border-radius: 50%;
+      font-size: 0.7rem;
+      color: #fff;
+      font-weight: 700;
+    }
+    .cta-banner .rp-benefit-wrap { margin-bottom: 4px; }
+
+    /* ── Hero two-column layout ── */
+    .page-hero-inner {
+      max-width: 1200px !important;
+      display: flex !important;
+      align-items: center;
+      gap: 60px;
+    }
+    .rp-hero-left {
+      flex: 1;
+      min-width: 0;
+    }
+    .rp-hero-right {
+      flex: 0 0 420px;
+      max-width: 420px;
+    }
+    .rp-hero-right img {
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+      display: block;
+    }
+    .page-hero p {
+      max-width: 620px;
+    }
+    @media (max-width: 900px) {
+      .page-hero-inner {
+        flex-direction: column !important;
+        gap: 36px;
+      }
+      .rp-hero-right {
+        flex: unset;
+        max-width: 480px;
+        width: 100%;
+      }
+    }
+    @media (max-width: 600px) {
+      .page-hero p { max-width: 100%; }
+      .rp-hero-right { max-width: 100%; }
+    }
+
+    /* ── Hero eyebrow tag ── */
+    .page-hero .page-hero-tag {
+      font-size: 20px !important;
+      font-weight: 700 !important;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* ── Hero CTA button — larger and more prominent ── */
+    .page-hero .btn.btn-amber.btn-lg {
+      padding: 18px 36px !important;
+      font-size: 18px !important;
+      font-weight: 600 !important;
+      border-radius: 8px !important;
+    }
+
+    /* ── Purple full-width band ── */
+    .rp-purple-band {
+      background: var(--purple-dark);
+      padding: 72px 0;
+    }
+    .rp-purple-band .rp-section,
+    .rp-purple-band .rp-calc-section {
+      padding: 0;
+      border-bottom: none;
+    }
+    .rp-purple-band .rp-section h2 { color: #fff; margin-bottom: 20px; }
+    .rp-purple-band .rp-section p { color: rgba(255,255,255,0.82); }
+    .rp-purple-band .rp-seo-intro { color: rgba(255,255,255,0.82); }
+    .rp-purple-band .rp-seo-intro a { color: var(--green); }
+    .rp-purple-band .info-card {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .rp-purple-band .info-card h3 { color: #fff; }
+    .rp-purple-band .info-card p { color: rgba(255,255,255,0.78); }
+    .rp-purple-band .rp-calc-section h2 { color: #fff; }
+    .rp-purple-band .rp-calc-section .calc-intro { color: rgba(255,255,255,0.82); }
+
+    /* ── Mint full-width band ── */
+    .rp-mint-band {
+      background: #e8f6f2;
+      padding: 72px 0;
+    }
+    .rp-mint-band .rp-section {
+      padding: 0;
+      border-bottom: none;
+    }
+    .rp-mint-band .rp-section h2 { color: var(--purple-dark); }
+    .rp-mint-band .rp-section p { color: #444; }
+
+    /* ── Final CTA on mint band ── */
+    .cta-banner {
+      background: transparent !important;
+      border-radius: 0 !important;
+      margin-bottom: 0 !important;
+      box-shadow: none !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+    }
+    .cta-banner h2 { color: var(--purple-dark) !important; }
+    .cta-banner p { color: #444 !important; }
+
+    /* ── Section dividers ── */
+    .page-hero,
+    .rp-purple-band,
+    .rp-loretta-section,
+    .rp-testimonials,
+    .rp-mint-band {
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .rp-no-divider { border-bottom: none; }
+
+    /* ── Quiz CTA button ── */
+    .btn-quiz-cta {
+      display: inline-block;
+      background-color: #2e8b57;
+      color: #ffffff;
+      padding: 14px 28px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      text-align: center;
+      transition: background-color 0.3s ease, transform 0.3s ease;
+    }
+    .btn-quiz-cta:hover {
+      background-color: #256f47;
+      transform: translateY(-1px);
+    }
+    .quiz-button-wrapper {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 860px) {
+      .rp-testimonial-grid { grid-template-columns: 1fr; }
+      .rp-testimonials { padding: 52px 0; }
+    }
+    @media (max-width: 600px) {
+      .calc-follow-up { padding: 22px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html" class="active">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+
+  <!-- ===== HERO ===== -->
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <div class="rp-hero-left">
+        <div class="page-hero-tag">Retirement Planning</div>
+        <h1>Build a Retirement You Won&rsquo;t Outlive</h1>
+        <p>Retirement planning isn&rsquo;t just about saving money &mdash; it&rsquo;s about creating a reliable income plan that lasts as long as you do. Loretta helps adults 45+ design strategies that protect savings, minimize taxes, and generate dependable income for decades to come.</p>
+        <p class="hero-credibility">Independent retirement guidance focused on income planning, rollovers, and long-term financial security.</p>
+        <div class="hero-cta-row">
+          <a class="btn btn-amber btn-lg" href="book.html">Schedule a Free Retirement Consultation</a>
+        </div>
+      </div>
+      <div class="rp-hero-right">
+        <img src="assets/images/retirement-savings-concept-shutterstock_263144462.jpg" alt="Retirement savings concept with clock, stacked coins, and retirement jar">
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ===== QUIZ CTA — directly below hero ===== -->
+  <div class="rp-mint-band" style="padding:56px 0;">
+    <div class="rp-body">
+      <div class="cta-banner">
+        <h2>See If Your Retirement Income Plan Is On Track</h2>
+        <p>Take a quick Retirement Readiness Quiz to see if your income plan is on track. In just a few minutes, you&rsquo;ll identify potential gaps and areas that may need attention.</p>
+        <div class="rp-benefit-wrap">
+          <ul class="rp-benefit-list">
+            <li>Review current retirement income sources</li>
+            <li>Identify potential income gaps</li>
+            <li>Explore strategies for reliable retirement income</li>
+          </ul>
+        </div>
+        <div class="quiz-button-wrapper">
+          <a href="retirement-readiness-quiz.html" class="btn-quiz-cta">Take the Retirement Readiness Quiz</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- ===== CORE PILLARS ===== -->
+  <main>
+    <div class="rp-purple-band">
+    <div class="rp-body">
+
+      <div class="rp-section">
+        <h2>Core Pillars of Retirement Income Planning</h2>
+        <p class="rp-seo-intro">Retirement income planning involves more than simply saving money. A well-structured retirement plan focuses on creating reliable income, managing taxes, protecting savings from unnecessary risk, and helping ensure your money supports your lifestyle throughout retirement. Use our <a href="calculators.html">retirement calculator</a> to estimate a potential monthly income gap.</p>
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-icon">&#128200;</div>
+            <h3>Social Security Optimization</h3>
+            <p>Helping you understand when and how to claim benefits to maximize your lifetime income.</p>
+          </div>
+          <div class="info-card">
+            <div class="info-card-icon">&#127968;</div>
+            <h3>Guaranteed Income Strategies</h3>
+            <p>Exploring options designed to provide more predictable retirement income regardless of market conditions.</p>
+          </div>
+          <div class="info-card">
+            <div class="info-card-icon">&#128181;</div>
+            <h3>Tax-Efficient Withdrawals</h3>
+            <p>Strategies designed to help reduce the taxes you pay throughout retirement.</p>
+          </div>
+          <div class="info-card">
+            <div class="info-card-icon">&#128737;</div>
+            <h3>Portfolio Protection</h3>
+            <p>Helping reduce risk during the years you depend most on your savings.</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /.rp-body -->
+    </div><!-- /.rp-purple-band -->
+
+
+    <!-- ===== HOW LORETTA HELPS ===== -->
+    <div class="rp-loretta-section">
+      <div class="rp-body">
+        <h2>How Loretta Helps</h2>
+        <p>Retirement planning is not just about accumulating money &mdash; it is about turning your savings into a strategy designed to support your lifestyle throughout retirement.</p>
+        <p>During a consultation, Loretta helps clients review retirement accounts, explore <a class="inline-link" href="rollovers.html">rollover options</a>, evaluate <a class="inline-link" href="annuities.html">income strategies</a>, and better understand the choices available to them.</p>
+        <p>As an independent advisor, she focuses on clear guidance, education, and helping you make informed decisions at your own pace. <a class="inline-link" href="about.html">Learn more about Loretta</a> and her approach.</p>
+        <div class="rp-btn-wrap">
+          <a class="btn btn-amber" href="book.html">Schedule a Consultation</a>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ===== TESTIMONIALS ===== -->
+    <div class="rp-testimonials">
+      <div class="rp-body">
+        <h2>What Clients Appreciate</h2>
+        <div class="rp-testimonial-grid">
+          <div class="rp-testimonial-card">
+            <p class="rp-testimonial-quote">&ldquo;Loretta helped us better understand how to turn our savings into a retirement income strategy we feel confident about. She explained everything clearly and made the process feel much less overwhelming.&rdquo;</p>
+            <div class="rp-testimonial-attr">&mdash; Mark &amp; Denise R., Wisconsin</div>
+          </div>
+          <div class="rp-testimonial-card">
+            <p class="rp-testimonial-quote">&ldquo;I appreciated Loretta&rsquo;s calm approach and how she walked through our options without pressure. We left feeling more informed and much more confident about retirement.&rdquo;</p>
+            <div class="rp-testimonial-attr">&mdash; Sharon T., Pre-Retiree Client</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- ===== FAQ ===== -->
+    <div class="rp-mint-band">
+    <div class="rp-body">
+      <div class="rp-section">
+        <h2>Frequently Asked Questions</h2>
+        <ul class="faq-list">
+
+          <li class="faq-item open">
+            <button class="faq-question" type="button">How early should I start retirement planning? <span class="faq-chevron">&#9660;</span></button>
+            <div class="faq-answer"><p>The earlier the better &mdash; but it&rsquo;s never too late to start. Adults in their 40s have time to build a strong foundation, while those in their 50s and 60s can still make meaningful improvements through strategies like catch-up contributions, Roth conversions, and safe money allocations. A review at any age is valuable.</p></div>
+          </li>
+
+          <li class="faq-item">
+            <button class="faq-question" type="button">When should I claim Social Security? <span class="faq-chevron">&#9660;</span></button>
+            <div class="faq-answer"><p>The right time depends on your health, other income sources, marital status, and whether you need income immediately. Claiming at 62 gives you income sooner but permanently reduces your benefit. Waiting until 70 maximizes your monthly payment. For many people in good health with other income sources, delaying results in significantly higher lifetime benefits.</p></div>
+          </li>
+
+          <li class="faq-item">
+            <button class="faq-question" type="button">What happens to my 401(k) when I retire? <span class="faq-chevron">&#9660;</span></button>
+            <div class="faq-answer"><p>You have several options: leave it with your former employer (if allowed), roll it to an IRA for more flexibility and potentially lower fees, roll it to a new employer&rsquo;s plan, or convert some or all of it to a Roth IRA. Each option has different implications for fees, investment choices, taxes, and access. A rollover review can help you choose the right path.</p></div>
+          </li>
+
+          <li class="faq-item">
+            <button class="faq-question" type="button">Should I roll over my 401(k) to an IRA? <span class="faq-chevron">&#9660;</span></button>
+            <div class="faq-answer"><p>Rolling over a 401(k) to an IRA can offer more investment flexibility, lower fees, and more control over your retirement funds. It can also make income planning simpler by consolidating accounts. However, the right decision depends on your specific plan, available investment options, and retirement goals. A <a href="rollovers.html" style="color:var(--purple);">rollover review</a> can help you weigh the options before making a decision.</p></div>
+          </li>
+
+          <li class="faq-item">
+            <button class="faq-question" type="button">How do I create guaranteed retirement income? <span class="faq-chevron">&#9660;</span></button>
+            <div class="faq-answer"><p>Guaranteed income in retirement typically comes from Social Security, pensions, and annuities. Income annuities and fixed indexed annuities with income riders can convert a lump sum of savings into a monthly income stream guaranteed for life &mdash; regardless of how long you live or what the market does.</p></div>
+          </li>
+
+          <li class="faq-item">
+            <button class="faq-question" type="button">What is a Required Minimum Distribution (RMD)? <span class="faq-chevron">&#9660;</span></button>
+            <div class="faq-answer"><p>RMDs are mandatory annual withdrawals from traditional IRAs, 401(k)s, and most other retirement accounts, starting at age 73 (under SECURE 2.0). Failing to take your RMD results in a steep penalty. RMDs are taxed as ordinary income and can push you into a higher bracket &mdash; which is why Roth conversion planning before RMDs begin can be valuable.</p></div>
+          </li>
+
+          <li class="faq-item">
+            <button class="faq-question" type="button">What is a safe withdrawal rate? <span class="faq-chevron">&#9660;</span></button>
+            <div class="faq-answer"><p>The &ldquo;4% rule&rdquo; suggests withdrawing 4% of your portfolio in year one of retirement and adjusting for inflation each year. With today&rsquo;s longevity and market uncertainty, many planners suggest 3&ndash;3.5% as a more conservative target. Guaranteed income sources like annuities can allow you to withdraw less from your portfolio, extending its longevity.</p></div>
+          </li>
+
+          <li class="faq-item">
+            <button class="faq-question" type="button">How do I protect my retirement savings from inflation? <span class="faq-chevron">&#9660;</span></button>
+            <div class="faq-answer"><p>Strategies include maintaining some growth-oriented investments in retirement, delaying Social Security to maximize inflation-adjusted benefits, and keeping a portion of savings in assets that historically outpace inflation. A balanced income plan addresses both the need for stability and the need for growth to keep pace with rising costs.</p></div>
+          </li>
+
+        </ul>
+      </div>
+    </div><!-- /.rp-body -->
+    </div><!-- /.rp-mint-band -->
+
+
+    <!-- ===== CALCULATOR ===== -->
+    <div class="rp-purple-band">
+    <div class="rp-body">
+      <div class="rp-calc-section">
+        <h2>Retirement Income Calculator</h2>
+        <p class="calc-intro">Use this calculator to estimate whether your retirement income may leave a monthly gap.</p>
+        <div class="calc-wrapper">
+          <div class="calc-form-panel">
+            <p class="calc-desc">Compares your projected monthly retirement income against your estimated expenses to identify any gap that needs to be filled.</p>
+            <div class="calc-field">
+              <label for="ri-expenses">Estimated Monthly Expenses in Retirement</label>
+              <input id="ri-expenses" type="number" min="0" placeholder="e.g. 4500" inputmode="numeric">
+              <span class="hint">Housing, food, healthcare, transportation, leisure, etc.</span>
+            </div>
+            <div class="calc-field">
+              <label for="ri-ss">Monthly Social Security Benefit</label>
+              <input id="ri-ss" type="number" min="0" placeholder="e.g. 2200" value="0" inputmode="numeric">
+            </div>
+            <div class="calc-field">
+              <label for="ri-pension">Monthly Pension Income</label>
+              <input id="ri-pension" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
+            </div>
+            <div class="calc-field">
+              <label for="ri-annuity">Monthly Annuity or Guaranteed Income</label>
+              <input id="ri-annuity" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
+            </div>
+            <div class="calc-field">
+              <label for="ri-other">Other Monthly Income (part-time, rental, etc.)</label>
+              <input id="ri-other" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
+            </div>
+            <div class="calc-field">
+              <label for="ri-savings">Total Retirement Savings (IRA, 401k, etc.)</label>
+              <input id="ri-savings" type="number" min="0" placeholder="e.g. 350000" inputmode="numeric">
+              <span class="hint">Used to estimate how long savings could cover a monthly gap</span>
+            </div>
+            <button class="btn btn-amber btn-full" onclick="calcRetirementIncome()">Calculate My Income Gap</button>
+          </div>
+          <div class="calc-result-panel" id="ri-result-panel">
+            <div class="calc-result-empty" id="ri-empty">
+              <div class="calc-result-empty-icon">&#128200;</div>
+              <p>Enter your income sources and expenses to see your estimated retirement income gap.</p>
+            </div>
+            <div class="calc-result-content" id="ri-result">
+              <div class="result-eyebrow">Monthly Income Gap</div>
+              <div class="result-primary" id="ri-gap-amount">—</div>
+              <div class="result-primary-label" id="ri-gap-label">per month needs to come from savings</div>
+              <div class="result-breakdown">
+                <div class="result-row"><span class="r-label">Monthly expenses</span><span class="r-value" id="ri-r-expenses">—</span></div>
+                <div class="result-row"><span class="r-label">Total guaranteed income</span><span class="r-value" id="ri-r-income">—</span></div>
+                <div class="result-row"><span class="r-label">Monthly gap from savings</span><span class="r-value highlight" id="ri-r-gap">—</span></div>
+                <div class="result-row"><span class="r-label">Annual withdrawal needed</span><span class="r-value" id="ri-r-annual">—</span></div>
+                <div class="result-row"><span class="r-label">Estimated years savings will last</span><span class="r-value" id="ri-r-years">—</span></div>
+              </div>
+              <p class="result-note">Assumes 4% average annual return on savings during distribution. This is a simplified estimate.</p>
+              <a class="result-cta-btn" href="book.html">Get a Free Retirement Consultation</a>
+            </div>
+          </div>
+        </div>
+        <div class="calc-follow-up">
+          <p>If your results suggest a possible retirement income gap, Loretta can help you review strategies designed to create more reliable income.</p>
+        </div>
+      </div><!-- /.rp-calc-section -->
+      <script>
+        (function(){
+          function fmt(n){ return isNaN(n) ? '—' : '$' + Math.round(n).toLocaleString('en-US'); }
+          function v(id){ return parseFloat(document.getElementById(id).value) || 0; }
+          window.calcRetirementIncome = function(){
+            var expenses=v('ri-expenses'), ss=v('ri-ss'), pension=v('ri-pension'),
+                annuity=v('ri-annuity'), other=v('ri-other'), savings=v('ri-savings');
+            if(!expenses) return;
+            var totalIncome=ss+pension+annuity+other, monthlyGap=Math.max(0,expenses-totalIncome), annualGap=monthlyGap*12;
+            var r=0.04/12, yearsLeft=0;
+            if(monthlyGap>0 && savings>0){
+              var ratio=savings*r/monthlyGap;
+              yearsLeft = ratio>=1 ? 99 : -Math.log(1-ratio)/Math.log(1+r)/12;
+            } else if(monthlyGap===0){ yearsLeft=99; }
+            var yearsDisplay = yearsLeft>=99?'30+ years':yearsLeft<=0?'Less than 1 year':Math.round(yearsLeft)+' years';
+            document.getElementById('ri-gap-amount').textContent=monthlyGap>0?fmt(monthlyGap):'$0';
+            document.getElementById('ri-gap-label').textContent=monthlyGap>0?'per month needs to come from savings':'per month — your income covers your expenses';
+            document.getElementById('ri-r-expenses').textContent=fmt(expenses);
+            document.getElementById('ri-r-income').textContent=fmt(totalIncome);
+            var gapEl=document.getElementById('ri-r-gap');
+            gapEl.textContent=fmt(monthlyGap);
+            gapEl.className='r-value '+(monthlyGap>1000?'alert':monthlyGap>0?'highlight':'good');
+            document.getElementById('ri-r-annual').textContent=fmt(annualGap);
+            document.getElementById('ri-r-years').textContent=savings>0?yearsDisplay:'No savings entered';
+            document.getElementById('ri-result').classList.add('show');
+            document.getElementById('ri-empty').style.display='none';
+          };
+        })();
+      </script>
+    </div><!-- /.rp-body -->
+    </div><!-- /.rp-purple-band -->
+
+
+  </main>
+
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    document.querySelectorAll('.faq-question').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var item = this.closest('.faq-item');
+        var isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach(function(i){ i.classList.remove('open'); });
+        if (!isOpen) item.classList.add('open');
+      });
+    });
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+  </script>
+</body>
+</html>

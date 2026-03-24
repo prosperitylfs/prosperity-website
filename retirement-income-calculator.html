@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Retirement Income Gap Calculator — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Compare your projected retirement income against monthly expenses to find any gap that needs to be filled. Free calculator, no signup required.">
+</head>
+<body>
+
+    <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+  <div class="calc-page-hero">
+    <div class="container">
+      <p style="font-size:0.82rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;"><a href="calculators.html" style="color:rgba(255,255,255,0.6);text-decoration:none;">&#8592; All Calculators</a></p>
+      <h1>Retirement Income Gap Calculator</h1>
+      <p>See how your projected monthly income compares to your estimated expenses and identify any gap that needs to be filled.</p>
+    </div>
+  </div>
+
+  <main>
+    <section class="calc-section-block" id="retirement-income">
+      <div class="container">
+        <div class="calc-wrapper">
+
+          <div class="calc-form-panel">
+            <h2>Retirement Income Gap Calculator</h2>
+            <p class="calc-desc">Compares your projected monthly retirement income against your estimated monthly expenses to identify any gap that needs to be filled.</p>
+
+            <div class="calc-field">
+              <label for="ri-expenses">Estimated Monthly Expenses in Retirement</label>
+              <input id="ri-expenses" type="number" min="0" placeholder="e.g. 4500" inputmode="numeric">
+              <span class="hint">Housing, food, healthcare, transportation, leisure, etc.</span>
+            </div>
+            <div class="calc-field">
+              <label for="ri-ss">Monthly Social Security Benefit</label>
+              <input id="ri-ss" type="number" min="0" placeholder="e.g. 2200" value="0" inputmode="numeric">
+              <span class="hint">Your estimated benefit at your planned claiming age</span>
+            </div>
+            <div class="calc-field">
+              <label for="ri-pension">Monthly Pension Income</label>
+              <input id="ri-pension" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
+              <span class="hint">Any defined-benefit pension from employer or government</span>
+            </div>
+            <div class="calc-field">
+              <label for="ri-annuity">Monthly Annuity or Guaranteed Income</label>
+              <input id="ri-annuity" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
+              <span class="hint">Any annuity payouts or other guaranteed income sources</span>
+            </div>
+            <div class="calc-field">
+              <label for="ri-other">Other Monthly Income (part-time, rental, etc.)</label>
+              <input id="ri-other" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
+            </div>
+            <div class="calc-field">
+              <label for="ri-savings">Total Retirement Savings (IRA, 401k, etc.)</label>
+              <input id="ri-savings" type="number" min="0" placeholder="e.g. 350000" inputmode="numeric">
+              <span class="hint">Used to estimate how long a monthly withdrawal could last</span>
+            </div>
+            <button class="btn btn-amber btn-full" onclick="calcRetirementIncome()">Calculate My Income Gap</button>
+          </div>
+
+          <div class="calc-result-panel" id="ri-result-panel">
+            <div class="calc-result-empty" id="ri-empty">
+              <div class="calc-result-empty-icon">&#128200;</div>
+              <p>Enter your income sources and expenses to see your estimated retirement income gap.</p>
+            </div>
+            <div class="calc-result-content" id="ri-result">
+              <div class="result-eyebrow">Monthly Income Gap</div>
+              <div class="result-primary" id="ri-gap-amount">—</div>
+              <div class="result-primary-label" id="ri-gap-label">per month needs to come from savings</div>
+              <div class="result-breakdown">
+                <div class="result-row">
+                  <span class="r-label">Monthly expenses</span>
+                  <span class="r-value" id="ri-r-expenses">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Total guaranteed income</span>
+                  <span class="r-value" id="ri-r-income">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Monthly gap from savings</span>
+                  <span class="r-value highlight" id="ri-r-gap">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Annual withdrawal needed</span>
+                  <span class="r-value" id="ri-r-annual">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Estimated years savings will last</span>
+                  <span class="r-value" id="ri-r-years">—</span>
+                </div>
+              </div>
+              <p class="result-note">Assumes a 4% average annual return on savings during distribution. This is a simplified estimate — actual longevity of savings depends on investment returns, inflation, and withdrawal timing.</p>
+              <a class="result-cta-btn" href="book.html">Get a Free Retirement Consultation</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+                  <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+        <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+
+    function fmt(n) {
+      if (isNaN(n) || n === null) return '—';
+      return '$' + Math.round(n).toLocaleString('en-US');
+    }
+    function val(id) { return parseFloat(document.getElementById(id).value) || 0; }
+    function showResult() {
+      document.getElementById('ri-result').classList.add('show');
+      document.getElementById('ri-empty').style.display = 'none';
+    }
+
+    function calcRetirementIncome() {
+      var expenses = val('ri-expenses');
+      var ss       = val('ri-ss');
+      var pension  = val('ri-pension');
+      var annuity  = val('ri-annuity');
+      var other    = val('ri-other');
+      var savings  = val('ri-savings');
+
+      if (!expenses) return;
+
+      var totalIncome = ss + pension + annuity + other;
+      var monthlyGap  = Math.max(0, expenses - totalIncome);
+      var annualGap   = monthlyGap * 12;
+
+      var r = 0.04 / 12;
+      var yearsLeft = 0;
+      if (monthlyGap > 0 && savings > 0) {
+        if (r === 0) {
+          yearsLeft = savings / monthlyGap / 12;
+        } else {
+          var ratio = savings * r / monthlyGap;
+          if (ratio >= 1) {
+            yearsLeft = 99;
+          } else {
+            yearsLeft = -Math.log(1 - ratio) / Math.log(1 + r) / 12;
+          }
+        }
+      } else if (monthlyGap === 0) {
+        yearsLeft = 99;
+      }
+
+      var yearsDisplay = yearsLeft >= 99 ? '30+ years' :
+                         yearsLeft <= 0  ? 'Less than 1 year' :
+                         Math.round(yearsLeft) + ' years';
+
+      document.getElementById('ri-gap-amount').textContent = monthlyGap > 0 ? fmt(monthlyGap) : '$0';
+      document.getElementById('ri-gap-label').textContent  = monthlyGap > 0
+        ? 'per month needs to come from savings'
+        : 'per month — your income covers your expenses';
+      document.getElementById('ri-r-expenses').textContent = fmt(expenses);
+      document.getElementById('ri-r-income').textContent   = fmt(totalIncome);
+      document.getElementById('ri-r-gap').textContent      = fmt(monthlyGap);
+      document.getElementById('ri-r-annual').textContent   = fmt(annualGap);
+      document.getElementById('ri-r-years').textContent    = savings > 0 ? yearsDisplay : 'No savings entered';
+
+      var gapEl = document.getElementById('ri-r-gap');
+      gapEl.className = 'r-value ' + (monthlyGap > 1000 ? 'alert' : monthlyGap > 0 ? 'highlight' : 'good');
+
+      showResult();
+    }
+  </script>
+</body>
+</html>

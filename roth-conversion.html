@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Roth Conversion Strategies | Reduce Taxes in Retirement</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Learn how Roth conversion strategies can reduce taxes, avoid RMDs, and create tax-free income in retirement. Find out if a Roth IRA conversion is right for you.">
+  <meta name="keywords" content="Roth conversion, Roth IRA conversion, Roth conversion strategies, reduce taxes in retirement, tax free retirement income">
+</head>
+<body>
+
+    <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+  <style>
+    /* ── Combined Hero ── */
+    .roth-hero {
+      background: linear-gradient(135deg, #3a1f70 0%, #4e2c94 60%, #5e38b0 100%);
+      padding: 72px 24px;
+    }
+    .roth-hero-grid {
+      max-width: 1300px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1.05fr;
+      gap: 56px;
+      align-items: center;
+    }
+    .roth-hero-eyebrow {
+      display: inline-block;
+      font-size: 0.92rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #389f72;
+      margin-bottom: 18px;
+    }
+    .roth-hero-text h1 {
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+    .roth-hero-subline {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.75);
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+    .roth-hero-text p {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.88);
+      line-height: 1.7;
+      margin-bottom: 32px;
+      max-width: 520px;
+    }
+    .hero-question {
+      margin-top: 28px;
+      font-size: 28px;
+      font-style: italic;
+      font-weight: 600;
+      color: #389f72;
+    }
+    .video-heading {
+      color: #ffffff;
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .roth-hero-video .video-frame {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+      background: #000;
+    }
+    .roth-hero-video .video-frame iframe {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+    .video-cta {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .video-cta-text {
+      margin-top: 18px;
+      margin-bottom: 14px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      line-height: 1.5;
+      color: #ffffff;
+      text-align: center;
+    }
+    .hero-video-side .cta-btn,
+    .video-cta .cta-btn {
+      display: inline-block;
+      background: #389f72;
+      color: #ffffff;
+      padding: 14px 30px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+    .hero-video-side .cta-btn:hover,
+    .video-cta .cta-btn:hover {
+      background: #2f8a63;
+    }
+    @media (max-width: 860px) {
+      .roth-hero-grid {
+        grid-template-columns: 1fr;
+        gap: 36px;
+      }
+      .roth-hero { padding: 48px 20px; }
+    }
+
+    /* Section CTA text */
+    .section-cta-text {
+      margin-top: 16px;
+      font-size: 1rem;
+      color: #4e2c94;
+      font-weight: 500;
+    }
+
+    /* ── Roth page body ── */
+    .page-main { padding-top: 0 !important; }
+    .page-main .content-section:first-child { padding-top: 24px !important; }
+    .page-main .container {
+      max-width: 1400px !important;
+      width: 92% !important;
+      margin: 0 auto !important;
+    }
+    .roth-page-body { width: 100%; }
+    .roth-page-body .content-section { width: 100%; max-width: none; }
+    .roth-page-body .content-section > p { max-width: 1150px; }
+    .roth-page-body .faq-list,
+    .roth-page-body .faq-item { width: 100%; max-width: none; box-sizing: border-box; }
+
+    /* Final CTA */
+    .cta-section {
+      padding: 60px 20px 80px;
+      background: #ffffff;
+    }
+    .cta-container {
+      text-align: center;
+      margin-top: 40px;
+      padding: 30px 20px;
+      background: #f3faf7;
+      border-radius: 12px;
+    }
+    .cta-container h3 {
+      color: #4e2c94;
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+    .cta-container p {
+      color: #333;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    .cta-btn {
+      display: inline-block;
+      background: #389f72;
+      color: white;
+      padding: 14px 28px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .cta-btn:hover {
+      background: #2e8a62;
+    }
+
+    /* ===== FIX ALL SECTION SPACING ===== */
+    section {
+      margin: 30px auto;
+      padding: 0;
+    }
+
+    /* ===== FIX CONTAINER SPACING ===== */
+    .container {
+      max-width: 1600px;
+      width: 92%;
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    /* ===== FIX HEADINGS ===== */
+    h1, h2, h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+
+    /* ===== FIX PARAGRAPHS ===== */
+    p {
+      margin-top: 0;
+      margin-bottom: 12px;
+      line-height: 1.6;
+    }
+
+    /* ===== FIX LIST SPACING ===== */
+    ul {
+      margin-top: 10px;
+      margin-bottom: 15px;
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    .cta-box { display: none !important; }
+
+    /* ── Section 1: When Conversions Make Sense — two-column checklist ── */
+    .section-checklist { padding: 48px 0; }
+    .section-checklist h2 { color: #4e2c94; margin-bottom: 12px; }
+    .section-checklist > p { color: #444; margin-bottom: 28px; max-width: 780px; }
+    .checklist-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .checklist-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      background: #f7fbf9;
+      border: 1px solid #d4eee2;
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .checklist-icon {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      background: #389f72;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+    .checklist-item strong { display: block; color: #4e2c94; margin-bottom: 4px; font-size: 0.97rem; }
+    .checklist-item p { font-size: 0.93rem; color: #555; margin: 0; line-height: 1.55; }
+    @media (max-width: 700px) { .checklist-grid { grid-template-columns: 1fr; } }
+
+    /* ── Section 2: Key Planning Considerations — cards ── */
+    .section-planning { padding: 48px 0; }
+    .section-planning h2 { color: #4e2c94; margin-bottom: 10px; }
+    .section-planning > p { color: #444; margin-bottom: 28px; max-width: 780px; }
+
+    /* ── Key Planning lavender wrapper ── */
+    .key-planning-section {
+      background: #f3ecff;
+      padding: 40px 32px;
+      border-radius: 12px;
+      margin-top: 40px;
+      margin-bottom: 40px;
+    }
+    .key-planning-section h2 { margin-bottom: 16px; }
+    .key-planning-section p { margin-bottom: 12px; }
+    .key-planning-section .planning-card {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+      border-left: 4px solid #5b2eff;
+    }
+    .planning-cards { display: flex; flex-direction: column; gap: 14px; }
+    .planning-card {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      background: #fff;
+      border-left: 5px solid #4e2c94;
+      border-radius: 0 10px 10px 0;
+      padding: 20px 24px;
+      box-shadow: 0 2px 10px rgba(78,44,148,0.07);
+    }
+    .planning-card-number {
+      flex-shrink: 0;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #ddd0f5;
+      line-height: 1;
+      min-width: 28px;
+    }
+    .planning-card h4 { color: #4e2c94; font-size: 1rem; font-weight: 700; margin: 0 0 6px; }
+    .planning-card p { font-size: 0.95rem; color: #444; margin: 0; line-height: 1.6; }
+
+    /* ── Section 3: When NOT the Right Strategy — caution panel ── */
+    .section-caution {
+      background: #e8f8f5;
+      border: 1px solid #cfede6;
+      border-radius: 12px;
+      padding: 36px 32px;
+      margin: 40px 0;
+    }
+    .section-caution-eyebrow {
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #2e7d6b;
+      margin-bottom: 10px;
+    }
+    .section-caution h2 { color: #2e7d6b; margin-bottom: 12px; }
+    .section-caution p { color: #444; max-width: 760px; }
+    .caution-list { list-style: none; padding: 0; margin: 16px 0 20px; }
+    .caution-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #d7efea;
+      font-size: 0.97rem;
+      color: #555;
+    }
+    .caution-list li:last-child { border-bottom: none; }
+    .caution-list li::before {
+      content: "⚠";
+      font-size: 0.9rem;
+      color: #2e7d6b;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .section-caution .closing-note {
+      font-style: italic;
+      color: #555;
+      border-top: 1px solid #d7efea;
+      padding-top: 16px;
+      margin-top: 8px;
+    }
+
+    /* ── Section 4: Case Study panel ── */
+    .section-case-study {
+      background: linear-gradient(135deg, #f3eefc 0%, #edf7f3 100%);
+      border-radius: 14px;
+      padding: 40px 44px;
+      margin: 30px 0;
+    }
+    .case-study-eyebrow {
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #389f72;
+      margin-bottom: 10px;
+    }
+    .section-case-study h2 { color: #4e2c94; margin-bottom: 14px; }
+    .section-case-study p { color: #444; max-width: 820px; }
+    .case-study-takeaway {
+      background: #4e2c94;
+      color: #fff;
+      border-radius: 10px;
+      padding: 20px 26px;
+      margin: 24px 0;
+      font-size: 0.97rem;
+      line-height: 1.65;
+    }
+    .case-study-takeaway p { color: #fff; max-width: none; margin: 0; }
+
+    /* ===== REMOVE DOUBLE STACKING ===== */
+    h2 + p { margin-top: 0; }
+    p + h3 { margin-top: 20px; }
+    p + p  { margin-top: 0; }
+
+    /* ===== SPECIAL: HERO → CONTENT GAP FIX ===== */
+    .hero + section {
+      margin-top: 30px !important;
+    }
+  </style>
+
+  <section class="roth-hero">
+    <div class="roth-hero-grid">
+
+      <div class="roth-hero-text">
+        <p class="roth-hero-eyebrow">TAX STRATEGY</p>
+        <h1>Roth Conversion Strategies</h1>
+        <p class="roth-hero-subline">Turn Tax-Deferred Retirement Savings Into Tax-Free Retirement Income</p>
+        <p>A Roth conversion can be a powerful way to reduce future taxes, minimize required minimum distributions, and create more flexibility in retirement. But timing matters. The right strategy depends on your income, tax bracket, and long-term goals.</p>
+        <p class="hero-question"><em style="color:#389f72; font-weight:600;">Should you convert to a Roth IRA?</em></p>
+      </div>
+
+      <div class="roth-hero-video hero-video-side">
+        <h2 class="video-heading">Roth Conversion Explained</h2>
+        <div class="video-frame">
+          <iframe
+            src="https://www.youtube.com/embed/MwkvZOLPhgM?rel=0"
+            title="Roth Conversion Video - Prosperity Life &amp; Financial Solutions"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen>
+          </iframe>
+        </div>
+        <div class="video-cta">
+          <p class="video-cta-text">Watch this short video to understand when a Roth conversion may make sense — and when it may not.</p>
+          <a href="book.html" class="cta-btn">Schedule Your Roth Conversion Consultation</a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <main class="page-main">
+    <div class="container">
+
+      <div class="roth-page-body">
+
+        <div class="content-section">
+          <h2>What Is a Roth Conversion?</h2>
+          <p>A Roth conversion is the process of moving money from a tax-deferred retirement account &mdash; such as a traditional IRA or 401(k) &mdash; into a Roth IRA.</p>
+          <p>When you convert, you pay taxes on the amount moved in the year of the conversion. In return, future growth and qualified withdrawals from the Roth IRA can be tax-free.</p>
+          <p>In simple terms, a Roth conversion allows you to pay taxes now so you may reduce taxes later.</p>
+
+          <h3>Why It Can Be Powerful</h3>
+          <ul>
+            <li>Tax-free income in retirement</li>
+            <li>No required minimum distributions (RMDs)</li>
+            <li>More control over your future tax exposure</li>
+            <li>Greater flexibility in retirement income planning</li>
+            <li>Potential long-term tax savings</li>
+          </ul>
+
+          <p>But a Roth conversion strategy only works well when the timing, amount, and tax impact are carefully planned.</p>
+        </div>
+
+        <div class="content-section">
+          <h2>Why Roth Conversions Matter</h2>
+          <p>Many retirees spend decades building wealth in traditional IRAs and 401(k)s &mdash; without realizing how those accounts may be taxed later.</p>
+          <p>Every dollar withdrawn from a tax-deferred account is typically taxed as ordinary income. And once required minimum distributions begin, those withdrawals can significantly increase taxable income.</p>
+          <p>This can impact more than taxes. Higher income may increase Medicare premiums, cause more of your Social Security to be taxed, and reduce your overall flexibility in retirement.</p>
+          <p>A well-planned Roth conversion strategy may help reduce future taxable income, shrink required distributions, and create a pool of tax-free assets you can use more strategically.</p>
+          <div class="highlight-box">
+            <p>The longer tax-deferred accounts grow untouched, the larger future RMDs and tax exposure may become. Strategic Roth conversions completed over time may help reduce that burden.</p>
+          </div>
+        </div>
+
+        <div class="content-section section-checklist">
+          <h2>When Roth Conversions Make the Most Sense</h2>
+          <p>Roth conversions aren&rsquo;t right for every situation or every year. The most favorable windows tend to be years when your taxable income is temporarily lower than it will be later in retirement.</p>
+          <div class="checklist-grid">
+            <div class="checklist-item">
+              <div class="checklist-icon">✓</div>
+              <div>
+                <strong>Early retirement before Social Security begins</strong>
+                <p>If you retire at 62&ndash;65 but delay claiming Social Security, your taxable income may be unusually low for several years &mdash; often the ideal window for converting.</p>
+              </div>
+            </div>
+            <div class="checklist-item">
+              <div class="checklist-icon">✓</div>
+              <div>
+                <strong>Years when income is temporarily lower</strong>
+                <p>A job change, partial retirement, or business loss year can create a window where your effective tax rate is lower than normal.</p>
+              </div>
+            </div>
+            <div class="checklist-item">
+              <div class="checklist-icon">✓</div>
+              <div>
+                <strong>Before RMDs begin at age 73</strong>
+                <p>Converting before required minimum distributions start reduces the size of future distributions and the taxes they generate.</p>
+              </div>
+            </div>
+            <div class="checklist-item">
+              <div class="checklist-icon">✓</div>
+              <div>
+                <strong>When future tax rates may be higher</strong>
+                <p>Current federal tax rates are historically favorable. Paying taxes now at today&rsquo;s rates may be a meaningful long-term advantage.</p>
+              </div>
+            </div>
+            <div class="checklist-item">
+              <div class="checklist-icon">✓</div>
+              <div>
+                <strong>When leaving tax-free assets to heirs</strong>
+                <p>Roth IRAs pass to beneficiaries income-tax-free with no lifetime RMDs for the original owner &mdash; among the most valuable assets to leave behind.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-section section-planning key-planning-section">
+          <h2>Key Planning Considerations</h2>
+          <p>A Roth conversion strategy requires careful analysis. Each of the following factors needs to be evaluated before deciding how much to convert and when.</p>
+          <div class="planning-cards">
+            <div class="planning-card">
+              <div class="planning-card-number">01</div>
+              <div>
+                <h4>Current Tax Bracket</h4>
+                <p>Converting only up to the top of your current bracket &mdash; not into the next one &mdash; is the core discipline of an effective strategy. Every converted dollar should be taxed at the lowest available rate.</p>
+              </div>
+            </div>
+            <div class="planning-card">
+              <div class="planning-card-number">02</div>
+              <div>
+                <h4>Future Tax Brackets</h4>
+                <p>If your income is expected to rise significantly once RMDs and Social Security begin, converting now at a lower rate can save substantially over your lifetime.</p>
+              </div>
+            </div>
+            <div class="planning-card">
+              <div class="planning-card-number">03</div>
+              <div>
+                <h4>Medicare IRMAA Surcharges</h4>
+                <p>Medicare Part B and Part D premiums increase at certain income thresholds. A large conversion can trigger surcharges of hundreds of dollars per month and must be factored into your total cost.</p>
+              </div>
+            </div>
+            <div class="planning-card">
+              <div class="planning-card-number">04</div>
+              <div>
+                <h4>Required Minimum Distributions</h4>
+                <p>Estimating your future RMD amounts is essential. The larger your projected RMDs, the stronger the case for reducing your pre-tax balance through strategic conversions now.</p>
+              </div>
+            </div>
+            <div class="planning-card">
+              <div class="planning-card-number">05</div>
+              <div>
+                <h4>Long-Term Planning Horizon</h4>
+                <p>Roth conversions often don&rsquo;t pay off in year one &mdash; the break-even point may be 8&ndash;15 years out. The strategy makes the most sense for retirees with a long expected retirement or heirs who will benefit from a tax-free inheritance.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-section">
+          <div class="section-caution">
+            <span class="section-caution-eyebrow">Important Consideration</span>
+            <h2>When a Roth Conversion May NOT Be the Right Strategy</h2>
+            <p>A Roth conversion can be a powerful strategy &mdash; but it&rsquo;s not the right move in every situation. In some cases, converting too much or at the wrong time can actually increase your tax burden instead of reducing it.</p>
+            <ul class="caution-list">
+              <li>If you&rsquo;re already in a high tax bracket</li>
+              <li>If you need access to the money in the short term</li>
+              <li>If converting would trigger higher Medicare premiums (IRMAA)</li>
+              <li>If it pushes you into a higher tax bracket without long-term benefit</li>
+            </ul>
+            <p class="closing-note">That&rsquo;s why it&rsquo;s important to evaluate your full financial picture before making a decision &mdash; not just focus on the idea of tax-free income.</p>
+          </div>
+        </div>
+
+        <div class="content-section">
+          <div class="section-case-study">
+            <span class="case-study-eyebrow">Real-World Example</span>
+            <h2>A Multi-Year Conversion Strategy in Action</h2>
+            <p>Consider a retiree who leaves work at age 63 with $600,000 in a traditional IRA. Social Security will begin at 67, and RMDs will start at 73. Between ages 63 and 72, there is a ten-year window where taxable income is lower than it will be once both Social Security and RMDs kick in simultaneously.</p>
+            <p>Rather than converting the entire balance at once &mdash; which would trigger a very large tax bill &mdash; a disciplined strategy converts a targeted amount each year, staying within the 22% or 24% federal bracket. Over ten years, this gradually reduces the pre-tax IRA balance, lowers projected RMD amounts starting at 73, and builds a growing pool of tax-free Roth assets.</p>
+            <div class="case-study-takeaway">
+              <p><strong>The result:</strong> lower future RMDs, reduced lifetime taxes, smaller Medicare premium surcharges, and a tax-free account passed to heirs &mdash; all from systematically converting smaller amounts over time rather than a single large conversion or none at all.</p>
+            </div>
+            <p>The right amount to convert each year depends on your specific income, bracket thresholds, Social Security timing, RMD projections, and Medicare premium exposure. There is no universal formula &mdash; but there is a right answer for your situation.</p>
+          </div>
+        </div>
+
+        <!-- ── Embedded Calculator ── -->
+        <div class="content-section" style="padding-bottom:0;">
+          <h2>Roth IRA Conversion Calculator</h2>
+          <p style="color:var(--text-muted);margin-bottom:24px;">Use this calculator to estimate the potential tax impact of a Roth conversion.</p>
+          <div class="calc-wrapper">
+            <div class="calc-form-panel">
+              <p class="calc-desc">Estimate the tax cost and long-term tax-free growth advantage of converting traditional retirement savings to a Roth IRA.</p>
+              <div class="calc-field">
+                <label for="rc-balance">Current Traditional IRA / 401k Balance</label>
+                <input id="rc-balance" type="number" min="0" placeholder="e.g. 350000" inputmode="numeric">
+                <span class="hint">Your total pre-tax retirement account balance (for reference)</span>
+              </div>
+              <div class="calc-field">
+                <label for="rc-convert">Amount to Convert</label>
+                <input id="rc-convert" type="number" min="0" placeholder="e.g. 50000" inputmode="numeric">
+                <span class="hint">The portion you are considering converting to a Roth IRA</span>
+              </div>
+              <div class="calc-field">
+                <label for="rc-bracket">Current Federal Tax Bracket</label>
+                <select id="rc-bracket">
+                  <option value="">Select your bracket</option>
+                  <option value="10">10%</option><option value="12">12%</option>
+                  <option value="22">22%</option><option value="24">24%</option>
+                  <option value="32">32%</option><option value="35">35%</option>
+                  <option value="37">37%</option>
+                </select>
+              </div>
+              <div class="calc-field">
+                <label for="rc-retire-bracket">Expected Retirement Tax Bracket</label>
+                <select id="rc-retire-bracket">
+                  <option value="">Select expected bracket</option>
+                  <option value="10">10%</option><option value="12">12%</option>
+                  <option value="22">22%</option><option value="24">24%</option>
+                  <option value="32">32%</option><option value="35">35%</option>
+                  <option value="37">37%</option>
+                </select>
+              </div>
+              <div class="calc-field">
+                <label for="rc-years">Years Until Retirement</label>
+                <input id="rc-years" type="number" min="1" max="40" placeholder="e.g. 12" value="12" inputmode="numeric">
+              </div>
+              <button class="btn btn-amber btn-full" onclick="calcRoth()">Estimate Conversion Impact</button>
+            </div>
+            <div class="calc-result-panel" id="rc-result-panel">
+              <div class="calc-result-empty" id="rc-empty">
+                <div class="calc-result-empty-icon">&#128260;</div>
+                <p>Enter your conversion amount and tax brackets to see the estimated long-term impact.</p>
+              </div>
+              <div class="calc-result-content" id="rc-result">
+                <div class="result-eyebrow">Potential Tax-Free Advantage</div>
+                <div class="result-primary" id="rc-primary">—</div>
+                <div class="result-primary-label">estimated advantage over keeping funds in traditional account</div>
+                <div class="result-breakdown">
+                  <div class="result-row"><span class="r-label">Taxes owed on conversion now</span><span class="r-value" id="rc-r-tax-now">—</span></div>
+                  <div class="result-row"><span class="r-label">Projected Roth value at retirement (tax-free)</span><span class="r-value good" id="rc-r-future-roth">—</span></div>
+                  <div class="result-row"><span class="r-label">Traditional value after retirement taxes</span><span class="r-value" id="rc-r-future-trad">—</span></div>
+                  <div class="result-row"><span class="r-label"><strong>Tax-free growth advantage</strong></span><span class="r-value" id="rc-advantage">—</span></div>
+                </div>
+                <p class="result-note" id="rc-explanation"></p>
+                <p class="result-note" style="margin-top:8px;font-style:italic;">This calculator provides estimates only and does not constitute tax or financial advice. Assumes 6% average annual growth.</p>
+                <a class="result-cta-btn" href="book.html">Book a Roth Conversion Strategy Session</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <script>
+          (function(){
+            function fmt(n){ return isNaN(n)?'—':'$'+Math.round(n).toLocaleString('en-US'); }
+            window.calcRoth = function(){
+              var convert=parseFloat(document.getElementById('rc-convert').value)||0;
+              var curRate=parseFloat(document.getElementById('rc-bracket').value)/100;
+              var retRate=parseFloat(document.getElementById('rc-retire-bracket').value)/100;
+              var years=parseFloat(document.getElementById('rc-years').value)||12;
+              if(!convert||isNaN(curRate)||isNaN(retRate)) return;
+              var taxNow=convert*curRate, growth=Math.pow(1.06,years);
+              var futureRoth=convert*growth, futureTrad=convert*growth*(1-retRate), advantage=futureRoth-futureTrad;
+              var explanation;
+              if(retRate>curRate){ explanation='Your expected retirement tax rate ('+Math.round(retRate*100)+'%) is higher than your current rate ('+Math.round(curRate*100)+'%). Converting now locks in today\'s lower rate — all future growth and withdrawals come out completely tax-free. This conversion appears favorable.'; }
+              else if(retRate===curRate){ explanation='Your current and retirement tax rates are the same ('+Math.round(curRate*100)+'%). A Roth conversion may still provide benefits through tax diversification, eliminating Required Minimum Distributions, and leaving a tax-free inheritance to heirs.'; }
+              else { explanation='Your expected retirement rate ('+Math.round(retRate*100)+'%) is lower than your current rate ('+Math.round(curRate*100)+'%). A qualified professional can help evaluate whether estate planning or RMD goals still make a partial conversion worthwhile.'; }
+              document.getElementById('rc-primary').textContent=advantage>0?fmt(advantage):'$0';
+              document.getElementById('rc-r-tax-now').textContent=fmt(taxNow);
+              document.getElementById('rc-r-future-roth').textContent=fmt(futureRoth);
+              document.getElementById('rc-r-future-trad').textContent=fmt(futureTrad);
+              var advEl=document.getElementById('rc-advantage');
+              advEl.className='r-value '+(retRate>curRate?'good':retRate<curRate?'alert':'highlight');
+              advEl.textContent=fmt(advantage);
+              document.getElementById('rc-explanation').textContent=explanation;
+              document.getElementById('rc-result').classList.add('show');
+              document.getElementById('rc-empty').style.display='none';
+            };
+          })();
+        </script>
+
+        <div class="highlight-box" style="margin-top:8px;">
+          <h3 style="margin-top:0; margin-bottom:10px;">Explore a Roth Conversion Strategy</h3>
+          <p>A well-timed Roth conversion strategy can potentially save thousands in lifetime taxes &mdash; while giving you more predictability, flexibility, and control over your retirement income for decades to come.</p>
+          <div class="btn-row" style="margin-top:20px; justify-content:flex-start;">
+            <a class="btn btn-amber" href="book.html">Book a Free Consultation</a>
+            <a class="btn btn-outline-dark" href="roth-conversion-calculator.html">Try the Full Roth Conversion Calculator</a>
+          </div>
+        </div>
+
+        <div class="content-section">
+          <h2>Frequently Asked Questions About Roth Conversions</h2>
+          <ul class="faq-list">
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">Do I have to convert my entire IRA at once? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>No &mdash; and in most cases you shouldn&rsquo;t. Partial conversions spread over multiple years allow you to control the amount of taxable income you recognize each year and stay within a favorable tax bracket. Converting the entire balance at once would likely push a significant portion into a much higher bracket, dramatically reducing the benefit of the strategy.</p></div>
+            </li>
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">What taxes do I pay when I convert? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>The converted amount is added to your taxable income for the year and taxed at your ordinary income tax rate &mdash; the same rate that applies to wages, pensions, and IRA withdrawals. There is no special conversion tax rate. This is why timing matters: converting during a year when your income is low means paying tax at a lower rate than you might face in the future when RMDs and Social Security push your income higher.</p></div>
+            </li>
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">Can I convert a 401(k) directly to a Roth IRA? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>Yes, in most cases. If you have left a job or retired, you can roll a traditional 401(k) directly to a Roth IRA and pay taxes on the converted amount. You can also roll to a traditional IRA first and then convert to Roth in stages. If you are still employed, some plans allow in-plan Roth conversions &mdash; check your plan documents or speak with your plan administrator.</p></div>
+            </li>
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">Does a Roth conversion affect my Medicare premiums? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>It can. Medicare Part B and Part D premiums are determined by your income from two years prior using a system called IRMAA (Income-Related Monthly Adjustment Amount). A large Roth conversion can push your income above an IRMAA threshold, resulting in significantly higher Medicare premiums for the following year. This is one of the most important factors to model before deciding how much to convert in any given year &mdash; a conversion that saves on income taxes can be partially offset by higher Medicare costs.</p></div>
+            </li>
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">What is the five-year rule for Roth IRAs? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>The five-year rule requires that a Roth IRA be at least five years old before converted funds can be withdrawn tax-free and penalty-free. The clock starts on January 1 of the year of the first conversion or contribution. For retirees over 59&frac12;, the penalty-avoidance aspect of the rule generally doesn&rsquo;t apply &mdash; but the five-year requirement for tax-free earnings still does. This is another reason to start conversions sooner rather than later if you plan to access Roth funds in retirement.</p></div>
+            </li>
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">How does a Roth conversion affect Social Security taxation? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>Up to 85% of Social Security benefits can be taxed as ordinary income, depending on your &ldquo;combined income&rdquo; (adjusted gross income plus half your Social Security benefit). A Roth conversion increases your income in the year it occurs, which can temporarily push more of your Social Security benefit into taxable territory for that year. However, the long-term benefit of reducing future RMDs &mdash; which permanently affect combined income every year &mdash; typically outweighs the short-term impact in the conversion year.</p></div>
+            </li>
+
+          </ul>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <section class="cta-section">
+    <div class="container">
+      <div class="cta-container">
+        <h3>Ready to See If a Roth Conversion Makes Sense for You?</h3>
+        <p>Schedule a personalized consultation and we&rsquo;ll walk through your current accounts, tax considerations, and retirement goals to determine whether a Roth conversion strategy fits your situation.</p>
+        <a href="book.html" class="cta-btn">Schedule Your Roth Conversion Consultation</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+                  <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+        <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    document.querySelectorAll('.faq-question').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var item = this.closest('.faq-item');
+        var isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach(function(i){ i.classList.remove('open'); });
+        if (!isOpen) item.classList.add('open');
+      });
+    });
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Life Insurance — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Life insurance for retirement protection, legacy planning, and family security. Compare term, whole life, and policies with living benefits. Free review with Loretta Stewart.">
+  <style>
+    html { scroll-behavior: smooth; }
+    /* Override global page-hero-inner max-width so two columns sit side by side */
+    .page-hero .page-hero-inner {
+      max-width: 1300px;
+    }
+    .hero-container {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 48px;
+      flex-wrap: wrap;
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 60px 40px;
+    }
+    /* Eyebrow */
+    .hero-eyebrow {
+      color: #389f72;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 0 0 14px;
+    }
+    /* Left text column */
+    .hero-text {
+      flex: 1;
+      min-width: 300px;
+      max-width: 560px;
+    }
+    .hero-text h1 {
+      font-size: 3rem;
+      line-height: 1.2;
+    }
+    .hero-text p {
+      font-size: 1.1rem;
+      max-width: 520px;
+    }
+    /* Right video + CTA column */
+    .hero-video-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      flex: 1.6;
+      min-width: 380px;
+      max-width: 800px;
+      width: 100%;
+      padding-bottom: 40px;
+      background: transparent;
+      box-shadow: none;
+      border: none;
+    }
+    .hero-video {
+      width: 100%;
+    }
+    .hero-video iframe {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      height: auto;
+      border-radius: 16px;
+      display: block;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    .hero-subtext {
+      margin-top: 16px;
+      font-size: 1.05rem;
+      line-height: 1.6;
+      opacity: 0.9;
+      max-width: 540px;
+    }
+    .hero-video-cta {
+      display: block;
+      margin-top: 18px;
+      margin-bottom: 20px;
+      background: #389f72;
+      color: #fff;
+      padding: 15px 24px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1rem;
+      text-align: center;
+      transition: background 0.2s;
+    }
+    .hero-video-cta:hover { background: #2a9a5a; }
+    @media (max-width: 768px) {
+      .hero-container {
+        flex-direction: column;
+        padding: 40px 20px;
+      }
+      .hero-text,
+      .hero-video-wrap,
+      .hero-video {
+        max-width: 100%;
+        min-width: 0;
+        width: 100%;
+      }
+      .hero-video iframe { aspect-ratio: 16 / 9; height: auto; }
+      .hero-text h1 { font-size: 2rem; }
+      .hero-video-cta { font-size: 0.95rem; margin-bottom: 16px; }
+      .hero-video-wrap { padding-bottom: 30px; }
+      .hero-subtext { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+    <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <div class="hero-container">
+        <div class="hero-text">
+          <p class="hero-eyebrow">Protection &amp; Legacy Planning</p>
+          <h1>Protect What You&rsquo;ve Built. Protect Who You Love.</h1>
+          <p>Life insurance can do more than provide a death benefit. It can help protect income, support legacy planning, create financial stability for loved ones, and in some cases provide living benefits during serious health events.</p>
+          <p class="hero-subtext">Whether you&rsquo;re protecting your income, planning for retirement, or leaving a legacy for your family, having the right strategy in place can make all the difference.</p>
+        </div>
+        <div class="hero-video-wrap">
+          <div class="hero-video">
+            <iframe
+              src="https://www.youtube.com/embed/Tv1m4VLIgcY?rel=0"
+              title="Life Insurance Video"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen>
+            </iframe>
+          </div>
+          <a href="#life-insurance-form" class="hero-video-cta">Schedule Your Free Life Insurance Consultation</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="background:#fff; padding:64px 0 48px;">
+    <div class="container">
+      <h2 style="text-align:center; color:var(--purple-dark); margin-bottom:32px;">How Life Insurance Fits Into a Financial Plan</h2>
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-card-icon">&#128181;</div>
+          <h3>Income Protection</h3>
+          <p>Replaces your income if you pass away, helping your family cover expenses and stay financially stable &mdash; without selling assets or taking on debt.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">&#127968;</div>
+          <h3>Legacy Planning</h3>
+          <p>Passes a tax-free death benefit directly to your beneficiaries &mdash; outside of probate, quickly and privately.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">&#128203;</div>
+          <h3>Debt &amp; Final Expense Protection</h3>
+          <p>Covers outstanding debts and end-of-life costs so your family isn&rsquo;t forced to liquidate savings or make rushed financial decisions.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">&#9749;</div>
+          <h3>Living Benefits</h3>
+          <p>Some policies allow early access to a portion of the death benefit if a qualifying health event occurs &mdash; providing support without draining retirement savings.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="page-main">
+    <div class="container page-layout">
+
+      <div class="page-body">
+
+        <div class="content-section">
+          <h2>Why Life Insurance Matters</h2>
+          <p>Life insurance creates an immediate pool of funds for the people who depend on you &mdash; at exactly the moment they need it most. For adults 45 and older, it also becomes part of a broader retirement and legacy strategy.</p>
+          <ul class="check-list">
+            <li>Replace lost income so your family stays financially stable</li>
+            <li>Cover debts, final expenses, and estate obligations without depleting savings</li>
+            <li>Leave a tax-free legacy for children, grandchildren, or a charitable cause</li>
+            <li>Access potential living benefits during a qualifying serious health event</li>
+            <li>Ensure your plan still works for the people you care about most</li>
+          </ul>
+        </div>
+
+        <div class="content-section">
+          <h2>Common Types of Life Insurance</h2>
+          <div class="info-grid">
+            <div class="info-card">
+              <div class="info-card-icon">T</div>
+              <h3>Term Life</h3>
+              <p>Coverage for 10, 20, or 30 years. The most affordable way to get a large death benefit. Best for income replacement and mortgage protection during working years.</p>
+            </div>
+            <div class="info-card">
+              <div class="info-card-icon">W</div>
+              <h3>Whole Life</h3>
+              <p>Permanent coverage with fixed premiums and guaranteed cash value growth. Never expires &mdash; ideal for legacy planning and final expense coverage.</p>
+            </div>
+            <div class="info-card">
+              <div class="info-card-icon">U</div>
+              <h3>Universal Life</h3>
+              <p>Flexible permanent coverage with adjustable premiums and death benefits. Builds cash value and is available in indexed and guaranteed variations.</p>
+            </div>
+            <div class="info-card">
+              <div class="info-card-icon">F</div>
+              <h3>Final Expense</h3>
+              <p>Smaller whole life policies ($5,000&ndash;$35,000) designed for end-of-life costs. Easier to qualify for &mdash; most require no medical exam.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-section">
+          <h2>Life Insurance With Living Benefits</h2>
+          <p>Some policies include riders that let you access a portion of your death benefit while you&rsquo;re still living &mdash; if a qualifying health event occurs.</p>
+          <ul class="check-list">
+            <li>Qualifying events may include terminal illness, chronic illness, or a critical diagnosis such as a heart attack, stroke, or cancer</li>
+            <li>Provides financial support during a difficult period without depleting retirement savings</li>
+            <li>Terms vary by policy and carrier &mdash; what qualifies, how much is accessible, and any costs should be reviewed carefully before purchasing</li>
+          </ul>
+        </div>
+
+        <div class="content-section">
+          <h2>Who May Need a Life Insurance Review?</h2>
+          <ul class="check-list">
+            <li>Adults whose spouse, partner, or dependents rely on their income</li>
+            <li>Anyone wanting to leave a tax-free legacy or cover final expenses</li>
+            <li>Those with older policies that haven&rsquo;t been reviewed in several years</li>
+            <li>Adults approaching retirement who want protection as part of a broader income strategy</li>
+            <li>Anyone considering whether term coverage still fits, or permanent makes more sense now</li>
+          </ul>
+        </div>
+
+        <div class="content-section">
+          <h2>What to Compare When Choosing Coverage</h2>
+          <ul class="check-list">
+            <li><strong>Death benefit amount</strong> &mdash; Sized to actually accomplish your goal</li>
+            <li><strong>Policy type</strong> &mdash; Term for time-limited needs, permanent for lifelong goals</li>
+            <li><strong>Premium affordability</strong> &mdash; Coverage you can sustain long-term without lapsing</li>
+            <li><strong>Living benefits</strong> &mdash; Understand what qualifies and what&rsquo;s accessible during your lifetime</li>
+            <li><strong>Carrier financial strength</strong> &mdash; Guarantees are only as strong as the company behind them</li>
+          </ul>
+        </div>
+
+        <div class="content-section">
+          <h2>How Loretta Helps</h2>
+          <p>Loretta reviews your current coverage, helps you understand your options, and compares policies from multiple carriers &mdash; with no obligation to act. She&rsquo;s not tied to any single company, so her focus is on what genuinely fits your goals and budget.</p>
+          <ul class="check-list">
+            <li>Independent advisor &mdash; she shops the market on your behalf</li>
+            <li>Focused on your goals, not what any one carrier offers</li>
+            <li>No sales pressure &mdash; just a clear, honest conversation</li>
+          </ul>
+        </div>
+
+        <div class="content-section">
+          <h2>Frequently Asked Questions</h2>
+          <ul class="faq-list">
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">How much life insurance do I need? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>It depends on your goal. For income replacement, a common starting point is 10&ndash;15 times your annual income. For final expenses, $10,000&ndash;$25,000 is typically enough. For a legacy gift, the amount is whatever fits your budget and intent. The most useful approach is to define your goal, work backwards to the coverage needed, and find the most affordable policy that gets you there. A free review with Loretta can help.</p></div>
+            </li>
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">What is the difference between term and whole life? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>Term covers you for a set period (typically 10, 20, or 30 years) and is less expensive per dollar of coverage. If the term expires without a claim, coverage ends. Whole life is permanent &mdash; it covers you for life, builds cash value, and has fixed premiums that never increase. The right choice depends on how long you need coverage and what you&rsquo;re trying to accomplish.</p></div>
+            </li>
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">What are living benefits? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>Living benefits are riders that may allow you to access a portion of the death benefit while still living, if a qualifying event occurs &mdash; such as a terminal illness, chronic illness, or critical illness like a heart attack or stroke. Accessing living benefits reduces the amount paid to beneficiaries at death. Terms vary significantly by policy, so review them carefully before purchasing.</p></div>
+            </li>
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">Can I get life insurance after age 50? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>Yes. Life insurance is available to adults well into their 70s and 80s. Term life is available to those in their 50s and 60s at reasonable rates. Permanent and final expense policies are available later in life, and some guaranteed issue policies require no health questions at all. Rates increase with age, so earlier is generally better.</p></div>
+            </li>
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">What is final expense insurance? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>Final expense insurance is a smaller whole life policy ($5,000&ndash;$35,000) designed to cover funeral costs, medical bills, and small remaining debts. Premiums are fixed, coverage is permanent, and most policies require only a brief health questionnaire &mdash; no medical exam. It&rsquo;s one of the most straightforward steps you can take to spare your family from unexpected costs during a difficult time.</p></div>
+            </li>
+
+            <li class="faq-item">
+              <button class="faq-question" type="button">Should I keep my existing policy or get a new one? <span class="faq-chevron">&#9660;</span></button>
+              <div class="faq-answer"><p>It depends on whether your current policy still fits your situation. Some older policies are still performing well and worth keeping. Others may be overpriced, lapsed, or no longer aligned with your goals. A free review with Loretta can help you evaluate what you have, whether it still makes sense, and what your options are &mdash; with no obligation to change anything.</p></div>
+            </li>
+
+          </ul>
+        </div>
+
+        <!-- ── Embedded Calculator ── -->
+        <div class="content-section" style="padding-bottom:0;">
+          <h2>Life Insurance Coverage Calculator</h2>
+          <p style="color:var(--text-muted);margin-bottom:24px;">Get a quick estimate of how much coverage may make sense for your situation using the DIME method.</p>
+          <div class="calc-wrapper">
+            <div class="calc-form-panel">
+              <p class="calc-desc">Estimates coverage based on Debts, Income replacement, Mortgage, and Education costs.</p>
+              <div class="calc-field">
+                <label for="li-debts">Total Debts (excluding mortgage)</label>
+                <input id="li-debts" type="number" min="0" placeholder="e.g. 25000" inputmode="numeric">
+                <span class="hint">Credit cards, car loans, personal loans</span>
+              </div>
+              <div class="calc-field">
+                <label for="li-income">Annual Income</label>
+                <input id="li-income" type="number" min="0" placeholder="e.g. 75000" inputmode="numeric">
+              </div>
+              <div class="calc-field">
+                <label for="li-years">Years of Income to Replace</label>
+                <input id="li-years" type="number" min="1" max="40" placeholder="e.g. 15" value="15" inputmode="numeric">
+                <span class="hint">Typically 10–20 years</span>
+              </div>
+              <div class="calc-field">
+                <label for="li-mortgage">Remaining Mortgage Balance</label>
+                <input id="li-mortgage" type="number" min="0" placeholder="e.g. 180000" inputmode="numeric">
+              </div>
+              <div class="calc-field">
+                <label for="li-education">Education Costs for Dependents</label>
+                <input id="li-education" type="number" min="0" placeholder="e.g. 60000" value="0" inputmode="numeric">
+              </div>
+              <div class="calc-field">
+                <label for="li-existing">Existing Life Insurance Coverage</label>
+                <input id="li-existing" type="number" min="0" placeholder="e.g. 100000" value="0" inputmode="numeric">
+              </div>
+              <button class="btn btn-amber btn-full" onclick="calcLifeInsurance()">Calculate My Coverage Need</button>
+            </div>
+            <div class="calc-result-panel" id="li-result-panel">
+              <div class="calc-result-empty" id="li-empty">
+                <div class="calc-result-empty-icon">&#128737;</div>
+                <p>Fill in your details and click Calculate to see your estimated coverage need.</p>
+              </div>
+              <div class="calc-result-content" id="li-result">
+                <div class="result-eyebrow">Estimated Coverage Need</div>
+                <div class="result-primary" id="li-total">—</div>
+                <div class="result-primary-label">recommended life insurance coverage</div>
+                <div class="result-breakdown">
+                  <div class="result-row"><span class="r-label">Debt payoff</span><span class="r-value" id="li-r-debts">—</span></div>
+                  <div class="result-row"><span class="r-label">Income replacement</span><span class="r-value" id="li-r-income">—</span></div>
+                  <div class="result-row"><span class="r-label">Mortgage payoff</span><span class="r-value" id="li-r-mortgage">—</span></div>
+                  <div class="result-row"><span class="r-label">Education costs</span><span class="r-value" id="li-r-education">—</span></div>
+                  <div class="result-row"><span class="r-label">Less existing coverage</span><span class="r-value" id="li-r-existing">—</span></div>
+                  <div class="result-row"><span class="r-label"><strong>Coverage gap</strong></span><span class="r-value highlight" id="li-r-gap">—</span></div>
+                </div>
+                <p class="result-note">Starting estimate only. A personalized review can refine this number.</p>
+                <a class="result-cta-btn" href="book.html">Get a Free Coverage Review</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <script>
+          (function(){
+            function fmt(n){ return isNaN(n) ? '—' : '$' + Math.round(n).toLocaleString('en-US'); }
+            function v(id){ return parseFloat(document.getElementById(id).value) || 0; }
+            window.calcLifeInsurance = function(){
+              var debts=v('li-debts'), income=v('li-income'), years=v('li-years')||15,
+                  mortgage=v('li-mortgage'), edu=v('li-education'), existing=v('li-existing');
+              if(!income && !debts && !mortgage) return;
+              var incomeReplace=income*years, subtotal=debts+incomeReplace+mortgage+edu, gap=Math.max(0,subtotal-existing);
+              document.getElementById('li-total').textContent=fmt(gap);
+              document.getElementById('li-r-debts').textContent=fmt(debts);
+              document.getElementById('li-r-income').textContent=fmt(incomeReplace);
+              document.getElementById('li-r-mortgage').textContent=fmt(mortgage);
+              document.getElementById('li-r-education').textContent=fmt(edu);
+              document.getElementById('li-r-existing').textContent=existing>0?'−'+fmt(existing):fmt(0);
+              document.getElementById('li-r-gap').textContent=fmt(gap);
+              document.getElementById('li-result').classList.add('show');
+              document.getElementById('li-empty').style.display='none';
+            };
+          })();
+        </script>
+
+        <div class="cta-banner" style="margin-bottom:32px;">
+          <h2>Ready to Review Your Coverage?</h2>
+          <p>No cost. No pressure. Just a clear conversation about what fits your goals.</p>
+        </div>
+
+        <div class="content-section" id="life-insurance-form">
+          <h2>Schedule Your Free Life Insurance Consultation</h2>
+          <p style="margin-bottom:24px;">Fill out the form below and we&rsquo;ll be in touch to confirm your free, no-obligation review.</p>
+          <form class="book-form" novalidate onsubmit="handleLifeInsuranceForm(event)">
+
+            <div style="display:flex; gap:16px; flex-wrap:wrap;">
+              <div class="form-group" style="flex:1; min-width:140px;">
+                <label class="form-label" for="li-f-fname">First Name <span style="color:#c0392b;">*</span></label>
+                <input type="text" id="li-f-fname" name="first_name" placeholder="Jane" required>
+              </div>
+              <div class="form-group" style="flex:1; min-width:140px;">
+                <label class="form-label" for="li-f-lname">Last Name <span style="color:#c0392b;">*</span></label>
+                <input type="text" id="li-f-lname" name="last_name" placeholder="Smith" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="li-f-phone">Phone Number <span style="color:#c0392b;">*</span></label>
+              <input type="tel" id="li-f-phone" name="phone" placeholder="(414) 555-0100" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="li-f-email">Email Address <span style="color:#c0392b;">*</span></label>
+              <input type="email" id="li-f-email" name="email" placeholder="jane@example.com" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="li-f-interest">What type of coverage are you interested in? <span style="color:#c0392b;">*</span></label>
+              <select id="li-f-interest" name="coverage_interest" required>
+                <option value="">Select an option&hellip;</option>
+                <option>Term Life Insurance</option>
+                <option>Whole Life Insurance</option>
+                <option>Final Expense Insurance</option>
+                <option>Life Insurance with Living Benefits</option>
+                <option>Not sure &mdash; I&rsquo;d like guidance</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-top:16px;">
+              <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; line-height:1.5; color:#444; cursor:pointer;">
+                <input type="checkbox" name="sms_consent" id="li-sms-consent" required style="appearance:checkbox; -webkit-appearance:checkbox; width:14px; height:14px; min-width:14px; margin-top:2px; flex-shrink:0; opacity:1 !important; position:static !important; cursor:pointer;">
+                <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help. View our <a href="terms-and-conditions.html" target="_blank">Terms &amp; Conditions</a> and <a href="privacy-policy.html" target="_blank">Privacy Policy</a>.</span>
+              </label>
+            </div>
+            <div style="margin-top:20px;">
+              <button type="submit" class="btn btn-amber btn-full">Request My Free Consultation &rarr;</button>
+            </div>
+            <p id="li-form-error" style="color:#c0392b; font-size:0.85rem; margin-top:10px; display:none;"></p>
+
+          </form>
+        </div>
+
+      </div>
+
+      <div class="page-sidebar">
+        <div class="sidebar-cta">
+          <h3>Free Life Insurance Review</h3>
+          <p>Find out whether your current coverage still fits &mdash; or explore new options that better protect your family and legacy.</p>
+          <a class="btn btn-primary" href="book.html">Book a Free Review</a>
+          <a class="btn btn-amber" href="final-expense.html">Final Expense Coverage</a>
+          <ul class="sidebar-links">
+            <li><a href="retirement-planning.html">Retirement Planning</a></li>
+            <li><a href="annuities.html">Annuities &amp; Safe Money</a></li>
+            <li><a href="rollovers.html">401k / 403b Rollovers</a></li>
+            <li><a href="roth-conversion.html">Roth Conversion Strategies</a></li>
+            <li><a href="calculators.html">All Calculators</a></li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Legacy Organizer Promo -->
+  <section style="background:#f7f4ff; padding:32px 0;">
+    <div class="container" style="text-align:center;">
+      <p style="font-size:0.95rem; color:var(--purple-dark); margin-bottom:10px;"><strong>Planning Resource:</strong> Keep your insurance policies, accounts, and important documents organized in one place.</p>
+      <a class="btn btn-primary" href="legacy-organizer.html" style="font-size:0.9rem;">View the Legacy Organizer &rarr;</a>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+                  <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+        <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    function handleLifeInsuranceForm(e) {
+      e.preventDefault();
+      var firstName = document.getElementById('li-f-fname').value.trim();
+      var lastName  = document.getElementById('li-f-lname').value.trim();
+      var phone     = document.getElementById('li-f-phone').value.trim();
+      var email     = document.getElementById('li-f-email').value.trim();
+      var interest  = document.getElementById('li-f-interest').value;
+      var consent   = document.getElementById('li-sms-consent').checked;
+      var errEl     = document.getElementById('li-form-error');
+
+      if (!firstName || !lastName)  { errEl.textContent = 'Please enter your first and last name.'; errEl.style.display = 'block'; return; }
+      if (!phone)                   { errEl.textContent = 'Please enter your phone number.'; errEl.style.display = 'block'; return; }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; return; }
+      if (!interest)                { errEl.textContent = 'Please select a coverage type.'; errEl.style.display = 'block'; return; }
+      if (!consent)                 { errEl.textContent = 'Please agree to the Terms & Conditions to continue.'; errEl.style.display = 'block'; return; }
+
+      errEl.style.display = 'none';
+
+      // Advance to the full consultation survey
+      var params = new URLSearchParams({
+        first_name: firstName,
+        last_name:  lastName,
+        phone:      phone,
+        email:      email,
+        topic:      interest
+      });
+      window.location.href = 'book.html?' + params.toString();
+    }
+  </script>
+  <script>
+    document.querySelectorAll('.faq-question').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var item = this.closest('.faq-item');
+        var isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach(function(i){ i.classList.remove('open'); });
+        if (!isOpen) item.classList.add('open');
+      });
+    });
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+  </script>
+
+</body>
+</html>

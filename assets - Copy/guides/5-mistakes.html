@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>5 Mistakes to Avoid When Moving Retirement Accounts | Prosperity Life & Financial Solutions</title>
+  <meta name="description" content="A free guide for adults 45+ on the most common mistakes when rolling over a 401(k), 403(b), TSP, or IRA — and how to avoid them.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ── Design Tokens ── */
+    :root {
+      --navy:        #0d3b7a;
+      --navy-dark:   #082a5e;
+      --amber:       #e8930a;
+      --amber-light: #fff8e6;
+      --amber-dark:  #c67c08;
+      --green:       #1a7a4a;
+      --green-light: #e6f7ee;
+      --text:        #1a2332;
+      --text-muted:  #5a6b7e;
+      --bg:          #f5f8fc;
+      --white:       #ffffff;
+      --border:      #dde5f0;
+      --shadow-sm:   0 1px 4px rgba(13,59,122,0.07);
+      --shadow-md:   0 4px 20px rgba(13,59,122,0.11);
+      --radius-md:   14px;
+      --radius-sm:   8px;
+      --max-width:   780px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 1rem;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Guide Header ── */
+    .guide-header {
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, #1a5299 100%);
+      color: var(--white);
+      padding: 56px 24px 48px;
+      text-align: center;
+    }
+    .guide-header .brand {
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 20px;
+    }
+    .guide-header .label {
+      display: inline-block;
+      background: var(--amber);
+      color: var(--white);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+    .guide-header h1 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 800;
+      line-height: 1.2;
+      max-width: 680px;
+      margin: 0 auto 16px;
+    }
+    .guide-header h1 span { color: #fbbf24; }
+    .guide-header .subtitle {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.85);
+      max-width: 560px;
+      margin: 0 auto 28px;
+    }
+    .guide-header .meta {
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.6);
+    }
+    .guide-header .meta strong { color: rgba(255,255,255,0.85); }
+
+    /* ── Main Content ── */
+    .guide-body {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 48px 24px 64px;
+    }
+
+    /* ── Intro Box ── */
+    .intro-box {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--navy);
+      border-radius: var(--radius-sm);
+      padding: 28px 32px;
+      margin-bottom: 44px;
+      box-shadow: var(--shadow-sm);
+    }
+    .intro-box p { color: var(--text); margin-bottom: 12px; }
+    .intro-box p:last-child { margin-bottom: 0; }
+
+    /* ── Section Heading ── */
+    .section-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+
+    /* ── Mistake Cards ── */
+    .mistake {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 36px;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .mistake-header {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 24px 28px;
+      border-bottom: 1px solid var(--border);
+    }
+    .mistake-number {
+      flex-shrink: 0;
+      width: 52px;
+      height: 52px;
+      background: var(--navy);
+      color: var(--white);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      font-weight: 800;
+    }
+    .mistake-title-wrap {}
+    .mistake-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #c0392b;
+      margin-bottom: 4px;
+    }
+    .mistake-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--navy);
+      line-height: 1.3;
+    }
+    .mistake-body {
+      padding: 24px 28px;
+    }
+    .mistake-body p { margin-bottom: 14px; color: var(--text); }
+    .mistake-body p:last-child { margin-bottom: 0; }
+
+    /* ── Warning & Tip Callouts ── */
+    .callout {
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      margin: 18px 0;
+      font-size: 0.95rem;
+    }
+    .callout-warning {
+      background: #fff4f4;
+      border-left: 4px solid #c0392b;
+    }
+    .callout-warning strong { color: #c0392b; }
+    .callout-tip {
+      background: var(--green-light);
+      border-left: 4px solid var(--green);
+    }
+    .callout-tip strong { color: var(--green); }
+    .callout-amber {
+      background: var(--amber-light);
+      border-left: 4px solid var(--amber);
+    }
+    .callout-amber strong { color: var(--amber-dark); }
+
+    /* ── Check List ── */
+    .check-list {
+      list-style: none;
+      margin: 16px 0;
+    }
+    .check-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 0.97rem;
+      color: var(--text);
+    }
+    .check-list li::before {
+      content: '✓';
+      color: var(--green);
+      font-weight: 700;
+      font-size: 1rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .x-list {
+      list-style: none;
+      margin: 16px 0;
+    }
+    .x-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 0.97rem;
+      color: var(--text);
+    }
+    .x-list li::before {
+      content: '✗';
+      color: #c0392b;
+      font-weight: 700;
+      font-size: 1rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── Scenario Box ── */
+    .scenario {
+      background: #f0f4ff;
+      border: 1px solid #c0d0f0;
+      border-radius: var(--radius-sm);
+      padding: 20px 24px;
+      margin: 18px 0;
+    }
+    .scenario-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--navy);
+      margin-bottom: 8px;
+    }
+    .scenario p { font-size: 0.95rem; color: var(--text); }
+
+    /* ── Conclusion ── */
+    .conclusion {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 36px 40px;
+      margin: 44px 0 36px;
+      box-shadow: var(--shadow-sm);
+    }
+    .conclusion h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 16px;
+    }
+    .conclusion p { margin-bottom: 14px; color: var(--text); }
+    .conclusion p:last-child { margin-bottom: 0; }
+
+    /* ── CTA Banner ── */
+    .cta-banner {
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 100%);
+      border-radius: var(--radius-md);
+      padding: 44px 40px;
+      text-align: center;
+      color: var(--white);
+    }
+    .cta-banner h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+    .cta-banner p {
+      color: rgba(255,255,255,0.85);
+      font-size: 1rem;
+      max-width: 540px;
+      margin: 0 auto 28px;
+    }
+    .cta-banner .cta-details {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 18px;
+      margin-bottom: 32px;
+    }
+    .cta-banner .cta-detail {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.9);
+    }
+    .cta-banner .cta-detail strong { color: var(--white); display: block; font-size: 1rem; }
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: center;
+    }
+    .btn-primary {
+      display: inline-block;
+      background: var(--amber);
+      color: var(--white);
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 14px 32px;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: var(--amber-dark); }
+    .btn-outline-white {
+      display: inline-block;
+      border: 2px solid rgba(255,255,255,0.5);
+      color: var(--white);
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 13px 28px;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: border-color 0.2s;
+    }
+    .btn-outline-white:hover { border-color: var(--white); }
+
+    /* ── Footer ── */
+    .guide-footer {
+      background: var(--navy-dark);
+      color: rgba(255,255,255,0.65);
+      text-align: center;
+      padding: 32px 24px;
+      font-size: 0.8rem;
+      line-height: 1.7;
+    }
+    .guide-footer strong { color: rgba(255,255,255,0.9); }
+    .guide-footer a { color: rgba(255,255,255,0.7); }
+    .guide-footer .disclaimer {
+      max-width: 680px;
+      margin: 16px auto 0;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.45);
+    }
+
+    /* ── Download Bar ── */
+    .download-bar {
+      background: var(--amber-light);
+      border-bottom: 1px solid #f0d080;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      font-size: 0.88rem;
+      color: var(--text);
+      flex-wrap: wrap;
+    }
+    .download-bar strong { color: #7a4a00; }
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--amber);
+      color: var(--white);
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 8px 18px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background 0.18s;
+      white-space: nowrap;
+    }
+    .btn-download:hover { background: var(--amber-dark); }
+
+    /* ── Print Styles ── */
+    @media print {
+      .guide-header { background: var(--navy) !important; -webkit-print-color-adjust: exact; }
+      .cta-banner { background: var(--navy) !important; -webkit-print-color-adjust: exact; }
+      .guide-footer { background: #333 !important; }
+      .download-bar { display: none; }
+    }
+
+    @media (max-width: 600px) {
+      .guide-header { padding: 40px 16px 36px; }
+      .guide-body { padding: 32px 16px 48px; }
+      .mistake-header { padding: 18px 20px; }
+      .mistake-body { padding: 18px 20px; }
+      .conclusion { padding: 24px 20px; }
+      .cta-banner { padding: 32px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Guide Header ── -->
+<!-- ── Download Bar ── -->
+<div class="download-bar">
+  <span><strong>Want to save this guide?</strong> Download the print-ready PDF version.</span>
+  <a href="5-mistakes-print.html" target="_blank" class="btn-download">&#128438; Download PDF Version</a>
+</div>
+
+<header class="guide-header">
+  <div class="brand">Prosperity Life &amp; Financial Solutions &nbsp;|&nbsp; Loretta Stewart</div>
+  <div class="label">Free Guide</div>
+  <h1>5 Mistakes to Avoid When <span>Moving Retirement Accounts</span></h1>
+  <p class="subtitle">What every adult 45+ should know before rolling over a 401(k), 403(b), TSP, or traditional IRA</p>
+  <p class="meta">Prepared by <strong>Loretta Stewart</strong> &nbsp;&bull;&nbsp; Licensed Financial Professional</p>
+</header>
+
+<!-- ── Guide Body ── -->
+<main class="guide-body">
+
+  <!-- Intro -->
+  <div class="intro-box">
+    <p>Moving money from a workplace retirement plan — or from one IRA to another — sounds straightforward. In reality, it's one of the most consequential financial decisions you'll make. Done right, a rollover can protect your savings from unnecessary taxes, preserve your growth potential, and set you up for a more reliable retirement income.</p>
+    <p>Done wrong, a single mistake can cost thousands of dollars in taxes and penalties, lock your money into a poor-performing or high-fee account, or disrupt your entire retirement plan.</p>
+    <p>This guide walks you through the five most common mistakes I see people make when moving retirement accounts — and what to do instead. Whether you're leaving a job, retiring, or simply reviewing your existing accounts, these insights can make a significant difference.</p>
+  </div>
+
+  <p class="section-label">The 5 Mistakes</p>
+
+  <!-- Mistake 1 -->
+  <div class="mistake">
+    <div class="mistake-header">
+      <div class="mistake-number">1</div>
+      <div class="mistake-title-wrap">
+        <div class="mistake-label">Mistake #1</div>
+        <div class="mistake-title">Taking a Cash Distribution Instead of Doing a Direct Rollover</div>
+      </div>
+    </div>
+    <div class="mistake-body">
+      <p>When you leave an employer, you may be offered a check for the full balance of your 401(k) or 403(b). This is called a cash distribution, and accepting it is almost always the most expensive way to move your money.</p>
+      <div class="callout callout-warning">
+        <strong>Here's what happens:</strong> Your employer is required to withhold 20% for federal taxes — automatically. If you're under age 59½, you'll also face a 10% early withdrawal penalty. And depending on your state, additional state income taxes may apply on top of that.
+      </div>
+      <div class="scenario">
+        <div class="scenario-label">Real-World Example</div>
+        <p>You have $120,000 in your 401(k). You take a cash distribution. Your employer withholds $24,000 (20%) automatically. If you're in the 22% federal tax bracket and under 59½, you could owe an additional ~$2,400 in taxes plus a $12,000 early withdrawal penalty — leaving you with far less than you expected, and a large tax bill the following April.</p>
+      </div>
+      <div class="callout callout-tip">
+        <strong>What to do instead:</strong> Request a <em>direct rollover</em> — where the funds transfer directly from your old plan to your new IRA or retirement account. You never touch the money, no taxes are withheld, and no penalties apply. This is the cleanest and most tax-efficient way to move retirement funds.
+      </div>
+      <p>If you do receive a check made out to you (an indirect rollover), you have 60 days to deposit the full amount — including the 20% that was withheld — into an eligible retirement account to avoid taxes and penalties. That means you'd need to come up with that withheld amount out of pocket, and then reclaim it when you file your taxes.</p>
+    </div>
+  </div>
+
+  <!-- Mistake 2 -->
+  <div class="mistake">
+    <div class="mistake-header">
+      <div class="mistake-number">2</div>
+      <div class="mistake-title-wrap">
+        <div class="mistake-label">Mistake #2</div>
+        <div class="mistake-title">Rolling Into a New Account Without Reviewing Fees and Investment Options</div>
+      </div>
+    </div>
+    <div class="mistake-body">
+      <p>Many people roll their 401(k) into the first IRA or account they're offered — often from the same financial institution they already use — without stopping to compare fees, investment options, or the overall cost structure. This can be a costly oversight that compounds over time.</p>
+      <p>Not all retirement accounts are created equal. Fees can vary dramatically between providers. An expense ratio difference of just 0.5% to 1% per year may not sound like much, but on a $200,000 account over 15 years, it can amount to tens of thousands of dollars in lost growth.</p>
+      <div class="callout callout-warning">
+        <strong>Watch out for:</strong>
+        <ul class="x-list" style="margin-top:10px;">
+          <li>High fund expense ratios buried in the fine print</li>
+          <li>Annual maintenance or custodian fees</li>
+          <li>Commission-based products sold without full disclosure</li>
+          <li>Surrender charges and lock-up periods</li>
+          <li>Limited investment menus that don't fit your strategy</li>
+        </ul>
+      </div>
+      <div class="callout callout-tip">
+        <strong>What to do instead:</strong> Before you roll anything over, ask for a complete fee disclosure. Compare at least two or three options. Look at the investment lineup and make sure it aligns with your timeline, risk tolerance, and retirement income goals — not just what's being promoted.
+      </div>
+      <p>The rollover itself is free and tax-neutral. What you roll into is the decision that will affect your account for years. Take the time to make it intentionally.</p>
+    </div>
+  </div>
+
+  <!-- Mistake 3 -->
+  <div class="mistake">
+    <div class="mistake-header">
+      <div class="mistake-number">3</div>
+      <div class="mistake-title-wrap">
+        <div class="mistake-label">Mistake #3</div>
+        <div class="mistake-title">Missing a Roth Conversion Opportunity</div>
+      </div>
+    </div>
+    <div class="mistake-body">
+      <p>When most people roll over a traditional 401(k) or IRA, they do a like-for-like transfer: pre-tax money goes into a traditional IRA, and the balance stays tax-deferred. That approach makes sense much of the time — but for some people in certain situations, a rollover is actually the best opportunity they'll have to convert some or all of those funds to a Roth IRA.</p>
+      <p>A Roth IRA grows tax-free, and qualified withdrawals in retirement are completely tax-free. That's a major advantage — especially if you expect your tax rate to be higher in retirement, or if you want to leave tax-free money to heirs.</p>
+      <div class="callout callout-amber">
+        <strong>Conversion timing matters:</strong> The years between leaving a job and starting Social Security or Required Minimum Distributions (RMDs) can create a window of lower taxable income. That window is often the ideal time to convert — you pay tax now at a lower rate to avoid paying more later.
+      </div>
+      <p>A Roth conversion during a rollover isn't right for everyone. You'll owe income taxes on the converted amount in the year you convert, so you need to plan carefully. But for many people in their 50s and early 60s, overlooking this option entirely is a missed opportunity worth discussing.</p>
+      <ul class="check-list">
+        <li>You're in a lower tax bracket than you expect to be in retirement</li>
+        <li>You have cash outside your retirement accounts to pay the conversion tax</li>
+        <li>You want to reduce future RMDs</li>
+        <li>You want to leave tax-free inheritance to beneficiaries</li>
+        <li>You won't need the money for at least 5 years</li>
+      </ul>
+      <div class="callout callout-tip">
+        <strong>What to do instead:</strong> Before completing a rollover, talk with a financial professional about whether a full or partial Roth conversion makes sense in your situation. There's no obligation to convert — but knowing the option exists before the rollover is finalized is important, because undoing a conversion after the fact is no longer allowed under current tax law.
+      </div>
+    </div>
+  </div>
+
+  <!-- Mistake 4 -->
+  <div class="mistake">
+    <div class="mistake-header">
+      <div class="mistake-number">4</div>
+      <div class="mistake-title-wrap">
+        <div class="mistake-label">Mistake #4</div>
+        <div class="mistake-title">Making the Move Without a Retirement Income Plan</div>
+      </div>
+    </div>
+    <div class="mistake-body">
+      <p>A rollover moves your money. But it doesn't tell your money what to do next. One of the most common mistakes people make is completing a rollover without thinking through how and when they'll actually draw income from the account in retirement.</p>
+      <p>Retirement income planning is a different discipline than simply saving and investing. When you're accumulating, you're adding to the account. When you're distributing, you're drawing it down — and the order in which you withdraw from different accounts, the timing relative to Social Security, and the tax treatment of each dollar you take out all matter enormously.</p>
+      <div class="callout callout-warning">
+        <strong>Common coordination mistakes:</strong>
+        <ul class="x-list" style="margin-top:10px;">
+          <li>Withdrawing from tax-deferred accounts before taking Social Security, increasing your taxable income unnecessarily</li>
+          <li>Not accounting for Required Minimum Distributions starting at age 73</li>
+          <li>Leaving everything in growth-oriented investments past the point where sequence-of-returns risk becomes a concern</li>
+          <li>Ignoring how IRA distributions affect Medicare Part B and D premiums (IRMAA)</li>
+        </ul>
+      </div>
+      <div class="scenario">
+        <div class="scenario-label">Why Coordination Matters</div>
+        <p>A couple who draws from their traditional IRA before claiming Social Security may pay higher taxes and Medicare premiums than a couple with the same total wealth who plans the withdrawal sequence strategically. The rollover is just one piece — the income plan is what pulls it together.</p>
+      </div>
+      <div class="callout callout-tip">
+        <strong>What to do instead:</strong> Use a rollover as the catalyst to build or revisit your retirement income plan. Where will your monthly income come from? In what order will you draw from different accounts? How does this rollover fit into that sequence? Answering these questions before completing the move helps you place the money where it will work best.
+      </div>
+    </div>
+  </div>
+
+  <!-- Mistake 5 -->
+  <div class="mistake">
+    <div class="mistake-header">
+      <div class="mistake-number">5</div>
+      <div class="mistake-title-wrap">
+        <div class="mistake-label">Mistake #5</div>
+        <div class="mistake-title">Deciding Without Reviewing All of Your Options</div>
+      </div>
+    </div>
+    <div class="mistake-body">
+      <p>When you leave a job, you typically have four options for your retirement account: leave it where it is, roll it to an IRA, roll it to a new employer's plan, or cash it out. Most people know about the cash-out option — and know to avoid it. But fewer people take the time to genuinely compare the first three.</p>
+      <p>There is no universal right answer. Each option has trade-offs that depend on your age, financial situation, the plan's investment options and fees, and your overall retirement strategy.</p>
+
+      <p><strong>Leaving the money in your former employer's plan</strong> can make sense if the plan has excellent low-cost institutional funds not available on the open market, or if you need creditor protection that a 401(k) offers in your state. However, you may lose access to certain plan features, and you lose the ability to take penalty-free withdrawals at age 55 (the Rule of 55) once you've left that employer.</p>
+
+      <p><strong>Rolling to an IRA</strong> typically gives you far more investment flexibility, direct control over your account, and the ability to do Roth conversions on your terms. IRAs also make estate planning simpler.</p>
+
+      <p><strong>Rolling to a new employer's plan</strong> can be useful if you're still working and want to preserve the option to borrow against the account, or if you want to delay Required Minimum Distributions past age 73 (which you can do if you're still employed at that employer).</p>
+
+      <div class="callout callout-amber">
+        <strong>Also worth evaluating:</strong> Some older employer plans include annuity options, pension-like income features, or stable-value funds that may offer value worth preserving. Don't roll out of something good simply because it's the default move.
+      </div>
+      <div class="callout callout-tip">
+        <strong>What to do instead:</strong> Review all your options side-by-side before deciding. Request a full plan document and fee disclosure from your former employer's plan. Compare that to the IRA or plan you're considering rolling into. If you're unsure what questions to ask, a financial professional can help you evaluate your specific situation — without obligation.
+      </div>
+    </div>
+  </div>
+
+  <!-- Conclusion -->
+  <div class="conclusion">
+    <h2>Putting It All Together</h2>
+    <p>A retirement account rollover is more than a paperwork transaction. It's a financial decision that can affect your taxes, your investment growth, and your retirement income for decades. The five mistakes in this guide are all avoidable — but only if you know to look for them before you act.</p>
+    <p>The most important thing you can do is slow down. You're not required to move quickly. You have time to compare options, consult with a professional, and make the choice that's right for your situation — not just the easiest one or the one your employer's HR department happens to recommend.</p>
+    <p>Working with an independent financial professional who specializes in retirement planning can make this process significantly simpler. They can model different scenarios, explain the tax implications, and help you choose the path that aligns with your income needs, your timeline, and your goals.</p>
+    <p>If this guide raised questions about your own retirement accounts, I'd be glad to help. I offer a no-cost, no-obligation review for adults approaching or in retirement — and I'm happy to walk through your specific situation at your own pace.</p>
+  </div>
+
+  <!-- CTA Banner -->
+  <div class="cta-banner">
+    <h2>Get a Free Rollover Review</h2>
+    <p>Schedule a no-cost, no-pressure consultation to review your retirement accounts and make sure your rollover strategy is working for you — not against you.</p>
+    <div class="cta-details">
+      <div class="cta-detail"><strong>No Cost</strong>Complimentary review</div>
+      <div class="cta-detail"><strong>No Obligation</strong>Information only</div>
+      <div class="cta-detail"><strong>No Pressure</strong>Your timeline, your pace</div>
+    </div>
+    <div class="btn-row">
+      <a href="../../book.html" class="btn-primary">Schedule Your Free Consultation</a>
+      <a href="../../index.html" class="btn-outline-white">Return to Homepage</a>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Footer ── -->
+<footer class="guide-footer">
+  <strong>Prosperity Life &amp; Financial Solutions</strong> &nbsp;&bull;&nbsp; Loretta Stewart, Licensed Financial Professional<br>
+  <a href="../../index.html">prosperitylifefinancial.com</a>
+  <p class="disclaimer">This guide is for educational purposes only and does not constitute tax, legal, or investment advice. Tax laws and contribution limits are subject to change. Consult a qualified tax professional or financial advisor regarding your specific situation before making any financial decisions. Guarantees referenced in connection with insurance and annuity products are subject to the claims-paying ability of the issuing insurance company.</p>
+</footer>
+
+</body>
+</html>

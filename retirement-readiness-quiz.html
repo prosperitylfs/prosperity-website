@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Retirement Readiness Quiz — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Take our free Retirement Readiness Quiz to see how prepared you may be for retirement and identify areas that may need attention.">
+  <style>
+    /* ── Quiz Page Layout ── */
+    .quiz-page { padding: 48px 0 90px; background: var(--bg); }
+    .quiz-wrap { max-width: 1120px; width: 100%; margin: 0 auto; padding: 0 32px 80px; box-sizing: border-box; }
+    .quiz-questions,
+    .quiz-wrap form { width: 100%; max-width: 980px; margin: 0 auto; }
+
+    /* ── Intro ── */
+    .quiz-intro { text-align: center; margin-bottom: 48px; }
+    .quiz-intro h2 { font-size: 40px; font-weight: 800; color: var(--purple-dark); margin-bottom: 14px; line-height: 1.1; }
+    .quiz-intro p { font-size: 19px; color: #444; line-height: 1.6; max-width: 760px; margin: 0 auto 36px; }
+
+    /* ── Question Cards ── */
+    .quiz-question {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 28px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      display: block;
+    }
+    .quiz-legend {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--purple-dark);
+      margin-bottom: 18px;
+      display: block;
+      line-height: 1.5;
+    }
+    .quiz-legend span {
+      display: inline-block;
+      background: var(--purple-xlight, #ede8f7);
+      color: var(--purple);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-right: 10px;
+      vertical-align: middle;
+      letter-spacing: 0.03em;
+    }
+
+    /* ── Radio Options ── */
+    .quiz-options { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0; }
+    .quiz-options li label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 17px;
+      color: #333;
+      transition: border-color 0.18s, background 0.18s;
+      line-height: 1.4;
+    }
+    .quiz-options li label:hover { border-color: var(--purple); background: #f9f7fe; }
+    .quiz-options li input[type="radio"] { accent-color: var(--purple); width: 18px; height: 18px; flex-shrink: 0; }
+    .quiz-options li input[type="radio"]:checked + span { font-weight: 600; color: var(--purple-dark); }
+    .quiz-options li:has(input:checked) label { border-color: var(--purple); background: #f3effe; }
+
+    /* ── Submit Button ── */
+    .quiz-submit-wrap { text-align: center; margin-top: 36px; }
+    .quiz-submit-wrap .btn-quiz-submit {
+      background: var(--green, #38bf72);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      padding: 18px 34px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: inline-block;
+    }
+    .quiz-submit-wrap .btn-quiz-submit:hover { background: var(--green-dark, #2a9a5a); }
+
+    /* ── Error Message ── */
+    .quiz-error {
+      display: none;
+      color: #c0392b;
+      font-size: 0.95rem;
+      margin-top: 16px;
+      text-align: center;
+    }
+
+    /* ── Results ── */
+    #quiz-results { display: none; }
+    .result-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 48px 40px;
+      text-align: center;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.08);
+    }
+    .result-score-label { font-size: 0.9rem; font-weight: 600; color: #888; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+    .result-score {
+      font-size: 4rem;
+      font-weight: 800;
+      color: var(--purple-dark);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .result-score-max { font-size: 1.1rem; color: #aaa; font-weight: 500; margin-bottom: 12px; }
+    .result-personalization { font-size: 0.85rem; color: #999; margin-bottom: 20px; }
+    .result-badge {
+      display: inline-block;
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      margin-bottom: 24px;
+    }
+    .result-badge--high   { background: #d1fae5; color: #065f46; }
+    .result-badge--mid    { background: #fef9c3; color: #854d0e; }
+    .result-badge--low    { background: #fee2e2; color: #991b1b; }
+    .result-headline { font-size: 1.45rem; font-weight: 800; color: var(--purple-dark); margin-bottom: 16px; line-height: 1.35; }
+    .result-message { font-size: 1.05rem; color: #444; line-height: 1.75; margin-bottom: 36px; max-width: 560px; margin-left: auto; margin-right: auto; }
+    .result-cta-label { font-size: 0.92rem; color: #666; margin-bottom: 14px; }
+    .btn-result-cta {
+      display: inline-block;
+      background: #2f9e75;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+      padding: 16px 32px;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .btn-result-cta:hover { transform: scale(1.05); background: #2f9e75; }
+    .btn-result-cta:active { transform: scale(0.97); }
+    .result-retake { margin-top: 20px; }
+    .result-retake button {
+      background: none;
+      border: none;
+      color: var(--purple);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 640px) {
+      .quiz-wrap { padding: 0 16px 60px; }
+      .quiz-question { padding: 20px 18px; }
+      .quiz-intro h2 { font-size: 28px; }
+      .quiz-intro p { font-size: 16px; }
+      .result-card { padding: 36px 24px; }
+      .result-score { font-size: 3rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+  <div class="container header-inner">
+    <a class="logo" href="index.html">
+      <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+      <div class="logo-text">
+        <span class="logo-name">Prosperity</span>
+        <span class="logo-sub">Life &amp; Financial Solutions</span>
+      </div>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <div class="nav-dropdown">
+        <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+        <div class="nav-dropdown-menu">
+          <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+          <a href="roth-conversion.html">Roth Conversions</a>
+          <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+          <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+        </div>
+      </div>
+      <div class="nav-dropdown">
+        <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+        <div class="nav-dropdown-menu">
+          <a href="calculators.html">Retirement Calculators</a>
+          <a href="retirement-readiness-quiz.html">Retirement Readiness Quiz</a>
+          <a href="resources.html#guide">Free Retirement Guide</a>
+          <a href="resources.html">Articles / Education</a>
+        </div>
+      </div>
+    </nav>
+    <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+    <a href="index.html">Home</a>
+    <a href="about.html">About</a>
+    <a href="retirement-planning.html">Retirement Planning</a>
+    <a href="rollovers.html">Rollovers</a>
+    <span class="mobile-nav-label">Strategies</span>
+    <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+    <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+    <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+    <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+    <span class="mobile-nav-label">Resources</span>
+    <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+    <a href="retirement-readiness-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+    <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+    <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+    <a class="mobile-cta" href="book.html">Book Consultation</a>
+  </nav>
+</header>
+
+  <main>
+
+    <!-- ===== PAGE HERO ===== -->
+    <section class="about-hero" style="padding:52px 0 44px;">
+      <div class="container">
+        <div class="page-hero-tag">Free Quiz</div>
+        <h1 style="color:#fff; font-size:clamp(1.7rem,3vw,2.3rem); margin-bottom:12px;">Retirement Readiness Quiz</h1>
+        <p id="hero-subtext" style="color:rgba(255,255,255,0.82); font-size:1rem; max-width:560px;">Take this short 2-minute quiz to see how prepared you may be for retirement and identify areas that may need attention.</p>
+      </div>
+    </section>
+
+    <!-- ===== QUIZ ===== -->
+    <section class="quiz-page">
+      <div class="container">
+        <div class="quiz-wrap">
+
+          <!-- Quiz Form -->
+          <div id="quiz-form-wrap">
+            <div class="quiz-intro">
+              <h2>How Ready Are You for Retirement?</h2>
+              <p>Answer 10 quick questions below. Your results will appear instantly — no email required.</p>
+            </div>
+
+            <form id="quiz-form" novalidate autocomplete="off">
+            <div class="quiz-questions">
+
+              <!-- Q1 -->
+              <div class="quiz-question" role="group">
+                <div class="quiz-legend"><span>1</span> How close are you to retirement?</div>
+                <ul class="quiz-options">
+                  <li><label><input type="radio" name="q1" value="0.5"> <span>Already retired</span></label></li>
+                  <li><label><input type="radio" name="q1" value="1"> <span>Within 1–5 years</span></label></li>
+                  <li><label><input type="radio" name="q1" value="0.5"> <span>Within 6–10 years</span></label></li>
+                  <li><label><input type="radio" name="q1" value="0"> <span>More than 10 years away</span></label></li>
+                </ul>
+              </div>
+
+              <!-- Q2 -->
+              <div class="quiz-question" role="group">
+                <div class="quiz-legend"><span>2</span> How confident are you in your current retirement strategy?</div>
+                <ul class="quiz-options">
+                  <li><label><input type="radio" name="q2" value="1"> <span>Very confident</span></label></li>
+                  <li><label><input type="radio" name="q2" value="0.5"> <span>Somewhat confident</span></label></li>
+                  <li><label><input type="radio" name="q2" value="0"> <span>Not very confident</span></label></li>
+                  <li><label><input type="radio" name="q2" value="0"> <span>Not confident at all</span></label></li>
+                </ul>
+              </div>
+
+              <!-- Q3 -->
+              <div class="quiz-question" role="group">
+                <div class="quiz-legend"><span>3</span> Do you know how much monthly income you may need in retirement?</div>
+                <ul class="quiz-options">
+                  <li><label><input type="radio" name="q3" value="1"> <span>Yes, very clearly</span></label></li>
+                  <li><label><input type="radio" name="q3" value="0.5"> <span>Somewhat</span></label></li>
+                  <li><label><input type="radio" name="q3" value="0"> <span>Not really</span></label></li>
+                  <li><label><input type="radio" name="q3" value="0"> <span>No</span></label></li>
+                </ul>
+              </div>
+
+              <!-- Q4 -->
+              <div class="quiz-question" role="group">
+                <div class="quiz-legend"><span>4</span> Do you currently have retirement savings in accounts such as a 401(k), 403(b), TSP, 457, IRA, or Roth IRA?</div>
+                <ul class="quiz-options">
+                  <li><label><input type="radio" name="q4" value="1"> <span>Yes</span></label></li>
+                  <li><label><input type="radio" name="q4" value="0"> <span>No</span></label></li>
+                </ul>
+              </div>
+
+              <!-- Q5 -->
+              <div class="quiz-question" role="group">
+                <div class="quiz-legend"><span>5</span> Do you have a plan for turning your savings into retirement income?</div>
+                <ul class="quiz-options">
+                  <li><label><input type="radio" name="q5" value="1"> <span>Yes</span></label></li>
+                  <li><label><input type="radio" name="q5" value="0.5"> <span>Somewhat</span></label></li>
+                  <li><label><input type="radio" name="q5" value="0"> <span>No</span></label></li>
+                </ul>
+              </div>
+
+              <!-- Q6 -->
+              <div class="quiz-question" role="group">
+                <div class="quiz-legend"><span>6</span> Do you expect Social Security to cover most of your retirement expenses?</div>
+                <ul class="quiz-options">
+                  <li><label><input type="radio" name="q6" value="0"> <span>Yes</span></label></li>
+                  <li><label><input type="radio" name="q6" value="0.5"> <span>Somewhat</span></label></li>
+                  <li><label><input type="radio" name="q6" value="1"> <span>No</span></label></li>
+                  <li><label><input type="radio" name="q6" value="0"> <span>Not sure</span></label></li>
+                </ul>
+              </div>
+
+              <!-- Q7 -->
+              <div class="quiz-question" role="group">
+                <div class="quiz-legend"><span>7</span> Do you currently have money in CDs or savings accounts earning low interest?</div>
+                <ul class="quiz-options">
+                  <li><label><input type="radio" name="q7" value="0"> <span>Yes</span></label></li>
+                  <li><label><input type="radio" name="q7" value="1"> <span>No</span></label></li>
+                  <li><label><input type="radio" name="q7" value="0"> <span>Not sure</span></label></li>
+                </ul>
+              </div>
+
+              <!-- Q8 -->
+              <div class="quiz-question" role="group">
+                <div class="quiz-legend"><span>8</span> Have you reviewed whether Roth conversions could help reduce future taxes?</div>
+                <ul class="quiz-options">
+                  <li><label><input type="radio" name="q8" value="1"> <span>Yes</span></label></li>
+                  <li><label><input type="radio" name="q8" value="0"> <span>No</span></label></li>
+                  <li><label><input type="radio" name="q8" value="0.5"> <span>Not sure</span></label></li>
+                </ul>
+              </div>
+
+              <!-- Q9 -->
+              <div class="quiz-question" role="group">
+                <div class="quiz-legend"><span>9</span> Are you currently working with a financial advisor?</div>
+                <ul class="quiz-options">
+                  <li><label><input type="radio" name="q9" value="1"> <span>Yes</span></label></li>
+                  <li><label><input type="radio" name="q9" value="0"> <span>No</span></label></li>
+                  <li><label><input type="radio" name="q9" value="0.5"> <span>I want a second opinion</span></label></li>
+                </ul>
+              </div>
+
+              <!-- Q10 -->
+              <div class="quiz-question" role="group">
+                <div class="quiz-legend"><span>10</span> Would you like help reviewing your retirement options?</div>
+                <ul class="quiz-options">
+                  <li><label><input type="radio" name="q10" value="1"> <span>Yes</span></label></li>
+                  <li><label><input type="radio" name="q10" value="0.5"> <span>Maybe</span></label></li>
+                  <li><label><input type="radio" name="q10" value="0"> <span>Not right now</span></label></li>
+                </ul>
+              </div>
+
+              <div class="quiz-submit-wrap">
+                <button type="submit" class="btn-quiz-submit">See My Results</button>
+                <p class="quiz-error" id="quiz-error">Please answer all 10 questions before submitting.</p>
+              </div>
+
+            </div><!-- /.quiz-questions -->
+            </form>
+          </div>
+
+          <!-- Results (hidden until scored) -->
+          <div id="quiz-results">
+            <div class="result-card">
+              <p class="result-score-label">Your Score</p>
+              <div class="result-score" id="result-score-num">—</div>
+              <p class="result-score-max">out of 10 &nbsp;·&nbsp; <span id="result-raw-display"></span></p>
+              <p class="result-personalization">Your results are based on the answers you selected.</p>
+              <div class="result-badge" id="result-badge"></div>
+              <h2 class="result-headline" id="result-headline"></h2>
+              <p class="result-message" id="result-message"></p>
+              <p class="result-cta-label">Many people who take this quiz are surprised by their results. A short conversation can help clarify your options and next steps.</p>
+              <a class="btn-result-cta" href="schedule-consultation.html">Schedule Your Free Retirement Consultation</a>
+              <div class="result-retake">
+                <button id="retake-btn">Retake the Quiz</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    // ── Mobile nav toggle ──
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function () {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+
+    // ── Quiz scoring ──
+    // Points per question: each max=1, with 0.5 for middle answers → MAX_RAW = 10
+    var MAX_RAW = 10;
+
+    var RESULTS = [
+      {
+        min: 8,
+        badge: 'Strong Foundation',
+        badgeClass: 'result-badge--high',
+        headline: '',
+        message: "You appear to have several key elements of a retirement strategy in place. A consultation can help confirm your plan is aligned with your long-term goals."
+      },
+      {
+        min: 5,
+        badge: 'Needs Review',
+        badgeClass: 'result-badge--mid',
+        headline: '',
+        message: "You may already have a foundation in place, but there may be opportunities to strengthen your retirement strategy — such as income planning, rollover decisions, tax strategies, or protecting your savings from market volatility."
+      },
+      {
+        min: 0,
+        badge: 'Review Recommended',
+        badgeClass: 'result-badge--low',
+        headline: '',
+        message: "Your results suggest there may be important gaps in your retirement strategy. A short conversation can help identify opportunities to strengthen your retirement income plan and protect your savings."
+      }
+    ];
+
+    var quizForm = document.getElementById('quiz-form');
+
+    quizForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var names = ['q1','q2','q3','q4','q5','q6','q7','q8','q9','q10'];
+      var raw = 0;
+      var unanswered = [];
+
+      for (var i = 0; i < names.length; i++) {
+        var sel = quizForm.querySelector('input[name="' + names[i] + '"]:checked');
+        if (!sel) {
+          unanswered.push(names[i]);
+        } else {
+          raw += parseFloat(sel.value);
+        }
+      }
+
+      var errorEl = document.getElementById('quiz-error');
+      if (unanswered.length > 0) {
+        errorEl.style.display = 'block';
+        return;
+      }
+      errorEl.style.display = 'none';
+
+      var score = Math.round((raw / MAX_RAW) * 10);
+
+      // Pick result tier
+      var result = RESULTS[RESULTS.length - 1];
+      for (var j = 0; j < RESULTS.length; j++) {
+        if (score >= RESULTS[j].min) { result = RESULTS[j]; break; }
+      }
+
+      // Populate results
+      document.getElementById('result-score-num').textContent = score;
+      document.getElementById('result-raw-display').textContent = (Math.round(raw * 10) / 10) + ' of 10 pts';
+      var badge = document.getElementById('result-badge');
+      badge.textContent = result.badge;
+      badge.className = 'result-badge ' + result.badgeClass;
+      document.getElementById('result-headline').textContent = result.headline;
+      document.getElementById('result-message').textContent = result.message;
+
+      // Show results, hide form
+      document.getElementById('quiz-form-wrap').style.display = 'none';
+      var heroSubtext = document.getElementById('hero-subtext');
+      heroSubtext.innerHTML = 'Here are your Retirement Readiness Quiz results.<br><span style="font-size:0.9rem;">Your answers provide a quick snapshot of how prepared you may be for retirement and where there may be opportunities to strengthen your strategy.</span>';
+      var resultsEl = document.getElementById('quiz-results');
+      resultsEl.style.display = 'block';
+      resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    // ── Retake ──
+    document.getElementById('retake-btn').addEventListener('click', function () {
+      document.getElementById('quiz-form').reset();
+      document.getElementById('quiz-form-wrap').style.display = 'block';
+      document.getElementById('quiz-results').style.display = 'none';
+      document.getElementById('hero-subtext').textContent = 'Take this short 2-minute quiz to see how prepared you may be for retirement and identify areas that may need attention.';
+      document.getElementById('quiz-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>401k, 403b &amp; TSP Rollover Impact Calculator — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Estimate the long-term impact of rolling over your 401(k), 403(b), or TSP to an IRA. See potential fee savings over time. Free calculator, no signup required.">
+</head>
+<body>
+
+    <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+  <div class="calc-page-hero">
+    <div class="container">
+      <p style="font-size:0.82rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;"><a href="calculators.html" style="color:rgba(255,255,255,0.6);text-decoration:none;">&#8592; All Calculators</a></p>
+      <h1>401k, 403b &amp; TSP Rollover Impact Calculator</h1>
+      <p>Estimate the potential tax and income impact when moving money from employer retirement plans such as 401(k), 403(b), or TSP accounts.</p>
+    </div>
+  </div>
+
+  <main>
+    <section class="calc-section-block" id="rollover-impact">
+      <div class="container">
+        <div class="calc-wrapper">
+
+          <div class="calc-form-panel">
+            <h2>401(k), 403(b) &amp; TSP Rollover Impact Calculator</h2>
+            <p class="calc-desc">Estimate the potential tax and income impact when moving money from employer retirement plans such as 401(k), 403(b), or TSP accounts.</p>
+
+            <div class="calc-field">
+              <label for="ro-balance">Current 401(k) / Retirement Account Balance</label>
+              <input id="ro-balance" type="number" min="0" placeholder="e.g. 250000" inputmode="numeric">
+            </div>
+            <div class="calc-field">
+              <label for="ro-current-fee">Current Plan Annual Fee (expense ratio)</label>
+              <input id="ro-current-fee" type="number" min="0" max="5" step="0.01" placeholder="e.g. 1.2" value="1.2" inputmode="decimal">
+              <span class="hint">Percentage (%). Employer 401k plans average 0.5%–2%. Check your plan documents.</span>
+            </div>
+            <div class="calc-field">
+              <label for="ro-ira-fee">Projected IRA Annual Fee (expense ratio)</label>
+              <input id="ro-ira-fee" type="number" min="0" max="5" step="0.01" placeholder="e.g. 0.25" value="0.25" inputmode="decimal">
+              <span class="hint">Low-cost IRAs often charge 0.10%–0.50%</span>
+            </div>
+            <div class="calc-field">
+              <label for="ro-return">Assumed Annual Growth Rate</label>
+              <input id="ro-return" type="number" min="0" max="20" step="0.1" placeholder="e.g. 6" value="6" inputmode="decimal">
+              <span class="hint">Percentage (%). Conservative long-term estimate: 5–7%</span>
+            </div>
+            <div class="calc-field">
+              <label for="ro-years">Years Until Retirement</label>
+              <input id="ro-years" type="number" min="1" max="40" placeholder="e.g. 15" value="15" inputmode="numeric">
+            </div>
+            <button class="btn btn-amber btn-full" onclick="calcRollover()">Calculate Rollover Impact</button>
+          </div>
+
+          <div class="calc-result-panel" id="ro-result-panel">
+            <div class="calc-result-empty" id="ro-empty">
+              <div class="calc-result-empty-icon">&#128181;</div>
+              <p>Enter your account balance and fee details to see the long-term impact of a rollover.</p>
+            </div>
+            <div class="calc-result-content" id="ro-result">
+              <div class="result-eyebrow">Potential Additional Value with IRA Rollover</div>
+              <div class="result-primary" id="ro-diff">—</div>
+              <div class="result-primary-label">more in your account by rolling over</div>
+              <div class="result-breakdown">
+                <div class="result-row">
+                  <span class="r-label">Projected value (keep in 401k)</span>
+                  <span class="r-value" id="ro-r-keep">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Projected value (roll to IRA)</span>
+                  <span class="r-value" id="ro-r-ira">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Fee savings over <span id="ro-r-yrs-label">—</span> years</span>
+                  <span class="r-value good" id="ro-r-savings">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Annual fee — current plan</span>
+                  <span class="r-value" id="ro-r-cur-fee-pct">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Annual fee — IRA</span>
+                  <span class="r-value" id="ro-r-ira-fee-pct">—</span>
+                </div>
+              </div>
+              <p class="result-note">This illustration assumes consistent annual returns and does not account for additional contributions, market volatility, taxes, or specific investment choices. It is for educational purposes only.</p>
+              <a class="result-cta-btn" href="book.html">Discuss My Rollover Options</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+                  <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+        <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+
+    function fmt(n) {
+      if (isNaN(n) || n === null) return '—';
+      return '$' + Math.round(n).toLocaleString('en-US');
+    }
+    function val(id) { return parseFloat(document.getElementById(id).value) || 0; }
+    function showResult() {
+      document.getElementById('ro-result').classList.add('show');
+      document.getElementById('ro-empty').style.display = 'none';
+    }
+
+    function calcRollover() {
+      var balance    = val('ro-balance');
+      var curFee     = val('ro-current-fee') / 100;
+      var iraFee     = val('ro-ira-fee') / 100;
+      var growthRate = val('ro-return') / 100;
+      var years      = val('ro-years') || 15;
+
+      if (!balance) return;
+
+      var netCur = growthRate - curFee;
+      var netIRA = growthRate - iraFee;
+
+      var valueCur = balance * Math.pow(1 + netCur, years);
+      var valueIRA = balance * Math.pow(1 + netIRA, years);
+      var diff     = valueIRA - valueCur;
+
+      document.getElementById('ro-diff').textContent          = fmt(diff);
+      document.getElementById('ro-r-keep').textContent        = fmt(valueCur);
+      document.getElementById('ro-r-ira').textContent         = fmt(valueIRA);
+      document.getElementById('ro-r-savings').textContent     = fmt(diff);
+      document.getElementById('ro-r-yrs-label').textContent   = years;
+      document.getElementById('ro-r-cur-fee-pct').textContent = (curFee * 100).toFixed(2) + '%';
+      document.getElementById('ro-r-ira-fee-pct').textContent = (iraFee * 100).toFixed(2) + '%';
+
+      showResult();
+    }
+  </script>
+</body>
+</html>

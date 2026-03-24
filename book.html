@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Book a Free Consultation — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Schedule a free, no-obligation Financial Clarity Review with Loretta Stewart. Retirement planning, annuities, life insurance, and rollovers for adults 45+.">
+  <style>
+    /* ── 7-step survey funnel ── */
+    .funnel-progress {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 28px;
+    }
+    .funnel-bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: #e4dff0;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .funnel-bar {
+      height: 100%;
+      background: var(--purple, #4e2c94);
+      border-radius: 99px;
+      transition: width 0.35s ease;
+    }
+    .funnel-step-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--purple, #4e2c94);
+      white-space: nowrap;
+      margin-left: 12px;
+    }
+
+    .form-step { animation: fadeStep 0.25s ease; }
+    @keyframes fadeStep { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .step-heading {
+      font-size: 1.18rem;
+      font-weight: 700;
+      color: var(--purple-dark, #3a1f70);
+      margin: 0 0 6px;
+    }
+    .step-sub {
+      font-size: 0.88rem;
+      color: #666;
+      margin: 0 0 20px;
+    }
+
+    /* Survey choice buttons (single-select) */
+    .survey-choices {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .survey-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 13px 16px;
+      background: #fff;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #333;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+    }
+    .survey-btn:hover {
+      border-color: var(--purple, #4e2c94);
+      background: #f7f4fd;
+    }
+    .survey-btn.selected {
+      border-color: var(--purple, #4e2c94);
+      background: var(--purple, #4e2c94);
+      color: #fff;
+    }
+    .survey-btn .btn-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    /* Multi-select pills (step 5) */
+    .survey-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .survey-pill {
+      padding: 9px 16px;
+      background: #fff;
+      border: 2px solid #ddd;
+      border-radius: 99px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: #333;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+      user-select: none;
+    }
+    .survey-pill:hover { border-color: var(--purple, #4e2c94); background: #f7f4fd; }
+    .survey-pill.selected {
+      border-color: var(--purple, #4e2c94);
+      background: var(--purple, #4e2c94);
+      color: #fff;
+    }
+
+    /* Step nav */
+    .step-nav { margin-top: 24px; }
+    .step-nav-row { display: flex; gap: 12px; align-items: center; }
+    .btn-back {
+      background: none;
+      border: 1.5px solid #ccc;
+      color: #666;
+      padding: 11px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+    .btn-back:hover { border-color: var(--purple, #4e2c94); color: var(--purple, #4e2c94); }
+    .btn-next-step {
+      flex: 1;
+      padding: 13px 20px;
+      background: var(--green, #38bf72);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-next-step:hover { background: var(--green-dark, #2a9a5a); }
+
+    .step-error { color: #c0392b; font-size: 0.85rem; margin-top: 10px; display: none; }
+    .req { color: #c0392b; }
+
+    /* Step 1 contact fields */
+    .sms-consent-group { margin-top: 16px; }
+    .sms-consent {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #444;
+      cursor: pointer;
+    }
+    .sms-consent input[type="checkbox"] {
+      appearance: checkbox;
+      -webkit-appearance: checkbox;
+      width: 14px !important;
+      height: 14px !important;
+      min-width: 14px !important;
+      max-width: 14px !important;
+      margin-top: 2px;
+      flex-shrink: 0;
+      opacity: 1 !important;
+      position: static !important;
+      cursor: pointer;
+    }
+    .sms-consent span { display: inline; }
+
+    /* Multi-question step layout */
+    .step-section-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--purple, #4e2c94);
+      background: #ede8f7;
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .step-question { margin-top: 28px; padding-top: 24px; border-top: 1px solid #ede9f6; }
+    .step-question:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+    .step-question .step-heading { margin-bottom: 14px; }
+    .step-optional {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #888;
+      background: #f0f0f0;
+      border-radius: 4px;
+      padding: 2px 7px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    /* Height selects */
+    .height-selects { display: flex; gap: 10px; }
+    .height-selects select { flex: 1; }
+  </style>
+</head>
+<body>
+
+    <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <div class="page-hero-tag">Free Consultation</div>
+      <h1>Schedule Your 30-Minute Retirement Consultation</h1>
+      <p>In this brief 30-minute consultation, we&rsquo;ll discuss your current retirement situation, your goals, and the questions you&rsquo;d like to address.</p>
+    </div>
+  </section>
+
+  <main>
+    <div class="container book-layout">
+
+      <!-- Left: Info sections -->
+      <div class="book-why">
+
+        <div class="content-section">
+          <p>This is a relaxed, no-pressure 30-minute conversation designed to understand your retirement situation and answer your most pressing questions. There is no sales pitch and no obligation to take any action afterward.</p>
+          <p>If it looks like there are strategies that could help you, we can schedule a more detailed full strategy review at no cost.</p>
+        </div>
+
+        <div class="content-section">
+          <h2>Who This Is For</h2>
+          <ul class="check-list">
+            <li>Adults planning for retirement or already retired who want clear, professional guidance</li>
+            <li>Individuals with at least $25,000 in retirement accounts, savings, CDs, or other assets they are willing to review for long-term planning</li>
+            <li>People considering rollovers from 401(k), 403(b), 457, TSP, IRA, or other retirement accounts</li>
+            <li>Anyone wanting a second opinion before making an important retirement decision</li>
+          </ul>
+        </div>
+
+        <div class="content-section">
+          <h2>What to Expect During the Consultation</h2>
+          <ul class="check-list">
+            <li>A brief review of your current retirement accounts, savings, or income sources</li>
+            <li>A conversation about your goals, concerns, and the topic you selected</li>
+            <li>General discussion of possible options and whether further review may be appropriate</li>
+            <li>A decision about whether working together makes sense</li>
+          </ul>
+          <div class="highlight-box" style="margin-top:20px;">
+            <p><strong>Second Opinion Reviews:</strong> If you are currently working with another advisor and would like a formal second opinion, a separate paid review may be required.</p>
+          </div>
+        </div>
+
+        <div class="content-section">
+          <h2>Before Scheduling</h2>
+          <p>You don&rsquo;t need to prepare anything formal. It helps to have a general sense of:</p>
+          <ul class="check-list">
+            <li>What retirement accounts or savings you currently have</li>
+            <li>Roughly when you plan to retire (or when you did)</li>
+            <li>Any specific questions or concerns you&rsquo;d like to address</li>
+          </ul>
+          <p style="margin-top:14px;">If you don&rsquo;t have all of this ready, that&rsquo;s completely fine &mdash; we can work with whatever information you have.</p>
+        </div>
+
+      </div>
+
+      <!-- Right: Qualification + Calendar -->
+      <div class="book-form-wrap">
+        <div class="book-calendar-card">
+
+          <!-- Progress bar -->
+          <div class="funnel-progress">
+            <div class="funnel-bar-wrap">
+              <div class="funnel-bar" id="funnel-bar" style="width:14.3%"></div>
+            </div>
+            <span class="funnel-step-label" id="funnel-step-label">Step 1 of 7</span>
+          </div>
+
+          <form id="qual-form" class="book-form" novalidate>
+
+            <!-- ── STEP 1: Contact Info ── -->
+            <div class="form-step" id="step-1">
+              <p class="step-heading">Let&rsquo;s get started</p>
+              <p class="step-sub">Enter your contact info so we can reach you about your consultation.</p>
+
+              <div class="form-group">
+                <label class="form-label" for="f-name">Full Name <span class="req">*</span></label>
+                <input type="text" id="f-name" name="full_name" placeholder="Jane Smith" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="f-phone">Phone Number <span class="req">*</span></label>
+                <input type="tel" id="f-phone" name="phone" placeholder="(414) 555-0100" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="f-email">Email Address <span class="req">*</span></label>
+                <input type="email" id="f-email" name="email" placeholder="jane@example.com" required>
+              </div>
+
+              <div class="sms-consent-group">
+                <label class="sms-consent">
+                  <input type="checkbox" id="sms-consent-1" name="sms_consent" required>
+                  <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="terms.html" target="_blank">Terms &amp; Conditions</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>.</span>
+                </label>
+              </div>
+
+              <div class="step-nav">
+                <button type="button" class="btn-next-step" onclick="nextStep(1)">Next &rarr;</button>
+              </div>
+              <p id="err-1" class="step-error"></p>
+            </div>
+
+            <!-- ── STEP 2: Topic ── -->
+            <div class="form-step" id="step-2" style="display:none;">
+              <p class="step-heading">What would you like help with today?</p>
+              <p class="step-sub">Choose the option that best describes your main reason for reaching out.</p>
+
+              <div class="survey-choices" id="choices-2">
+                <button type="button" class="survey-btn" data-group="topic" data-value="Rolling over a 401(k), 403(b), or TSP" onclick="selectSurveyBtn(this,'topic')">
+                  <span class="btn-icon">🔄</span> Rolling over a 401(k), 403(b), or TSP
+                </button>
+                <button type="button" class="survey-btn" data-group="topic" data-value="Roth conversion strategy" onclick="selectSurveyBtn(this,'topic')">
+                  <span class="btn-icon">📊</span> Roth conversion strategy
+                </button>
+                <button type="button" class="survey-btn" data-group="topic" data-value="Safe growth / CD alternative options" onclick="selectSurveyBtn(this,'topic')">
+                  <span class="btn-icon">🏦</span> Safe growth / CD alternative options
+                </button>
+                <button type="button" class="survey-btn" data-group="topic" data-value="Retirement income planning" onclick="selectSurveyBtn(this,'topic')">
+                  <span class="btn-icon">💰</span> Retirement income planning
+                </button>
+                <button type="button" class="survey-btn" data-group="topic" data-value="Social Security planning" onclick="selectSurveyBtn(this,'topic')">
+                  <span class="btn-icon">🏛️</span> Social Security planning
+                </button>
+                <button type="button" class="survey-btn" data-group="topic" data-value="Second opinion / review" onclick="selectSurveyBtn(this,'topic')">
+                  <span class="btn-icon">🔍</span> Second opinion / review
+                </button>
+                <button type="button" class="survey-btn" data-group="topic" data-value="Not sure yet" onclick="selectSurveyBtn(this,'topic')">
+                  <span class="btn-icon">💡</span> Not sure yet
+                </button>
+              </div>
+              <input type="hidden" name="topic" id="val-topic">
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-back" onclick="prevStep(2)">&larr; Back</button>
+                  <button type="button" class="btn-next-step" onclick="nextStep(2)">Next &rarr;</button>
+                </div>
+              </div>
+              <p id="err-2" class="step-error"></p>
+            </div>
+
+            <!-- ── STEP 3: Amount ── -->
+            <div class="form-step" id="step-3" style="display:none;">
+              <p class="step-heading">Approximately how much are you looking to review?</p>
+              <p class="step-sub">This helps us prepare the right strategies for your consultation.</p>
+
+              <div class="survey-choices" id="choices-3">
+                <button type="button" class="survey-btn" data-group="amount" data-value="Under $50,000" onclick="selectSurveyBtn(this,'amount')">Under $50,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$50,000–$150,000" onclick="selectSurveyBtn(this,'amount')">$50,000 &ndash; $150,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$150,000–$300,000" onclick="selectSurveyBtn(this,'amount')">$150,000 &ndash; $300,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$300,000–$500,000" onclick="selectSurveyBtn(this,'amount')">$300,000 &ndash; $500,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$500,000+" onclick="selectSurveyBtn(this,'amount')">$500,000+</button>
+              </div>
+              <input type="hidden" name="amount" id="val-amount">
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-back" onclick="prevStep(3)">&larr; Back</button>
+                  <button type="button" class="btn-next-step" onclick="nextStep(3)">Next &rarr;</button>
+                </div>
+              </div>
+              <p id="err-3" class="step-error"></p>
+            </div>
+
+            <!-- ── STEP 4: Timeline ── -->
+            <div class="form-step" id="step-4" style="display:none;">
+              <p class="step-heading">When are you planning to make a decision or review your options?</p>
+              <p class="step-sub">There&rsquo;s no wrong answer &mdash; this just helps us understand your timeline.</p>
+
+              <div class="survey-choices" id="choices-4">
+                <button type="button" class="survey-btn" data-group="timeline" data-value="ASAP" onclick="selectSurveyBtn(this,'timeline')">ASAP</button>
+                <button type="button" class="survey-btn" data-group="timeline" data-value="Within 30 days" onclick="selectSurveyBtn(this,'timeline')">Within 30 days</button>
+                <button type="button" class="survey-btn" data-group="timeline" data-value="Within 1–3 months" onclick="selectSurveyBtn(this,'timeline')">Within 1&ndash;3 months</button>
+                <button type="button" class="survey-btn" data-group="timeline" data-value="Just exploring for now" onclick="selectSurveyBtn(this,'timeline')">Just exploring for now</button>
+              </div>
+              <input type="hidden" name="timeline" id="val-timeline">
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-back" onclick="prevStep(4)">&larr; Back</button>
+                  <button type="button" class="btn-next-step" onclick="nextStep(4)">Next &rarr;</button>
+                </div>
+              </div>
+              <p id="err-4" class="step-error"></p>
+            </div>
+
+            <!-- ── STEP 5: Asset Location (multi-select) ── -->
+            <div class="form-step" id="step-5" style="display:none;">
+              <p class="step-heading">Where is the money currently located?</p>
+              <p class="step-sub">Select all that apply.</p>
+
+              <div class="survey-pills" id="pills-5">
+                <span class="survey-pill" onclick="togglePill(this)" data-value="401(k)">401(k)</span>
+                <span class="survey-pill" onclick="togglePill(this)" data-value="403(b)">403(b)</span>
+                <span class="survey-pill" onclick="togglePill(this)" data-value="457(b)">457(b)</span>
+                <span class="survey-pill" onclick="togglePill(this)" data-value="TSP">TSP</span>
+                <span class="survey-pill" onclick="togglePill(this)" data-value="IRA">IRA</span>
+                <span class="survey-pill" onclick="togglePill(this)" data-value="Roth IRA">Roth IRA</span>
+                <span class="survey-pill" onclick="togglePill(this)" data-value="CD">CD</span>
+                <span class="survey-pill" onclick="togglePill(this)" data-value="Savings">Savings</span>
+                <span class="survey-pill" onclick="togglePill(this)" data-value="Brokerage account">Brokerage account</span>
+                <span class="survey-pill" onclick="togglePill(this)" data-value="Inheritance">Inheritance</span>
+                <span class="survey-pill" onclick="togglePill(this)" data-value="Other">Other</span>
+              </div>
+              <input type="hidden" name="asset_location" id="val-assets">
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-back" onclick="prevStep(5)">&larr; Back</button>
+                  <button type="button" class="btn-next-step" onclick="nextStep(5)">Next &rarr;</button>
+                </div>
+              </div>
+              <p id="err-5" class="step-error"></p>
+            </div>
+
+            <!-- ── STEP 6: Health & Quote Details ── -->
+            <div class="form-step" id="step-6" style="display:none;">
+
+              <span class="step-section-label">Health &amp; Quote Details</span>
+
+              <!-- Q1: Tobacco -->
+              <div class="step-question">
+                <p class="step-heading">Do you use tobacco products?</p>
+                <div class="survey-choices" id="choices-tobacco">
+                  <button type="button" class="survey-btn" data-group="tobacco" data-value="No" onclick="selectSurveyBtn(this,'tobacco')">No</button>
+                  <button type="button" class="survey-btn" data-group="tobacco" data-value="Yes" onclick="selectSurveyBtn(this,'tobacco')">Yes</button>
+                  <button type="button" class="survey-btn" data-group="tobacco" data-value="Occasionally" onclick="selectSurveyBtn(this,'tobacco')">Occasionally</button>
+                </div>
+                <input type="hidden" name="tobacco" id="val-tobacco">
+              </div>
+
+              <!-- Q2: Height -->
+              <div class="step-question">
+                <p class="step-heading">What is your height?</p>
+                <div class="height-selects">
+                  <select name="height_feet" id="f-height-ft">
+                    <option value="">Feet&hellip;</option>
+                    <option value="4">4 ft</option>
+                    <option value="5">5 ft</option>
+                    <option value="6">6 ft</option>
+                    <option value="7">7 ft</option>
+                  </select>
+                  <select name="height_inches" id="f-height-in">
+                    <option value="">Inches&hellip;</option>
+                    <option value="0">0 in</option>
+                    <option value="1">1 in</option>
+                    <option value="2">2 in</option>
+                    <option value="3">3 in</option>
+                    <option value="4">4 in</option>
+                    <option value="5">5 in</option>
+                    <option value="6">6 in</option>
+                    <option value="7">7 in</option>
+                    <option value="8">8 in</option>
+                    <option value="9">9 in</option>
+                    <option value="10">10 in</option>
+                    <option value="11">11 in</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Q3: Weight -->
+              <div class="step-question">
+                <p class="step-heading">What is your weight?</p>
+                <input type="number" name="weight" id="f-weight" placeholder="Enter weight in pounds" min="50" max="600">
+              </div>
+
+              <!-- Q4: Health Status -->
+              <div class="step-question">
+                <p class="step-heading">What best describes your current health?</p>
+                <div class="survey-choices" id="choices-health">
+                  <button type="button" class="survey-btn" data-group="health" data-value="Excellent / very healthy" onclick="selectSurveyBtn(this,'health')">Excellent / very healthy</button>
+                  <button type="button" class="survey-btn" data-group="health" data-value="Good with minor conditions" onclick="selectSurveyBtn(this,'health')">Good with minor conditions</button>
+                  <button type="button" class="survey-btn" data-group="health" data-value="Some health concerns" onclick="selectSurveyBtn(this,'health')">Some health concerns</button>
+                  <button type="button" class="survey-btn" data-group="health" data-value="Major health concerns" onclick="selectSurveyBtn(this,'health')">Major health concerns</button>
+                  <button type="button" class="survey-btn" data-group="health" data-value="Prefer to discuss privately" onclick="selectSurveyBtn(this,'health')">Prefer to discuss privately</button>
+                </div>
+                <input type="hidden" name="health_status" id="val-health">
+              </div>
+
+              <!-- Q5: Budget (optional) -->
+              <div class="step-question">
+                <p class="step-heading">What monthly budget range feels most comfortable? <span class="step-optional">Optional</span></p>
+                <div class="survey-choices" id="choices-budget">
+                  <button type="button" class="survey-btn" data-group="budget" data-value="Under $50/month" onclick="selectSurveyBtn(this,'budget')">Under $50/month</button>
+                  <button type="button" class="survey-btn" data-group="budget" data-value="$50–$100/month" onclick="selectSurveyBtn(this,'budget')">$50 &ndash; $100/month</button>
+                  <button type="button" class="survey-btn" data-group="budget" data-value="$100–$200/month" onclick="selectSurveyBtn(this,'budget')">$100 &ndash; $200/month</button>
+                  <button type="button" class="survey-btn" data-group="budget" data-value="$200+/month" onclick="selectSurveyBtn(this,'budget')">$200+/month</button>
+                  <button type="button" class="survey-btn" data-group="budget" data-value="Not sure yet" onclick="selectSurveyBtn(this,'budget')">Not sure yet</button>
+                </div>
+                <input type="hidden" name="budget" id="val-budget">
+              </div>
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-back" onclick="prevStep(6)">&larr; Back</button>
+                  <button type="button" class="btn-next-step" onclick="nextStep(6)">Next &rarr;</button>
+                </div>
+              </div>
+              <p id="err-6" class="step-error"></p>
+            </div>
+
+            <!-- ── STEP 7: Schedule ── -->
+            <div class="form-step" id="step-7" style="display:none;">
+              <p class="step-heading">Almost done &mdash; pick a time that works for you</p>
+              <p class="step-sub">Choose an available slot below. The call is 30 minutes and completely free.</p>
+
+              <!-- ── CALENDAR EMBED ─────────────────────────────────────────
+                   Paste your Calendly / TidyCal / SavvyCal embed code here.
+              ──────────────────────────────────────────────────────────── -->
+              <div class="calendar-placeholder">
+                <div class="calendar-placeholder-inner">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--purple); opacity:0.5;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <p><strong>Calendar coming soon</strong></p>
+                  <p style="font-size:0.85rem; color:var(--text-muted);">Paste your scheduling embed (Calendly, TidyCal, etc.) in place of this placeholder.</p>
+                </div>
+              </div>
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-back" onclick="prevStep(7)">&larr; Back</button>
+                  <button type="submit" class="btn-next-step">Submit &amp; Schedule &#10003;</button>
+                </div>
+              </div>
+              <p class="form-privacy" style="margin-top:16px; font-size:0.82rem; color:#888; text-align:center;">No cost. No obligation. No pressure.</p>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+                  <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+        <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+  </script>
+
+  <script>
+    const TOTAL_STEPS = 7;
+
+    // Pre-fill Step 1 fields from URL params (e.g. when redirected from life-insurance.html)
+    (function prefillFromURL() {
+      const p = new URLSearchParams(window.location.search);
+      const firstName = p.get('first_name') || '';
+      const lastName  = p.get('last_name')  || '';
+      const phone     = p.get('phone')      || '';
+      const email     = p.get('email')      || '';
+      const topic     = p.get('topic')      || '';
+
+      if (firstName || lastName) {
+        const fullName = [firstName, lastName].filter(Boolean).join(' ');
+        const nameEl = document.getElementById('f-name');
+        if (nameEl) nameEl.value = fullName;
+      }
+      if (phone) {
+        const phoneEl = document.getElementById('f-phone');
+        if (phoneEl) phoneEl.value = phone;
+      }
+      if (email) {
+        const emailEl = document.getElementById('f-email');
+        if (emailEl) emailEl.value = email;
+      }
+      // Auto-select the matching topic button in Step 2
+      if (topic) {
+        document.querySelectorAll('#choices-2 .survey-btn').forEach(function(btn) {
+          if (btn.dataset.value && btn.dataset.value.toLowerCase() === topic.toLowerCase()) {
+            btn.classList.add('selected');
+            document.getElementById('val-topic').value = btn.dataset.value;
+          }
+        });
+      }
+    })();
+
+    function updateProgress(step) {
+      const pct = (step / TOTAL_STEPS) * 100;
+      document.getElementById('funnel-bar').style.width = pct + '%';
+      document.getElementById('funnel-step-label').textContent = 'Step ' + step + ' of ' + TOTAL_STEPS;
+    }
+
+    function showStep(n) {
+      for (let i = 1; i <= TOTAL_STEPS; i++) {
+        const el = document.getElementById('step-' + i);
+        if (el) el.style.display = (i === n) ? 'block' : 'none';
+      }
+      updateProgress(n);
+      document.querySelector('.book-calendar-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function validateStep(n) {
+      const err = document.getElementById('err-' + n);
+      const clearErr = () => { if (err) { err.textContent = ''; err.style.display = 'none'; } };
+      const showErr = (msg) => { if (err) { err.textContent = msg; err.style.display = 'block'; } };
+
+      if (n === 1) {
+        const name    = document.getElementById('f-name').value.trim();
+        const phone   = document.getElementById('f-phone').value.trim();
+        const email   = document.getElementById('f-email').value.trim();
+        const consent = document.getElementById('sms-consent-1').checked;
+        if (!name || !phone || !email) { showErr('Please fill in all required fields.'); return false; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('Please enter a valid email address.'); return false; }
+        if (!consent) { showErr('Please agree to the Terms & Conditions to continue.'); return false; }
+        clearErr(); return true;
+      }
+
+      if (n === 2) {
+        const val = document.getElementById('val-topic').value;
+        if (!val) { showErr('Please select an option to continue.'); return false; }
+        clearErr(); return true;
+      }
+
+      if (n === 3) {
+        const val = document.getElementById('val-amount').value;
+        if (!val) { showErr('Please select an option to continue.'); return false; }
+        clearErr(); return true;
+      }
+
+      if (n === 4) {
+        const val = document.getElementById('val-timeline').value;
+        if (!val) { showErr('Please select an option to continue.'); return false; }
+        clearErr(); return true;
+      }
+
+      if (n === 5) {
+        // Multi-select pills — at least one required
+        const selected = document.querySelectorAll('#pills-5 .survey-pill.selected');
+        if (selected.length === 0) { showErr('Please select at least one option.'); return false; }
+        // Collect values into hidden field
+        const vals = Array.from(selected).map(p => p.dataset.value).join(', ');
+        document.getElementById('val-assets').value = vals;
+        clearErr(); return true;
+      }
+
+      if (n === 6) {
+        const tobacco    = document.getElementById('val-tobacco').value;
+        const heightFt   = document.getElementById('f-height-ft').value;
+        const heightIn   = document.getElementById('f-height-in').value;
+        const weight     = document.getElementById('f-weight').value.trim();
+        const health     = document.getElementById('val-health').value;
+        if (!tobacco)           { showErr('Please answer: Do you use tobacco products?'); return false; }
+        if (!heightFt)          { showErr('Please select your height (feet).'); return false; }
+        if (heightIn === '')    { showErr('Please select your height (inches).'); return false; }
+        if (!weight)            { showErr('Please enter your weight in pounds.'); return false; }
+        if (!health)            { showErr('Please answer: What best describes your current health?'); return false; }
+        clearErr(); return true;
+      }
+
+      return true;
+    }
+
+    function nextStep(current) {
+      if (!validateStep(current)) return;
+      showStep(current + 1);
+    }
+
+    function prevStep(current) {
+      showStep(current - 1);
+    }
+
+    function selectSurveyBtn(btn, group) {
+      // Deselect siblings
+      btn.closest('.survey-choices').querySelectorAll('.survey-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      // Store value
+      document.getElementById('val-' + group).value = btn.dataset.value;
+    }
+
+    function togglePill(pill) {
+      pill.classList.toggle('selected');
+    }
+  </script>
+</body>
+</html>

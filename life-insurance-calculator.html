@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Life Insurance Coverage Calculator — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Estimate how much life insurance coverage your family may need using the DIME method. Free calculator, no signup required.">
+</head>
+<body>
+
+    <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+  <div class="calc-page-hero">
+    <div class="container">
+      <p style="font-size:0.82rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;"><a href="calculators.html" style="color:rgba(255,255,255,0.6);text-decoration:none;">&#8592; All Calculators</a></p>
+      <h1>Life Insurance Coverage Calculator</h1>
+      <p>Estimate how much life insurance your family may need using the DIME method. No signup required.</p>
+    </div>
+  </div>
+
+  <main>
+    <section class="calc-section-block" id="life-insurance">
+      <div class="container">
+        <div class="calc-wrapper">
+
+          <div class="calc-form-panel">
+            <h2>Life Insurance Coverage Calculator</h2>
+            <p class="calc-desc">Estimates the coverage amount you may need using the DIME method: Debts, Income replacement, Mortgage, and Education costs.</p>
+
+            <div class="calc-field">
+              <label for="li-debts">Total Debts (excluding mortgage)</label>
+              <input id="li-debts" type="number" min="0" placeholder="e.g. 25000" inputmode="numeric">
+              <span class="hint">Credit cards, car loans, student loans, personal loans</span>
+            </div>
+            <div class="calc-field">
+              <label for="li-income">Annual Income</label>
+              <input id="li-income" type="number" min="0" placeholder="e.g. 75000" inputmode="numeric">
+              <span class="hint">Your current gross annual income</span>
+            </div>
+            <div class="calc-field">
+              <label for="li-years">Years of Income to Replace</label>
+              <input id="li-years" type="number" min="1" max="40" placeholder="e.g. 15" value="15" inputmode="numeric">
+              <span class="hint">How many years your family would need support (typically 10–20)</span>
+            </div>
+            <div class="calc-field">
+              <label for="li-mortgage">Remaining Mortgage Balance</label>
+              <input id="li-mortgage" type="number" min="0" placeholder="e.g. 180000" inputmode="numeric">
+              <span class="hint">Balance on your home mortgage today</span>
+            </div>
+            <div class="calc-field">
+              <label for="li-education">Education Costs for Dependents</label>
+              <input id="li-education" type="number" min="0" placeholder="e.g. 60000" value="0" inputmode="numeric">
+              <span class="hint">Estimated total college or education costs for children</span>
+            </div>
+            <div class="calc-field">
+              <label for="li-existing">Existing Life Insurance Coverage</label>
+              <input id="li-existing" type="number" min="0" placeholder="e.g. 100000" value="0" inputmode="numeric">
+              <span class="hint">Total face value of all current life insurance policies</span>
+            </div>
+            <button class="btn btn-amber btn-full" onclick="calcLifeInsurance()">Calculate My Coverage Need</button>
+          </div>
+
+          <div class="calc-result-panel" id="li-result-panel">
+            <div class="calc-result-empty" id="li-empty">
+              <div class="calc-result-empty-icon">&#128737;</div>
+              <p>Fill in your details and click Calculate to see your estimated coverage need.</p>
+            </div>
+            <div class="calc-result-content" id="li-result">
+              <div class="result-eyebrow">Estimated Coverage Need</div>
+              <div class="result-primary" id="li-total">—</div>
+              <div class="result-primary-label">recommended life insurance coverage</div>
+              <div class="result-breakdown">
+                <div class="result-row">
+                  <span class="r-label">Debt payoff</span>
+                  <span class="r-value" id="li-r-debts">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Income replacement</span>
+                  <span class="r-value" id="li-r-income">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Mortgage payoff</span>
+                  <span class="r-value" id="li-r-mortgage">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Education costs</span>
+                  <span class="r-value" id="li-r-education">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Less existing coverage</span>
+                  <span class="r-value" id="li-r-existing">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label"><strong>Coverage gap</strong></span>
+                  <span class="r-value highlight" id="li-r-gap">—</span>
+                </div>
+              </div>
+              <p class="result-note">This is a starting estimate using the DIME method. Your actual need may vary based on your specific situation, assets, and goals. A personalized review can refine this number.</p>
+              <a class="result-cta-btn" href="book.html">Get a Free Coverage Review</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+                  <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+        <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+
+    function fmt(n) {
+      if (isNaN(n) || n === null) return '—';
+      return '$' + Math.round(n).toLocaleString('en-US');
+    }
+    function val(id) { return parseFloat(document.getElementById(id).value) || 0; }
+    function showResult() {
+      document.getElementById('li-result').classList.add('show');
+      document.getElementById('li-empty').style.display = 'none';
+    }
+
+    function calcLifeInsurance() {
+      var debts    = val('li-debts');
+      var income   = val('li-income');
+      var years    = val('li-years') || 15;
+      var mortgage = val('li-mortgage');
+      var edu      = val('li-education');
+      var existing = val('li-existing');
+
+      if (!income && !debts && !mortgage) return;
+
+      var incomeReplace = income * years;
+      var subtotal = debts + incomeReplace + mortgage + edu;
+      var gap = Math.max(0, subtotal - existing);
+
+      document.getElementById('li-total').textContent       = fmt(gap);
+      document.getElementById('li-r-debts').textContent     = fmt(debts);
+      document.getElementById('li-r-income').textContent    = fmt(incomeReplace);
+      document.getElementById('li-r-mortgage').textContent  = fmt(mortgage);
+      document.getElementById('li-r-education').textContent = fmt(edu);
+      document.getElementById('li-r-existing').textContent  = existing > 0 ? '−' + fmt(existing) : fmt(0);
+      document.getElementById('li-r-gap').textContent       = fmt(gap);
+
+      showResult();
+    }
+  </script>
+</body>
+</html>

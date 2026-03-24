@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Financial Calculators — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Free financial calculators: life insurance coverage estimator, retirement income gap calculator, and Roth IRA conversion estimator. No signup required.">
+</head>
+<body>
+
+    <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+  <div class="calc-page-hero">
+    <div class="container">
+      <h1>Free Financial Calculators</h1>
+      <p>Quick estimates for life insurance coverage, retirement income gaps, and Roth IRA conversion impact. No signup required.</p>
+    </div>
+  </div>
+
+  <div class="calc-trust-strip">
+    <div class="container">
+      <p class="calc-trust-headline">Helping Clients Make Confident Retirement Decisions</p>
+      <ul class="calc-trust-list">
+        <li><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Licensed Financial Professional</li>
+        <li><i class="fa-solid fa-circle-check" aria-hidden="true"></i> 20+ Years Experience</li>
+        <li><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Serving Clients in Wisconsin, Nevada, Texas, Michigan, and North Carolina</li>
+        <li><i class="fa-solid fa-circle-check" aria-hidden="true"></i> No-Cost Retirement Strategy Consultations</li>
+      </ul>
+    </div>
+  </div>
+
+  <nav class="calc-nav-tabs calculator-tabs" aria-label="Calculator sections">
+    <div class="calc-nav-inner">
+      <a class="calc-tab-link active" href="#life-insurance">Life Insurance</a>
+      <a class="calc-tab-link" href="#retirement-income">Retirement Income</a>
+      <a class="calc-tab-link" href="#roth-conversion">Roth Conversion</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ===== 1. LIFE INSURANCE COVERAGE CALCULATOR ===== -->
+    <section class="calc-section-block" id="life-insurance">
+      <div class="container">
+        <div class="calc-wrapper">
+
+          <div class="calc-form-panel">
+            <h2>Life Insurance Coverage Calculator</h2>
+            <p class="calc-desc">Estimates the coverage amount you may need using the DIME method: Debts, Income replacement, Mortgage, and Education costs.</p>
+
+            <div class="calc-field">
+              <label for="li-debts">Total Debts (excluding mortgage)</label>
+              <input id="li-debts" type="number" min="0" placeholder="e.g. 25000" inputmode="numeric">
+              <span class="hint">Credit cards, car loans, student loans, personal loans</span>
+            </div>
+            <div class="calc-field">
+              <label for="li-income">Annual Income</label>
+              <input id="li-income" type="number" min="0" placeholder="e.g. 75000" inputmode="numeric">
+              <span class="hint">Your current gross annual income</span>
+            </div>
+            <div class="calc-field">
+              <label for="li-years">Years of Income to Replace</label>
+              <input id="li-years" type="number" min="1" max="40" placeholder="e.g. 15" value="15" inputmode="numeric">
+              <span class="hint">How many years your family would need support (typically 10–20)</span>
+            </div>
+            <div class="calc-field">
+              <label for="li-mortgage">Remaining Mortgage Balance</label>
+              <input id="li-mortgage" type="number" min="0" placeholder="e.g. 180000" inputmode="numeric">
+              <span class="hint">Balance on your home mortgage today</span>
+            </div>
+            <div class="calc-field">
+              <label for="li-education">Education Costs for Dependents</label>
+              <input id="li-education" type="number" min="0" placeholder="e.g. 60000" value="0" inputmode="numeric">
+              <span class="hint">Estimated total college or education costs for children</span>
+            </div>
+            <div class="calc-field">
+              <label for="li-existing">Existing Life Insurance Coverage</label>
+              <input id="li-existing" type="number" min="0" placeholder="e.g. 100000" value="0" inputmode="numeric">
+              <span class="hint">Total face value of all current life insurance policies</span>
+            </div>
+            <button class="btn btn-amber btn-full" onclick="calcLifeInsurance()">Calculate My Coverage Need</button>
+          </div>
+
+          <div class="calc-result-panel" id="li-result-panel">
+            <div class="calc-result-empty" id="li-empty">
+              <div class="calc-result-empty-icon">&#128737;</div>
+              <p>Fill in your details and click Calculate to see your estimated coverage need.</p>
+            </div>
+            <div class="calc-result-content" id="li-result">
+              <div class="result-eyebrow">Estimated Coverage Need</div>
+              <div class="result-primary" id="li-total">—</div>
+              <div class="result-primary-label">recommended life insurance coverage</div>
+              <div class="result-breakdown">
+                <div class="result-row">
+                  <span class="r-label">Debt payoff</span>
+                  <span class="r-value" id="li-r-debts">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Income replacement</span>
+                  <span class="r-value" id="li-r-income">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Mortgage payoff</span>
+                  <span class="r-value" id="li-r-mortgage">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Education costs</span>
+                  <span class="r-value" id="li-r-education">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Less existing coverage</span>
+                  <span class="r-value" id="li-r-existing">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label"><strong>Coverage gap</strong></span>
+                  <span class="r-value highlight" id="li-r-gap">—</span>
+                </div>
+              </div>
+              <p class="result-note">This is a starting estimate using the DIME method. Your actual need may vary based on your specific situation, assets, and goals. A personalized review can refine this number.</p>
+              <a class="result-cta-btn" href="book.html">Get a Free Coverage Review</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 2. RETIREMENT INCOME GAP CALCULATOR ===== -->
+    <section class="calc-section-block" id="retirement-income">
+      <div class="container">
+        <div class="calc-wrapper">
+
+          <div class="calc-form-panel">
+            <h2>Retirement Income Gap Calculator</h2>
+            <p class="calc-desc">Compares your projected monthly retirement income against your estimated monthly expenses to identify any gap that needs to be filled.</p>
+
+            <div class="calc-field">
+              <label for="ri-expenses">Estimated Monthly Expenses in Retirement</label>
+              <input id="ri-expenses" type="number" min="0" placeholder="e.g. 4500" inputmode="numeric">
+              <span class="hint">Housing, food, healthcare, transportation, leisure, etc.</span>
+            </div>
+            <div class="calc-field">
+              <label for="ri-ss">Monthly Social Security Benefit</label>
+              <input id="ri-ss" type="number" min="0" placeholder="e.g. 2200" value="0" inputmode="numeric">
+              <span class="hint">Your estimated benefit at your planned claiming age</span>
+            </div>
+            <div class="calc-field">
+              <label for="ri-pension">Monthly Pension Income</label>
+              <input id="ri-pension" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
+              <span class="hint">Any defined-benefit pension from employer or government</span>
+            </div>
+            <div class="calc-field">
+              <label for="ri-annuity">Monthly Annuity or Guaranteed Income</label>
+              <input id="ri-annuity" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
+              <span class="hint">Any annuity payouts or other guaranteed income sources</span>
+            </div>
+            <div class="calc-field">
+              <label for="ri-other">Other Monthly Income (part-time, rental, etc.)</label>
+              <input id="ri-other" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
+            </div>
+            <div class="calc-field">
+              <label for="ri-savings">Total Retirement Savings (IRA, 401k, etc.)</label>
+              <input id="ri-savings" type="number" min="0" placeholder="e.g. 350000" inputmode="numeric">
+              <span class="hint">Used to estimate how long a monthly withdrawal could last</span>
+            </div>
+            <button class="btn btn-amber btn-full" onclick="calcRetirementIncome()">Calculate My Income Gap</button>
+          </div>
+
+          <div class="calc-result-panel" id="ri-result-panel">
+            <div class="calc-result-empty" id="ri-empty">
+              <div class="calc-result-empty-icon">&#128200;</div>
+              <p>Enter your income sources and expenses to see your estimated retirement income gap.</p>
+            </div>
+            <div class="calc-result-content" id="ri-result">
+              <div class="result-eyebrow">Monthly Income Gap</div>
+              <div class="result-primary" id="ri-gap-amount">—</div>
+              <div class="result-primary-label" id="ri-gap-label">per month needs to come from savings</div>
+              <div class="result-breakdown">
+                <div class="result-row">
+                  <span class="r-label">Monthly expenses</span>
+                  <span class="r-value" id="ri-r-expenses">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Total guaranteed income</span>
+                  <span class="r-value" id="ri-r-income">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Monthly gap from savings</span>
+                  <span class="r-value highlight" id="ri-r-gap">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Annual withdrawal needed</span>
+                  <span class="r-value" id="ri-r-annual">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Estimated years savings will last</span>
+                  <span class="r-value" id="ri-r-years">—</span>
+                </div>
+              </div>
+              <p class="result-note">Assumes a 4% average annual return on savings during distribution. This is a simplified estimate — actual longevity of savings depends on investment returns, inflation, and withdrawal timing.</p>
+              <a class="result-cta-btn" href="book.html">Get a Free Retirement Consultation</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 3. ROTH IRA CONVERSION CALCULATOR ===== -->
+    <section class="calc-section-block" id="roth-conversion">
+      <div class="container">
+        <div class="calc-wrapper">
+
+          <div class="calc-form-panel">
+            <h2>Roth IRA Conversion Calculator</h2>
+            <p class="calc-desc">Estimate the potential tax impact of converting traditional retirement savings into a Roth IRA, and see the long-term tax-free growth advantage.</p>
+
+            <div class="calc-field">
+              <label for="rc-balance">Current Traditional IRA / 401k Balance</label>
+              <input id="rc-balance" type="number" min="0" placeholder="e.g. 350000" inputmode="numeric">
+              <span class="hint">Your total pre-tax retirement account balance (for reference)</span>
+            </div>
+            <div class="calc-field">
+              <label for="rc-convert">Amount to Convert</label>
+              <input id="rc-convert" type="number" min="0" placeholder="e.g. 50000" inputmode="numeric">
+              <span class="hint">The portion you are considering converting to a Roth IRA</span>
+            </div>
+            <div class="calc-field">
+              <label for="rc-bracket">Current Federal Tax Bracket</label>
+              <select id="rc-bracket">
+                <option value="">Select your bracket</option>
+                <option value="10">10%</option>
+                <option value="12">12%</option>
+                <option value="22">22%</option>
+                <option value="24">24%</option>
+                <option value="32">32%</option>
+                <option value="35">35%</option>
+                <option value="37">37%</option>
+              </select>
+              <span class="hint">Your current marginal federal income tax bracket</span>
+            </div>
+            <div class="calc-field">
+              <label for="rc-retire-bracket">Expected Retirement Tax Bracket</label>
+              <select id="rc-retire-bracket">
+                <option value="">Select expected bracket</option>
+                <option value="10">10%</option>
+                <option value="12">12%</option>
+                <option value="22">22%</option>
+                <option value="24">24%</option>
+                <option value="32">32%</option>
+                <option value="35">35%</option>
+                <option value="37">37%</option>
+              </select>
+              <span class="hint">The tax bracket you expect to be in when taking retirement withdrawals</span>
+            </div>
+            <div class="calc-field">
+              <label for="rc-years">Years Until Retirement</label>
+              <input id="rc-years" type="number" min="1" max="40" placeholder="e.g. 12" value="12" inputmode="numeric">
+            </div>
+            <button class="btn btn-amber btn-full" onclick="calcRoth()">Estimate Conversion Impact</button>
+          </div>
+
+          <div class="calc-result-panel" id="rc-result-panel">
+            <div class="calc-result-empty" id="rc-empty">
+              <div class="calc-result-empty-icon">&#128260;</div>
+              <p>Enter your conversion amount and tax brackets to see the estimated long-term impact.</p>
+            </div>
+            <div class="calc-result-content" id="rc-result">
+              <div class="result-eyebrow">Potential Tax-Free Advantage</div>
+              <div class="result-primary" id="rc-primary">—</div>
+              <div class="result-primary-label">estimated advantage over keeping funds in traditional account</div>
+              <div class="result-breakdown">
+                <div class="result-row">
+                  <span class="r-label">Taxes owed on conversion now</span>
+                  <span class="r-value" id="rc-r-tax-now">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Projected Roth value at retirement (tax-free)</span>
+                  <span class="r-value good" id="rc-r-future-roth">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label">Traditional value after retirement taxes</span>
+                  <span class="r-value" id="rc-r-future-trad">—</span>
+                </div>
+                <div class="result-row">
+                  <span class="r-label"><strong>Tax-free growth advantage</strong></span>
+                  <span class="r-value" id="rc-advantage">—</span>
+                </div>
+              </div>
+              <p class="result-note" id="rc-explanation"></p>
+              <p class="result-note" style="margin-top:8px;font-style:italic;">This calculator provides estimates only and does not constitute tax or financial advice. Assumes 6% average annual growth.</p>
+              <a class="result-cta-btn" href="book.html">Book a Roth Conversion Strategy Session</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="calculator-cta">
+      <div class="cta-container">
+        <h2 class="cta-title">Want a More Accurate Picture?</h2>
+        <p class="cta-text">
+          These calculators provide quick estimates. For a detailed, personalized
+          review of your retirement income, life insurance needs, or rollover
+          options, schedule your <strong>free retirement strategy consultation
+          with Loretta</strong>.
+        </p>
+        <a href="book.html" class="cta-button">Book Your Free Retirement Consultation</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+                  <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+        <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    // Nav toggle
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+
+    // Offset-aware smooth scroll for calculator tabs
+    (function() {
+      const tabs = document.querySelectorAll('.calc-tab-link');
+      const sections = ['life-insurance','retirement-income','roth-conversion'];
+
+      function getScrollOffset() {
+        var header = document.querySelector('.site-header');
+        var tabBar = document.querySelector('.calc-nav-tabs');
+        return (header ? header.offsetHeight : 64) + (tabBar ? tabBar.offsetHeight : 68) + 16;
+      }
+
+      tabs.forEach(function(tab) {
+        tab.addEventListener('click', function(e) {
+          var href = tab.getAttribute('href');
+          if (!href || href[0] !== '#') return;
+          var target = document.getElementById(href.slice(1));
+          if (!target) return;
+          e.preventDefault();
+          var offset = getScrollOffset();
+          var top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+          window.scrollTo({ top: top, behavior: 'smooth' });
+        });
+      });
+
+      // Sticky tab highlighting
+      function updateActiveTab() {
+        var offset = getScrollOffset();
+        var current = sections[0];
+        sections.forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el && window.scrollY >= el.offsetTop - offset - 10) current = id;
+        });
+        tabs.forEach(function(tab) {
+          tab.classList.toggle('active', tab.getAttribute('href') === '#' + current);
+        });
+      }
+      window.addEventListener('scroll', updateActiveTab, { passive: true });
+    })();
+
+    // ---- Utilities ----
+    function fmt(n) {
+      if (isNaN(n) || n === null) return '—';
+      return '$' + Math.round(n).toLocaleString('en-US');
+    }
+    function val(id) {
+      return parseFloat(document.getElementById(id).value) || 0;
+    }
+    function show(resultId, emptyId) {
+      document.getElementById(resultId).classList.add('show');
+      document.getElementById(emptyId).style.display = 'none';
+    }
+
+    // ---- 1. Life Insurance ----
+    function calcLifeInsurance() {
+      var debts    = val('li-debts');
+      var income   = val('li-income');
+      var years    = val('li-years') || 15;
+      var mortgage = val('li-mortgage');
+      var edu      = val('li-education');
+      var existing = val('li-existing');
+
+      if (!income && !debts && !mortgage) return;
+
+      var incomeReplace = income * years;
+      var subtotal = debts + incomeReplace + mortgage + edu;
+      var gap = Math.max(0, subtotal - existing);
+
+      document.getElementById('li-total').textContent = fmt(gap);
+      document.getElementById('li-r-debts').textContent    = fmt(debts);
+      document.getElementById('li-r-income').textContent   = fmt(incomeReplace);
+      document.getElementById('li-r-mortgage').textContent = fmt(mortgage);
+      document.getElementById('li-r-education').textContent= fmt(edu);
+      document.getElementById('li-r-existing').textContent = existing > 0 ? '−' + fmt(existing) : fmt(0);
+      document.getElementById('li-r-gap').textContent      = fmt(gap);
+
+      show('li-result', 'li-empty');
+    }
+
+    // ---- 2. Retirement Income Gap ----
+    function calcRetirementIncome() {
+      var expenses = val('ri-expenses');
+      var ss       = val('ri-ss');
+      var pension  = val('ri-pension');
+      var annuity  = val('ri-annuity');
+      var other    = val('ri-other');
+      var savings  = val('ri-savings');
+
+      if (!expenses) return;
+
+      var totalIncome = ss + pension + annuity + other;
+      var monthlyGap  = Math.max(0, expenses - totalIncome);
+      var annualGap   = monthlyGap * 12;
+
+      // Estimate years savings will last using present value annuity formula at 4% return
+      var r = 0.04 / 12;
+      var yearsLeft = 0;
+      if (monthlyGap > 0 && savings > 0) {
+        if (r === 0) {
+          yearsLeft = savings / monthlyGap / 12;
+        } else {
+          // n = -ln(1 - P*r/PMT) / ln(1+r)
+          var ratio = savings * r / monthlyGap;
+          if (ratio >= 1) {
+            yearsLeft = 99; // essentially infinite
+          } else {
+            yearsLeft = -Math.log(1 - ratio) / Math.log(1 + r) / 12;
+          }
+        }
+      } else if (monthlyGap === 0) {
+        yearsLeft = 99;
+      }
+
+      var yearsDisplay = yearsLeft >= 99 ? '30+ years' :
+                         yearsLeft <= 0  ? 'Less than 1 year' :
+                         Math.round(yearsLeft) + ' years';
+
+      document.getElementById('ri-gap-amount').textContent = monthlyGap > 0 ? fmt(monthlyGap) : '$0';
+      document.getElementById('ri-gap-label').textContent = monthlyGap > 0
+        ? 'per month needs to come from savings'
+        : 'per month — your income covers your expenses';
+      document.getElementById('ri-r-expenses').textContent = fmt(expenses);
+      document.getElementById('ri-r-income').textContent   = fmt(totalIncome);
+      document.getElementById('ri-r-gap').textContent      = fmt(monthlyGap);
+      document.getElementById('ri-r-annual').textContent   = fmt(annualGap);
+      document.getElementById('ri-r-years').textContent    = savings > 0 ? yearsDisplay : 'No savings entered';
+
+      // Color the gap
+      var gapEl = document.getElementById('ri-r-gap');
+      gapEl.className = 'r-value ' + (monthlyGap > 1000 ? 'alert' : monthlyGap > 0 ? 'highlight' : 'good');
+
+      show('ri-result', 'ri-empty');
+    }
+
+    // ---- 3. Roth Conversion ----
+    function calcRoth() {
+      var convert  = parseFloat(document.getElementById('rc-convert').value) || 0;
+      var curRate  = parseFloat(document.getElementById('rc-bracket').value) / 100;
+      var retRate  = parseFloat(document.getElementById('rc-retire-bracket').value) / 100;
+      var years    = parseFloat(document.getElementById('rc-years').value) || 12;
+
+      if (!convert || isNaN(curRate) || isNaN(retRate)) return;
+
+      var taxNow     = convert * curRate;
+      var growth     = Math.pow(1.06, years);
+      var futureRoth = convert * growth;
+      var futureTrad = convert * growth * (1 - retRate);
+      var advantage  = futureRoth - futureTrad;
+
+      var explanation;
+      if (retRate > curRate) {
+        explanation = 'Your expected retirement tax rate (' + (retRate * 100).toFixed(0) + '%) is higher than your current rate (' + (curRate * 100).toFixed(0) + '%). Converting now locks in today\'s lower rate — all future growth and withdrawals from the Roth come out completely tax-free. This conversion appears favorable.';
+      } else if (retRate === curRate) {
+        explanation = 'Your current and retirement tax rates are the same (' + (curRate * 100).toFixed(0) + '%). A Roth conversion may still provide benefits through tax diversification, eliminating future Required Minimum Distributions (starting at age 73), and leaving a tax-free inheritance to heirs.';
+      } else {
+        explanation = 'Your expected retirement rate (' + (retRate * 100).toFixed(0) + '%) is lower than your current rate (' + (curRate * 100).toFixed(0) + '%). Paying taxes now at a higher rate reduces the direct tax advantage. A qualified professional can evaluate whether estate planning goals, RMD reduction, or tax diversification still make a partial conversion worthwhile.';
+      }
+
+      document.getElementById('rc-primary').textContent       = advantage > 0 ? fmt(advantage) : '$0';
+      document.getElementById('rc-r-tax-now').textContent     = fmt(taxNow);
+      document.getElementById('rc-r-future-roth').textContent = fmt(futureRoth);
+      document.getElementById('rc-r-future-trad').textContent = fmt(futureTrad);
+      document.getElementById('rc-advantage').className       = 'r-value ' + (retRate > curRate ? 'good' : retRate < curRate ? 'alert' : 'highlight');
+      document.getElementById('rc-advantage').textContent     = fmt(advantage);
+      document.getElementById('rc-explanation').textContent   = explanation;
+
+      show('rc-result', 'rc-empty');
+    }
+  </script>
+
+</body>
+</html>

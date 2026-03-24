@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>About Loretta Stewart — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Meet Loretta Stewart — an independent retirement specialist helping adults 45+ protect their savings, create reliable income, and plan with confidence.">
+
+  <style>
+    /* ── About page layout additions ─────────────────────────────────── */
+
+    /* ── Hero — mint background, override global purple gradient ── */
+    .about-hero {
+      background: #eaf6f1 !important;
+    }
+
+    /* ── Hero eyebrow label ── */
+    .about-hero .page-hero-tag {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: block;
+      color: var(--purple);
+    }
+
+    /* ── Hero headline ── */
+    .about-hero h1 {
+      color: #111111 !important;
+    }
+
+    /* ── Hero subtitle ── */
+    .about-hero-subtitle {
+      font-size: 20px !important;
+      font-weight: 700 !important;
+      color: #3f2a78 !important;
+      line-height: 1.3;
+      margin-top: 10px;
+      margin-bottom: 18px;
+      max-width: 540px;
+    }
+
+    /* ── Hero body paragraphs — smaller and lighter than subtitle ── */
+    .about-hero-content p:not(.about-hero-subtitle) {
+      font-size: 16px;
+      line-height: 1.6;
+      font-weight: 400;
+      max-width: 520px;
+      color: #444;
+    }
+
+    /* Hero photo — wider to let portrait photos breathe */
+    .about-hero-photo { flex-shrink: 0; width: 340px; }
+    .about-hero-photo img {
+      width: 100%;
+      height: 420px;
+      object-fit: cover;
+      object-position: top center;
+      border-radius: 14px;
+      border: 3px solid rgba(78,44,148,0.15);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.12);
+      display: block;
+    }
+
+    /* ── Two-column image + text sections ── */
+    .about-split-section {
+      padding: 88px 0;
+      background: #f5fbf8;
+    }
+    .about-split-section.alt-bg {
+      background: #eaf6f1;
+    }
+    .about-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 72px;
+      align-items: center;
+    }
+    .about-split-img {
+      width: 100%;
+      height: 460px;
+      object-fit: cover;
+      object-position: top center;
+      border-radius: 14px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.13);
+      display: block;
+    }
+    .about-split-text h2 {
+      font-size: clamp(1.6rem, 2.5vw, 2.1rem);
+      font-weight: 800;
+      color: var(--purple-dark);
+      margin-bottom: 20px;
+      line-height: 1.2;
+    }
+    .about-split-text p {
+      font-size: 1.05rem;
+      color: #444;
+      line-height: 1.82;
+      margin-bottom: 18px;
+    }
+    .about-split-text p:last-child { margin-bottom: 0; }
+
+    /* ── Why clients section (dark purple bg) ── */
+    .about-why-section {
+      padding: 96px 0;
+      background: var(--purple-dark);
+    }
+    .about-why-heading {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+    .about-why-heading h2 {
+      font-size: clamp(1.8rem, 2.8vw, 2.3rem);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+    .about-why-heading p {
+      font-size: 18px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.9);
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    .about-why-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 30px;
+    }
+    .about-why-card {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      padding: 28px;
+      min-height: 160px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      transition: background 0.2s, transform 0.2s;
+    }
+    .about-why-card:hover {
+      background: rgba(255,255,255,0.12);
+      transform: translateY(-3px);
+    }
+    .about-why-icon {
+      width: 46px;
+      height: 46px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+      color: #fff;
+      font-size: 1.25rem;
+    }
+    .about-why-card h3 {
+      font-size: 1.07rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    .about-why-card p {
+      font-size: 0.93rem;
+      color: rgba(255,255,255,0.76);
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    /* ── Credentials section (purple bg for credibility) ── */
+    .about-cred-section {
+      padding: 88px 0;
+      background: var(--purple-dark);
+    }
+    .about-cred-heading {
+      text-align: center;
+      margin-bottom: 52px;
+    }
+    .about-cred-heading h2 {
+      font-size: clamp(1.6rem, 2.5vw, 2.1rem);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    .about-cred-heading p {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.72);
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.65;
+    }
+
+    /* ── Credential cards — larger, more premium ── */
+    .about-cred-section .credentials-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 30px;
+      margin-top: 0;
+    }
+    .about-cred-section .credential-item {
+      background: #ffffff;
+      padding: 36px;
+      gap: 20px;
+      border-radius: 14px;
+      min-height: 155px;
+      box-shadow: 0 6px 28px rgba(0,0,0,0.2);
+      border: none;
+    }
+    .about-cred-section .credential-item h4 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .about-cred-section .credential-item p {
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    .about-cred-section .credential-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* ── CTA button — larger and more prominent ── */
+    .about-hero .btn-amber,
+    .about-split-text .btn-amber,
+    .cta-section .btn-amber {
+      padding: 18px 38px;
+      font-size: 19px;
+      font-weight: 600;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+    .about-hero .btn-amber:hover,
+    .about-split-text .btn-amber:hover,
+    .cta-section .btn-amber:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.18);
+    }
+
+    /* ── Who I Work Best With — checklist inside split section ── */
+    .about-split-text .about-fit-subtext {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--purple-dark);
+      margin-bottom: 12px;
+      margin-top: 4px;
+      text-align: left;
+      line-height: 1.5;
+    }
+    .about-fit-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      text-align: left;
+    }
+    .about-fit-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+      font-size: 1.02rem;
+      color: #333;
+      line-height: 1.65;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(78,44,148,0.09);
+    }
+    .about-fit-list li:last-child { border-bottom: none; }
+    .about-fit-check {
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      background: var(--green);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+      color: #fff;
+      font-size: 0.68rem;
+    }
+
+    /* ── Mobile responsive ── */
+    @media (max-width: 860px) {
+      .about-split { grid-template-columns: 1fr; gap: 40px; }
+      .about-split-img { height: 320px; object-position: center top; }
+      .about-why-grid { grid-template-columns: 1fr 1fr; gap: 20px; }
+      .about-split-section { padding: 60px 0; }
+      .about-why-section { padding: 60px 0; }
+      .about-cred-section { padding: 60px 0; }
+    }
+    @media (max-width: 560px) {
+      .about-why-grid { grid-template-columns: 1fr; }
+      .about-hero-photo { width: 100%; max-width: 300px; margin: 0 auto; }
+      .about-cred-section .credentials-grid { grid-template-columns: 1fr; }
+      .about-hero .btn-amber,
+      .about-split-text .btn-amber,
+      .cta-section .btn-amber { width: 100%; text-align: center; justify-content: center; }
+      .about-hero .page-hero-tag { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html" class="active">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-readiness-quiz.html">Retirement Readiness Quiz</a>
+            <a href="resources.html#guide">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-readiness-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="resources.html#guide">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+
+  <!-- ===== 1. HERO ===== -->
+  <section class="about-hero">
+    <div class="container about-hero-inner">
+      <div class="about-hero-content">
+        <div class="page-hero-tag">Independent Life &amp; Retirement Specialist</div>
+        <h1>Meet Loretta Stewart</h1>
+        <p class="about-hero-subtitle">Helping You Make Confident Retirement Decisions</p>
+        <p>For over 20 years, Loretta Stewart has helped families make confident decisions about retirement, life insurance, and safe money strategies — without pressure, jargon, or one-size-fits-all solutions.</p>
+        <p>As an independent advisor, she is not tied to any single company. That means her focus stays on you — reviewing retirement accounts, exploring rollover options, discussing annuity and income strategies, and evaluating life insurance when protection matters.</p>
+        <p>Whether you are approaching retirement or already there, Loretta's approach is centered on clear guidance, honest answers, and decisions made at your own pace.</p>
+        <div style="margin-top:32px;">
+          <a class="btn btn-amber btn-lg" href="book.html">Book a Free Consultation</a>
+        </div>
+      </div>
+      <div class="about-hero-photo">
+        <img src="assets/images/Gray%20suit.jpg" alt="Loretta Stewart, Independent Retirement Specialist">
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ===== 2. WHY CLIENTS CHOOSE TO WORK WITH ME ===== -->
+  <section class="about-why-section">
+    <div class="container">
+      <div class="about-why-heading">
+        <h2>Why Clients Choose to Work With Me</h2>
+        <p>A different kind of retirement guidance — independent, clear, and built around your goals.</p>
+      </div>
+      <div class="about-why-grid">
+        <div class="about-why-card">
+          <div class="about-why-icon"><i class="fa-solid fa-compass" aria-hidden="true"></i></div>
+          <h3>Independent &amp; Objective</h3>
+          <p>Access to multiple carriers means you get unbiased recommendations tailored to your situation — not a sales quota.</p>
+        </div>
+        <div class="about-why-card">
+          <div class="about-why-icon"><i class="fa-solid fa-comments" aria-hidden="true"></i></div>
+          <h3>Clear Communication</h3>
+          <p>Complex financial concepts translated into plain English. No jargon, no confusion — just clear answers to your questions.</p>
+        </div>
+        <div class="about-why-card">
+          <div class="about-why-icon"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></div>
+          <h3>No Pressure Guidance</h3>
+          <p>Every consultation is a conversation. You will never feel pushed or rushed — only informed and empowered to decide.</p>
+        </div>
+        <div class="about-why-card">
+          <div class="about-why-icon"><i class="fa-solid fa-medal" aria-hidden="true"></i></div>
+          <h3>20+ Years of Experience</h3>
+          <p>Over two decades helping families with retirement planning, annuities, rollovers, and protection strategies.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ===== 3. WHO I WORK BEST WITH ===== -->
+  <section class="about-split-section">
+    <div class="container">
+      <div class="about-split">
+
+        <img
+          class="about-split-img"
+          src="assets/images/In%20home%20office.jpg"
+          alt="Loretta Stewart — retirement planning advisor"
+        >
+
+        <div class="about-split-text">
+          <h2>Who I Work Best With</h2>
+          <p>My services are designed for individuals and families who want clear guidance with important life insurance and retirement decisions.</p>
+          <p class="about-fit-subtext">This may be a good fit if you:</p>
+          <ul class="about-fit-list">
+            <li>
+              <span class="about-fit-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
+              Are approaching retirement or already retired
+            </li>
+            <li>
+              <span class="about-fit-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
+              Have a 401(k), 403(b), IRA, or TSP account
+            </li>
+            <li>
+              <span class="about-fit-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
+              Want help reviewing rollover options
+            </li>
+            <li>
+              <span class="about-fit-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
+              Are exploring safe retirement income strategies
+            </li>
+            <li>
+              <span class="about-fit-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
+              Want guidance from an independent advisor who explains things clearly
+            </li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ===== 4. CREDENTIALS & LICENSING ===== -->
+  <section class="about-cred-section">
+    <div class="container">
+      <div class="about-cred-heading">
+        <h2>Credentials &amp; Licensing</h2>
+        <p>Specialized knowledge focused on the areas that matter most at and near retirement.</p>
+      </div>
+      <div class="credentials-grid">
+        <div class="credential-item">
+          <div class="credential-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div>
+            <h4>Life Insurance Licensed</h4>
+            <p>Licensed to offer life insurance and annuity products across multiple states</p>
+          </div>
+        </div>
+        <div class="credential-item">
+          <div class="credential-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div>
+            <h4>Retirement Income Specialist</h4>
+            <p>Focused continuing education in retirement income design and tax-aware planning</p>
+          </div>
+        </div>
+        <div class="credential-item">
+          <div class="credential-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          </div>
+          <div>
+            <h4>Annuity Products Expertise</h4>
+            <p>Deep product knowledge across fixed, indexed, and income annuities from leading carriers</p>
+          </div>
+        </div>
+        <div class="credential-item">
+          <div class="credential-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+          </div>
+          <div>
+            <h4>Rollover &amp; IRA Guidance</h4>
+            <p>Experienced guiding 401(k), 403(b), TSP, and IRA rollovers to avoid costly errors</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ===== 5. WHAT IT'S LIKE TO WORK WITH ME ===== -->
+  <section class="about-split-section alt-bg">
+    <div class="container">
+      <div class="about-split">
+
+        <div class="about-split-text">
+          <h2>What It's Like to Work With Me</h2>
+          <p>A consultation is simply a conversation about where you are now, what questions you have, and what you want your retirement to look like.</p>
+          <p>We can review retirement accounts such as 401(k), 403(b), IRA, or TSP assets, talk through safe money and income strategies, and explore life insurance options if protection is part of your plan.</p>
+          <p>My role is to help you understand your options clearly so you can move forward with confidence.</p>
+          <div style="margin-top:28px;">
+            <a class="btn btn-amber btn-lg" href="book.html">Book a Free Consultation</a>
+          </div>
+        </div>
+
+        <img
+          class="about-split-img"
+          src="assets/images/Loretta%20meet%20with%20older%20couple.jpg"
+          alt="Loretta Stewart meeting with a retired couple"
+        >
+
+      </div>
+    </div>
+  </section>
+
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+  </script>
+</body>
+</html>

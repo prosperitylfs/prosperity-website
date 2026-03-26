@@ -158,11 +158,12 @@
             </div>
             <div class="form-consent">
               <label class="sms-consent">
-                <input type="checkbox" required>
+                <input type="checkbox" id="lead-sms-consent" required>
                 <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="terms.html" target="_blank">Terms &amp; Conditions</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>.</span>
               </label>
+              <p id="lead-consent-error" class="form-error-message" aria-live="polite" style="display:none;">Please check the SMS consent box before continuing.</p>
             </div>
-            <button type="submit" class="btn btn-primary btn-full" id="lead-continue">Request My Free Retirement Consultation</button>
+            <button type="button" class="btn btn-primary btn-full" id="lead-continue">Request My Free Retirement Consultation</button>
             <p class="form-privacy">We respect your privacy. No spam, ever.</p>
             <div id="lead-message" class="form-message" aria-live="polite"></div>
           </form>
@@ -558,28 +559,40 @@
     const continueBtn = document.getElementById('lead-continue');
     if (continueBtn) {
       continueBtn.addEventListener('click', function() {
-        const firstName = document.getElementById('lead-first-name');
-        const lastName  = document.getElementById('lead-last-name');
-        const phone     = document.getElementById('lead-phone');
-        const email     = document.getElementById('lead-email');
-        const interest  = document.getElementById('lead-interest');
-        const fields    = [firstName, lastName, phone, email, interest];
+        const firstName    = document.getElementById('lead-first-name');
+        const lastName     = document.getElementById('lead-last-name');
+        const phone        = document.getElementById('lead-phone');
+        const email        = document.getElementById('lead-email');
+        const interest     = document.getElementById('lead-interest');
+        const consentBox   = document.getElementById('lead-sms-consent');
+        const consentError = document.getElementById('lead-consent-error');
+        const fields       = [firstName, lastName, phone, email, interest];
+
+        // Validate required text/select fields
         let valid = true;
         fields.forEach(function(el) {
           const empty = el.value.trim() === '' || el.value === '';
           el.style.borderColor = empty ? 'var(--red, #e53e3e)' : '';
           if (empty) valid = false;
         });
-        if (valid) {
-          const params = new URLSearchParams({
-            first_name: firstName.value.trim(),
-            last_name:  lastName.value.trim(),
-            phone:      phone.value.trim(),
-            email:      email.value.trim(),
-            topic:      interest.value
-          });
-          window.location.href = 'book.html?' + params.toString();
+        if (!valid) return;
+
+        // Require SMS consent checkbox — block redirect if unchecked
+        if (!consentBox || !consentBox.checked) {
+          if (consentError) consentError.style.display = 'block';
+          if (consentBox) consentBox.focus();
+          return;
         }
+        if (consentError) consentError.style.display = 'none';
+
+        const params = new URLSearchParams({
+          first_name: firstName.value.trim(),
+          last_name:  lastName.value.trim(),
+          phone:      phone.value.trim(),
+          email:      email.value.trim(),
+          topic:      interest.value
+        });
+        window.location.href = 'book.html?' + params.toString();
       });
     }
   </script>

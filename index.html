@@ -129,8 +129,13 @@
               <h3>Request Your Free Retirement Consultation</h3>
               <p>Talk with Loretta &mdash; no obligation.</p>
             </div>
-            <div class="form-group">
-              <input id="lead-name" name="name" placeholder="Full name" required>
+            <div class="name-row">
+              <div class="form-group">
+                <input id="lead-first-name" name="first_name" placeholder="First name" required>
+              </div>
+              <div class="form-group">
+                <input id="lead-last-name" name="last_name" placeholder="Last name" required>
+              </div>
             </div>
             <div class="form-group">
               <input id="lead-phone" name="phone" placeholder="Phone number" required>
@@ -248,7 +253,7 @@
           <a href="book.html" class="trust-cta">Book a Free Consultation</a>
         </div>
         <div class="home-trust-image-wrap">
-          <img src="assets/images/In blue suit.png" alt="Loretta Stewart" class="home-trust-image">
+          <img src="assets/images/In purple suit.png" alt="Loretta Stewart" class="home-trust-image">
           <div class="trust-image-caption">
             <strong>Loretta Stewart</strong>
             <span>Independent Life &amp; Retirement Specialist</span>
@@ -553,18 +558,28 @@
     const continueBtn = document.getElementById('lead-continue');
     if (continueBtn) {
       continueBtn.addEventListener('click', function() {
-        const name     = document.getElementById('lead-name');
-        const phone    = document.getElementById('lead-phone');
-        const email    = document.getElementById('lead-email');
-        const interest = document.getElementById('lead-interest');
-        const fields   = [name, phone, email, interest];
+        const firstName = document.getElementById('lead-first-name');
+        const lastName  = document.getElementById('lead-last-name');
+        const phone     = document.getElementById('lead-phone');
+        const email     = document.getElementById('lead-email');
+        const interest  = document.getElementById('lead-interest');
+        const fields    = [firstName, lastName, phone, email, interest];
         let valid = true;
         fields.forEach(function(el) {
           const empty = el.value.trim() === '' || el.value === '';
           el.style.borderColor = empty ? 'var(--red, #e53e3e)' : '';
           if (empty) valid = false;
         });
-        if (valid) window.location.href = 'book.html';
+        if (valid) {
+          const params = new URLSearchParams({
+            first_name: firstName.value.trim(),
+            last_name:  lastName.value.trim(),
+            phone:      phone.value.trim(),
+            email:      email.value.trim(),
+            topic:      interest.value
+          });
+          window.location.href = 'book.html?' + params.toString();
+        }
       });
     }
   </script>

@@ -763,6 +763,27 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 .form-group { margin-bottom: 11px; }
 
+.name-row {
+  display: flex;
+  gap: 12px;
+}
+
+.name-row input {
+  width: 100%;
+}
+
+.name-row .form-group {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .name-row {
+    flex-direction: column;
+  }
+}
+
 .form-group input,
 .form-group select,
 .form-group textarea,

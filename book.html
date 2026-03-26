@@ -344,9 +344,15 @@
               <p class="step-heading">Let&rsquo;s get started</p>
               <p class="step-sub">Enter your contact info so we can reach you about your consultation.</p>
 
-              <div class="form-group">
-                <label class="form-label" for="f-name">Full Name <span class="req">*</span></label>
-                <input type="text" id="f-name" name="full_name" placeholder="Jane Smith" required>
+              <div class="name-row">
+                <div class="form-group">
+                  <label class="form-label" for="f-first-name">First Name <span class="req">*</span></label>
+                  <input type="text" id="f-first-name" name="first_name" placeholder="Jane" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="f-last-name">Last Name <span class="req">*</span></label>
+                  <input type="text" id="f-last-name" name="last_name" placeholder="Smith" required>
+                </div>
               </div>
               <div class="form-group">
                 <label class="form-label" for="f-phone">Phone Number <span class="req">*</span></label>
@@ -663,10 +669,13 @@
       const email     = p.get('email')      || '';
       const topic     = p.get('topic')      || '';
 
-      if (firstName || lastName) {
-        const fullName = [firstName, lastName].filter(Boolean).join(' ');
-        const nameEl = document.getElementById('f-name');
-        if (nameEl) nameEl.value = fullName;
+      if (firstName) {
+        const firstEl = document.getElementById('f-first-name');
+        if (firstEl) firstEl.value = firstName;
+      }
+      if (lastName) {
+        const lastEl = document.getElementById('f-last-name');
+        if (lastEl) lastEl.value = lastName;
       }
       if (phone) {
         const phoneEl = document.getElementById('f-phone');
@@ -708,13 +717,14 @@
       const showErr = (msg) => { if (err) { err.textContent = msg; err.style.display = 'block'; } };
 
       if (n === 1) {
-        const name    = document.getElementById('f-name').value.trim();
-        const phone   = document.getElementById('f-phone').value.trim();
-        const email   = document.getElementById('f-email').value.trim();
-        const consent = document.getElementById('sms-consent-1').checked;
-        if (!name || !phone || !email) { showErr('Please fill in all required fields.'); return false; }
+        const firstName = document.getElementById('f-first-name').value.trim();
+        const lastName  = document.getElementById('f-last-name').value.trim();
+        const phone     = document.getElementById('f-phone').value.trim();
+        const email     = document.getElementById('f-email').value.trim();
+        const consent   = document.getElementById('sms-consent-1').checked;
+        if (!firstName || !lastName || !phone || !email) { showErr('Please fill in all required fields.'); return false; }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('Please enter a valid email address.'); return false; }
-        if (!consent) { showErr('Please agree to the Terms & Conditions to continue.'); return false; }
+        if (!consent) { showErr('Please check the SMS consent box to continue.'); return false; }
         clearErr(); return true;
       }
 

@@ -14,15 +14,35 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!form) return;
     form.addEventListener('submit', function (e) {
       e.preventDefault();
+
+      // Validate required checkboxes (e.g. SMS consent)
+      var unchecked = form.querySelector('input[type="checkbox"][required]:not(:checked)');
+      if (unchecked) {
+        if (messageEl) {
+          messageEl.textContent = 'Please check the SMS consent box before submitting.';
+          messageEl.className = 'form-message error';
+        }
+        unchecked.focus();
+        return;
+      }
+
+      if (messageEl) { messageEl.textContent = ''; messageEl.className = 'form-message'; }
+
       const data = new FormData(form);
       // Replace fetch URL with your backend or form service integration.
       fetch('https://example.com/submit', { method: 'POST', body: data })
         .then(function () {
-          if (messageEl) messageEl.textContent = 'Thanks — we received your request. We will contact you soon.';
+          if (messageEl) {
+            messageEl.textContent = 'Thanks — we received your request. We will contact you soon.';
+            messageEl.className = 'form-message success';
+          }
           form.reset();
         })
         .catch(function () {
-          if (messageEl) messageEl.textContent = 'Submission simulated. Configure backend to enable real submissions.';
+          if (messageEl) {
+            messageEl.textContent = 'Submission simulated. Configure backend to enable real submissions.';
+            messageEl.className = 'form-message';
+          }
         });
     });
   }

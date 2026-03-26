@@ -902,6 +902,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 .form-message { margin-top: 10px; font-size: 0.88rem; }
 .form-message.success,
 .form-message:not(:empty) { color: var(--green-dark); }
+.form-message.error { color: #c0392b; }
 
 /* ---------- Form Consent & Policy Links ---------- */
 .form-consent {

@@ -2249,6 +2249,44 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .lead-magnet-icon { display: none; }
 }
 
+/* ---------- Homepage mobile safety (scoped, does not affect other pages) ---------- */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+  }
+
+  /* Grid children must be able to shrink below their content size */
+  .homepage .hero-inner,
+  .homepage .hero-content,
+  .homepage .hero-form-wrap,
+  .homepage .lead-form {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Form fields, selects, and the CTA button cannot exceed the card width */
+  .homepage .lead-form input,
+  .homepage .lead-form select,
+  .homepage .lead-form textarea,
+  .homepage .lead-form button {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* Text wraps naturally; no word-by-word stacking */
+  .homepage .hero-content h1,
+  .homepage .hero-content p,
+  .homepage .lead-form h3,
+  .homepage .lead-form p,
+  .homepage .lead-form label {
+    overflow-wrap: break-word;
+    word-break: normal;
+    white-space: normal;
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 900px) {
   .calculator-cards { grid-template-columns: 1fr; }
 }

@@ -2271,97 +2271,14 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 /* ---------- Homepage mobile fixes (768px and below) ---------- */
 @media (max-width: 768px) {
 
-  /* 1. Prevent horizontal scroll */
+  /* Prevent horizontal scroll */
   html, body {
     overflow-x: hidden;
   }
 
-  /* 2. Hero: force single column, pin to viewport */
-  .homepage .hero-inner {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 32px !important;
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-  }
-  .homepage .hero-inner > * {
-    min-width: 0 !important;
-    max-width: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  /* 3. Pension / "Turn Your Retirement Savings" section.
-     This section has an inline style="display:grid; grid-template-columns:2fr 1fr"
-     so !important is required to override it. */
-  #pension-section .why-inner {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 24px !important;
-    width: 100% !important;
-  }
-  #pension-section .why-content {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
-  #pension-section .why-callout {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    justify-self: unset !important;
-    box-sizing: border-box !important;
-  }
-  /* The card inside the callout also has a fixed 340px width */
-  #pension-section .income-highlight-card {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
-  /* Text in the pension section must wrap normally, not word-by-word */
-  #pension-section h2,
-  #pension-section p,
-  #pension-section li {
-    overflow-wrap: break-word !important;
-    word-break: normal !important;
-    white-space: normal !important;
-    max-width: 100% !important;
-  }
-
-  /* 4. Consultation form card: stays inside screen */
-  .homepage .hero-form-wrap,
-  .homepage .lead-form {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
-  .homepage .lead-form input,
-  .homepage .lead-form select,
-  .homepage .lead-form textarea,
-  .homepage .lead-form button {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
-
-  /* 5. CTA buttons inside the hero content stay in viewport */
-  .homepage .hero-ctas {
-    flex-direction: column;
-  }
-  .homepage .hero-ctas .btn {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    text-align: center;
-    justify-content: center;
-  }
-
-  /* 6. Vimeo video: responsive 16:9, full width */
+  /* Vimeo video wrapper */
   .homepage-vimeo-video {
+    position: relative !important;
     width: 100% !important;
     max-width: 100% !important;
     aspect-ratio: 16 / 9 !important;
@@ -2370,20 +2287,79 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     box-sizing: border-box !important;
   }
   .homepage-vimeo-video iframe {
+    position: absolute !important;
+    inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
     display: block !important;
     border: 0 !important;
   }
 
-  /* 7. Text wrapping in hero content */
-  .homepage .hero-content h1,
-  .homepage .hero-content h2,
-  .homepage .hero-content p {
-    overflow-wrap: break-word;
-    word-break: normal;
-    white-space: normal;
-    max-width: 100%;
+  /* Consultation card — .hero-form-wrap wraps the form card */
+  .homepage .hero-form-wrap,
+  .homepage .lead-form,
+  .homepage #lead {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 16px !important;
+    box-sizing: border-box !important;
+  }
+  /* Consultation form fields */
+  .homepage .lead-form input,
+  .homepage .lead-form select,
+  .homepage .lead-form textarea,
+  .homepage .lead-form button,
+  .homepage #lead input,
+  .homepage #lead select,
+  .homepage #lead textarea,
+  .homepage #lead button {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  /* First/last name row stacks on mobile */
+  .homepage .name-row {
+    flex-direction: column !important;
+  }
+
+  /* Pension section — "Turn Your Retirement Savings Into Monthly Pension-Like Income"
+     .why-inner has inline style="display:grid; grid-template-columns:2fr 1fr; gap:100px"
+     !important is required to override inline styles */
+  #pension-section {
+    display: block !important;
+  }
+  #pension-section .why-inner {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  #pension-section .why-content,
+  #pension-section .why-callout {
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-column: 1 !important;
+    justify-self: unset !important;
+    box-sizing: border-box !important;
+  }
+  /* .income-highlight-card has CSS width: 340px */
+  #pension-section .income-highlight-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  #pension-section h2,
+  #pension-section h3,
+  #pension-section p,
+  #pension-section li,
+  #pension-section .section-tag,
+  #pension-section .why-lead {
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+    white-space: normal !important;
+    max-width: 100% !important;
   }
 }
 

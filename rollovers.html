@@ -859,21 +859,28 @@
         <p>Download this free guide to learn common rollover mistakes, questions to ask before moving retirement funds, and key issues to consider when reviewing your options.</p>
       </div>
       <div class="rollovers-lead-card">
-        <form class="rollovers-lead-form" id="guide-form-rollovers">
+        <form
+          class="rollovers-lead-form"
+          name="rollovers-guide"
+          method="POST"
+          data-netlify="true"
+          action="/thank-you-guide.html"
+        >
+          <input type="hidden" name="form-name" value="rollovers-guide" />
           <div class="field-group">
             <label for="rollover-first-name">First Name</label>
-            <input id="rollover-first-name" type="text" name="first_name" placeholder="Your first name" autocomplete="given-name" required>
+            <input id="rollover-first-name" name="first_name" type="text" placeholder="Your first name" required>
           </div>
           <div class="field-group">
             <label for="rollover-email">Email</label>
-            <input id="rollover-email" type="email" name="email" placeholder="Your email address" autocomplete="email" required>
+            <input id="rollover-email" name="email" type="email" placeholder="Your email address" required>
           </div>
           <div class="field-group">
             <label for="rollover-phone">Phone Number</label>
-            <input id="rollover-phone" type="tel" name="phone" placeholder="Your phone number" autocomplete="tel" required>
+            <input id="rollover-phone" name="phone" type="tel" placeholder="Your phone number" required>
           </div>
           <label class="rollovers-consent-row">
-            <input type="checkbox" required>
+            <input type="checkbox" name="sms_consent" required>
             <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="terms.html" target="_blank">Terms &amp; Conditions</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>.</span>
           </label>
           <button type="submit" class="rollovers-submit-btn">Send Me the Free Guide</button>

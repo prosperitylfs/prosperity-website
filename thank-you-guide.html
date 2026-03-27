@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Your Free Guide Is Ready | Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .thankyou-section {
+      min-height: 60vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 24px;
+      background: var(--bg);
+    }
+    .thankyou-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 56px 48px;
+      max-width: 560px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 16px 48px rgba(78,44,148,0.12);
+    }
+    .thankyou-icon {
+      font-size: 52px;
+      margin-bottom: 20px;
+    }
+    .thankyou-card h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--purple-dark);
+      margin-bottom: 14px;
+    }
+    .thankyou-card p {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+    .thankyou-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+    }
+    @media (max-width: 600px) {
+      .thankyou-card { padding: 36px 24px; }
+      .thankyou-card h1 { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <a class="mobile-cta" href="book.html">Book Consultation</a>
+    </nav>
+  </header>
+
+  <div class="thankyou-section">
+    <div class="thankyou-card">
+      <div class="thankyou-icon">📖</div>
+      <h1>Your Free Guide Is Ready</h1>
+      <p>Thank you! Click below to download your copy of <strong>Avoid the 13 Costly Mistakes People Make When Moving Retirement Accounts</strong>.</p>
+      <div class="thankyou-actions">
+        <a class="btn btn-amber btn-lg" href="/assets/13-costly-rollover-mistakes.pdf" download>
+          <i class="fa-solid fa-download" aria-hidden="true"></i> Download the Free Guide
+        </a>
+        <a class="btn btn-primary" href="book.html">Schedule a Free Consultation</a>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <a class="logo" href="index.html">
+          <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+          <div class="logo-text">
+            <span class="logo-name">Prosperity</span>
+            <span class="logo-sub">Life &amp; Financial Solutions</span>
+          </div>
+        </a>
+        <p class="footer-tagline">Independent retirement planning guidance for adults 45+.</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container">
+        <p>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

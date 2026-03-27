@@ -2276,9 +2276,124 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     overflow-x: hidden;
   }
 
-  /* VIDEO SECTION
-     .homepage-vimeo-video is the wrapper div around the Vimeo iframe
-     inside .hero-content (left column of .hero-inner grid) */
+  /* ── 1. CONSULTATION FORM SECTION ──────────────────────────────
+     .hero-form-wrap  = transparent grid column wrapping the white card
+     .lead-form / #lead = the white card itself
+     960px rule sets: max-width:460px; justify-self:center — clear both */
+  .homepage .hero-form-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    justify-self: unset !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  .homepage .lead-form,
+  .homepage #lead {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 16px !important;
+    box-sizing: border-box !important;
+  }
+  .homepage .lead-form input,
+  .homepage .lead-form select,
+  .homepage .lead-form textarea,
+  .homepage .lead-form button,
+  .homepage #lead input,
+  .homepage #lead select,
+  .homepage #lead textarea,
+  .homepage #lead button {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  /* First/last name row — stacks to single column on mobile */
+  .homepage .name-row {
+    flex-direction: column !important;
+  }
+
+  /* ── 2. CTA BUTTON SECTION ─────────────────────────────────────
+     .process-cta = centered div wrapping the button
+     .btn-process-cta = "Book Your Free Retirement Consultation" button
+     Base CSS: padding: 18px 48px !important — too wide on phones */
+  .process-cta {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    box-sizing: border-box !important;
+  }
+  .btn-process-cta {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 16px 20px !important;
+    box-sizing: border-box !important;
+    text-align: center !important;
+    white-space: normal !important;
+    word-break: normal !important;
+  }
+
+  /* ── 3. RETIREMENT INCOME PLANNING SECTION ─────────────────────
+     id="pension-section" class="services-section"
+     .why-inner has INLINE style="display:grid; grid-template-columns:2fr 1fr; gap:100px"
+     !important required throughout to override inline styles */
+  #pension-section {
+    overflow-x: hidden !important;
+  }
+  #pension-section .container {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    box-sizing: border-box !important;
+  }
+  #pension-section .why-inner {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  /* .why-content: inline style="max-width:760px" */
+  #pension-section .why-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    grid-column: 1 !important;
+    box-sizing: border-box !important;
+  }
+  /* .why-callout: inline style="justify-self:end; width:340px" */
+  #pension-section .why-callout {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    grid-column: 1 !important;
+    justify-self: unset !important;
+    box-sizing: border-box !important;
+  }
+  /* .income-highlight-card: CSS width:340px */
+  #pension-section .income-highlight-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  #pension-section h2,
+  #pension-section h3,
+  #pension-section p,
+  #pension-section li,
+  #pension-section .section-tag,
+  #pension-section .why-lead {
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+    white-space: normal !important;
+    max-width: 100% !important;
+  }
+
+  /* ── 4. VIMEO VIDEO (hero section) ─────────────────────────────
+     .homepage-vimeo-video = div wrapping the iframe inside .hero-content */
   .homepage-vimeo-video {
     position: relative !important;
     width: 100% !important;
@@ -2299,85 +2414,6 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     display: block !important;
     border: 0 !important;
   }
-
-  /* FORM SECTION
-     .hero-form-wrap is the transparent column wrapper (not the white card)
-     .lead-form / #lead is the actual white card with padding */
-  .homepage .hero-form-wrap {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-    justify-self: unset !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-  }
-  .homepage .lead-form,
-  .homepage #lead {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    padding: 16px !important;
-    box-sizing: border-box !important;
-  }
-  /* All fields inside the form */
-  .homepage .lead-form input,
-  .homepage .lead-form select,
-  .homepage .lead-form textarea,
-  .homepage .lead-form button,
-  .homepage #lead input,
-  .homepage #lead select,
-  .homepage #lead textarea,
-  .homepage #lead button {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
-  /* First/last name row stacks on mobile */
-  .homepage .name-row {
-    flex-direction: column !important;
-  }
-
-  /* Pension section — "Turn Your Retirement Savings Into Monthly Pension-Like Income"
-     .why-inner has inline style="display:grid; grid-template-columns:2fr 1fr; gap:100px"
-     !important is required to override inline styles */
-  #pension-section {
-    display: block !important;
-  }
-  #pension-section .why-inner {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 20px !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-  #pension-section .why-content,
-  #pension-section .why-callout {
-    width: 100% !important;
-    max-width: 100% !important;
-    grid-column: 1 !important;
-    justify-self: unset !important;
-    box-sizing: border-box !important;
-  }
-  /* .income-highlight-card has CSS width: 340px */
-  #pension-section .income-highlight-card {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-  #pension-section h2,
-  #pension-section h3,
-  #pension-section p,
-  #pension-section li,
-  #pension-section .section-tag,
-  #pension-section .why-lead {
-    overflow-wrap: break-word !important;
-    word-break: normal !important;
-    white-space: normal !important;
-    max-width: 100% !important;
-  }
 }
 
 @media (max-width: 900px) {
@@ -2393,23 +2429,27 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 /* ---------- AI chat widget: reduce footprint on mobile ---------- */
 @media (max-width: 768px) {
+  /* Launcher button — bottom-right corner, does not float over content */
   #plfs-ai-launcher {
-    width: 48px;
-    height: 48px;
-    right: 12px;
-    bottom: 12px;
-    font-size: 20px;
+    width: 46px;
+    height: 46px;
+    right: 10px;
+    bottom: 10px;
+    font-size: 19px;
   }
+  /* Preview bubble — narrow so it does not cover form or video */
   #plfs-ai-nudge {
-    right: 12px;
-    bottom: 68px;
-    max-width: 160px;
-    font-size: 13px;
+    right: 10px;
+    bottom: 64px;
+    max-width: 140px;
+    font-size: 12px;
+    line-height: 1.35;
   }
+  /* Chat panel — full-width minus safe insets */
   #plfs-ai-panel {
     right: 8px;
     left: 8px;
-    bottom: 68px;
+    bottom: 64px;
     width: auto;
     border-radius: 16px;
   }

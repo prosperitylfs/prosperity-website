@@ -489,25 +489,38 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   background: #000;
 }
 
-.video-embed-responsive {
+.video-wrapper {
   position: relative;
   width: 100%;
   max-width: 100%;
   padding-bottom: 56.25%;
   height: 0;
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: 16px;
+  margin-top: 20px;
 }
 
-.video-embed-responsive iframe {
+.video-wrapper iframe {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
   border: 0;
-  border-radius: 20px;
-  display: block;
+  border-radius: 16px;
+}
+
+@media (max-width: 768px) {
+  .video-wrapper {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .hero-section,
+  .video-section {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
 
 .hero-video-label {

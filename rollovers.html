@@ -440,6 +440,141 @@
       .ro-mint-band    { padding: 52px 0; }
     }
 
+    /* ── Lead magnet section ── */
+    .rollovers-lead-hero {
+      background: #43227f;
+      padding: 56px 20px;
+    }
+    .rollovers-lead-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(420px, 480px);
+      gap: 48px;
+      align-items: start;
+    }
+    .rollovers-lead-copy {
+      color: #ffffff;
+      min-width: 0;
+    }
+    .rollovers-lead-icon {
+      font-size: 40px;
+      line-height: 1;
+      margin-bottom: 18px;
+    }
+    .rollovers-lead-copy h1 {
+      margin: 0 0 18px;
+      font-size: 3rem;
+      line-height: 1.08;
+      font-weight: 800;
+      color: #ffffff;
+    }
+    .rollovers-lead-copy p {
+      margin: 0;
+      max-width: 680px;
+      font-size: 1.2rem;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.92);
+    }
+    .rollovers-lead-card {
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 14px 34px rgba(0,0,0,0.14);
+      width: 100%;
+      min-width: 0;
+    }
+    .rollovers-lead-form {
+      display: block;
+      width: 100%;
+    }
+    .field-group {
+      margin-bottom: 18px;
+    }
+    .field-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #2f2f39;
+    }
+    .field-group input {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      height: 54px;
+      padding: 0 16px;
+      border: 1px solid #d8d8df;
+      border-radius: 12px;
+      background: #ffffff;
+      font-size: 16px;
+      color: #2f2f39;
+      box-sizing: border-box;
+    }
+    .field-group input::placeholder { color: #9a9aa5; }
+    .rollovers-consent-row {
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      margin: 12px 0 22px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+    .rollovers-consent-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-top: 3px;
+    }
+    .rollovers-consent-row span {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      font-size: 13px;
+      line-height: 1.55;
+      color: #444452;
+      white-space: normal;
+      overflow-wrap: break-word;
+      word-break: normal;
+    }
+    .rollovers-consent-row a {
+      color: #2f7f68;
+      text-decoration: underline;
+    }
+    .rollovers-submit-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 56px;
+      border: 0;
+      border-radius: 12px;
+      padding: 0 18px;
+      background: #3fa572;
+      color: #ffffff;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .rollovers-submit-btn:hover { filter: brightness(0.97); }
+    @media (max-width: 991px) {
+      .rollovers-lead-inner {
+        grid-template-columns: 1fr;
+      }
+      .rollovers-lead-copy p { max-width: none; }
+      .rollovers-lead-card   { max-width: 640px; }
+    }
+    @media (max-width: 767px) {
+      .rollovers-lead-hero   { padding: 40px 16px; }
+      .rollovers-lead-inner  { gap: 28px; }
+      .rollovers-lead-copy h1 { font-size: 2.15rem; }
+      .rollovers-lead-copy p  { font-size: 1.05rem; line-height: 1.65; }
+      .rollovers-lead-card   { padding: 18px; }
+    }
+
     /* ── Mobile fixes (768px and below) ── */
     @media (max-width: 768px) {
       /* Hero grid — .rollover-hero-content is 1.1fr 0.9fr, stack to single column */
@@ -715,36 +850,37 @@
   </div>
 
 
-  <!-- ===== LEAD MAGNET — Purple ===== -->
-  <div class="ro-purple-band">
-    <div class="ro-body">
-      <div class="guide-container">
-
-        <div class="guide-text">
-          <div class="ro-guide-icon"><i class="fa-solid fa-book-open" aria-hidden="true"></i></div>
-          <h2>Avoid the 13 Costly Mistakes People Make When Moving Retirement Accounts</h2>
-          <p>Download this free guide to learn common rollover mistakes, questions to ask before moving retirement funds, and key issues to consider when reviewing your options.</p>
-        </div>
-
-        <div class="guide-form-card" id="guide-form">
-          <label for="ro-guide-fname">First Name</label>
-          <input type="text" id="ro-guide-fname" name="first_name" placeholder="Your first name" autocomplete="given-name">
-          <label for="ro-guide-email">Email</label>
-          <input type="email" id="ro-guide-email" name="email" placeholder="Your email address" autocomplete="email">
-          <label for="ro-guide-phone">Phone Number</label>
-          <input type="tel" id="ro-guide-phone" name="phone" placeholder="Your phone number" autocomplete="tel">
-          <div class="form-compliance">
-            <label class="sms-consent">
-              <input type="checkbox" required>
-              <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="terms.html" target="_blank">Terms &amp; Conditions</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>.</span>
-            </label>
+  <!-- ===== LEAD MAGNET ===== -->
+  <section class="rollovers-lead-hero">
+    <div class="rollovers-lead-inner">
+      <div class="rollovers-lead-copy">
+        <div class="rollovers-lead-icon">📖</div>
+        <h1>Avoid the 13 Costly Mistakes People Make When Moving Retirement Accounts</h1>
+        <p>Download this free guide to learn common rollover mistakes, questions to ask before moving retirement funds, and key issues to consider when reviewing your options.</p>
+      </div>
+      <div class="rollovers-lead-card">
+        <form class="rollovers-lead-form" id="guide-form-rollovers">
+          <div class="field-group">
+            <label for="rollover-first-name">First Name</label>
+            <input id="rollover-first-name" type="text" name="first_name" placeholder="Your first name" autocomplete="given-name" required>
           </div>
-          <button type="submit" class="ro-guide-submit">Send Me the Free Guide</button>
-        </div>
-
+          <div class="field-group">
+            <label for="rollover-email">Email</label>
+            <input id="rollover-email" type="email" name="email" placeholder="Your email address" autocomplete="email" required>
+          </div>
+          <div class="field-group">
+            <label for="rollover-phone">Phone Number</label>
+            <input id="rollover-phone" type="tel" name="phone" placeholder="Your phone number" autocomplete="tel" required>
+          </div>
+          <label class="rollovers-consent-row">
+            <input type="checkbox" required>
+            <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="terms.html" target="_blank">Terms &amp; Conditions</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>.</span>
+          </label>
+          <button type="submit" class="rollovers-submit-btn">Send Me the Free Guide</button>
+        </form>
       </div>
     </div>
-  </div>
+  </section>
 
 
   <!-- ===== FINAL CTA — Mint, no divider ===== -->

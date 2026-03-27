@@ -420,6 +420,48 @@
       .ro-purple-band,
       .ro-mint-band    { padding: 52px 0; }
     }
+
+    /* ── Mobile fixes (768px and below) ── */
+    @media (max-width: 768px) {
+      /* Hero grid — .rollover-hero-content is 1.1fr 0.9fr, stack to single column */
+      .rollover-hero-content {
+        grid-template-columns: 1fr !important;
+        gap: 24px !important;
+      }
+      /* Video — use aspect-ratio instead of fixed height */
+      .rollover-hero-video-wrap iframe {
+        height: auto !important;
+        aspect-ratio: 16 / 9 !important;
+      }
+      /* Guide form card — .guide-form-card has flex: 0 0 460px, override */
+      .guide-form-card {
+        flex: unset !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        padding: 20px !important;
+        box-sizing: border-box !important;
+      }
+      /* SMS consent label wraps normally */
+      label.sms-consent {
+        display: flex !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        white-space: normal !important;
+        overflow-wrap: break-word !important;
+        word-break: normal !important;
+        box-sizing: border-box !important;
+      }
+      .sms-consent span,
+      .consent-checkbox span,
+      .form-compliance {
+        white-space: normal !important;
+        overflow-wrap: break-word !important;
+        word-break: normal !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+      }
+    }
   </style>
 </head>
 <body>

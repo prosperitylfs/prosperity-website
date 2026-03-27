@@ -2313,6 +2313,13 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     justify-self: unset !important;
     box-sizing: border-box !important;
   }
+  /* The card inside the callout also has a fixed 340px width */
+  #pension-section .income-highlight-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
   /* Text in the pension section must wrap normally, not word-by-word */
   #pension-section h2,
   #pension-section p,
@@ -3597,97 +3604,3 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .credentials-grid { grid-template-columns: 1fr; }
 }
 
-/* ============================================================
-   HOMEPAGE MOBILE DIRECT FIX — appended last to win cascade
-   Target: screens 768px and below
-============================================================ */
-@media (max-width: 768px) {
-  html, body { overflow-x: hidden; }
-
-  /* Hero: force single column */
-  .homepage .hero-inner {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 32px !important;
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-  }
-  .homepage .hero-inner > * {
-    min-width: 0 !important;
-    max-width: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  /* "Turn Your Retirement Savings" pension section
-     Inline style="display:grid; grid-template-columns:2fr 1fr" requires !important */
-  #pension-section .why-inner {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 24px !important;
-    width: 100% !important;
-  }
-  #pension-section .why-content {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
-  #pension-section .why-callout {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    justify-self: unset !important;
-    box-sizing: border-box !important;
-  }
-  #pension-section h2,
-  #pension-section p,
-  #pension-section li {
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
-    white-space: normal !important;
-    max-width: 100% !important;
-  }
-
-  /* Consultation form */
-  .homepage .hero-form-wrap,
-  .homepage .lead-form {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
-  .homepage .lead-form input,
-  .homepage .lead-form select,
-  .homepage .lead-form textarea,
-  .homepage .lead-form button {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
-
-  /* CTA buttons */
-  .homepage .hero-ctas { flex-direction: column; }
-  .homepage .hero-ctas .btn {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    justify-content: center;
-  }
-
-  /* Vimeo video */
-  .homepage-vimeo-video {
-    width: 100% !important;
-    max-width: 100% !important;
-    aspect-ratio: 16 / 9 !important;
-    overflow: hidden !important;
-    border-radius: 18px !important;
-  }
-  .homepage-vimeo-video iframe {
-    width: 100% !important;
-    height: 100% !important;
-    display: block !important;
-    border: 0 !important;
-  }
-}

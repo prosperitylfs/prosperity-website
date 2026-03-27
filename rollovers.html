@@ -23,9 +23,17 @@
     .page-hero-inner { max-width: 1200px !important; }
     .rollover-hero-content {
       display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 40px;
-      align-items: center;
+      grid-template-columns: 1fr 1fr;
+      gap: 50px;
+      align-items: start;
+    }
+    .rollover-hero-content > :first-child {
+      width: 100%;
+    }
+    .rollover-hero-content > :last-child {
+      width: 100%;
+      display: flex;
+      justify-content: center;
     }
     .rollover-hero-video-wrap {
       width: 100%;
@@ -285,11 +293,11 @@
 
     /* ── Guide form card ── */
     .guide-form-card {
-      flex: 0 0 520px;
-      max-width: 520px;
+      flex: 0 0 500px;
+      max-width: 500px;
       width: 100%;
       background: #fff;
-      padding: 28px;
+      padding: 25px;
       border-radius: 12px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.08);
       box-sizing: border-box;
@@ -301,11 +309,17 @@
     }
     #guide-form label {
       display: block;
+      width: 100%;
+      max-width: 100%;
       font-size: 0.88rem;
       font-weight: 600;
       color: #444;
       margin-bottom: 6px;
       margin-top: 18px;
+      white-space: normal;
+      overflow-wrap: break-word;
+      word-break: normal;
+      box-sizing: border-box;
     }
     #guide-form label:first-of-type { margin-top: 0; }
     #guide-form input {
@@ -346,6 +360,8 @@
       display: flex;
       align-items: flex-start;
       gap: 10px;
+      width: 100%;
+      box-sizing: border-box;
       cursor: pointer;
     }
     .consent-checkbox input[type="checkbox"] {

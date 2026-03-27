@@ -2276,15 +2276,20 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     overflow-x: hidden;
   }
 
-  /* Vimeo video wrapper */
+  /* VIDEO SECTION
+     .homepage-vimeo-video is the wrapper div around the Vimeo iframe
+     inside .hero-content (left column of .hero-inner grid) */
   .homepage-vimeo-video {
     position: relative !important;
     width: 100% !important;
     max-width: 100% !important;
+    min-width: 0 !important;
     aspect-ratio: 16 / 9 !important;
     overflow: hidden !important;
     border-radius: 18px !important;
     box-sizing: border-box !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
   }
   .homepage-vimeo-video iframe {
     position: absolute !important;
@@ -2295,16 +2300,27 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     border: 0 !important;
   }
 
-  /* Consultation card — .hero-form-wrap wraps the form card */
-  .homepage .hero-form-wrap,
+  /* FORM SECTION
+     .hero-form-wrap is the transparent column wrapper (not the white card)
+     .lead-form / #lead is the actual white card with padding */
+  .homepage .hero-form-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    justify-self: unset !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
   .homepage .lead-form,
   .homepage #lead {
     width: 100% !important;
     max-width: 100% !important;
+    min-width: 0 !important;
     padding: 16px !important;
     box-sizing: border-box !important;
   }
-  /* Consultation form fields */
+  /* All fields inside the form */
   .homepage .lead-form input,
   .homepage .lead-form select,
   .homepage .lead-form textarea,
@@ -2315,6 +2331,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .homepage #lead button {
     width: 100% !important;
     max-width: 100% !important;
+    min-width: 0 !important;
     box-sizing: border-box !important;
   }
   /* First/last name row stacks on mobile */
@@ -2374,24 +2391,25 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .trust-container  { grid-template-columns: 1fr; }
 }
 
-/* ---------- AI chat widget: reduce footprint on small phones ---------- */
-@media (max-width: 480px) {
+/* ---------- AI chat widget: reduce footprint on mobile ---------- */
+@media (max-width: 768px) {
   #plfs-ai-launcher {
-    width: 52px;
-    height: 52px;
-    right: 16px;
-    bottom: 16px;
-    font-size: 22px;
+    width: 48px;
+    height: 48px;
+    right: 12px;
+    bottom: 12px;
+    font-size: 20px;
   }
   #plfs-ai-nudge {
-    right: 16px;
-    bottom: 76px;
-    max-width: 200px;
+    right: 12px;
+    bottom: 68px;
+    max-width: 160px;
+    font-size: 13px;
   }
   #plfs-ai-panel {
     right: 8px;
     left: 8px;
-    bottom: 76px;
+    bottom: 68px;
     width: auto;
     border-radius: 16px;
   }

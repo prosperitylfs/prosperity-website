@@ -2215,6 +2215,25 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .home-trust-container { flex-direction: column; gap: 40px; }
   .home-trust-image-wrap { width: 100%; max-width: 360px; }
 
+  /* Pension section uses an inline style="display:grid; grid-template-columns:2fr 1fr"
+     which normal CSS cannot override — !important is required here only */
+  #pension-section .why-inner {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 32px !important;
+  }
+  #pension-section .why-content {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+  #pension-section .why-callout {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    justify-self: unset !important;
+  }
+
   .lead-magnet-inner { flex-wrap: wrap; }
   .guide-form        { width: 100%; }
 
@@ -2296,6 +2315,29 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .hero-preheadline { font-size: 13px; padding: 7px 12px; }
   .hero-title       { font-size: 2rem; }
   .trust-container  { grid-template-columns: 1fr; }
+}
+
+/* ---------- AI chat widget: reduce footprint on small phones ---------- */
+@media (max-width: 480px) {
+  #plfs-ai-launcher {
+    width: 52px;
+    height: 52px;
+    right: 16px;
+    bottom: 16px;
+    font-size: 22px;
+  }
+  #plfs-ai-nudge {
+    right: 16px;
+    bottom: 76px;
+    max-width: 200px;
+  }
+  #plfs-ai-panel {
+    right: 8px;
+    left: 8px;
+    bottom: 76px;
+    width: auto;
+    border-radius: 16px;
+  }
 }
 
 /* ============================================================

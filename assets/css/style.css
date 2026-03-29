@@ -2315,12 +2315,34 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     box-sizing: border-box !important;
   }
 
-  /* Homepage: consent text and labels wrap normally */
-  .homepage label,
+  /* Homepage: generic labels wrap normally */
+  .homepage label {
+    white-space: normal !important;
+    overflow-wrap: break-word !important;
+  }
+
+  /* SMS consent: keep checkbox-left / text-right flex row on mobile */
   .homepage .sms-consent {
-    display: block !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
     width: 100% !important;
     max-width: 100% !important;
+    white-space: normal !important;
+    overflow-wrap: break-word !important;
+  }
+  .homepage .sms-consent input[type="checkbox"] {
+    flex: 0 0 auto !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    margin-top: 3px !important;
+  }
+  .homepage .sms-consent span {
+    flex: 1 !important;
+    min-width: 0 !important;
+    font-size: 11px !important;
+    line-height: 1.5 !important;
     white-space: normal !important;
     overflow-wrap: break-word !important;
   }

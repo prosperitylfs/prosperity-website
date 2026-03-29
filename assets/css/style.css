@@ -505,7 +505,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   display: block;
 }
 
-/* Desktop/tablet: mask Vimeo title overlay at top of player */
+/* Desktop/tablet: hide Vimeo branding bar only — keep thumbnail fully visible */
 @media (min-width: 769px) {
   .homepage-vimeo-video::before {
     content: "";
@@ -513,15 +513,15 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     top: 0;
     left: 0;
     right: 0;
-    height: 52px;
-    background: #3a1f70; /* matches hero gradient dark end */
+    height: 20px;
+    background: #3a1f70;
     z-index: 2;
     pointer-events: none;
     border-radius: 18px 18px 0 0;
   }
   .homepage-vimeo-video iframe {
-    transform: translateY(-18px);
-    height: calc(100% + 18px);
+    transform: translateY(0);
+    height: 100%;
   }
 }
 

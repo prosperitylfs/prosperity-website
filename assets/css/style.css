@@ -2215,9 +2215,21 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 }
 
 @media (max-width: 960px) {
-  .main-nav       { display: none; }
-  .phone-btn { display: none; }
-  .nav-toggle     { display: flex; }
+  .main-nav   { display: none; }
+  .nav-toggle { display: flex; }
+
+  /* Phone button has an inline style="display:inline-flex" — !important is required to override it.
+     At tablet/mobile widths, collapse it to an icon-only tap target so it fits the header. */
+  .phone-btn {
+    display: inline-flex !important;
+    font-size: 0 !important;          /* hides "414-441-1177" number text */
+    padding: 9px 11px !important;
+    gap: 0 !important;
+  }
+  .phone-btn i {
+    font-size: 1rem !important;
+    margin-right: 0 !important;
+  }
 
   .hero-inner     { grid-template-columns: 1fr; gap: 36px; padding: 0 24px; }
   .hero-form-wrap { justify-self: center; width: 100%; max-width: 460px; margin-left: auto; margin-right: auto; }
@@ -2279,6 +2291,57 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .footer-brand { grid-column: 1; }
 
   .lead-magnet-icon { display: none; }
+}
+
+/* ---------- Mobile header (768px and below) ---------- */
+@media (max-width: 768px) {
+
+  /* Prevent the sticky header from being wider than the viewport */
+  .site-header { overflow-x: hidden; }
+
+  /* Reduce header bar height — desktop is 100px, too tall for phones */
+  .header-inner {
+    height: auto !important;
+    min-height: 60px !important;
+    padding: 8px 16px !important;
+    box-sizing: border-box !important;
+    gap: 8px !important;
+  }
+
+  /* Scale logo image down from 68px */
+  .logo-img  { height: 40px !important; }
+
+  /* Tighten gap between logo image and text */
+  .logo-text { gap: 3px !important; }
+
+  /* Scale logo wordmark */
+  .logo-name { font-size: 1.05rem !important; letter-spacing: 0 !important; }
+  .logo-sub  { font-size: 0.68rem !important; }
+
+  /* Mobile nav drawer — ensure it doesn't overflow */
+  .mobile-nav {
+    padding: 6px 16px 16px !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Tappable link rows */
+  .mobile-nav a {
+    padding: 13px 8px !important;
+    font-size: 1rem !important;
+  }
+
+  /* Section labels in mobile nav */
+  .mobile-nav-label {
+    padding: 14px 8px 4px !important;
+  }
+
+  /* Book Consultation CTA button in mobile nav */
+  .mobile-nav .mobile-cta {
+    margin-top: 14px !important;
+    padding: 14px !important;
+    font-size: 1rem !important;
+  }
 }
 
 /* ---------- Homepage mobile fixes (768px and below) ---------- */

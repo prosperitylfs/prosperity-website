@@ -479,6 +479,13 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 }
 
 /* ---------- Hero Video ---------- */
+/* Reusable responsive video wrapper — pairs with the padding-top ratio trick */
+.video-wrapper {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
 .hero-video-wrap {
   width: 100%;
   max-width: 900px;

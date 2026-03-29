@@ -2325,6 +2325,34 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     overflow-wrap: break-word !important;
   }
 
+  /* ── Hero CTA button and video spacing ─────────────────────────
+     .homepage-vimeo-video = video wrapper
+     .hero-ctas             = div wrapping the CTA button
+     .btn-hero              = the CTA button itself */
+  .homepage-vimeo-video {
+    margin-bottom: 18px !important;
+  }
+  .homepage .hero-ctas {
+    margin-top: 0 !important;
+    margin-bottom: 24px !important;
+  }
+  .homepage .btn-hero {
+    width: 92% !important;
+    max-width: 92% !important;
+    font-size: 1rem !important;
+    line-height: 1.3 !important;
+    padding: 14px 18px !important;
+    text-align: center !important;
+    white-space: normal !important;
+    display: block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    box-sizing: border-box !important;
+  }
+  .homepage .hero-content {
+    padding-bottom: 10px !important;
+  }
+
   /* ── 1. CONSULTATION FORM SECTION ──────────────────────────────
      .hero-form-wrap  = transparent grid column wrapping the white card
      .lead-form / #lead = the white card itself

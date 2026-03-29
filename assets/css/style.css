@@ -3409,6 +3409,57 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   font-size: 0.95rem;
 }
 
+/* ── Calculators page — mobile fixes (768px and below) ─────────── */
+@media (max-width: 768px) {
+
+  /* Hero — tighten padding and scale h1 down to a clean readable size.
+     No font-size is set on .calc-page-hero h1 in base CSS so the browser
+     UA default (~2em) applies; setting it explicitly removes the awkward break. */
+  .calc-page-hero {
+    padding: 36px 0;
+  }
+  .calc-page-hero h1 {
+    font-size: 1.9rem;
+    line-height: 1.1;
+    margin-bottom: 12px;
+  }
+  .calc-page-hero p {
+    font-size: 1rem;
+    line-height: 1.55;
+    max-width: 22rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Trust strip — desktop uses flex-wrap:wrap + center which causes uneven rows on mobile
+     because "Serving Clients in Wisconsin…" is long enough to sit alone on a row.
+     Stack items into a single left-aligned column instead. */
+  .calc-trust-strip {
+    padding: 20px 0;
+  }
+  .calc-trust-headline {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .calc-trust-list {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 0 4px;
+  }
+  .calc-trust-list li {
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    line-height: 1.45;
+  }
+  /* Pin the icon so it never stretches or shifts when text wraps */
+  .calc-trust-list li i {
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+}
+
 .calc-nav-tabs {
   background: var(--white);
   border-bottom: 1px solid var(--border-light);

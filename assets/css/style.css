@@ -505,21 +505,14 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   display: block;
 }
 
-/* Desktop/tablet: hide Vimeo branding bar only — keep thumbnail fully visible */
+/* Desktop/tablet: no cropping or masking — URL params handle branding removal */
 @media (min-width: 769px) {
-  .homepage-vimeo-video::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 20px;
-    background: #3a1f70;
-    z-index: 2;
-    pointer-events: none;
-    border-radius: 18px 18px 0 0;
+  .homepage-vimeo-video {
+    position: relative;
+    overflow: hidden;
   }
   .homepage-vimeo-video iframe {
+    display: block;
     transform: translateY(0);
     height: 100%;
   }

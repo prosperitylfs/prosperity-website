@@ -3458,6 +3458,47 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     flex-shrink: 0;
     margin-top: 3px;
   }
+
+  /* ── Calculator tab nav ──────────────────────────────────────────
+     Problem 1: .calculator-tabs (homepage class also on this nav) adds
+       margin-top:20px, margin-bottom:30px, gap:40px, justify-content:center
+       which creates gaps exposing the sage-green page background behind the
+       white sticky bar — the "decorative bleed" effect.
+     Problem 2: overflow-x:auto is on the outer nav but the actual flex
+       children live in .calc-nav-inner, so scrolling was broken.
+     Problem 3: each .calc-tab-link is padding:20px 36px at 1.15rem —
+       three tabs total ~570px, far wider than a 375px phone.
+     Problem 4: sticky top:64px is 4px off from the new 60px mobile header. */
+
+  /* Strip the homepage-targeted margins/centering from the nav wrapper */
+  .calc-nav-tabs {
+    top: 60px !important;      /* match mobile header min-height */
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    overflow-x: hidden;        /* scroll lives on .calc-nav-inner below */
+  }
+
+  /* Move the scroll behaviour to the inner container that holds the tabs */
+  .calc-nav-inner {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;          /* Firefox */
+    -ms-overflow-style: none;       /* IE/Edge */
+    padding: 0 12px;
+    gap: 0;                         /* cancel any inherited gap */
+    justify-content: flex-start;    /* don't centre — start from left edge */
+  }
+  .calc-nav-inner::-webkit-scrollbar { display: none; }
+
+  /* Compact each tab link so all three fit without scrolling on most phones,
+     and scroll smoothly on the narrowest devices if still needed */
+  .calc-tab-link {
+    flex: 0 0 auto;                 /* never shrink or stretch */
+    padding: 14px 14px !important;
+    font-size: 0.88rem !important;
+    letter-spacing: 0;
+  }
 }
 
 .calc-nav-tabs {

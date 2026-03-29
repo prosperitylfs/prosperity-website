@@ -2415,6 +2415,19 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     min-width: 0 !important;
     box-sizing: border-box !important;
   }
+  /* Submit button — .btn base has white-space:nowrap & line-height:1 which clips text on mobile */
+  .homepage #lead button[type="button"],
+  .homepage #lead-continue {
+    display: block !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.25 !important;
+    font-size: 0.93rem !important;
+    padding: 14px 16px !important;
+    text-align: center !important;
+    margin-top: 4px !important;
+  }
   /* First/last name row — stacks to single column on mobile */
   .homepage .name-row {
     flex-direction: column !important;

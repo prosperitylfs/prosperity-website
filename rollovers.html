@@ -570,9 +570,39 @@
     @media (max-width: 767px) {
       .rollovers-lead-hero   { padding: 40px 16px; }
       .rollovers-lead-inner  { gap: 28px; }
-      .rollovers-lead-copy h1 { font-size: 2.15rem; }
-      .rollovers-lead-copy p  { font-size: 1.05rem; line-height: 1.65; }
-      .rollovers-lead-card   { padding: 18px; }
+      /* New title is longer — reduce size so it reads naturally on phones */
+      .rollovers-lead-copy h1 { font-size: 1.65rem; line-height: 1.2; }
+      .rollovers-lead-copy p  { font-size: 1rem; line-height: 1.65; }
+      .rollovers-lead-card   { padding: 20px 18px; box-sizing: border-box; width: 100%; max-width: 100%; }
+
+      /* Inputs full width */
+      .rollovers-lead-form .field-group input,
+      .rollovers-lead-form .field-group select {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      /* Submit button — allow text wrap in case label is long */
+      .rollovers-submit-btn {
+        white-space: normal;
+        word-break: keep-all;
+        overflow-wrap: break-word;
+        line-height: 1.25;
+        min-height: 52px;
+        padding: 14px 16px;
+      }
+
+      /* Consent row — grid already handles layout, ensure text wraps */
+      .rollovers-consent-row {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+      .rollovers-consent-row span {
+        font-size: 11px;
+        line-height: 1.5;
+      }
     }
 
     /* ── Mobile fixes (768px and below) ── */
@@ -855,8 +885,8 @@
     <div class="rollovers-lead-inner">
       <div class="rollovers-lead-copy">
         <div class="rollovers-lead-icon">📖</div>
-        <h1>Avoid the 13 Costly Mistakes People Make When Moving Retirement Accounts</h1>
-        <p>Download this free guide to learn common rollover mistakes, questions to ask before moving retirement funds, and key issues to consider when reviewing your options.</p>
+        <h1>13 Costly Mistakes to Avoid When Rolling Over Your 401(k), 403(b), or TSP</h1>
+        <p>Enter your details below and get instant access to this free guide to help you avoid common rollover mistakes and make more confident retirement decisions.</p>
       </div>
       <div class="rollovers-lead-card">
         <form

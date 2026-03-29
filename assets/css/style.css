@@ -3095,8 +3095,81 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 @media (max-width: 768px) {
   .guide-layout { flex-direction: column; }
-  .guide-form-wrap { max-width: 100%; }
-  .guide-headline { font-size: 1.6rem; }
+  .guide-headline { font-size: 1.5rem; line-height: 1.25; }
+
+  /* Form card */
+  .guide-form-wrap {
+    max-width: 100%;
+    padding: 24px 20px;
+    box-sizing: border-box;
+  }
+
+  /* Form card title — longer title needs smaller size on mobile */
+  .guide-form-title {
+    font-size: 1.2rem;
+    line-height: 1.25;
+  }
+
+  /* Supporting text */
+  .guide-form-sub {
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+
+  /* All inputs/selects inside the guide form */
+  .guide-form-wrap input,
+  .guide-form-wrap select,
+  .guide-form-wrap textarea {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  /* Submit button — .btn base has white-space:nowrap which clips text */
+  .guide-form-wrap .guide-submit-btn,
+  .guide-form-wrap button[type="submit"] {
+    width: 100%;
+    max-width: 100%;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    line-height: 1.25;
+    font-size: 0.95rem;
+    padding: 14px 16px;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  /* SMS consent row inside guide form */
+  .guide-form-wrap .sms-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .guide-form-wrap .sms-consent input[type="checkbox"] {
+    flex: 0 0 18px;
+    width: 18px;
+    max-width: 18px;
+    min-width: 18px;
+    height: 18px;
+    margin-top: 3px;
+  }
+  .guide-form-wrap .sms-consent span {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    max-width: 100%;
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: normal;
+    writing-mode: horizontal-tb;
+  }
 }
 
 .book-form-wrap {

@@ -2321,30 +2321,36 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     overflow-wrap: break-word !important;
   }
 
-  /* SMS consent: keep checkbox-left / text-right flex row on mobile */
-  .homepage .sms-consent {
+  /* SMS consent: checkbox left, text right
+     Must use #lead in selector to beat .homepage #lead input { width:100% !important }
+     (ID specificity outranks class specificity) */
+  .homepage #lead .sms-consent {
     display: flex !important;
     align-items: flex-start !important;
     gap: 10px !important;
     width: 100% !important;
     max-width: 100% !important;
-    white-space: normal !important;
-    overflow-wrap: break-word !important;
+    box-sizing: border-box !important;
   }
-  .homepage .sms-consent input[type="checkbox"] {
-    flex: 0 0 auto !important;
+  .homepage #lead .sms-consent input[type="checkbox"] {
+    flex: 0 0 18px !important;
     width: 18px !important;
+    max-width: 18px !important;
     height: 18px !important;
     min-width: 18px !important;
     margin-top: 3px !important;
   }
-  .homepage .sms-consent span {
-    flex: 1 !important;
+  .homepage #lead .sms-consent span {
+    flex: 1 1 auto !important;
     min-width: 0 !important;
+    width: auto !important;
+    max-width: 100% !important;
     font-size: 11px !important;
     line-height: 1.5 !important;
     white-space: normal !important;
     overflow-wrap: break-word !important;
+    word-break: normal !important;
+    writing-mode: horizontal-tb !important;
   }
 
   /* ── Hero CTA button and video spacing ─────────────────────────

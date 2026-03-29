@@ -3682,6 +3682,44 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .calc-wrapper { grid-template-columns: 1fr; }
 }
 
+/* ── Calculator form panels — mobile typography & padding ──────────
+   Base: .calc-form-panel h2 is 1.45rem with 30px padding on all sides.
+   On a phone (375px - 60px padding = 315px usable), "Life Insurance
+   Coverage Calculator" at 1.45rem bold wraps unevenly. Tighten both. */
+@media (max-width: 768px) {
+  .calc-form-panel {
+    padding: 22px 18px;
+  }
+  .calc-form-panel h2 {
+    font-size: 1.2rem;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .calc-desc {
+    font-size: 0.95rem;
+    margin-bottom: 16px;
+  }
+}
+
+/* ── Service cards — mobile typography & padding ────────────────────
+   Base: .service-card h3 is 22px with 36px padding. On a 1-col mobile
+   layout (680px and below) the padding eats usable width and the 22px
+   heading wraps mid-word on short titles. Reduce both. */
+@media (max-width: 680px) {
+  .service-card {
+    padding: 24px 22px;
+  }
+  .service-card h3 {
+    font-size: 1.15rem;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .service-card p {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+  }
+}
+
 @media (max-width: 640px) {
   .cta-banner     { padding: 32px 22px; }
   .page-hero      { padding: 44px 0 52px; }

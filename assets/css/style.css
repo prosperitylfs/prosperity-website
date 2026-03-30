@@ -4041,41 +4041,69 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 }
 
 /* ── Roth Conversion page: FAQ mobile overrides ─────────────────────────────
-   Scoped to .roth-page-body so no other page is affected.
-   Written here (end of stylesheet) to guarantee last-in-cascade wins.      */
+   Exact selectors confirmed from roth-conversion.html markup:
+     ul.faq-list  li.faq-item  button.faq-question  span.faq-chevron  div.faq-answer
+   All inside div.roth-page-body inside main.page-main
+   Written at end of file — last rule wins.                                  */
 @media (max-width: 767px) {
+
+  /* Section container — trim top/bottom space */
+  .roth-page-body .content-section {
+    padding-top: 20px !important;
+    padding-bottom: 16px !important;
+  }
+
+  /* FAQ heading */
+  .roth-page-body .content-section > h2 {
+    font-size: 1.2rem !important;
+    line-height: 1.2 !important;
+    margin-top: 0 !important;
+    margin-bottom: 14px !important;
+  }
+
+  /* Card list — tighter gap */
   .roth-page-body .faq-list {
     gap: 6px !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
+
+  /* Each card */
   .roth-page-body .faq-item {
-    overflow: hidden !important;
-    box-sizing: border-box !important;
     width: 100% !important;
-  }
-  .roth-page-body .faq-question {
-    padding: 12px 14px !important;
-    font-size: 0.92rem !important;
-    line-height: 1.35 !important;
-    gap: 10px !important;
-    align-items: center !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
     min-height: 0 !important;
   }
-  .roth-page-body .faq-chevron {
-    font-size: 0.85rem !important;
-    flex-shrink: 0 !important;
+
+  /* Clickable question button — noticeably tighter padding */
+  .roth-page-body .faq-item .faq-question {
+    padding: 10px 12px !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+    min-height: 0 !important;
+    gap: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Arrow chevron — pinned right, vertically centered */
+  .roth-page-body .faq-item .faq-chevron {
+    font-size: 0.8rem !important;
+    flex: 0 0 auto !important;
     align-self: center !important;
-    margin-left: 4px !important;
+    margin-left: 6px !important;
   }
-  .roth-page-body .faq-answer {
-    padding: 0 14px 12px !important;
-    font-size: 0.88rem !important;
-    line-height: 1.6 !important;
-  }
-  .roth-page-body .content-section h2 {
-    font-size: 1.25rem !important;
-    line-height: 1.2 !important;
-    margin-top: 4px !important;
-    margin-bottom: 12px !important;
+
+  /* Answer body — compact */
+  .roth-page-body .faq-item .faq-answer {
+    padding: 0 12px 10px !important;
+    font-size: 0.87rem !important;
+    line-height: 1.58 !important;
   }
 }
 

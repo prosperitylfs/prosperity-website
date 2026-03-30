@@ -479,48 +479,56 @@
         box-sizing: border-box !important;
       }
 
-      /* Section heading */
+      /* Section heading — tighter above and below */
       .roth-page-body .content-section h2 {
-        font-size: 1.35rem !important;
+        font-size: 1.25rem !important;
         line-height: 1.2 !important;
-        margin-bottom: 16px !important;
+        margin-top: 4px !important;
+        margin-bottom: 12px !important;
+      }
+
+      /* FAQ content-section — trim bottom blank space */
+      .roth-page-body .content-section:has(.faq-list) {
+        padding-bottom: 8px !important;
       }
 
       /* Tighter gap between cards */
       .roth-page-body .faq-list {
-        gap: 8px !important;
+        gap: 6px !important;
       }
 
-      /* Question row — keep flex balanced, tighten padding */
+      /* Question row */
       .roth-page-body .faq-question {
-        padding: 14px 16px !important;
-        font-size: 0.93rem !important;
-        line-height: 1.4 !important;
+        padding: 12px 14px !important;
+        font-size: 0.92rem !important;
+        line-height: 1.35 !important;
         gap: 10px !important;
         align-items: center !important;
+        min-height: 0 !important;
       }
 
-      /* Let the question text wrap without squishing the chevron */
+      /* Question text — wraps without squishing chevron */
       .roth-page-body .faq-question span:first-child {
         flex: 1 !important;
         min-width: 0 !important;
       }
 
-      /* Chevron — consistent size and vertical centering */
+      /* Chevron — fixed size, vertically centered */
       .roth-page-body .faq-chevron {
-        font-size: 0.95rem !important;
+        font-size: 0.85rem !important;
         flex-shrink: 0 !important;
         align-self: center !important;
+        margin-left: 4px !important;
       }
 
-      /* Answer text — tighter padding, comfortable line height */
+      /* Answer text */
       .roth-page-body .faq-answer {
-        padding: 0 16px 14px !important;
-        font-size: 0.9rem !important;
-        line-height: 1.65 !important;
+        padding: 0 14px 12px !important;
+        font-size: 0.88rem !important;
+        line-height: 1.6 !important;
       }
 
-      /* No horizontal overflow on the cards */
+      /* Cards — no overflow, full width */
       .roth-page-body .faq-item {
         overflow: hidden !important;
         box-sizing: border-box !important;

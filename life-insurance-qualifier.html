@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Life Insurance Qualification Form — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Answer a few quick questions so Loretta can match you with the right life insurance coverage before your free consultation.">
+  <style>
+    .liq-hero {
+      background: linear-gradient(135deg, var(--purple-dark) 0%, var(--purple-mid) 100%);
+      padding: 60px 0 52px;
+    }
+    .liq-hero .page-hero-tag {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border-radius: 20px;
+      display: inline-block;
+      padding: 4px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .liq-hero h1 {
+      color: #fff;
+      font-size: clamp(1.7rem, 3.2vw, 2.4rem);
+      margin-bottom: 14px;
+      line-height: 1.2;
+    }
+    .liq-hero p {
+      color: rgba(255,255,255,0.85);
+      font-size: 1.05rem;
+      line-height: 1.7;
+      max-width: 580px;
+    }
+    .liq-steps {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+    .liq-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 0.88rem;
+      color: #fff;
+      font-weight: 500;
+    }
+    .liq-step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--green);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* Form layout */
+    .liq-body {
+      background: var(--bg);
+      padding: 64px 0 80px;
+    }
+    .liq-grid {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 56px;
+      align-items: start;
+    }
+    @media (max-width: 860px) {
+      .liq-grid { grid-template-columns: 1fr; gap: 32px; }
+    }
+
+    /* Section labels inside form */
+    .form-section-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--purple);
+      margin: 28px 0 14px;
+      padding-bottom: 6px;
+      border-bottom: 1.5px solid var(--purple-xlight, #ede8f7);
+    }
+    .form-section-label:first-child { margin-top: 0; }
+
+    .liq-sidebar-trust {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px 24px;
+      border: 1.5px solid var(--purple-xlight, #ede8f7);
+      margin-bottom: 24px;
+    }
+    .liq-sidebar-trust h3 {
+      color: var(--purple-dark);
+      font-size: 1.05rem;
+      margin: 0 0 14px;
+    }
+    .liq-trust-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .liq-trust-item:last-child { margin-bottom: 0; }
+    .liq-trust-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--purple-xlight, #ede8f7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 0.95rem;
+    }
+    .liq-trust-text {
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .liq-trust-text strong {
+      display: block;
+      color: var(--purple-dark);
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .liq-sidebar-types {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px 24px;
+      border: 1.5px solid var(--purple-xlight, #ede8f7);
+    }
+    .liq-sidebar-types h3 {
+      color: var(--purple-dark);
+      font-size: 1.05rem;
+      margin: 0 0 14px;
+    }
+    .liq-type-item {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0ecf9;
+    }
+    .liq-type-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .liq-type-name { font-weight: 600; color: var(--purple-dark); font-size: 0.92rem; margin-bottom: 2px; }
+    .liq-type-desc { font-size: 0.85rem; color: var(--text); line-height: 1.5; }
+
+    /* Radio/checkbox option groups */
+    .option-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .option-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1.5px solid #d0ccd8;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      color: var(--text);
+      transition: border-color 0.15s, background 0.15s;
+      background: #fff;
+    }
+    .option-label:hover {
+      border-color: var(--purple);
+      background: var(--purple-xlight, #ede8f7);
+    }
+    .option-label input[type="radio"],
+    .option-label input[type="checkbox"] {
+      accent-color: var(--purple);
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .option-label input[type="radio"]:checked + span,
+    .option-label input[type="checkbox"]:checked + span {
+      color: var(--purple-dark);
+      font-weight: 600;
+    }
+
+    /* Success state */
+    .liq-success {
+      display: none;
+      text-align: center;
+      padding: 48px 24px;
+    }
+    .liq-success-icon {
+      width: 64px;
+      height: 64px;
+      background: var(--green);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+    .liq-success-icon svg { display: block; }
+    .liq-success h2 {
+      color: var(--purple-dark);
+      font-size: 1.55rem;
+      margin-bottom: 12px;
+    }
+    .liq-success p {
+      color: var(--text);
+      font-size: 1rem;
+      line-height: 1.7;
+      max-width: 480px;
+      margin: 0 auto 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-name">Prosperity</span>
+          <span class="logo-sub">Life &amp; Financial Solutions</span>
+        </div>
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html" class="active">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-readiness-quiz.html">Retirement Readiness Quiz</a>
+            <a href="retirement-rollover-mistakes-guide.html">Free Retirement Guide</a>
+            <a href="resources.html">Articles / Education</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-readiness-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="retirement-rollover-mistakes-guide.html">&nbsp;&nbsp;Free Retirement Guide</a>
+      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+      <a class="mobile-cta" href="life-insurance-qualifier.html">Get a Coverage Review</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- ===== PAGE HERO ===== -->
+    <section class="liq-hero">
+      <div class="container">
+        <div class="page-hero-tag">Life Insurance</div>
+        <h1>Life Insurance Qualification Form</h1>
+        <p>Answer a few quick questions so Loretta can match you with the right coverage options before your free consultation. Takes about 2 minutes — no obligation.</p>
+        <div class="liq-steps">
+          <div class="liq-step"><div class="liq-step-num">1</div><span>Complete this form</span></div>
+          <div class="liq-step"><div class="liq-step-num">2</div><span>Loretta reviews your needs</span></div>
+          <div class="liq-step"><div class="liq-step-num">3</div><span>Free personalized consultation</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FORM SECTION ===== -->
+    <section class="liq-body">
+      <div class="container">
+        <div class="liq-grid">
+
+          <!-- Left: form -->
+          <div>
+            <div class="book-form-wrap" style="position:static;">
+
+              <!-- Success message (hidden until submit) -->
+              <div class="liq-success" id="liq-success">
+                <div class="liq-success-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <h2>You&rsquo;re All Set!</h2>
+                <p>Thank you for completing the Life Insurance Qualification Form. Loretta will personally review your information and reach out within one business day to schedule your free consultation.</p>
+                <a class="btn btn-amber" href="life-insurance.html">Back to Life Insurance</a>
+              </div>
+
+              <!-- Form -->
+              <div id="liq-form-wrap">
+                <h2 style="font-size:1.2rem; margin-bottom:4px; color:var(--purple-dark);">Tell Us About Your Coverage Needs</h2>
+                <p class="book-sub" style="margin-bottom:20px;">All information is kept private and used only to prepare your free consultation.</p>
+
+                <form id="liq-form" class="book-form" novalidate aria-label="Life Insurance Qualification Form">
+
+                  <!-- CONTACT INFO -->
+                  <div class="form-section-label">Contact Information</div>
+
+                  <div style="display:flex; gap:14px; flex-wrap:wrap;">
+                    <div class="form-group" style="flex:1; min-width:130px;">
+                      <label class="form-label" for="liq-fname">First Name <span style="color:#c0392b;">*</span></label>
+                      <input type="text" id="liq-fname" name="first_name" placeholder="Jane" required>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width:130px;">
+                      <label class="form-label" for="liq-lname">Last Name <span style="color:#c0392b;">*</span></label>
+                      <input type="text" id="liq-lname" name="last_name" placeholder="Smith" required>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="liq-phone">Phone Number <span style="color:#c0392b;">*</span></label>
+                    <input type="tel" id="liq-phone" name="phone" placeholder="(414) 555-0100" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="liq-email">Email Address <span style="color:#c0392b;">*</span></label>
+                    <input type="email" id="liq-email" name="email" placeholder="jane@example.com" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="liq-state">State <span style="color:#c0392b;">*</span></label>
+                    <select id="liq-state" name="state" required>
+                      <option value="">Select your state&hellip;</option>
+                      <option>Alabama</option><option>Alaska</option><option>Arizona</option><option>Arkansas</option><option>California</option>
+                      <option>Colorado</option><option>Connecticut</option><option>Delaware</option><option>Florida</option><option>Georgia</option>
+                      <option>Hawaii</option><option>Idaho</option><option>Illinois</option><option>Indiana</option><option>Iowa</option>
+                      <option>Kansas</option><option>Kentucky</option><option>Louisiana</option><option>Maine</option><option>Maryland</option>
+                      <option>Massachusetts</option><option>Michigan</option><option>Minnesota</option><option>Mississippi</option><option>Missouri</option>
+                      <option>Montana</option><option>Nebraska</option><option>Nevada</option><option>New Hampshire</option><option>New Jersey</option>
+                      <option>New Mexico</option><option>New York</option><option>North Carolina</option><option>North Dakota</option><option>Ohio</option>
+                      <option>Oklahoma</option><option>Oregon</option><option>Pennsylvania</option><option>Rhode Island</option><option>South Carolina</option>
+                      <option>South Dakota</option><option>Tennessee</option><option>Texas</option><option>Utah</option><option>Vermont</option>
+                      <option>Virginia</option><option>Washington</option><option>West Virginia</option><option>Wisconsin</option><option>Wyoming</option>
+                    </select>
+                  </div>
+
+                  <!-- ABOUT YOU -->
+                  <div class="form-section-label">About You</div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="liq-age">Age Range <span style="color:#c0392b;">*</span></label>
+                    <select id="liq-age" name="age_range" required>
+                      <option value="">Select age range&hellip;</option>
+                      <option>18–29</option>
+                      <option>30–39</option>
+                      <option>40–49</option>
+                      <option>50–59</option>
+                      <option>60–69</option>
+                      <option>70+</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Are you applying for yourself or someone else? <span style="color:#c0392b;">*</span></label>
+                    <div class="option-group" id="liq-for-group">
+                      <label class="option-label"><input type="radio" name="coverage_for" value="Myself" required><span>Myself</span></label>
+                      <label class="option-label"><input type="radio" name="coverage_for" value="Someone else"><span>Someone else (spouse, parent, child)</span></label>
+                      <label class="option-label"><input type="radio" name="coverage_for" value="Both / multiple people"><span>Both / multiple people</span></label>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Tobacco or nicotine use in the past 12 months? <span style="color:#c0392b;">*</span></label>
+                    <div class="option-group" id="liq-tobacco-group">
+                      <label class="option-label"><input type="radio" name="tobacco" value="No" required><span>No</span></label>
+                      <label class="option-label"><input type="radio" name="tobacco" value="Yes"><span>Yes</span></label>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Any major health concerns or recent diagnoses? <span style="color:#c0392b;">*</span></label>
+                    <div class="option-group" id="liq-health-group">
+                      <label class="option-label"><input type="radio" name="health_concerns" value="No" required><span>No</span></label>
+                      <label class="option-label"><input type="radio" name="health_concerns" value="Yes"><span>Yes</span></label>
+                      <label class="option-label"><input type="radio" name="health_concerns" value="Prefer to discuss privately"><span>Prefer to discuss privately</span></label>
+                    </div>
+                  </div>
+
+                  <!-- COVERAGE DETAILS -->
+                  <div class="form-section-label">Coverage Details</div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="liq-coverage-type">What type of coverage are you interested in? <span style="color:#c0392b;">*</span></label>
+                    <select id="liq-coverage-type" name="coverage_type" required>
+                      <option value="">Select a coverage type&hellip;</option>
+                      <option>Term Life</option>
+                      <option>Whole Life</option>
+                      <option>Final Expense</option>
+                      <option>Universal Life</option>
+                      <option>Living Benefits</option>
+                      <option>Not Sure &mdash; I&rsquo;d like guidance</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="liq-coverage-amount">Approximate coverage amount desired</label>
+                    <select id="liq-coverage-amount" name="coverage_amount">
+                      <option value="">Select a range&hellip;</option>
+                      <option>Under $50,000</option>
+                      <option>$50,000 – $100,000</option>
+                      <option>$100,000 – $250,000</option>
+                      <option>$250,000 – $500,000</option>
+                      <option>$500,000 – $1,000,000</option>
+                      <option>Over $1,000,000</option>
+                      <option>Not sure</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="liq-budget">Monthly budget range</label>
+                    <select id="liq-budget" name="monthly_budget">
+                      <option value="">Select a range&hellip;</option>
+                      <option>Under $50/month</option>
+                      <option>$50 – $100/month</option>
+                      <option>$100 – $200/month</option>
+                      <option>$200 – $400/month</option>
+                      <option>Over $400/month</option>
+                      <option>Not sure yet</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Do you currently have life insurance?</label>
+                    <div class="option-group">
+                      <label class="option-label"><input type="radio" name="has_coverage" value="No"><span>No</span></label>
+                      <label class="option-label"><input type="radio" name="has_coverage" value="Yes"><span>Yes</span></label>
+                      <label class="option-label"><input type="radio" name="has_coverage" value="Not sure"><span>Not sure</span></label>
+                    </div>
+                  </div>
+
+                  <!-- SCHEDULING -->
+                  <div class="form-section-label">Scheduling Preference</div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="liq-contact-time">Best time to contact you</label>
+                    <select id="liq-contact-time" name="best_contact_time">
+                      <option value="">Select a preference&hellip;</option>
+                      <option>Morning (8am – 12pm)</option>
+                      <option>Afternoon (12pm – 4pm)</option>
+                      <option>Evening (4pm – 7pm)</option>
+                      <option>Anytime is fine</option>
+                    </select>
+                  </div>
+
+                  <!-- SMS CONSENT -->
+                  <div class="form-consent" style="margin-top:20px;">
+                    <label class="sms-consent">
+                      <input type="checkbox" id="liq-sms-consent" name="sms_consent" required>
+                      <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="terms.html" target="_blank">Terms &amp; Conditions</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>.</span>
+                    </label>
+                  </div>
+
+                  <button type="submit" class="btn btn-amber btn-full" style="margin-top:20px;">Continue to Next Step &rarr;</button>
+                  <p class="form-privacy">We respect your privacy and will never share your information.</p>
+                  <p id="liq-error" style="color:#c0392b; font-size:0.88rem; margin-top:8px; display:none;"></p>
+
+                </form>
+              </div><!-- /#liq-form-wrap -->
+
+            </div><!-- /.book-form-wrap -->
+          </div><!-- /left col -->
+
+          <!-- Right: sidebar -->
+          <div>
+            <div class="liq-sidebar-trust">
+              <h3>Why We Ask These Questions</h3>
+              <div class="liq-trust-item">
+                <div class="liq-trust-icon">&#128275;</div>
+                <div class="liq-trust-text"><strong>Match You to the Right Product</strong>Your age, health, and goals affect which policies you qualify for and which offer the best value.</div>
+              </div>
+              <div class="liq-trust-item">
+                <div class="liq-trust-icon">&#9200;</div>
+                <div class="liq-trust-text"><strong>Save You Time</strong>Loretta reviews your answers before your consultation so you spend time on solutions, not intake questions.</div>
+              </div>
+              <div class="liq-trust-item">
+                <div class="liq-trust-icon">&#128274;</div>
+                <div class="liq-trust-text"><strong>100% Confidential</strong>Your information is used only to prepare your free consultation — never sold or shared.</div>
+              </div>
+            </div>
+
+            <div class="liq-sidebar-types">
+              <h3>Coverage at a Glance</h3>
+              <div class="liq-type-item">
+                <div class="liq-type-name">Term Life</div>
+                <div class="liq-type-desc">Affordable coverage for a set period. Best for income replacement and family protection.</div>
+              </div>
+              <div class="liq-type-item">
+                <div class="liq-type-name">Whole Life</div>
+                <div class="liq-type-desc">Permanent coverage that builds cash value over time. Great for legacy planning.</div>
+              </div>
+              <div class="liq-type-item">
+                <div class="liq-type-name">Final Expense</div>
+                <div class="liq-type-desc">Smaller policies designed to cover end-of-life costs and relieve family burden.</div>
+              </div>
+              <div class="liq-type-item">
+                <div class="liq-type-name">Living Benefits</div>
+                <div class="liq-type-desc">Access a portion of your death benefit while still living if you face a serious illness.</div>
+              </div>
+              <div class="liq-type-item">
+                <div class="liq-type-name">Universal Life</div>
+                <div class="liq-type-desc">Flexible permanent coverage with adjustable premiums and cash accumulation potential.</div>
+              </div>
+            </div>
+          </div><!-- /right sidebar -->
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FINAL CTA ===== -->
+    <section class="cta-section">
+      <div class="container cta-inner">
+        <h2>Questions Before You Fill Out the Form?</h2>
+        <p>Call Loretta directly or send a message through the contact page — no pressure, no obligation.</p>
+        <div class="cta-buttons">
+          <a class="btn btn-amber btn-lg" href="tel:4144411177"><i class="fa-solid fa-phone" aria-hidden="true" style="margin-right:7px;"></i>414-441-1177</a>
+          <a class="btn btn-primary btn-lg" href="contact.html">Send a Message</a>
+        </div>
+        <p class="cta-reassurance">No cost. No obligation. No pressure.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    // Mobile nav toggle
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+
+    // Nav dropdown
+    document.querySelectorAll('.nav-dropdown-toggle').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var dd = this.closest('.nav-dropdown');
+        var isOpen = dd.classList.toggle('open');
+        this.setAttribute('aria-expanded', isOpen);
+      });
+    });
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.nav-dropdown')) {
+        document.querySelectorAll('.nav-dropdown').forEach(function(dd) {
+          dd.classList.remove('open');
+          var btn = dd.querySelector('.nav-dropdown-toggle');
+          if (btn) btn.setAttribute('aria-expanded', 'false');
+        });
+      }
+    });
+
+    // Pre-fill from URL params (passed from life-insurance.html inline form)
+    (function() {
+      var p = new URLSearchParams(window.location.search);
+      if (p.get('first_name')) document.getElementById('liq-fname').value = p.get('first_name');
+      if (p.get('last_name'))  document.getElementById('liq-lname').value = p.get('last_name');
+      if (p.get('phone'))      document.getElementById('liq-phone').value = p.get('phone');
+      if (p.get('email'))      document.getElementById('liq-email').value = p.get('email');
+      if (p.get('coverage_type')) {
+        var sel = document.getElementById('liq-coverage-type');
+        for (var i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].text.toLowerCase().indexOf(p.get('coverage_type').toLowerCase()) !== -1) {
+            sel.selectedIndex = i; break;
+          }
+        }
+      }
+    })();
+
+    // Form submission
+    document.getElementById('liq-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var errEl = document.getElementById('liq-error');
+
+      // Basic required field validation
+      var firstName = document.getElementById('liq-fname').value.trim();
+      var lastName  = document.getElementById('liq-lname').value.trim();
+      var phone     = document.getElementById('liq-phone').value.trim();
+      var email     = document.getElementById('liq-email').value.trim();
+      var state     = document.getElementById('liq-state').value;
+      var age       = document.getElementById('liq-age').value;
+      var coverage  = document.getElementById('liq-coverage-type').value;
+      var consent   = document.getElementById('liq-sms-consent').checked;
+
+      var coverageFor  = document.querySelector('input[name="coverage_for"]:checked');
+      var tobacco      = document.querySelector('input[name="tobacco"]:checked');
+      var health       = document.querySelector('input[name="health_concerns"]:checked');
+
+      function showErr(msg) {
+        errEl.textContent = msg;
+        errEl.style.display = 'block';
+        errEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      if (!firstName || !lastName) { showErr('Please enter your first and last name.'); return; }
+      if (!phone) { showErr('Please enter your phone number.'); return; }
+      var e164Phone = toE164(phone);
+      if (!e164Phone) { showErr('Please enter a valid 10-digit US phone number (e.g. 414-441-1177).'); document.getElementById('liq-phone').focus(); return; }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('Please enter a valid email address.'); return; }
+      if (!state)    { showErr('Please select your state.'); return; }
+      if (!age)      { showErr('Please select your age range.'); return; }
+      if (!coverageFor) { showErr('Please indicate who the coverage is for.'); return; }
+      if (!tobacco)  { showErr('Please answer the tobacco/nicotine question.'); return; }
+      if (!health)   { showErr('Please answer the health concerns question.'); return; }
+      if (!coverage) { showErr('Please select a coverage type.'); return; }
+      if (!consent)  { showErr('Please agree to the SMS consent to continue.'); return; }
+
+      errEl.style.display = 'none';
+
+      // Hide form, show success message
+      document.getElementById('liq-form-wrap').style.display = 'none';
+      var successEl = document.getElementById('liq-success');
+      successEl.style.display = 'block';
+      successEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  </script>
+</body>
+</html>

@@ -406,7 +406,7 @@
                   <div class="result-row"><span class="r-label"><strong>Coverage gap</strong></span><span class="r-value highlight" id="li-r-gap">—</span></div>
                 </div>
                 <p class="result-note">Starting estimate only. A personalized review can refine this number.</p>
-                <a class="result-cta-btn" href="book.html">Get a Free Coverage Review</a>
+                <a class="result-cta-btn" href="life-insurance-qualifier.html">Get a Free Coverage Review</a>
               </div>
             </div>
           </div>
@@ -493,7 +493,7 @@
         <div class="sidebar-cta">
           <h3>Free Life Insurance Review</h3>
           <p>Find out whether your current coverage still fits &mdash; or explore new options that better protect your family and legacy.</p>
-          <a class="btn btn-primary" href="book.html">Book a Free Review</a>
+          <a class="btn btn-primary" href="life-insurance-qualifier.html">Get a Free Coverage Review</a>
           <a class="btn btn-amber" href="final-expense.html">Final Expense Coverage</a>
           <ul class="sidebar-links">
             <li><a href="retirement-planning.html">Retirement Planning</a></li>
@@ -568,15 +568,15 @@
 
       errEl.style.display = 'none';
 
-      // Advance to the full consultation survey
+      // Advance to the Life Insurance qualifying form
       var params = new URLSearchParams({
         first_name: firstName,
         last_name:  lastName,
         phone:      e164Phone,
         email:      email,
-        topic:      interest
+        coverage_type: interest
       });
-      window.location.href = 'book.html?' + params.toString();
+      window.location.href = 'life-insurance-qualifier.html?' + params.toString();
     }
   </script>
   <script>

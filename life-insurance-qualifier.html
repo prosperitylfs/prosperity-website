@@ -185,17 +185,34 @@
       border-color: var(--purple);
       background: var(--purple-xlight, #ede8f7);
     }
+    /* Restore native radio/checkbox appearance overridden by global .form-group input rule */
     .option-label input[type="radio"],
     .option-label input[type="checkbox"] {
+      appearance: auto;
+      -webkit-appearance: auto;
       accent-color: var(--purple);
       width: 16px;
       height: 16px;
+      min-width: 16px;
       flex-shrink: 0;
+      cursor: pointer;
     }
+    /* Selected state: text highlight */
     .option-label input[type="radio"]:checked + span,
     .option-label input[type="checkbox"]:checked + span {
       color: var(--purple-dark);
       font-weight: 600;
+    }
+    /* Selected state: border + background highlight (modern browsers) */
+    .option-label:has(input[type="radio"]:checked),
+    .option-label:has(input[type="checkbox"]:checked) {
+      border-color: var(--purple);
+      background: var(--purple-xlight, #ede8f7);
+    }
+    /* Selected state: JS-added class for older browser fallback */
+    .option-label.selected {
+      border-color: var(--purple);
+      background: var(--purple-xlight, #ede8f7);
     }
 
     /* Success state */
@@ -625,6 +642,22 @@
           if (btn) btn.setAttribute('aria-expanded', 'false');
         });
       }
+    });
+
+    // Highlight selected .option-label when radio/checkbox changes (fallback for :has())
+    document.querySelectorAll('.option-group').forEach(function(group) {
+      group.addEventListener('change', function(e) {
+        var input = e.target;
+        if (input.type === 'radio') {
+          // Clear all labels in this group, mark the chosen one
+          group.querySelectorAll('.option-label').forEach(function(lbl) {
+            lbl.classList.remove('selected');
+          });
+          input.closest('.option-label').classList.add('selected');
+        } else if (input.type === 'checkbox') {
+          input.closest('.option-label').classList.toggle('selected', input.checked);
+        }
+      });
     });
 
     // Pre-fill from URL params (passed from life-insurance.html inline form)

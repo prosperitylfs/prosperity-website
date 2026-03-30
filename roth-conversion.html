@@ -442,6 +442,58 @@
     .hero + section {
       margin-top: 30px !important;
     }
+
+    /* ===== FAQ MOBILE — Roth Conversion page only ===== */
+    @media (max-width: 767px) {
+
+      /* Section heading */
+      .roth-page-body .content-section h2 {
+        font-size: 1.35rem !important;
+        line-height: 1.2 !important;
+        margin-bottom: 16px !important;
+      }
+
+      /* Tighter gap between cards */
+      .roth-page-body .faq-list {
+        gap: 8px !important;
+      }
+
+      /* Question row — keep flex balanced, tighten padding */
+      .roth-page-body .faq-question {
+        padding: 14px 16px !important;
+        font-size: 0.93rem !important;
+        line-height: 1.4 !important;
+        gap: 10px !important;
+        align-items: center !important;
+      }
+
+      /* Let the question text wrap without squishing the chevron */
+      .roth-page-body .faq-question span:first-child {
+        flex: 1 !important;
+        min-width: 0 !important;
+      }
+
+      /* Chevron — consistent size and vertical centering */
+      .roth-page-body .faq-chevron {
+        font-size: 0.95rem !important;
+        flex-shrink: 0 !important;
+        align-self: center !important;
+      }
+
+      /* Answer text — tighter padding, comfortable line height */
+      .roth-page-body .faq-answer {
+        padding: 0 16px 14px !important;
+        font-size: 0.9rem !important;
+        line-height: 1.65 !important;
+      }
+
+      /* No horizontal overflow on the cards */
+      .roth-page-body .faq-item {
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+      }
+    }
   </style>
 
   <section class="roth-hero">

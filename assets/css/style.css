@@ -950,6 +950,9 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   font-size: 12px;
   margin-top: 6px;
 }
+.input-error {
+  border-color: #c62828 !important;
+}
 
 /* ---------- Form Consent & Policy Links ---------- */
 .form-consent {

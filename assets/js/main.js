@@ -85,12 +85,59 @@ function normalizeFormPhones(form) {
   return null;
 }
 
-// Make utilities available to inline scripts on every page
+// Make phone utilities available to inline scripts on every page
 window.phoneDigits           = phoneDigits;
 window.formatPhoneDisplay    = formatPhoneDisplay;
 window.toE164                = toE164;
 window.attachPhoneFormatting = attachPhoneFormatting;
 window.normalizeFormPhones   = normalizeFormPhones;
+// ─────────────────────────────────────────────────────────────────────────
+
+// ── EMAIL VALIDATION UTILITIES ────────────────────────────────────────────
+
+/**
+ * Returns true if value is a properly formatted email address.
+ * Requires text before @, a domain after @, and a suffix after the dot.
+ * Examples that pass:  name@gmail.com, loretta@prosperitylfs.com
+ * Examples that fail:  loretta@, loretta@gmail, @gmail.com, loretta
+ */
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+/**
+ * Attach live blur + input validation listeners to an email input.
+ * - On blur: if non-empty and invalid, shows error and adds .input-error class.
+ * - On input: clears error as soon as value becomes valid.
+ *
+ * @param {HTMLInputElement} inputEl  - the email <input>
+ * @param {HTMLElement}      errorEl - the <p> that shows the error message
+ */
+function attachEmailValidation(inputEl, errorEl) {
+  if (!inputEl || !errorEl) return;
+  var MSG = 'Please enter a valid email address.';
+  function clearErr() {
+    errorEl.textContent = '';
+    errorEl.style.display = 'none';
+    inputEl.classList.remove('input-error');
+  }
+  inputEl.addEventListener('blur', function() {
+    var val = inputEl.value.trim();
+    if (val !== '' && !isValidEmail(val)) {
+      errorEl.textContent = MSG;
+      errorEl.style.display = 'block';
+      inputEl.classList.add('input-error');
+    } else {
+      clearErr();
+    }
+  });
+  inputEl.addEventListener('input', function() {
+    if (isValidEmail(inputEl.value)) clearErr();
+  });
+}
+
+window.isValidEmail          = isValidEmail;
+window.attachEmailValidation = attachEmailValidation;
 // ─────────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -101,11 +148,34 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('input[type="tel"], input[name="phone"]')
     .forEach(attachPhoneFormatting);
 
+  // Auto-attach email blur/input validation to every email input with data-email-err
+  document.querySelectorAll('input[type="email"][data-email-err]').forEach(function(input) {
+    attachEmailValidation(input, document.getElementById(input.dataset.emailErr));
+  });
+
   // ── Consultation / Contact forms ────────────────────────────────────────
   function handleForm(form, messageEl) {
     if (!form) return;
     form.addEventListener('submit', function (e) {
       e.preventDefault();
+
+      // Validate email format
+      var emailInput = form.querySelector('input[type="email"]');
+      if (emailInput) {
+        var emailVal = emailInput.value.trim();
+        var errId    = emailInput.dataset.emailErr;
+        var inlineEmailErr = errId ? document.getElementById(errId) : null;
+        if (!isValidEmail(emailVal)) {
+          var msg = 'Please enter a valid email address.';
+          if (inlineEmailErr) { inlineEmailErr.textContent = msg; inlineEmailErr.style.display = 'block'; }
+          else if (messageEl) { messageEl.textContent = msg; messageEl.className = 'form-message error'; }
+          emailInput.classList.add('input-error');
+          emailInput.focus();
+          return;
+        }
+        if (inlineEmailErr) { inlineEmailErr.textContent = ''; inlineEmailErr.style.display = 'none'; }
+        emailInput.classList.remove('input-error');
+      }
 
       // Normalize phone to E.164 before any other processing
       var phoneErr = normalizeFormPhones(form);
@@ -162,7 +232,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
       var email     = form.elements['email']      ? form.elements['email'].value.trim()      : '';
       var firstName = form.elements['first_name'] ? form.elements['first_name'].value.trim() : 'there';
-      if (!email) return;
+      if (!email || !isValidEmail(email)) {
+        var emailInput = form.elements['email'];
+        var errId = emailInput ? emailInput.dataset.emailErr : null;
+        var inlineEmailErr = errId ? document.getElementById(errId) : null;
+        var msg = 'Please enter a valid email address.';
+        if (inlineEmailErr) { inlineEmailErr.textContent = msg; inlineEmailErr.style.display = 'block'; }
+        else if (messageEl) { messageEl.textContent = msg; messageEl.className = 'form-message error'; }
+        if (emailInput) { emailInput.classList.add('input-error'); emailInput.focus(); }
+        return;
+      }
 
       if (messageEl) messageEl.textContent = 'Sending your guide…';
 

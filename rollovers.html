@@ -908,7 +908,8 @@
           </div>
           <div class="field-group">
             <label for="rollover-email">Email</label>
-            <input id="rollover-email" name="email" type="email" placeholder="Your email address" required>
+            <input id="rollover-email" name="email" type="email" placeholder="Your email address" required autocomplete="email" data-email-err="rollover-email-err">
+          <p class="form-error-message" id="rollover-email-err" style="display:none;"></p>
           </div>
           <div class="field-group">
             <label for="rollover-phone">Phone Number</label>
@@ -986,6 +987,17 @@
     var rolloverForm = document.querySelector('.rollovers-lead-form');
     if (rolloverForm) {
       rolloverForm.addEventListener('submit', function(e) {
+        var rolloverEmailInput = document.getElementById('rollover-email');
+        var rolloverEmailErr   = document.getElementById('rollover-email-err');
+        if (!isValidEmail(rolloverEmailInput.value.trim())) {
+          e.preventDefault();
+          if (rolloverEmailErr) { rolloverEmailErr.textContent = 'Please enter a valid email address.'; rolloverEmailErr.style.display = 'block'; }
+          rolloverEmailInput.classList.add('input-error');
+          rolloverEmailInput.focus();
+          return;
+        }
+        if (rolloverEmailErr) { rolloverEmailErr.textContent = ''; rolloverEmailErr.style.display = 'none'; }
+        rolloverEmailInput.classList.remove('input-error');
         var phoneErr = normalizeFormPhones(rolloverForm);
         if (phoneErr) {
           e.preventDefault();

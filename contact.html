@@ -132,7 +132,8 @@
               <input id="contact-name" name="name" placeholder="Your full name" required>
 
               <label for="contact-email">Email Address</label>
-              <input id="contact-email" name="email" type="email" placeholder="Your email address" required>
+              <input id="contact-email" name="email" type="email" placeholder="Your email address" required autocomplete="email" data-email-err="contact-email-err">
+              <p class="form-error-message" id="contact-email-err" style="display:none;"></p>
 
               <label for="contact-phone">Phone Number</label>
               <input id="contact-phone" name="phone" type="tel" placeholder="Best number to reach you">
@@ -226,6 +227,16 @@
       contactForm.addEventListener('submit', function(e) {
         e.preventDefault();
         const result = document.getElementById('contact-message-result');
+        var contactEmail = document.getElementById('contact-email');
+        var contactEmailErr = document.getElementById('contact-email-err');
+        if (!isValidEmail(contactEmail.value.trim())) {
+          if (contactEmailErr) { contactEmailErr.textContent = 'Please enter a valid email address.'; contactEmailErr.style.display = 'block'; }
+          contactEmail.classList.add('input-error');
+          contactEmail.focus();
+          return;
+        }
+        if (contactEmailErr) { contactEmailErr.textContent = ''; contactEmailErr.style.display = 'none'; }
+        contactEmail.classList.remove('input-error');
         var phoneErr = normalizeFormPhones(contactForm);
         if (phoneErr) {
           result.textContent = phoneErr;

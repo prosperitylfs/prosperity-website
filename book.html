@@ -360,7 +360,8 @@
               </div>
               <div class="form-group">
                 <label class="form-label" for="f-email">Email Address <span class="req">*</span></label>
-                <input type="email" id="f-email" name="email" placeholder="jane@example.com" required>
+                <input type="email" id="f-email" name="email" placeholder="jane@example.com" required autocomplete="email" data-email-err="f-email-err">
+                <p class="form-error-message" id="f-email-err" style="display:none;"></p>
               </div>
 
               <div class="sms-consent-group">
@@ -726,7 +727,16 @@
         var e164Phone = toE164(phone);
         if (!e164Phone) { showErr('Please enter a valid 10-digit US phone number (e.g. 414-441-1177).'); document.getElementById('f-phone').focus(); return false; }
         document.getElementById('f-phone').value = e164Phone;
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('Please enter a valid email address.'); return false; }
+        var fEmailErr = document.getElementById('f-email-err');
+        if (!isValidEmail(email)) {
+          if (fEmailErr) { fEmailErr.textContent = 'Please enter a valid email address.'; fEmailErr.style.display = 'block'; }
+          document.getElementById('f-email').classList.add('input-error');
+          document.getElementById('f-email').focus();
+          showErr('Please enter a valid email address.');
+          return false;
+        }
+        if (fEmailErr) { fEmailErr.textContent = ''; fEmailErr.style.display = 'none'; }
+        document.getElementById('f-email').classList.remove('input-error');
         if (!consent) { showErr('Please check the SMS consent box to continue.'); return false; }
         clearErr(); return true;
       }

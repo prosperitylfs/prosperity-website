@@ -141,7 +141,8 @@
               <input id="lead-phone" name="phone" placeholder="Phone number" required>
             </div>
             <div class="form-group">
-              <input id="lead-email" name="email" placeholder="Email address" type="email" required>
+              <input id="lead-email" name="email" placeholder="Email address" type="email" required autocomplete="email" data-email-err="lead-email-err">
+              <p class="form-error-message" id="lead-email-err" style="display:none;"></p>
             </div>
             <div class="form-group">
               <label for="lead-interest" class="form-label" style="text-transform:none;">What would you like to discuss with Loretta?</label>
@@ -379,7 +380,8 @@
               <label for="guide-fname">First Name</label>
               <input id="guide-fname" name="first_name" placeholder="Your first name" required>
               <label for="guide-email">Email Address</label>
-              <input id="guide-email" name="email" type="email" placeholder="Your email address" required>
+              <input id="guide-email" name="email" type="email" placeholder="Your email address" required autocomplete="email" data-email-err="guide-email-err">
+              <p class="form-error-message" id="guide-email-err" style="display:none;"></p>
               <label for="guide-phone">Phone Number</label>
               <input id="guide-phone" name="phone" type="tel" placeholder="Best number to reach you" required>
               <div class="form-consent" style="margin-top:4px; margin-bottom:8px;">
@@ -548,6 +550,17 @@
           if (empty) valid = false;
         });
         if (!valid) return;
+
+        // Validate email format with inline error
+        const emailErrEl = document.getElementById('lead-email-err');
+        if (!isValidEmail(email.value.trim())) {
+          if (emailErrEl) { emailErrEl.textContent = 'Please enter a valid email address.'; emailErrEl.style.display = 'block'; }
+          email.classList.add('input-error');
+          email.focus();
+          return;
+        }
+        if (emailErrEl) { emailErrEl.textContent = ''; emailErrEl.style.display = 'none'; }
+        email.classList.remove('input-error');
 
         // Require SMS consent checkbox — block redirect if unchecked
         if (!consentBox || !consentBox.checked) {

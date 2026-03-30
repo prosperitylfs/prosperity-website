@@ -226,6 +226,12 @@
       contactForm.addEventListener('submit', function(e) {
         e.preventDefault();
         const result = document.getElementById('contact-message-result');
+        var phoneErr = normalizeFormPhones(contactForm);
+        if (phoneErr) {
+          result.textContent = phoneErr;
+          result.style.color = '#c0392b';
+          return;
+        }
         result.textContent = 'Thank you! Your message has been received. Loretta will respond as soon as possible.';
         result.style.color = '#1a7a4a';
         contactForm.reset();

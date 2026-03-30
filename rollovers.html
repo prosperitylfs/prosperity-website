@@ -977,6 +977,24 @@
 
   <script src="assets/js/main.js"></script>
   <script>
+    // Normalize rollover form phone to E.164 before Netlify POST
+    var rolloverForm = document.querySelector('.rollovers-lead-form');
+    if (rolloverForm) {
+      rolloverForm.addEventListener('submit', function(e) {
+        var phoneErr = normalizeFormPhones(rolloverForm);
+        if (phoneErr) {
+          e.preventDefault();
+          var errEl = document.getElementById('rollover-phone-err');
+          if (!errEl) {
+            errEl = document.createElement('p');
+            errEl.id = 'rollover-phone-err';
+            errEl.style.cssText = 'color:#c0392b;font-size:0.85rem;margin:6px 0 0;';
+            document.getElementById('rollover-phone').closest('.field-group').appendChild(errEl);
+          }
+          errEl.textContent = phoneErr;
+        }
+      });
+    }
     // FAQ accordion
     document.querySelectorAll('.ro-faq-question').forEach(function(btn) {
       btn.addEventListener('click', function() {

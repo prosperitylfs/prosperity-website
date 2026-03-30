@@ -723,6 +723,9 @@
         const email     = document.getElementById('f-email').value.trim();
         const consent   = document.getElementById('sms-consent-1').checked;
         if (!firstName || !lastName || !phone || !email) { showErr('Please fill in all required fields.'); return false; }
+        var e164Phone = toE164(phone);
+        if (!e164Phone) { showErr('Please enter a valid 10-digit US phone number (e.g. 414-441-1177).'); document.getElementById('f-phone').focus(); return false; }
+        document.getElementById('f-phone').value = e164Phone;
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('Please enter a valid email address.'); return false; }
         if (!consent) { showErr('Please check the SMS consent box to continue.'); return false; }
         clearErr(); return true;

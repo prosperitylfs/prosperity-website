@@ -557,10 +557,18 @@
         }
         if (consentError) consentError.style.display = 'none';
 
+        // Normalize phone to E.164 before redirect
+        var e164Phone = toE164(phone.value.trim());
+        if (!e164Phone) {
+          phone.style.borderColor = 'var(--red, #e53e3e)';
+          phone.focus();
+          return;
+        }
+
         const params = new URLSearchParams({
           first_name: firstName.value.trim(),
           last_name:  lastName.value.trim(),
-          phone:      phone.value.trim(),
+          phone:      e164Phone,
           email:      email.value.trim(),
           topic:      interest.value
         });

@@ -5,15 +5,114 @@ var EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';   // e.g. 'service_abc123'
 var EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // e.g. 'template_xyz789'
 // ─────────────────────────────────────────────────────────────────────────
 
+// ── PHONE FORMATTING UTILITIES ─────────────────────────────────────────────
+// Exposed on window so inline <script> blocks on any page can call them.
+
+/** Strip every non-digit character from a string. */
+function phoneDigits(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+/**
+ * Format up-to-10 digits as (NXX) NXX-XXXX while the user types.
+ * Partial sequences are formatted to the extent possible, e.g.
+ *   "414"       → "(414"
+ *   "4144"      → "(414) 4"
+ *   "4144411"   → "(414) 441-1"
+ *   "4144411177"→ "(414) 441-1177"
+ */
+function formatPhoneDisplay(digits) {
+  digits = digits.slice(0, 10);
+  if (digits.length <= 3)  return '(' + digits;
+  if (digits.length <= 6)  return '(' + digits.slice(0,3) + ') ' + digits.slice(3);
+  return '(' + digits.slice(0,3) + ') ' + digits.slice(3,6) + '-' + digits.slice(6);
+}
+
+/**
+ * Convert any common US phone string to E.164 (+1XXXXXXXXXX).
+ * Accepts bare 10-digit strings, (NXX) NXX-XXXX, NXX-NXX-XXXX,
+ * and 11-digit strings starting with 1.
+ * Returns the E.164 string on success, or null if the number is invalid.
+ */
+function toE164(value) {
+  var d = phoneDigits(value);
+  if (d.length === 11 && d.charAt(0) === '1') d = d.slice(1); // strip leading country code
+  if (d.length !== 10) return null;
+  return '+1' + d;
+}
+
+/**
+ * Attach live (NXX) NXX-XXXX display formatting to a phone <input>.
+ * Idempotent — safe to call more than once on the same element.
+ */
+function attachPhoneFormatting(input) {
+  if (!input || input.dataset.phoneFmt) return;
+  input.dataset.phoneFmt = '1';
+  input.setAttribute('inputmode', 'tel');
+  input.setAttribute('autocomplete', 'tel');
+  input.addEventListener('input', function () {
+    var cursorPos = this.selectionStart;
+    var prevLen   = this.value.length;
+    var d         = phoneDigits(this.value).slice(0, 10);
+    this.value    = formatPhoneDisplay(d);
+    // Nudge cursor forward/back proportionally after reformatting
+    var delta = this.value.length - prevLen;
+    try { this.setSelectionRange(cursorPos + delta, cursorPos + delta); } catch (ignore) {}
+  });
+}
+
+/**
+ * Validate and rewrite every phone input inside a form to E.164.
+ * Call this immediately before submitting; it mutates input .value in-place
+ * so FormData and URLSearchParams automatically capture the E.164 string.
+ *
+ * Returns an error message string if any phone is invalid, else null.
+ * Optional-and-empty inputs are skipped.
+ */
+function normalizeFormPhones(form) {
+  var inputs = form.querySelectorAll('input[type="tel"], input[name="phone"]');
+  for (var i = 0; i < inputs.length; i++) {
+    var input = inputs[i];
+    var raw   = input.value.trim();
+    if (!input.required && raw === '') continue; // optional + blank → skip
+    var e164 = toE164(raw);
+    if (!e164) {
+      input.focus();
+      return 'Please enter a valid 10-digit US phone number (e.g. 414-441-1177).';
+    }
+    input.value = e164; // e.g. +14144411177
+  }
+  return null;
+}
+
+// Make utilities available to inline scripts on every page
+window.phoneDigits           = phoneDigits;
+window.formatPhoneDisplay    = formatPhoneDisplay;
+window.toE164                = toE164;
+window.attachPhoneFormatting = attachPhoneFormatting;
+window.normalizeFormPhones   = normalizeFormPhones;
+// ─────────────────────────────────────────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', function () {
   const year = document.getElementById('year');
   if (year) year.textContent = new Date().getFullYear();
+
+  // Auto-attach live formatting to every phone input on the page
+  document.querySelectorAll('input[type="tel"], input[name="phone"]')
+    .forEach(attachPhoneFormatting);
 
   // ── Consultation / Contact forms ────────────────────────────────────────
   function handleForm(form, messageEl) {
     if (!form) return;
     form.addEventListener('submit', function (e) {
       e.preventDefault();
+
+      // Normalize phone to E.164 before any other processing
+      var phoneErr = normalizeFormPhones(form);
+      if (phoneErr) {
+        if (messageEl) { messageEl.textContent = phoneErr; messageEl.className = 'form-message error'; }
+        return;
+      }
 
       // Validate required checkboxes (e.g. SMS consent)
       var unchecked = form.querySelector('input[type="checkbox"][required]:not(:checked)');
@@ -52,6 +151,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!form) return;
     form.addEventListener('submit', function (e) {
       e.preventDefault();
+
+      // Normalize phone to E.164 first (phone is collected but not sent in email;
+      // normalizing here ensures consistency if backend later captures FormData)
+      var phoneErr = normalizeFormPhones(form);
+      if (phoneErr) {
+        if (messageEl) { messageEl.textContent = phoneErr; messageEl.className = 'form-message error'; }
+        return;
+      }
 
       var email     = form.elements['email']      ? form.elements['email'].value.trim()      : '';
       var firstName = form.elements['first_name'] ? form.elements['first_name'].value.trim() : 'there';

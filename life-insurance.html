@@ -560,6 +560,8 @@
 
       if (!firstName || !lastName)  { errEl.textContent = 'Please enter your first and last name.'; errEl.style.display = 'block'; return; }
       if (!phone)                   { errEl.textContent = 'Please enter your phone number.'; errEl.style.display = 'block'; return; }
+      var e164Phone = toE164(phone);
+      if (!e164Phone)               { errEl.textContent = 'Please enter a valid 10-digit US phone number (e.g. 414-441-1177).'; errEl.style.display = 'block'; document.getElementById('li-f-phone').focus(); return; }
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; return; }
       if (!interest)                { errEl.textContent = 'Please select a coverage type.'; errEl.style.display = 'block'; return; }
       if (!consent)                 { errEl.textContent = 'Please agree to the Terms & Conditions to continue.'; errEl.style.display = 'block'; return; }
@@ -570,7 +572,7 @@
       var params = new URLSearchParams({
         first_name: firstName,
         last_name:  lastName,
-        phone:      phone,
+        phone:      e164Phone,
         email:      email,
         topic:      interest
       });

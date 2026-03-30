@@ -460,7 +460,8 @@
             </div>
             <div class="form-group">
               <label class="form-label" for="li-f-email">Email Address <span style="color:#c0392b;">*</span></label>
-              <input type="email" id="li-f-email" name="email" placeholder="jane@example.com" required>
+              <input type="email" id="li-f-email" name="email" placeholder="jane@example.com" required autocomplete="email">
+              <p class="form-error-message" id="li-email-err" style="display:none;"></p>
             </div>
             <div class="form-group">
               <label class="form-label" for="li-f-interest">What type of coverage are you interested in? <span style="color:#c0392b;">*</span></label>
@@ -562,7 +563,14 @@
       if (!phone)                   { errEl.textContent = 'Please enter your phone number.'; errEl.style.display = 'block'; return; }
       var e164Phone = toE164(phone);
       if (!e164Phone)               { errEl.textContent = 'Please enter a valid 10-digit US phone number (e.g. 414-441-1177).'; errEl.style.display = 'block'; document.getElementById('li-f-phone').focus(); return; }
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; return; }
+      var emailErr = document.getElementById('li-email-err');
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        emailErr.textContent = 'Please enter a valid email address.';
+        emailErr.style.display = 'block';
+        document.getElementById('li-f-email').focus();
+        return;
+      }
+      emailErr.style.display = 'none';
       if (!interest)                { errEl.textContent = 'Please select a coverage type.'; errEl.style.display = 'block'; return; }
       if (!consent)                 { errEl.textContent = 'Please agree to the Terms & Conditions to continue.'; errEl.style.display = 'block'; return; }
 

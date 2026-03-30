@@ -368,7 +368,8 @@
 
                   <div class="form-group">
                     <label class="form-label" for="liq-email">Email Address <span style="color:#c0392b;">*</span></label>
-                    <input type="email" id="liq-email" name="email" placeholder="jane@example.com" required>
+                    <input type="email" id="liq-email" name="email" placeholder="jane@example.com" required autocomplete="email">
+                    <p class="form-error-message" id="liq-email-err" style="display:none;"></p>
                   </div>
 
                   <div class="form-group">
@@ -706,7 +707,14 @@
       if (!phone) { showErr('Please enter your phone number.'); return; }
       var e164Phone = toE164(phone);
       if (!e164Phone) { showErr('Please enter a valid 10-digit US phone number (e.g. 414-441-1177).'); document.getElementById('liq-phone').focus(); return; }
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('Please enter a valid email address.'); return; }
+      var emailErrEl = document.getElementById('liq-email-err');
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        emailErrEl.textContent = 'Please enter a valid email address.';
+        emailErrEl.style.display = 'block';
+        document.getElementById('liq-email').focus();
+        return;
+      }
+      emailErrEl.style.display = 'none';
       if (!state)    { showErr('Please select your state.'); return; }
       if (!age)      { showErr('Please select your age range.'); return; }
       if (!coverageFor) { showErr('Please indicate who the coverage is for.'); return; }

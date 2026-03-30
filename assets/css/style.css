@@ -512,7 +512,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   display: block;
 }
 
-/* Desktop/tablet: no cropping or masking — URL params handle branding removal */
+/* Desktop/tablet: crop top of iframe to hide Vimeo title overlay */
 @media (min-width: 769px) {
   .homepage-vimeo-video {
     position: relative;
@@ -520,8 +520,19 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   }
   .homepage-vimeo-video iframe {
     display: block;
-    transform: translateY(0);
-    height: 100%;
+    transform: translateY(-42px);
+    height: calc(100% + 42px);
+  }
+  /* Transparent shield over the cropped top edge */
+  .homepage-vimeo-video::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 42px;
+    z-index: 2;
+    pointer-events: none;
   }
 }
 

@@ -74,14 +74,24 @@
     .annuities-hero {
       position: relative;
       min-height: 340px;
-      background-image: url('assets/images/Couple yellow.jpg');
-      background-size: cover;
-      background-position: 75% center;
-      background-repeat: no-repeat;
+      overflow: hidden;
       display: flex;
       align-items: center;
     }
+    /* Absolutely-positioned image replaces CSS background-image,
+       giving precise object-position control per breakpoint */
+    .annuities-hero-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 75% center;
+      z-index: 0;
+    }
     .annuities-hero-overlay {
+      position: relative;
+      z-index: 1;
       width: 100%;
       background: linear-gradient(
         90deg,
@@ -330,16 +340,20 @@
     @media (max-width: 767px) {
       .annuities-hero {
         min-height: 0 !important;
-        background-size: cover !important;
-        background-position: 55% center !important;
         overflow: hidden !important;
       }
+      /* Reposition the image so the couple's faces sit near center-top
+         on narrow viewports instead of being pushed to the far right */
+      .annuities-hero-img {
+        object-position: 50% 20% !important;
+      }
+      /* Stronger, full-width vertical overlay for mobile readability */
       .annuities-hero-overlay {
         background: linear-gradient(
           180deg,
-          rgba(240, 237, 215, 0.88) 0%,
-          rgba(240, 237, 215, 0.82) 60%,
-          rgba(240, 237, 215, 0.65) 100%
+          rgba(240, 237, 215, 0.90) 0%,
+          rgba(240, 237, 215, 0.85) 65%,
+          rgba(240, 237, 215, 0.68) 100%
         ) !important;
       }
       .annuities-hero-content {
@@ -383,6 +397,7 @@
   </style>
 
   <section class="annuities-hero">
+    <img src="assets/images/Couple yellow.jpg" alt="" class="annuities-hero-img" aria-hidden="true">
     <div class="annuities-hero-overlay">
       <div class="annuities-hero-content">
         <div class="hero-text">

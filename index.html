@@ -29,7 +29,54 @@
       emailjs.init({ publicKey: 'YOUR_PUBLIC_KEY' });
     })();
   </script>
- </head>
+  <!-- MailerLite Universal -->
+  <script>
+  (function(w,d,e,u,f,l,n){
+    w[f]=w[f]||function(){(w[f].q=w[f].q||[]).push(arguments);},
+    l=d.createElement(e),l.async=1,l.src=u,
+    n=d.getElementsByTagName(e)[0],n.parentNode.insertBefore(l,n);
+  })(window,document,'script','https://assets.mailerlite.com/js/universal.js','ml');
+  ml('account', '231548');
+  </script>
+  <!-- End MailerLite Universal -->
+  <style>
+    .guide-form-wrap .ml-embedded,
+    .guide-form-wrap .ml-form-embedContainer,
+    .guide-form-wrap .ml-form-embedWrapper {
+      width: 100%;
+      max-width: 100%;
+    }
+    .guide-form-wrap .ml-form-embedBody,
+    .guide-form-wrap .ml-form-embedContent {
+      padding: 0 !important;
+      background: transparent !important;
+    }
+    .guide-form-wrap .ml-form-embedSubmit button,
+    .guide-form-wrap button[type="submit"] {
+      background: #389F72 !important;
+      border-radius: 10px !important;
+      border: none !important;
+      font-weight: 700 !important;
+      width: 100% !important;
+    }
+    .guide-form-wrap input,
+    .guide-form-wrap select,
+    .guide-form-wrap textarea {
+      border-radius: 10px !important;
+      border: 1px solid #d9d9d9 !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .guide-form-wrap .ml-form-checkboxRow {
+      font-size: 12px !important;
+      line-height: 1.5 !important;
+    }
+    .guide-form-wrap .ml-form-checkboxRow a {
+      color: #4E2C94 !important;
+      text-decoration: underline !important;
+    }
+  </style>
+</head>
 <body>
 
   <header class="site-header">
@@ -376,32 +423,7 @@
           <div class="guide-form-wrap">
             <h3 class="guide-form-title">13 Costly Mistakes to Avoid When Rolling Over Your 401(k), 403(b), or TSP</h3>
             <p class="guide-form-sub">Enter your details below and get instant access to this free guide to help you avoid common rollover mistakes and make more confident retirement decisions.</p>
-            <form id="guide-form-home" class="book-form" aria-label="Download retirement guide">
-              <label for="guide-fname">First Name</label>
-              <input id="guide-fname" name="first_name" placeholder="Your first name" required>
-              <label for="guide-email">Email Address</label>
-              <input id="guide-email" name="email" type="email" placeholder="Your email address" required autocomplete="email" data-email-err="guide-email-err">
-              <p class="form-error-message" id="guide-email-err" style="display:none;"></p>
-              <label for="guide-phone">Phone Number</label>
-              <input id="guide-phone" name="phone" type="tel" placeholder="Best number to reach you" required>
-              <div class="form-consent" style="margin-top:4px; margin-bottom:8px;">
-                <label class="sms-consent">
-                  <input type="checkbox" required>
-                  <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="terms.html" target="_blank">Terms &amp; Conditions</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>.</span>
-                </label>
-              </div>
-              <button type="submit" class="btn btn-amber btn-full guide-submit-btn">Send My Free Guide</button>
-              <p class="form-privacy">We respect your privacy. Your information will never be shared and you can unsubscribe anytime.</p>
-              <div id="guide-home-message" class="form-message" aria-live="polite"></div>
-            </form>
-
-            <!-- Thank-you state -->
-            <div id="guide-home-thankyou" style="display:none; text-align:center; padding:8px 0 4px;">
-              <div style="width:52px; height:52px; background:#e6f7ee; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:1.5rem; color:#1a7a4a;">&#10003;</div>
-              <h3 style="font-size:1.1rem; font-weight:700; color:var(--purple-dark); margin-bottom:8px;">Check your inbox!</h3>
-              <p style="font-size:0.9rem; color:var(--text); margin-bottom:20px; line-height:1.6;">Thank you! Your retirement guide has been sent to your email. If you don&rsquo;t see it in a few minutes, check your spam folder.</p>
-              <p style="font-size:0.78rem; color:var(--text); line-height:1.55;">Have questions? <a href="book.html" style="color:var(--purple); font-weight:600;">Schedule a free consultation.</a></p>
-            </div>
+            <div class="ml-embedded" data-form="tkoptY"></div>
           </div>
 
         </div>

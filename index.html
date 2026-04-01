@@ -29,24 +29,22 @@
       emailjs.init({ publicKey: 'YOUR_PUBLIC_KEY' });
     })();
   </script>
-  <!-- MailerLite Universal -->
-  <script>
-  (function(w,d,e,u,f,l,n){
-    w[f]=w[f]||function(){(w[f].q=w[f].q||[]).push(arguments);},
-    l=d.createElement(e),l.async=1,l.src=u,
-    n=d.getElementsByTagName(e)[0],n.parentNode.insertBefore(l,n);
-  })(window,document,'script','https://assets.mailerlite.com/js/universal.js','ml');
-  ml('account', '231548');
-  </script>
-  <!-- End MailerLite Universal -->
+  <!-- MailerLite Universal — must be last in <head> -->
   <style>
+    /* ── MailerLite embed overrides ─────────────────────────────────────── */
+    /* Ensure injected containers are never hidden */
     .guide-form-wrap .ml-embedded,
     .guide-form-wrap .ml-form-embedContainer,
-    .guide-form-wrap .ml-form-embedWrapper {
-      width: 100%;
-      max-width: 100%;
+    .guide-form-wrap .ml-form-embedWrapper,
+    .guide-form-wrap .ml-form-embedBody {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      min-height: 10px;
+      visibility: visible !important;
+      opacity: 1 !important;
+      overflow: visible !important;
     }
-    .guide-form-wrap .ml-form-embedBody,
     .guide-form-wrap .ml-form-embedContent {
       padding: 0 !important;
       background: transparent !important;
@@ -59,9 +57,9 @@
       font-weight: 700 !important;
       width: 100% !important;
     }
-    .guide-form-wrap input,
-    .guide-form-wrap select,
-    .guide-form-wrap textarea {
+    .guide-form-wrap .ml-form-fieldRow input,
+    .guide-form-wrap .ml-form-fieldRow select,
+    .guide-form-wrap .ml-form-fieldRow textarea {
       border-radius: 10px !important;
       border: 1px solid #d9d9d9 !important;
       width: 100% !important;
@@ -76,6 +74,15 @@
       text-decoration: underline !important;
     }
   </style>
+  <script>
+  (function(w,d,e,u,f,l,n){
+    w[f]=w[f]||function(){(w[f].q=w[f].q||[]).push(arguments);},
+    l=d.createElement(e),l.async=1,l.src=u,
+    n=d.getElementsByTagName(e)[0],n.parentNode.insertBefore(l,n);
+  })(window,document,'script','https://assets.mailerlite.com/js/universal.js','ml');
+  ml('account', '231548');
+  </script>
+  <!-- End MailerLite Universal -->
 </head>
 <body>
 

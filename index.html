@@ -375,11 +375,11 @@
           <div class="guide-form-wrap">
             <h3 class="guide-form-title">13 Costly Mistakes to Avoid When Rolling Over Your 401(k), 403(b), or TSP</h3>
             <p class="guide-form-sub">Enter your details below and get instant access to this free guide to help you avoid common rollover mistakes and make more confident retirement decisions.</p>
-            <form id="guide-form-home" class="book-form" aria-label="Download retirement guide" action="https://assets.mailerlite.com/jsonp/231548/forms/2231548/subscribe" method="post" target="_blank">
+            <form class="book-form" action="https://assets.mailerlite.com/jsonp/2231548/forms/183494291387057527/subscribe" method="post" target="_blank">
               <div class="form-row">
                 <div class="form-group half">
                   <label for="first-name">First Name</label>
-                  <input id="first-name" type="text" name="fields[first_name]" placeholder="Your first name" required>
+                  <input id="first-name" type="text" name="fields[name]" placeholder="Your first name" required>
                 </div>
                 <div class="form-group half">
                   <label for="last-name">Last Name</label>
@@ -387,15 +387,17 @@
                 </div>
               </div>
               <label for="email">Email Address</label>
-              <input id="email" type="email" name="email" placeholder="Your email address" required>
+              <input id="email" type="email" name="fields[email]" placeholder="Your email address" required>
               <label for="guide-phone">Phone Number</label>
-              <input id="guide-phone" name="fields[phone]" type="tel" placeholder="Best number to reach you" required>
+              <input id="guide-phone" type="text" name="fields[phone]" placeholder="Best number to reach you" required>
               <div class="form-consent" style="margin-top:4px; margin-bottom:8px;">
                 <label class="sms-consent">
                   <input type="checkbox" required>
                   <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="terms.html" target="_blank">Terms &amp; Conditions</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>.</span>
                 </label>
               </div>
+              <input type="hidden" name="ml-submit" value="1">
+              <input type="hidden" name="anticsrf" value="true">
               <button type="submit" class="btn btn-amber btn-full guide-submit-btn">Send My Free Guide</button>
               <p class="form-privacy">We respect your privacy. Your information will never be shared and you can unsubscribe anytime.</p>
               <div id="guide-home-message" class="form-message" aria-live="polite"></div>

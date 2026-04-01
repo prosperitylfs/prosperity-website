@@ -9,6 +9,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    /* Hide duplicate intro text inside MailerLite iframe */
+    iframe {
+      overflow: hidden;
+    }
+  </style>
   <meta name="description" content="Independent retirement advisor specializing in safe retirement planning, annuity income strategies, and 401k rollover help for adults 45+. Free consultation with Loretta Stewart.">
   <!-- EmailJS — sends the guide email from the browser (no server needed) -->
   <!-- Sign up free at https://www.emailjs.com and replace the Public Key below -->
@@ -376,12 +382,14 @@
           <div class="guide-form-wrap">
             <h3 class="guide-form-title">13 Costly Mistakes to Avoid When Rolling Over Your 401(k), 403(b), or TSP</h3>
             <p class="guide-form-sub">Enter your details below and get instant access to this free guide to help you avoid common rollover mistakes and make more confident retirement decisions.</p>
-            <iframe
-              src="https://preview.mailerlite.io/forms/2231548/183494291387057527/share"
-              width="100%"
-              height="600"
-              style="border:none;">
-            </iframe>
+            <div style="overflow:hidden; border-radius:12px;">
+              <iframe
+                src="https://preview.mailerlite.io/forms/2231548/183494291387057527/share"
+                width="100%"
+                height="520"
+                style="border:none; margin-top:-120px;">
+              </iframe>
+            </div>
           </div>
 
         </div>

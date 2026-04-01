@@ -447,7 +447,7 @@
             <a href="calculators.html">Retirement Calculators</a>
             <a href="retirement-readiness-quiz.html">Retirement Readiness Quiz</a>
             <a href="retirement-rollover-mistakes-guide.html">Free Retirement Guide</a>
-            <a href="resources.html">Articles / Education</a>
+
           </div>
         </div>
       </nav>
@@ -470,7 +470,7 @@
       <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
       <a href="retirement-readiness-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
       <a href="retirement-rollover-mistakes-guide.html">&nbsp;&nbsp;Free Retirement Guide</a>
-      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+
       <a class="mobile-cta" href="book.html">Book Consultation</a>
     </nav>
   </header>
@@ -639,97 +639,15 @@
     </div><!-- /.rp-mint-band -->
 
 
-    <!-- ===== CALCULATOR ===== -->
+    <!-- ===== CALCULATOR CTA ===== -->
     <div class="rp-purple-band">
     <div class="rp-body">
-      <div class="rp-calc-section">
-        <h2>Retirement Income Calculator</h2>
-        <p class="calc-intro">Use this calculator to estimate whether your retirement income may leave a monthly gap.</p>
-        <div class="calc-wrapper">
-          <div class="calc-form-panel">
-            <p class="calc-desc">Compares your projected monthly retirement income against your estimated expenses to identify any gap that needs to be filled.</p>
-            <div class="calc-field">
-              <label for="ri-expenses">Estimated Monthly Expenses in Retirement</label>
-              <input id="ri-expenses" type="number" min="0" placeholder="e.g. 4500" inputmode="numeric">
-              <span class="hint">Housing, food, healthcare, transportation, leisure, etc.</span>
-            </div>
-            <div class="calc-field">
-              <label for="ri-ss">Monthly Social Security Benefit</label>
-              <input id="ri-ss" type="number" min="0" placeholder="e.g. 2200" value="0" inputmode="numeric">
-            </div>
-            <div class="calc-field">
-              <label for="ri-pension">Monthly Pension Income</label>
-              <input id="ri-pension" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
-            </div>
-            <div class="calc-field">
-              <label for="ri-annuity">Monthly Annuity or Guaranteed Income</label>
-              <input id="ri-annuity" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
-            </div>
-            <div class="calc-field">
-              <label for="ri-other">Other Monthly Income (part-time, rental, etc.)</label>
-              <input id="ri-other" type="number" min="0" placeholder="e.g. 0" value="0" inputmode="numeric">
-            </div>
-            <div class="calc-field">
-              <label for="ri-savings">Total Retirement Savings (IRA, 401k, etc.)</label>
-              <input id="ri-savings" type="number" min="0" placeholder="e.g. 350000" inputmode="numeric">
-              <span class="hint">Used to estimate how long savings could cover a monthly gap</span>
-            </div>
-            <button class="btn btn-amber btn-full" onclick="calcRetirementIncome()">Calculate My Income Gap</button>
-          </div>
-          <div class="calc-result-panel" id="ri-result-panel">
-            <div class="calc-result-empty" id="ri-empty">
-              <div class="calc-result-empty-icon">&#128200;</div>
-              <p>Enter your income sources and expenses to see your estimated retirement income gap.</p>
-            </div>
-            <div class="calc-result-content" id="ri-result">
-              <div class="result-eyebrow">Monthly Income Gap</div>
-              <div class="result-primary" id="ri-gap-amount">—</div>
-              <div class="result-primary-label" id="ri-gap-label">per month needs to come from savings</div>
-              <div class="result-breakdown">
-                <div class="result-row"><span class="r-label">Monthly expenses</span><span class="r-value" id="ri-r-expenses">—</span></div>
-                <div class="result-row"><span class="r-label">Total guaranteed income</span><span class="r-value" id="ri-r-income">—</span></div>
-                <div class="result-row"><span class="r-label">Monthly gap from savings</span><span class="r-value highlight" id="ri-r-gap">—</span></div>
-                <div class="result-row"><span class="r-label">Annual withdrawal needed</span><span class="r-value" id="ri-r-annual">—</span></div>
-                <div class="result-row"><span class="r-label">Estimated years savings will last</span><span class="r-value" id="ri-r-years">—</span></div>
-              </div>
-              <p class="result-note">Assumes 4% average annual return on savings during distribution. This is a simplified estimate.</p>
-              <a class="result-cta-btn" href="book.html">Get a Free Retirement Consultation</a>
-            </div>
-          </div>
-        </div>
-        <div class="calc-follow-up">
-          <p>If your results suggest a possible retirement income gap, Loretta can help you review strategies designed to create more reliable income.</p>
-        </div>
-      </div><!-- /.rp-calc-section -->
-      <script>
-        (function(){
-          function fmt(n){ return isNaN(n) ? '—' : '$' + Math.round(n).toLocaleString('en-US'); }
-          function v(id){ return parseFloat(document.getElementById(id).value) || 0; }
-          window.calcRetirementIncome = function(){
-            var expenses=v('ri-expenses'), ss=v('ri-ss'), pension=v('ri-pension'),
-                annuity=v('ri-annuity'), other=v('ri-other'), savings=v('ri-savings');
-            if(!expenses) return;
-            var totalIncome=ss+pension+annuity+other, monthlyGap=Math.max(0,expenses-totalIncome), annualGap=monthlyGap*12;
-            var r=0.04/12, yearsLeft=0;
-            if(monthlyGap>0 && savings>0){
-              var ratio=savings*r/monthlyGap;
-              yearsLeft = ratio>=1 ? 99 : -Math.log(1-ratio)/Math.log(1+r)/12;
-            } else if(monthlyGap===0){ yearsLeft=99; }
-            var yearsDisplay = yearsLeft>=99?'30+ years':yearsLeft<=0?'Less than 1 year':Math.round(yearsLeft)+' years';
-            document.getElementById('ri-gap-amount').textContent=monthlyGap>0?fmt(monthlyGap):'$0';
-            document.getElementById('ri-gap-label').textContent=monthlyGap>0?'per month needs to come from savings':'per month — your income covers your expenses';
-            document.getElementById('ri-r-expenses').textContent=fmt(expenses);
-            document.getElementById('ri-r-income').textContent=fmt(totalIncome);
-            var gapEl=document.getElementById('ri-r-gap');
-            gapEl.textContent=fmt(monthlyGap);
-            gapEl.className='r-value '+(monthlyGap>1000?'alert':monthlyGap>0?'highlight':'good');
-            document.getElementById('ri-r-annual').textContent=fmt(annualGap);
-            document.getElementById('ri-r-years').textContent=savings>0?yearsDisplay:'No savings entered';
-            document.getElementById('ri-result').classList.add('show');
-            document.getElementById('ri-empty').style.display='none';
-          };
-        })();
-      </script>
+      <div class="rp-calc-section" style="text-align:center; padding-bottom:8px;">
+        <h2>Estimate Your Retirement Income Gap</h2>
+        <p class="calc-intro">Use the free Retirement Income Calculator to compare your projected income sources against your estimated expenses and see how long your savings may last.</p>
+        <a class="btn btn-amber btn-lg" href="retirement-income-calculator.html" style="display:inline-flex; margin:0 auto 14px;">Open the Retirement Income Calculator &rarr;</a>
+        <p style="font-size:0.88rem; color:rgba(255,255,255,0.6); margin:0;">Free to use &mdash; no account or login needed.</p>
+      </div>
     </div><!-- /.rp-body -->
     </div><!-- /.rp-purple-band -->
 

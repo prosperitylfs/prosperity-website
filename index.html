@@ -61,7 +61,7 @@
             <a href="calculators.html">Retirement Calculators</a>
             <a href="retirement-readiness-quiz.html">Retirement Readiness Quiz</a>
             <a href="retirement-rollover-mistakes-guide.html">Free Retirement Guide</a>
-            <a href="resources.html">Articles / Education</a>
+
           </div>
         </div>
       </nav>
@@ -84,7 +84,7 @@
       <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
       <a href="retirement-readiness-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
       <a href="retirement-rollover-mistakes-guide.html">&nbsp;&nbsp;Free Retirement Guide</a>
-      <a href="resources.html">&nbsp;&nbsp;Articles / Education</a>
+
       <a class="mobile-cta" href="book.html">Book Consultation</a>
     </nav>
   </header>
@@ -111,7 +111,7 @@
           </div>
 
           <div class="hero-ctas" style="margin-top:28px;">
-            <a class="btn btn-primary btn-hero" href="book.html">Watch the Video &rarr; Then Schedule Your Free Consultation</a>
+            <a class="btn btn-amber btn-hero" href="book.html">Watch the Video &rarr; Then Schedule Your Free Consultation</a>
           </div>
           <div class="hero-trust">
             <span>&#10003; No cost</span>
@@ -164,7 +164,7 @@
               </label>
               <p id="lead-consent-error" class="form-error-message" aria-live="polite" style="display:none;">Please check the SMS consent box before continuing.</p>
             </div>
-            <button type="button" class="btn btn-primary btn-full" id="lead-continue">Request My Free Retirement Consultation</button>
+            <button type="submit" class="btn btn-primary btn-full" id="lead-continue">Request My Free Retirement Consultation</button>
             <p class="form-privacy">We respect your privacy. No spam, ever.</p>
             <div id="lead-message" class="form-message" aria-live="polite"></div>
           </form>
@@ -245,7 +245,6 @@
         <div class="home-trust-content">
           <p class="trust-eyebrow">WHY CLIENTS WORK WITH LORETTA</p>
           <h2>Independent Retirement Guidance You Can Trust</h2>
-          <p class="trust-copy">As an independent retirement advisor, Loretta helps clients protect what they&rsquo;ve worked so hard to build. Whether you&rsquo;re weighing rollover options, reviewing life insurance, or looking for safer retirement strategies, you&rsquo;ll receive clear guidance designed around your goals &mdash; not a one-size-fits-all solution.</p>
           <ul class="trust-bullets">
             <li>20+ years helping clients protect retirement savings and income</li>
             <li>Independent guidance tailored to your needs, not tied to one company</li>
@@ -377,10 +376,16 @@
             <h3 class="guide-form-title">13 Costly Mistakes to Avoid When Rolling Over Your 401(k), 403(b), or TSP</h3>
             <p class="guide-form-sub">Enter your details below and get instant access to this free guide to help you avoid common rollover mistakes and make more confident retirement decisions.</p>
             <form id="guide-form-home" class="book-form" aria-label="Download retirement guide" action="https://assets.mailerlite.com/jsonp/231548/forms/2231548/subscribe" method="post" target="_blank">
-              <label for="guide-fname">First Name</label>
-              <input id="guide-fname" name="fields[first_name]" type="text" placeholder="Your first name" required>
-              <label for="guide-lname">Last Name</label>
-              <input id="guide-lname" name="fields[last_name]" type="text" placeholder="Your last name" required>
+              <div class="form-row">
+                <div class="form-group half">
+                  <label for="first-name">First Name</label>
+                  <input id="first-name" type="text" name="fields[first_name]" placeholder="Your first name" required>
+                </div>
+                <div class="form-group half">
+                  <label for="last-name">Last Name</label>
+                  <input id="last-name" type="text" name="fields[last_name]" placeholder="Your last name" required>
+                </div>
+              </div>
               <label for="guide-email">Email Address</label>
               <input type="email" name="fields[email]" placeholder="Your email address" required>
               <label for="guide-phone">Phone Number</label>
@@ -408,9 +413,6 @@
         </div>
       </div>
     </section>
-
-    <!-- Section divider -->
-    <div style="height:60px; background:linear-gradient(to bottom, rgba(0,0,0,0.02), rgba(0,0,0,0));"></div>
 
     <!-- ===== CALCULATORS ===== -->
     <section class="calculator-preview">

@@ -368,7 +368,7 @@
 
                   <div class="form-group">
                     <label class="form-label" for="liq-email">Email Address <span style="color:#c0392b;">*</span></label>
-                    <input type="email" id="liq-email" name="email" placeholder="jane@example.com" required autocomplete="email" data-email-err="liq-email-err">
+                    <input type="email" id="liq-email" name="email" placeholder="jane@example.com" required autocomplete="email" data-email-err="liq-email-err" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
                     <p class="form-error-message" id="liq-email-err" style="display:none;"></p>
                   </div>
 
@@ -449,7 +449,7 @@
 
                   <div class="form-group">
                     <label class="form-label" for="liq-coverage-amount">Approximate coverage amount desired</label>
-                    <select id="liq-coverage-amount" name="coverage_amount">
+                    <select id="liq-coverage-amount" name="coverage_amount" required>
                       <option value="">Select a range&hellip;</option>
                       <option>Under $50,000</option>
                       <option>$50,000 – $100,000</option>
@@ -463,7 +463,7 @@
 
                   <div class="form-group">
                     <label class="form-label" for="liq-budget">Monthly budget range</label>
-                    <select id="liq-budget" name="monthly_budget">
+                    <select id="liq-budget" name="monthly_budget" required>
                       <option value="">Select a range&hellip;</option>
                       <option>Under $50/month</option>
                       <option>$50 – $100/month</option>

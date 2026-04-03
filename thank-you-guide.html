@@ -10,48 +10,151 @@
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    .thankyou-section {
-      min-height: 60vh;
+    .tg-section {
+      min-height: calc(100vh - 72px);
+      background: var(--bg, #edf7f2);
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 80px 24px;
-      background: var(--bg);
+      padding: 64px 20px;
     }
-    .thankyou-card {
+    .tg-card {
       background: #fff;
       border-radius: 20px;
-      padding: 56px 48px;
-      max-width: 560px;
+      padding: 56px 52px;
+      max-width: 580px;
       width: 100%;
       text-align: center;
-      box-shadow: 0 16px 48px rgba(78,44,148,0.12);
+      box-shadow: 0 8px 40px rgba(78,44,148,0.10), 0 2px 8px rgba(78,44,148,0.06);
     }
-    .thankyou-icon {
-      font-size: 52px;
-      margin-bottom: 20px;
+    .tg-icon {
+      width: 72px;
+      height: 72px;
+      background: #e6f5ee;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 2rem;
+      color: #389f72;
     }
-    .thankyou-card h1 {
+    .tg-headline {
       font-size: 2rem;
       font-weight: 800;
-      color: var(--purple-dark);
-      margin-bottom: 14px;
+      color: #3a1f70;
+      margin: 0 0 14px;
+      line-height: 1.2;
     }
-    .thankyou-card p {
-      font-size: 1.05rem;
-      color: var(--text-muted);
+    .tg-sub {
+      font-size: 1rem;
+      color: #444;
       line-height: 1.7;
-      margin-bottom: 32px;
+      margin: 0 0 10px;
     }
-    .thankyou-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
+    .tg-sub strong {
+      color: #3a1f70;
+    }
+    .tg-reassure {
+      font-size: 0.92rem;
+      color: #666;
+      line-height: 1.65;
+      margin: 0 0 32px;
+    }
+    .tg-btn-green {
+      display: inline-flex;
       align-items: center;
+      justify-content: center;
+      gap: 9px;
+      background: #389f72;
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-decoration: none;
+      padding: 16px 32px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 4px 14px rgba(56,159,114,0.28);
+      transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
+    }
+    .tg-btn-green:hover {
+      background: #2d8a60;
+      box-shadow: 0 6px 20px rgba(56,159,114,0.35);
+      transform: translateY(-1px);
+    }
+    .tg-divider {
+      border: none;
+      border-top: 1px solid #ede8f7;
+      margin: 36px auto;
+      max-width: 420px;
+    }
+    .tg-secondary-headline {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #3a1f70;
+      margin: 0 0 10px;
+    }
+    .tg-secondary-text {
+      font-size: 0.96rem;
+      color: #555;
+      line-height: 1.7;
+      margin: 0 0 24px;
+    }
+    .tg-btn-purple {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #4e2c94;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      padding: 15px 32px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 4px 14px rgba(78,44,148,0.22);
+      transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
+    }
+    .tg-btn-purple:hover {
+      background: #3a1f70;
+      box-shadow: 0 6px 20px rgba(78,44,148,0.30);
+      transform: translateY(-1px);
+    }
+    .tg-return {
+      margin-top: 18px;
+      font-size: 0.875rem;
+    }
+    .tg-return a {
+      color: #4e2c94;
+      text-decoration: underline;
+    }
+    .tg-trust {
+      margin-top: 28px;
+      font-size: 0.8rem;
+      color: #999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .tg-trust i {
+      color: #389f72;
+      font-size: 0.85rem;
     }
     @media (max-width: 600px) {
-      .thankyou-card { padding: 36px 24px; }
-      .thankyou-card h1 { font-size: 1.6rem; }
+      .tg-card {
+        padding: 36px 24px;
+        border-radius: 16px;
+      }
+      .tg-headline {
+        font-size: 1.6rem;
+      }
+      .tg-btn-green,
+      .tg-btn-purple {
+        max-width: 100%;
+      }
     }
   </style>
 </head>
@@ -71,6 +174,23 @@
         <a href="about.html">About</a>
         <a href="retirement-planning.html">Retirement Planning</a>
         <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-readiness-quiz.html">Retirement Readiness Quiz</a>
+            <a href="retirement-rollover-mistakes-guide.html">Free Retirement Guide</a>
+          </div>
+        </div>
       </nav>
       <a class="phone-btn" href="tel:4144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</a>
       <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
@@ -82,44 +202,119 @@
       <a href="about.html">About</a>
       <a href="retirement-planning.html">Retirement Planning</a>
       <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-readiness-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a href="retirement-rollover-mistakes-guide.html">&nbsp;&nbsp;Free Retirement Guide</a>
       <a class="mobile-cta" href="book.html">Book Consultation</a>
     </nav>
   </header>
 
-  <div class="thankyou-section">
-    <div class="thankyou-card">
-      <div class="thankyou-icon">📖</div>
-      <h1>Your Free Guide Is Ready</h1>
-      <p>Thank you! Click below to download your copy of <strong>Avoid the 13 Costly Mistakes People Make When Moving Retirement Accounts</strong>.</p>
-      <div class="thankyou-actions">
-        <a class="btn btn-amber btn-lg" href="/assets/13-costly-rollover-mistakes.pdf" download>
-          <i class="fa-solid fa-download" aria-hidden="true"></i> Download the Free Guide
+  <main>
+    <div class="tg-section">
+      <div class="tg-card">
+
+        <!-- Icon -->
+        <div class="tg-icon" aria-hidden="true">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+
+        <!-- Headline -->
+        <h1 class="tg-headline">Your Free Guide Is Ready</h1>
+
+        <!-- Subheadline -->
+        <p class="tg-sub">
+          Thank you for requesting your free guide:<br>
+          <strong>&ldquo;13 Costly Mistakes to Avoid When Rolling Over Your 401(k), 403(b), or TSP.&rdquo;</strong>
+        </p>
+
+        <!-- Reassurance -->
+        <p class="tg-reassure">
+          You can access your guide immediately below. We&rsquo;ve also sent a copy to your email for your records.
+        </p>
+
+        <!-- Primary CTA -->
+        <a class="tg-btn-green" href="assets/guides/13-mistakes.pdf" target="_blank">
+          <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+          View Your Free Guide
         </a>
-        <a class="btn btn-primary" href="book.html">Schedule a Free Consultation</a>
+
+        <hr class="tg-divider">
+
+        <!-- Secondary conversion section -->
+        <h2 class="tg-secondary-headline">Want Help Avoiding These Mistakes?</h2>
+        <p class="tg-secondary-text">
+          If you&rsquo;d like a second opinion on your retirement accounts or want help making the right decision, schedule a quick consultation.
+        </p>
+
+        <a class="tg-btn-purple" href="https://prosperitylfs.com/book">
+          Schedule Your Free Consultation
+        </a>
+
+        <!-- Return link -->
+        <p class="tg-return"><a href="index.html">Return to Home</a></p>
+
+        <!-- Trust line -->
+        <p class="tg-trust">
+          <i class="fa-solid fa-lock" aria-hidden="true"></i>
+          Your information is always kept private and secure.
+        </p>
+
       </div>
     </div>
-  </div>
+  </main>
 
   <footer class="site-footer">
     <div class="container footer-inner">
       <div class="footer-brand">
-        <a class="logo" href="index.html">
-          <img class="logo-img" src="assets/images/logo.png" alt="" onerror="this.style.display='none'">
-          <div class="logo-text">
-            <span class="logo-name">Prosperity</span>
-            <span class="logo-sub">Life &amp; Financial Solutions</span>
-          </div>
-        </a>
-        <p class="footer-tagline">Independent retirement planning guidance for adults 45+.</p>
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="book.html">Schedule a Consultation</a>
+        <a href="contact.html">Contact</a>
       </div>
     </div>
     <div class="footer-bottom">
       <div class="container">
-        <p>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</p>
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
       </div>
     </div>
   </footer>
 
   <script src="assets/js/main.js"></script>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+  </script>
 </body>
 </html>

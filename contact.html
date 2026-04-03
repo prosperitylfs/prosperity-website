@@ -132,11 +132,11 @@
               <input id="contact-name" name="name" placeholder="Your full name" required>
 
               <label for="contact-email">Email Address</label>
-              <input id="contact-email" name="email" type="email" placeholder="Your email address" required autocomplete="email" data-email-err="contact-email-err">
+              <input id="contact-email" name="email" type="email" placeholder="Your email address" required autocomplete="email" data-email-err="contact-email-err" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
               <p class="form-error-message" id="contact-email-err" style="display:none;"></p>
 
               <label for="contact-phone">Phone Number</label>
-              <input id="contact-phone" name="phone" type="tel" placeholder="Best number to reach you">
+              <input id="contact-phone" name="phone" type="tel" placeholder="Best number to reach you" required>
 
               <label for="contact-message">Message</label>
               <textarea id="contact-message" name="message" placeholder="How can Loretta help you?" rows="5" required style="resize:vertical; width:100%; padding:10px 14px; border:1.5px solid #d0ccd8; border-radius:8px; font-family:inherit; font-size:0.95rem; color:var(--text); background:#fff; box-sizing:border-box;"></textarea>

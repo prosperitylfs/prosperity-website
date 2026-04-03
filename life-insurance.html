@@ -460,7 +460,7 @@
             </div>
             <div class="form-group">
               <label class="form-label" for="li-f-email">Email Address <span style="color:#c0392b;">*</span></label>
-              <input type="email" id="li-f-email" name="email" placeholder="jane@example.com" required autocomplete="email" data-email-err="li-email-err">
+              <input type="email" id="li-f-email" name="email" placeholder="jane@example.com" required autocomplete="email" data-email-err="li-email-err" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
               <p class="form-error-message" id="li-email-err" style="display:none;"></p>
             </div>
             <div class="form-group">

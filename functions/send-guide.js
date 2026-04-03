@@ -9,7 +9,7 @@ export async function onRequestPost(context) {
     return json({ error: 'Invalid request.' }, 400);
   }
 
-  const { first_name, last_name, email, phone } = data;
+  const { first_name, email } = data;
 
   if (!first_name || !email) {
     return json({ error: 'Missing required fields.' }, 400);
@@ -22,7 +22,7 @@ export async function onRequestPost(context) {
     '13 Costly Mistakes to Avoid When Rolling Over Your 401(k), 403(b), or TSP.',
     '',
     'You can view your guide here:',
-    'https://prosperitylfs.com/assets/guides/13-mistakes.pdf',
+    'https://prosperitylfs.com/retirement-rollover-mistakes-guide.html',
     '',
     'If you would like help reviewing your retirement options, you can schedule a free consultation here:',
     'https://prosperitylfs.com/book',

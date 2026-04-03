@@ -102,7 +102,7 @@ window.normalizeFormPhones   = normalizeFormPhones;
  * Examples that fail:  loretta@, loretta@gmail, @gmail.com, loretta
  */
 function isValidEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || '').trim());
 }
 
 /**

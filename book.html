@@ -360,7 +360,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label" for="f-email">Email Address <span class="req">*</span></label>
-                <input type="email" id="f-email" name="email" placeholder="jane@example.com" required autocomplete="email" data-email-err="f-email-err">
+                <input type="email" id="f-email" name="email" placeholder="jane@example.com" required autocomplete="email" data-email-err="f-email-err" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
                 <p class="form-error-message" id="f-email-err" style="display:none;"></p>
               </div>
 

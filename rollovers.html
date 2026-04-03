@@ -908,7 +908,7 @@
           </div>
           <div class="field-group">
             <label for="rollover-email">Email</label>
-            <input id="rollover-email" name="email" type="email" placeholder="Your email address" required autocomplete="email" data-email-err="rollover-email-err">
+            <input id="rollover-email" name="email" type="email" placeholder="Your email address" required autocomplete="email" data-email-err="rollover-email-err" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
           <p class="form-error-message" id="rollover-email-err" style="display:none;"></p>
           </div>
           <div class="field-group">

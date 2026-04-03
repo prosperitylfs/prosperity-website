@@ -281,6 +281,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
   handleForm(document.getElementById('lead'), document.getElementById('lead-message'));
   handleForm(document.getElementById('book-form'), document.getElementById('book-message'));
-  handleGuideForm(document.getElementById('guide-form'), document.getElementById('guide-message'), document.getElementById('guide-thankyou'));
   handleGuideForm(document.getElementById('guide-form-home'), document.getElementById('guide-home-message'), document.getElementById('guide-home-thankyou'));
 });

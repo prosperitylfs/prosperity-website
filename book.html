@@ -382,6 +382,7 @@
               <p class="step-heading">What would you like help with today?</p>
               <p class="step-sub">Choose the option that best describes your main reason for reaching out.</p>
 
+              <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--purple,#4e2c94);background:#ede8f7;display:inline-block;padding:4px 10px;border-radius:4px;margin-bottom:10px;">Retirement &amp; Savings</div>
               <div class="survey-choices" id="choices-2">
                 <button type="button" class="survey-btn" data-group="topic" data-value="Rolling over a 401(k), 403(b), or TSP" onclick="selectSurveyBtn(this,'topic')">
                   <span class="btn-icon">🔄</span> Rolling over a 401(k), 403(b), or TSP
@@ -405,6 +406,23 @@
                   <span class="btn-icon">💡</span> Not sure yet
                 </button>
               </div>
+
+              <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--purple,#4e2c94);background:#ede8f7;display:inline-block;padding:4px 10px;border-radius:4px;margin-top:18px;margin-bottom:10px;">Life Insurance</div>
+              <div class="survey-choices" id="choices-2-li">
+                <button type="button" class="survey-btn" data-group="topic" data-value="Life insurance coverage (term or permanent)" onclick="selectSurveyBtn(this,'topic')">
+                  <span class="btn-icon">🛡️</span> Life insurance coverage (term or permanent)
+                </button>
+                <button type="button" class="survey-btn" data-group="topic" data-value="Life insurance with living benefits" onclick="selectSurveyBtn(this,'topic')">
+                  <span class="btn-icon">❤️</span> Life insurance with living benefits
+                </button>
+                <button type="button" class="survey-btn" data-group="topic" data-value="Final expense / burial insurance" onclick="selectSurveyBtn(this,'topic')">
+                  <span class="btn-icon">🕊️</span> Final expense / burial insurance
+                </button>
+                <button type="button" class="survey-btn" data-group="topic" data-value="Life insurance review or replacement" onclick="selectSurveyBtn(this,'topic')">
+                  <span class="btn-icon">🔄</span> Life insurance review or replacement
+                </button>
+              </div>
+
               <input type="hidden" name="topic" id="val-topic">
 
               <div class="step-nav">
@@ -658,63 +676,81 @@
   </script>
 
   <script>
-    const TOTAL_STEPS = 7;
+    // Life insurance topic values — anything in this list routes to the LI track
+    const LI_TOPICS = [
+      'Life insurance coverage (term or permanent)',
+      'Life insurance with living benefits',
+      'Final expense / burial insurance',
+      'Life insurance review or replacement'
+    ];
+
+    // Step sequences per track
+    const TRACK_STEPS = {
+      retirement:      [1, 2, 3, 4, 5, 7],
+      'life-insurance': [1, 2, 6, 7]
+    };
+
+    let currentTrack = 'retirement'; // set after Step 2
+
+    function getSteps() {
+      return TRACK_STEPS[currentTrack];
+    }
+
+    function updateProgress(stepId) {
+      const steps = getSteps();
+      const pos   = steps.indexOf(stepId);
+      const total = steps.length;
+      const pct   = ((pos + 1) / total) * 100;
+      document.getElementById('funnel-bar').style.width = pct + '%';
+      document.getElementById('funnel-step-label').textContent =
+        'Step ' + (pos + 1) + ' of ' + total;
+    }
+
+    function showStep(stepId) {
+      for (let i = 1; i <= 7; i++) {
+        const el = document.getElementById('step-' + i);
+        if (el) el.style.display = 'none';
+      }
+      const el = document.getElementById('step-' + stepId);
+      if (el) el.style.display = 'block';
+      updateProgress(stepId);
+      document.querySelector('.book-calendar-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
     // Pre-fill Step 1 fields from URL params (e.g. when redirected from life-insurance.html)
     (function prefillFromURL() {
-      const p = new URLSearchParams(window.location.search);
+      const p         = new URLSearchParams(window.location.search);
       const firstName = p.get('first_name') || '';
       const lastName  = p.get('last_name')  || '';
       const phone     = p.get('phone')      || '';
       const email     = p.get('email')      || '';
       const topic     = p.get('topic')      || '';
 
-      if (firstName) {
-        const firstEl = document.getElementById('f-first-name');
-        if (firstEl) firstEl.value = firstName;
-      }
-      if (lastName) {
-        const lastEl = document.getElementById('f-last-name');
-        if (lastEl) lastEl.value = lastName;
-      }
-      if (phone) {
-        const phoneEl = document.getElementById('f-phone');
-        if (phoneEl) phoneEl.value = phone;
-      }
-      if (email) {
-        const emailEl = document.getElementById('f-email');
-        if (emailEl) emailEl.value = email;
-      }
-      // Auto-select the matching topic button in Step 2
+      if (firstName) { const el = document.getElementById('f-first-name'); if (el) el.value = firstName; }
+      if (lastName)  { const el = document.getElementById('f-last-name');  if (el) el.value = lastName; }
+      if (phone)     { const el = document.getElementById('f-phone');       if (el) el.value = phone; }
+      if (email)     { const el = document.getElementById('f-email');       if (el) el.value = email; }
+
       if (topic) {
-        document.querySelectorAll('#choices-2 .survey-btn').forEach(function(btn) {
+        // Search both retirement and LI choice containers
+        document.querySelectorAll('#choices-2 .survey-btn, #choices-2-li .survey-btn').forEach(function(btn) {
           if (btn.dataset.value && btn.dataset.value.toLowerCase() === topic.toLowerCase()) {
+            // Deselect all first
+            document.querySelectorAll('#choices-2 .survey-btn, #choices-2-li .survey-btn')
+              .forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
             document.getElementById('val-topic').value = btn.dataset.value;
+            // Set track based on prefilled topic
+            currentTrack = LI_TOPICS.includes(btn.dataset.value) ? 'life-insurance' : 'retirement';
           }
         });
       }
     })();
 
-    function updateProgress(step) {
-      const pct = (step / TOTAL_STEPS) * 100;
-      document.getElementById('funnel-bar').style.width = pct + '%';
-      document.getElementById('funnel-step-label').textContent = 'Step ' + step + ' of ' + TOTAL_STEPS;
-    }
-
-    function showStep(n) {
-      for (let i = 1; i <= TOTAL_STEPS; i++) {
-        const el = document.getElementById('step-' + i);
-        if (el) el.style.display = (i === n) ? 'block' : 'none';
-      }
-      updateProgress(n);
-      document.querySelector('.book-calendar-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
     function validateStep(n) {
-      const err = document.getElementById('err-' + n);
+      const err      = document.getElementById('err-' + n);
       const clearErr = () => { if (err) { err.textContent = ''; err.style.display = 'none'; } };
-      const showErr = (msg) => { if (err) { err.textContent = msg; err.style.display = 'block'; } };
+      const showErr  = (msg) => { if (err) { err.textContent = msg; err.style.display = 'block'; } };
 
       if (n === 1) {
         const firstName = document.getElementById('f-first-name').value.trim();
@@ -743,6 +779,8 @@
       if (n === 2) {
         const val = document.getElementById('val-topic').value;
         if (!val) { showErr('Please select an option to continue.'); return false; }
+        // Determine track from topic selection
+        currentTrack = LI_TOPICS.includes(val) ? 'life-insurance' : 'retirement';
         clearErr(); return true;
       }
 
@@ -759,46 +797,53 @@
       }
 
       if (n === 5) {
-        // Multi-select pills — at least one required
         const selected = document.querySelectorAll('#pills-5 .survey-pill.selected');
         if (selected.length === 0) { showErr('Please select at least one option.'); return false; }
-        // Collect values into hidden field
         const vals = Array.from(selected).map(p => p.dataset.value).join(', ');
         document.getElementById('val-assets').value = vals;
         clearErr(); return true;
       }
 
       if (n === 6) {
-        const tobacco    = document.getElementById('val-tobacco').value;
-        const heightFt   = document.getElementById('f-height-ft').value;
-        const heightIn   = document.getElementById('f-height-in').value;
-        const weight     = document.getElementById('f-weight').value.trim();
-        const health     = document.getElementById('val-health').value;
-        if (!tobacco)           { showErr('Please answer: Do you use tobacco products?'); return false; }
-        if (!heightFt)          { showErr('Please select your height (feet).'); return false; }
-        if (heightIn === '')    { showErr('Please select your height (inches).'); return false; }
-        if (!weight)            { showErr('Please enter your weight in pounds.'); return false; }
-        if (!health)            { showErr('Please answer: What best describes your current health?'); return false; }
+        const tobacco  = document.getElementById('val-tobacco').value;
+        const heightFt = document.getElementById('f-height-ft').value;
+        const heightIn = document.getElementById('f-height-in').value;
+        const weight   = document.getElementById('f-weight').value.trim();
+        const health   = document.getElementById('val-health').value;
+        if (!tobacco)        { showErr('Please answer: Do you use tobacco products?'); return false; }
+        if (!heightFt)       { showErr('Please select your height (feet).'); return false; }
+        if (heightIn === '') { showErr('Please select your height (inches).'); return false; }
+        if (!weight)         { showErr('Please enter your weight in pounds.'); return false; }
+        if (!health)         { showErr('Please answer: What best describes your current health?'); return false; }
         clearErr(); return true;
       }
 
       return true;
     }
 
-    function nextStep(current) {
-      if (!validateStep(current)) return;
-      showStep(current + 1);
+    function nextStep(currentStepId) {
+      if (!validateStep(currentStepId)) return;
+      const steps = getSteps();
+      const pos   = steps.indexOf(currentStepId);
+      if (pos < steps.length - 1) showStep(steps[pos + 1]);
     }
 
-    function prevStep(current) {
-      showStep(current - 1);
+    function prevStep(currentStepId) {
+      const steps = getSteps();
+      const pos   = steps.indexOf(currentStepId);
+      if (pos > 0) showStep(steps[pos - 1]);
     }
 
     function selectSurveyBtn(btn, group) {
-      // Deselect siblings
-      btn.closest('.survey-choices').querySelectorAll('.survey-btn').forEach(b => b.classList.remove('selected'));
+      // Deselect all topic buttons across both containers
+      if (group === 'topic') {
+        document.querySelectorAll('#choices-2 .survey-btn, #choices-2-li .survey-btn')
+          .forEach(b => b.classList.remove('selected'));
+      } else {
+        btn.closest('.survey-choices').querySelectorAll('.survey-btn')
+          .forEach(b => b.classList.remove('selected'));
+      }
       btn.classList.add('selected');
-      // Store value
       document.getElementById('val-' + group).value = btn.dataset.value;
     }
 

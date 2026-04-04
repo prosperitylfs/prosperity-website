@@ -5,6 +5,32 @@ var EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';   // e.g. 'service_abc123'
 var EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // e.g. 'template_xyz789'
 // ─────────────────────────────────────────────────────────────────────────
 
+// ── CRM LEAD CAPTURE ──────────────────────────────────────────────────────
+// Set this to your CRM server URL. Fire-and-forget — never blocks the form.
+var CRM_ENDPOINT = 'http://localhost:3001/api/leads';
+
+/**
+ * Silently post a lead to the CRM.
+ * @param {Object} data - form field values
+ * @param {string} leadType - 'guide' | 'retirement' | 'life_insurance' | 'contact'
+ */
+function postToCRM(data, leadType) {
+  try {
+    var payload = Object.assign({}, data, {
+      lead_type:   leadType || 'contact',
+      lead_source: window.location.pathname,
+    });
+    fetch(CRM_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(function () {}); // silent — CRM server may not be running in all envs
+  } catch (e) {}
+}
+
+window.postToCRM = postToCRM;
+// ─────────────────────────────────────────────────────────────────────────
+
 // ── PHONE FORMATTING UTILITIES ─────────────────────────────────────────────
 // Exposed on window so inline <script> blocks on any page can call them.
 
@@ -197,6 +223,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (messageEl) { messageEl.textContent = ''; messageEl.className = 'form-message'; }
 
+      // Post to CRM (fire-and-forget)
+      var crmPayload = {};
+      for (var i = 0; i < form.elements.length; i++) {
+        var el = form.elements[i];
+        if (el.name && el.value !== undefined) crmPayload[el.name] = el.value;
+      }
+      postToCRM(crmPayload, crmPayload.lead_type || 'contact');
+
       const data = new FormData(form);
       // Replace fetch URL with your backend or form service integration.
       fetch('https://example.com/submit', { method: 'POST', body: data })
@@ -252,6 +286,15 @@ document.addEventListener('DOMContentLoaded', function () {
         to_email:   email,
         guide_link: guideUrl
       };
+
+      // Post to CRM (fire-and-forget — never blocks the UX)
+      var crmData = {};
+      var formElements = form.elements;
+      for (var i = 0; i < formElements.length; i++) {
+        var el = formElements[i];
+        if (el.name && el.value !== undefined) crmData[el.name] = el.value;
+      }
+      postToCRM(crmData, 'guide');
 
       function showThankYou() {
         form.style.display = 'none';

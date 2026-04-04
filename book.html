@@ -440,10 +440,12 @@
               <p class="step-sub">This helps us prepare the right strategies for your consultation.</p>
 
               <div class="survey-choices" id="choices-3">
-                <button type="button" class="survey-btn" data-group="amount" data-value="Under $50,000" onclick="selectSurveyBtn(this,'amount')">Under $50,000</button>
-                <button type="button" class="survey-btn" data-group="amount" data-value="$50,000–$150,000" onclick="selectSurveyBtn(this,'amount')">$50,000 &ndash; $150,000</button>
-                <button type="button" class="survey-btn" data-group="amount" data-value="$150,000–$300,000" onclick="selectSurveyBtn(this,'amount')">$150,000 &ndash; $300,000</button>
-                <button type="button" class="survey-btn" data-group="amount" data-value="$300,000–$500,000" onclick="selectSurveyBtn(this,'amount')">$300,000 &ndash; $500,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="Under $25,000" onclick="selectSurveyBtn(this,'amount')">Under $25,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$25,001–$75,000" onclick="selectSurveyBtn(this,'amount')">$25,001 &ndash; $75,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$75,001–$150,000" onclick="selectSurveyBtn(this,'amount')">$75,001 &ndash; $150,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$150,001–$200,000" onclick="selectSurveyBtn(this,'amount')">$150,001 &ndash; $200,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$200,001–$300,000" onclick="selectSurveyBtn(this,'amount')">$200,001 &ndash; $300,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$300,001–$500,000" onclick="selectSurveyBtn(this,'amount')">$300,001 &ndash; $500,000</button>
                 <button type="button" class="survey-btn" data-group="amount" data-value="$500,000+" onclick="selectSurveyBtn(this,'amount')">$500,000+</button>
               </div>
               <input type="hidden" name="amount" id="val-amount">
@@ -511,7 +513,23 @@
             <!-- ── STEP 6: Health & Quote Details ── -->
             <div class="form-step" id="step-6" style="display:none;">
 
-              <span class="step-section-label">Health &amp; Quote Details</span>
+              <span class="step-section-label">Coverage Details</span>
+
+              <!-- Q0: Monthly Budget -->
+              <div class="step-question" style="padding-top:0;border-top:none;margin-top:0;">
+                <p class="step-heading">What monthly budget are you comfortable with?</p>
+                <div class="survey-choices" id="choices-budget">
+                  <button type="button" class="survey-btn" data-group="budget" data-value="Under $50/month" onclick="selectSurveyBtn(this,'budget')">Under $50/month</button>
+                  <button type="button" class="survey-btn" data-group="budget" data-value="$50–$100/month" onclick="selectSurveyBtn(this,'budget')">$50 &ndash; $100/month</button>
+                  <button type="button" class="survey-btn" data-group="budget" data-value="$100–$200/month" onclick="selectSurveyBtn(this,'budget')">$100 &ndash; $200/month</button>
+                  <button type="button" class="survey-btn" data-group="budget" data-value="$200–$300/month" onclick="selectSurveyBtn(this,'budget')">$200 &ndash; $300/month</button>
+                  <button type="button" class="survey-btn" data-group="budget" data-value="$300+/month" onclick="selectSurveyBtn(this,'budget')">$300+/month</button>
+                  <button type="button" class="survey-btn" data-group="budget" data-value="Not sure yet" onclick="selectSurveyBtn(this,'budget')">Not sure yet</button>
+                </div>
+                <input type="hidden" name="budget" id="val-budget">
+              </div>
+
+              <span class="step-section-label" style="margin-top:28px;">Health &amp; Quote Details</span>
 
               <!-- Q1: Tobacco -->
               <div class="step-question">
@@ -570,19 +588,6 @@
                   <button type="button" class="survey-btn" data-group="health" data-value="Prefer to discuss privately" onclick="selectSurveyBtn(this,'health')">Prefer to discuss privately</button>
                 </div>
                 <input type="hidden" name="health_status" id="val-health">
-              </div>
-
-              <!-- Q5: Budget (optional) -->
-              <div class="step-question">
-                <p class="step-heading">What monthly budget range feels most comfortable? <span class="step-optional">Optional</span></p>
-                <div class="survey-choices" id="choices-budget">
-                  <button type="button" class="survey-btn" data-group="budget" data-value="Under $50/month" onclick="selectSurveyBtn(this,'budget')">Under $50/month</button>
-                  <button type="button" class="survey-btn" data-group="budget" data-value="$50–$100/month" onclick="selectSurveyBtn(this,'budget')">$50 &ndash; $100/month</button>
-                  <button type="button" class="survey-btn" data-group="budget" data-value="$100–$200/month" onclick="selectSurveyBtn(this,'budget')">$100 &ndash; $200/month</button>
-                  <button type="button" class="survey-btn" data-group="budget" data-value="$200+/month" onclick="selectSurveyBtn(this,'budget')">$200+/month</button>
-                  <button type="button" class="survey-btn" data-group="budget" data-value="Not sure yet" onclick="selectSurveyBtn(this,'budget')">Not sure yet</button>
-                </div>
-                <input type="hidden" name="budget" id="val-budget">
               </div>
 
               <div class="step-nav">
@@ -805,11 +810,13 @@
       }
 
       if (n === 6) {
+        const budget   = document.getElementById('val-budget').value;
         const tobacco  = document.getElementById('val-tobacco').value;
         const heightFt = document.getElementById('f-height-ft').value;
         const heightIn = document.getElementById('f-height-in').value;
         const weight   = document.getElementById('f-weight').value.trim();
         const health   = document.getElementById('val-health').value;
+        if (!budget)         { showErr('Please answer: What monthly budget are you comfortable with?'); return false; }
         if (!tobacco)        { showErr('Please answer: Do you use tobacco products?'); return false; }
         if (!heightFt)       { showErr('Please select your height (feet).'); return false; }
         if (heightIn === '') { showErr('Please select your height (inches).'); return false; }

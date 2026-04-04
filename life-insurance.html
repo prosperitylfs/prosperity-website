@@ -114,6 +114,53 @@
       .hero-video-wrap { padding-bottom: 30px; }
       .hero-subtext { font-size: 1rem; }
     }
+
+    /* Radio option rows */
+    .li-option-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .li-option-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1.5px solid #d0ccd8;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      color: var(--text);
+      background: #fff;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .li-option-label:hover {
+      border-color: var(--purple, #4e2c94);
+      background: var(--purple-xlight, #ede8f7);
+    }
+    .li-option-label input[type="radio"] {
+      appearance: auto;
+      -webkit-appearance: auto;
+      accent-color: var(--purple, #4e2c94);
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .li-option-label:has(input[type="radio"]:checked) {
+      border-color: var(--purple, #4e2c94);
+      background: var(--purple-xlight, #ede8f7);
+    }
+    .li-option-label.selected {
+      border-color: var(--purple, #4e2c94);
+      background: var(--purple-xlight, #ede8f7);
+    }
+    .li-option-label input[type="radio"]:checked + span {
+      color: var(--purple-dark, #3a1f70);
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -390,6 +437,7 @@
               <input type="email" id="li-f-email" name="email" placeholder="jane@example.com" required autocomplete="email" data-email-err="li-email-err" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
               <p class="form-error-message" id="li-email-err" style="display:none;"></p>
             </div>
+
             <div class="form-group">
               <label class="form-label" for="li-f-interest">What type of coverage are you interested in? <span style="color:#c0392b;">*</span></label>
               <select id="li-f-interest" name="coverage_interest" required>
@@ -401,6 +449,52 @@
                 <option>Not sure &mdash; I&rsquo;d like guidance</option>
               </select>
             </div>
+
+            <div class="form-group">
+              <label class="form-label" for="li-f-amount">Approximate coverage amount desired <span style="color:#c0392b;">*</span></label>
+              <select id="li-f-amount" name="coverage_amount" required>
+                <option value="">Select a range&hellip;</option>
+                <option>Under $50,000</option>
+                <option>$50,000 &ndash; $100,000</option>
+                <option>$100,000 &ndash; $250,000</option>
+                <option>$250,000 &ndash; $500,000</option>
+                <option>$500,000 &ndash; $1,000,000</option>
+                <option>Over $1,000,000</option>
+                <option>Not sure</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="li-f-budget">Monthly budget range <span style="color:#c0392b;">*</span></label>
+              <select id="li-f-budget" name="monthly_budget" required>
+                <option value="">Select a range&hellip;</option>
+                <option>Under $50/month</option>
+                <option>$50 &ndash; $100/month</option>
+                <option>$100 &ndash; $200/month</option>
+                <option>$200 &ndash; $300/month</option>
+                <option>$300+/month</option>
+                <option>Not sure yet</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Any major health concerns or recent diagnoses? <span style="color:#c0392b;">*</span></label>
+              <div class="li-option-group" id="li-health-group">
+                <label class="li-option-label"><input type="radio" name="li_health" value="No"><span>No</span></label>
+                <label class="li-option-label"><input type="radio" name="li_health" value="Yes"><span>Yes</span></label>
+                <label class="li-option-label"><input type="radio" name="li_health" value="Prefer to discuss privately"><span>Prefer to discuss privately</span></label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Do you currently have life insurance? <span style="color:#c0392b;">*</span></label>
+              <div class="li-option-group" id="li-existing-group">
+                <label class="li-option-label"><input type="radio" name="li_existing" value="No"><span>No</span></label>
+                <label class="li-option-label"><input type="radio" name="li_existing" value="Yes"><span>Yes</span></label>
+                <label class="li-option-label"><input type="radio" name="li_existing" value="Not sure"><span>Not sure</span></label>
+              </div>
+            </div>
+
             <div class="form-consent" style="margin-top:16px;">
               <label class="sms-consent">
                 <input type="checkbox" id="li-sms-consent" name="sms_consent" required>
@@ -422,7 +516,6 @@
           <h3>Free Life Insurance Review</h3>
           <p>Find out whether your current coverage still fits &mdash; or explore new options that better protect your family and legacy.</p>
           <a class="btn btn-primary" href="life-insurance-qualifier.html">Get a Free Coverage Review</a>
-          <a class="btn btn-amber" href="final-expense.html">Final Expense Coverage</a>
           <ul class="sidebar-links">
             <li><a href="retirement-planning.html">Retirement Planning</a></li>
             <li><a href="annuities.html">Annuities &amp; Safe Money</a></li>
@@ -483,13 +576,19 @@
       var phone     = document.getElementById('li-f-phone').value.trim();
       var email     = document.getElementById('li-f-email').value.trim();
       var interest  = document.getElementById('li-f-interest').value;
+      var amount    = document.getElementById('li-f-amount').value;
+      var budget    = document.getElementById('li-f-budget').value;
+      var health    = document.querySelector('input[name="li_health"]:checked');
+      var existing  = document.querySelector('input[name="li_existing"]:checked');
       var consent   = document.getElementById('li-sms-consent').checked;
       var errEl     = document.getElementById('li-form-error');
 
-      if (!firstName || !lastName)  { errEl.textContent = 'Please enter your first and last name.'; errEl.style.display = 'block'; return; }
-      if (!phone)                   { errEl.textContent = 'Please enter your phone number.'; errEl.style.display = 'block'; return; }
+      function showErr(msg) { errEl.textContent = msg; errEl.style.display = 'block'; errEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+
+      if (!firstName || !lastName)  { showErr('Please enter your first and last name.'); return; }
+      if (!phone)                   { showErr('Please enter your phone number.'); return; }
       var e164Phone = toE164(phone);
-      if (!e164Phone)               { errEl.textContent = 'Please enter a valid 10-digit US phone number (e.g. 414-441-1177).'; errEl.style.display = 'block'; document.getElementById('li-f-phone').focus(); return; }
+      if (!e164Phone)               { showErr('Please enter a valid 10-digit US phone number (e.g. 414-441-1177).'); document.getElementById('li-f-phone').focus(); return; }
       var emailErr = document.getElementById('li-email-err');
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         emailErr.textContent = 'Please enter a valid email address.';
@@ -498,21 +597,39 @@
         return;
       }
       emailErr.style.display = 'none';
-      if (!interest)                { errEl.textContent = 'Please select a coverage type.'; errEl.style.display = 'block'; return; }
-      if (!consent)                 { errEl.textContent = 'Please agree to the Terms & Conditions to continue.'; errEl.style.display = 'block'; return; }
+      if (!interest)  { showErr('Please select a coverage type.'); return; }
+      if (!amount)    { showErr('Please select an approximate coverage amount.'); return; }
+      if (!budget)    { showErr('Please select a monthly budget range.'); return; }
+      if (!health)    { showErr('Please answer the health question.'); return; }
+      if (!existing)  { showErr('Please indicate whether you currently have life insurance.'); return; }
+      if (!consent)   { showErr('Please agree to the Terms & Conditions to continue.'); return; }
 
       errEl.style.display = 'none';
 
       // Advance to the Life Insurance qualifying form
       var params = new URLSearchParams({
-        first_name: firstName,
-        last_name:  lastName,
-        phone:      e164Phone,
-        email:      email,
-        coverage_type: interest
+        first_name:       firstName,
+        last_name:        lastName,
+        phone:            e164Phone,
+        email:            email,
+        coverage_type:    interest,
+        coverage_amount:  amount,
+        monthly_budget:   budget,
+        health_concerns:  health.value,
+        has_coverage:     existing.value
       });
       window.location.href = 'life-insurance-qualifier.html?' + params.toString();
     }
+
+    // Radio highlight fallback for older browsers
+    document.querySelectorAll('.li-option-group').forEach(function(group) {
+      group.addEventListener('change', function(e) {
+        if (e.target.type === 'radio') {
+          group.querySelectorAll('.li-option-label').forEach(function(lbl) { lbl.classList.remove('selected'); });
+          e.target.closest('.li-option-label').classList.add('selected');
+        }
+      });
+    });
   </script>
   <script>
     document.querySelectorAll('.faq-question').forEach(function(btn) {

@@ -353,85 +353,12 @@
           </ul>
         </div>
 
-        <!-- ── Embedded Calculator ── -->
-        <div class="content-section" style="padding-bottom:0;">
-          <h2>Life Insurance Coverage Calculator</h2>
-          <p style="color:var(--text-muted);margin-bottom:24px;">Get a quick estimate of how much coverage may make sense for your situation using the DIME method.</p>
-          <div class="calc-wrapper">
-            <div class="calc-form-panel">
-              <p class="calc-desc">Estimates coverage based on Debts, Income replacement, Mortgage, and Education costs.</p>
-              <div class="calc-field">
-                <label for="li-debts">Total Debts (excluding mortgage)</label>
-                <input id="li-debts" type="number" min="0" placeholder="e.g. 25000" inputmode="numeric">
-                <span class="hint">Credit cards, car loans, personal loans</span>
-              </div>
-              <div class="calc-field">
-                <label for="li-income">Annual Income</label>
-                <input id="li-income" type="number" min="0" placeholder="e.g. 75000" inputmode="numeric">
-              </div>
-              <div class="calc-field">
-                <label for="li-years">Years of Income to Replace</label>
-                <input id="li-years" type="number" min="1" max="40" placeholder="e.g. 15" value="15" inputmode="numeric">
-                <span class="hint">Typically 10–20 years</span>
-              </div>
-              <div class="calc-field">
-                <label for="li-mortgage">Remaining Mortgage Balance</label>
-                <input id="li-mortgage" type="number" min="0" placeholder="e.g. 180000" inputmode="numeric">
-              </div>
-              <div class="calc-field">
-                <label for="li-education">Education Costs for Dependents</label>
-                <input id="li-education" type="number" min="0" placeholder="e.g. 60000" value="0" inputmode="numeric">
-              </div>
-              <div class="calc-field">
-                <label for="li-existing">Existing Life Insurance Coverage</label>
-                <input id="li-existing" type="number" min="0" placeholder="e.g. 100000" value="0" inputmode="numeric">
-              </div>
-              <button class="btn btn-amber btn-full" onclick="calcLifeInsurance()">Calculate My Coverage Need</button>
-            </div>
-            <div class="calc-result-panel" id="li-result-panel">
-              <div class="calc-result-empty" id="li-empty">
-                <div class="calc-result-empty-icon">&#128737;</div>
-                <p>Fill in your details and click Calculate to see your estimated coverage need.</p>
-              </div>
-              <div class="calc-result-content" id="li-result">
-                <div class="result-eyebrow">Estimated Coverage Need</div>
-                <div class="result-primary" id="li-total">—</div>
-                <div class="result-primary-label">recommended life insurance coverage</div>
-                <div class="result-breakdown">
-                  <div class="result-row"><span class="r-label">Debt payoff</span><span class="r-value" id="li-r-debts">—</span></div>
-                  <div class="result-row"><span class="r-label">Income replacement</span><span class="r-value" id="li-r-income">—</span></div>
-                  <div class="result-row"><span class="r-label">Mortgage payoff</span><span class="r-value" id="li-r-mortgage">—</span></div>
-                  <div class="result-row"><span class="r-label">Education costs</span><span class="r-value" id="li-r-education">—</span></div>
-                  <div class="result-row"><span class="r-label">Less existing coverage</span><span class="r-value" id="li-r-existing">—</span></div>
-                  <div class="result-row"><span class="r-label"><strong>Coverage gap</strong></span><span class="r-value highlight" id="li-r-gap">—</span></div>
-                </div>
-                <p class="result-note">Starting estimate only. A personalized review can refine this number.</p>
-                <a class="result-cta-btn" href="life-insurance-qualifier.html">Get a Free Coverage Review</a>
-              </div>
-            </div>
-          </div>
+        <!-- ── Calculator CTA ── -->
+        <div class="content-section" style="background:var(--bg,#d1ede6);border-radius:14px;text-align:center;padding:48px 32px;">
+          <h2 style="margin-bottom:12px;">Not Sure How Much Coverage You Need?</h2>
+          <p style="color:var(--text);max-width:520px;margin:0 auto 28px;line-height:1.7;">Use our quick life insurance calculator to estimate the right amount of coverage based on your income, debts, and goals.</p>
+          <a class="btn btn-amber" href="/life-insurance-calculator.html">Use the Life Insurance Calculator</a>
         </div>
-        <script>
-          (function(){
-            function fmt(n){ return isNaN(n) ? '—' : '$' + Math.round(n).toLocaleString('en-US'); }
-            function v(id){ return parseFloat(document.getElementById(id).value) || 0; }
-            window.calcLifeInsurance = function(){
-              var debts=v('li-debts'), income=v('li-income'), years=v('li-years')||15,
-                  mortgage=v('li-mortgage'), edu=v('li-education'), existing=v('li-existing');
-              if(!income && !debts && !mortgage) return;
-              var incomeReplace=income*years, subtotal=debts+incomeReplace+mortgage+edu, gap=Math.max(0,subtotal-existing);
-              document.getElementById('li-total').textContent=fmt(gap);
-              document.getElementById('li-r-debts').textContent=fmt(debts);
-              document.getElementById('li-r-income').textContent=fmt(incomeReplace);
-              document.getElementById('li-r-mortgage').textContent=fmt(mortgage);
-              document.getElementById('li-r-education').textContent=fmt(edu);
-              document.getElementById('li-r-existing').textContent=existing>0?'−'+fmt(existing):fmt(0);
-              document.getElementById('li-r-gap').textContent=fmt(gap);
-              document.getElementById('li-result').classList.add('show');
-              document.getElementById('li-empty').style.display='none';
-            };
-          })();
-        </script>
 
         <div class="cta-banner" style="margin-bottom:32px;">
           <h2>Ready to Review Your Coverage?</h2>

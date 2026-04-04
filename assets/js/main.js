@@ -245,10 +245,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (messageEl) messageEl.textContent = 'Sending your guide…';
 
-      // Build the absolute URL to the PDF guide so it works in the email link
-      var guideUrl = window.location.origin +
-        (window.location.pathname.replace(/\/[^/]*$/, '') === '' ? '' : window.location.pathname.replace(/\/[^/]*$/, '')) +
-        '/assets/guides/5%20Mistakes%20to%20Avoid%20When%20Moving%20Retirement%20Accounts.pdf';
+      var guideUrl = 'https://prosperity-website.pages.dev/retirement-rollover-mistakes-guide.html';
 
       var templateParams = {
         to_name:    firstName,

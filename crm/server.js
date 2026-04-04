@@ -62,7 +62,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOSt
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Fallback: serve dashboard for any unmatched route (SPA-style)
-app.get('*', (req, res) => {
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

@@ -188,14 +188,21 @@
     /* Restore native radio/checkbox appearance overridden by global .form-group input rule */
     .option-label input[type="radio"],
     .option-label input[type="checkbox"] {
-      appearance: auto;
-      -webkit-appearance: auto;
+      appearance: auto !important;
+      -webkit-appearance: auto !important;
       accent-color: var(--purple);
-      width: 16px;
-      height: 16px;
-      min-width: 16px;
+      width: 16px !important;
+      height: 16px !important;
+      min-width: 16px !important;
+      max-width: 16px !important;
+      padding: 0 !important;
+      margin: 0 !important;
       flex-shrink: 0;
+      align-self: center;
       cursor: pointer;
+      border: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
     }
     /* Selected state: text highlight */
     .option-label input[type="radio"]:checked + span,

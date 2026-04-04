@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prosperity CRM — Contacts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">P</div>
+        <div>
+          <div class="brand-name">Prosperity</div>
+          <div class="brand-sub">CRM</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/" class="nav-link active">Contacts</a>
+        <a href="/settings.html" class="nav-link">Settings</a>
+      </nav>
+      <div class="sidebar-footer">Prosperity Life &amp; Financial</div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Contacts</h1>
+          <p class="page-subtitle" id="contact-count">Loading…</p>
+        </div>
+        <div class="header-actions">
+          <input type="text" id="search-input" class="search-input" placeholder="Search name, email, phone…">
+          <select id="filter-type" class="filter-select">
+            <option value="">All lead types</option>
+            <option value="Guide Lead">Guide Lead</option>
+            <option value="Retirement Lead">Retirement Lead</option>
+            <option value="Life Insurance Lead">Life Insurance Lead</option>
+            <option value="Roth Conversion Lead">Roth Conversion Lead</option>
+            <option value="Contact Form">Contact Form</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="error-banner" class="error-banner hidden"></div>
+
+      <div class="table-card">
+        <table class="contacts-table" id="contacts-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Lead Type</th>
+              <th>Source</th>
+              <th>Added</th>
+            </tr>
+          </thead>
+          <tbody id="contacts-tbody">
+            <tr><td colspan="6" class="loading-row">Loading contacts…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-icon">📋</div>
+        <p>No contacts yet. Leads submitted through the website will appear here.</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

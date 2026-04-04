@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Detail — Prosperity CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">P</div>
+        <div>
+          <div class="brand-name">Prosperity</div>
+          <div class="brand-sub">CRM</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/" class="nav-link">Contacts</a>
+        <a href="/settings.html" class="nav-link">Settings</a>
+      </nav>
+      <div class="sidebar-footer">Prosperity Life &amp; Financial</div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <a href="/" class="back-link">← Back to Contacts</a>
+          <h1 class="page-title" id="contact-name">Loading…</h1>
+          <div id="contact-meta" class="contact-meta"></div>
+        </div>
+      </div>
+
+      <div id="error-banner" class="error-banner hidden"></div>
+
+      <div class="detail-grid">
+        <!-- Left column: contact info + notes -->
+        <div class="detail-left">
+
+          <!-- Contact Info -->
+          <section class="card">
+            <h2 class="card-title">Contact Info</h2>
+            <div id="contact-info" class="info-grid"></div>
+          </section>
+
+          <!-- Add Note -->
+          <section class="card">
+            <h2 class="card-title">Add Note</h2>
+            <textarea id="new-note-body" class="note-textarea" placeholder="Type a note…" rows="3"></textarea>
+            <button id="add-note-btn" class="btn btn-primary">Save Note</button>
+          </section>
+
+          <!-- Notes -->
+          <section class="card">
+            <h2 class="card-title">Notes</h2>
+            <div id="notes-list" class="timeline"></div>
+          </section>
+
+        </div>
+
+        <!-- Right column: communications -->
+        <div class="detail-right">
+          <section class="card">
+            <h2 class="card-title">Activity &amp; Form Submissions</h2>
+            <div id="comms-list" class="timeline"></div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="contact.js"></script>
+</body>
+</html>

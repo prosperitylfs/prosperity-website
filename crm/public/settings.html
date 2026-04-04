@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — Prosperity CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">P</div>
+        <div>
+          <div class="brand-name">Prosperity</div>
+          <div class="brand-sub">CRM</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/" class="nav-link">Contacts</a>
+        <a href="/settings.html" class="nav-link active">Settings</a>
+      </nav>
+      <div class="sidebar-footer">Prosperity Life &amp; Financial</div>
+    </aside>
+
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Settings</h1>
+          <p class="page-subtitle">Configure your CRM API connection</p>
+        </div>
+      </div>
+
+      <section class="card" style="max-width:480px">
+        <h2 class="card-title">API Connection</h2>
+        <p style="margin-bottom:1rem;color:var(--text-muted);font-size:.9rem;">
+          The CRM dashboard reads data from the local API server.
+          Set your API key below — it is saved in your browser only.
+        </p>
+
+        <label class="form-label">API Base URL</label>
+        <input type="text" id="setting-base-url" class="search-input" style="width:100%;margin-bottom:1rem"
+          placeholder="http://localhost:3001">
+
+        <label class="form-label">API Key (x-api-key)</label>
+        <input type="password" id="setting-api-key" class="search-input" style="width:100%;margin-bottom:1.25rem"
+          placeholder="your-api-key">
+
+        <button id="save-settings-btn" class="btn btn-primary">Save Settings</button>
+        <span id="settings-saved" class="save-msg hidden">Saved!</span>
+      </section>
+    </main>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    const urlInput = document.getElementById('setting-base-url');
+    const keyInput = document.getElementById('setting-api-key');
+
+    urlInput.value = localStorage.getItem('crm_base_url') || 'http://localhost:3001';
+    keyInput.value = localStorage.getItem('crm_api_key') || '';
+
+    document.getElementById('save-settings-btn').addEventListener('click', () => {
+      localStorage.setItem('crm_base_url', urlInput.value.trim().replace(/\/$/, ''));
+      localStorage.setItem('crm_api_key', keyInput.value.trim());
+      const msg = document.getElementById('settings-saved');
+      msg.classList.remove('hidden');
+      setTimeout(() => msg.classList.add('hidden'), 2000);
+    });
+  </script>
+</body>
+</html>

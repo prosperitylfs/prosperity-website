@@ -172,7 +172,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 14px;
+      padding: 10px 14px 10px 0;
       border: 1.5px solid #d0ccd8;
       border-radius: 8px;
       cursor: pointer;
@@ -180,29 +180,36 @@
       color: var(--text);
       transition: border-color 0.15s, background 0.15s;
       background: #fff;
+      box-sizing: border-box;
     }
     .option-label:hover {
       border-color: var(--purple);
       background: var(--purple-xlight, #ede8f7);
     }
-    /* Restore native radio/checkbox appearance overridden by global .form-group input rule */
+    /* Restore native radio appearance — override global .form-group input and .book-form input rules */
     .option-label input[type="radio"],
     .option-label input[type="checkbox"] {
       appearance: auto !important;
       -webkit-appearance: auto !important;
-      accent-color: var(--purple);
+      accent-color: var(--purple, #4e2c94);
+      display: inline-block !important;
       width: 16px !important;
       height: 16px !important;
       min-width: 16px !important;
       max-width: 16px !important;
       padding: 0 !important;
       margin: 0 !important;
-      flex-shrink: 0;
+      flex: 0 0 16px !important;
       align-self: center;
       cursor: pointer;
       border: none !important;
+      border-radius: 50% !important;
       box-shadow: none !important;
       background: transparent !important;
+      transform: none !important;
+      position: static !important;
+      opacity: 1 !important;
+      vertical-align: middle !important;
     }
     /* Selected state: text highlight */
     .option-label input[type="radio"]:checked + span,

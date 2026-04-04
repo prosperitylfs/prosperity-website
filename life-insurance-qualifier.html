@@ -166,7 +166,7 @@
     .option-group {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 12px;
     }
     .option-label {
       display: flex;
@@ -332,12 +332,14 @@
 
               <!-- Success message (hidden until submit) -->
               <div class="liq-success" id="liq-success">
-                <div class="liq-success-icon">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                <h2 style="font-size:1.2rem; margin-bottom:4px; color:var(--purple-dark);">One Last Step &mdash; Pick a Time</h2>
+                <p class="book-sub" style="margin-bottom:0;">Choose a time below to schedule your free 30-minute consultation with Loretta.</p>
+                <!-- Calendly inline widget begin -->
+                <div style="width:100%; max-width:100%; margin-top:20px;">
+                  <div class="calendly-inline-widget" data-url="https://calendly.com/loretta-prosperitylfs/30min" style="min-width:320px;height:700px;"></div>
                 </div>
-                <h2>You&rsquo;re All Set!</h2>
-                <p>Thank you for completing the Life Insurance Qualification Form. Loretta will personally review your information and reach out within one business day to schedule your free consultation.</p>
-                <a class="btn btn-amber" href="life-insurance.html">Back to Life Insurance</a>
+                <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async></script>
+                <!-- Calendly inline widget end -->
               </div>
 
               <!-- Form -->
@@ -376,16 +378,11 @@
                     <label class="form-label" for="liq-state">State <span style="color:#c0392b;">*</span></label>
                     <select id="liq-state" name="state" required>
                       <option value="">Select your state&hellip;</option>
-                      <option>Alabama</option><option>Alaska</option><option>Arizona</option><option>Arkansas</option><option>California</option>
-                      <option>Colorado</option><option>Connecticut</option><option>Delaware</option><option>Florida</option><option>Georgia</option>
-                      <option>Hawaii</option><option>Idaho</option><option>Illinois</option><option>Indiana</option><option>Iowa</option>
-                      <option>Kansas</option><option>Kentucky</option><option>Louisiana</option><option>Maine</option><option>Maryland</option>
-                      <option>Massachusetts</option><option>Michigan</option><option>Minnesota</option><option>Mississippi</option><option>Missouri</option>
-                      <option>Montana</option><option>Nebraska</option><option>Nevada</option><option>New Hampshire</option><option>New Jersey</option>
-                      <option>New Mexico</option><option>New York</option><option>North Carolina</option><option>North Dakota</option><option>Ohio</option>
-                      <option>Oklahoma</option><option>Oregon</option><option>Pennsylvania</option><option>Rhode Island</option><option>South Carolina</option>
-                      <option>South Dakota</option><option>Tennessee</option><option>Texas</option><option>Utah</option><option>Vermont</option>
-                      <option>Virginia</option><option>Washington</option><option>West Virginia</option><option>Wisconsin</option><option>Wyoming</option>
+                      <option>Wisconsin</option>
+                      <option>Nevada</option>
+                      <option>Texas</option>
+                      <option>Michigan</option>
+                      <option>North Carolina</option>
                     </select>
                   </div>
 
@@ -481,20 +478,6 @@
                       <label class="option-label"><input type="radio" name="has_coverage" value="Yes"><span>Yes</span></label>
                       <label class="option-label"><input type="radio" name="has_coverage" value="Not sure"><span>Not sure</span></label>
                     </div>
-                  </div>
-
-                  <!-- SCHEDULING -->
-                  <div class="form-section-label">Scheduling Preference</div>
-
-                  <div class="form-group">
-                    <label class="form-label" for="liq-contact-time">Best time to contact you</label>
-                    <select id="liq-contact-time" name="best_contact_time">
-                      <option value="">Select a preference&hellip;</option>
-                      <option>Morning (8am – 12pm)</option>
-                      <option>Afternoon (12pm – 4pm)</option>
-                      <option>Evening (4pm – 7pm)</option>
-                      <option>Anytime is fine</option>
-                    </select>
                   </div>
 
                   <!-- SMS CONSENT -->

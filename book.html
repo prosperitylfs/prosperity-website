@@ -209,6 +209,92 @@
     /* Height selects */
     .height-selects { display: flex; gap: 10px; }
     .height-selects select { flex: 1; }
+
+    /* Topic multi-select checkboxes (Step 2) */
+    .topic-check-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+    .topic-check-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 13px 16px;
+      background: #fff;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #333;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+      user-select: none;
+      box-sizing: border-box;
+    }
+    .topic-check-label:hover { border-color: var(--purple, #4e2c94); background: #f7f4fd; }
+    .topic-check-label.selected {
+      border-color: var(--purple, #4e2c94);
+      background: var(--purple, #4e2c94);
+      color: #fff;
+    }
+    .topic-check-label input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+    .topic-check-mark {
+      margin-left: auto;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 2px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: border-color 0.2s, background 0.2s;
+      font-size: 0.75rem;
+      color: transparent;
+    }
+    .topic-check-label.selected .topic-check-mark {
+      border-color: rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+    .topic-cat-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--purple, #4e2c94);
+      background: #ede8f7;
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+
+    /* Disqualification screen */
+    #step-disq { animation: fadeStep 0.25s ease; }
+    .disq-resource-btn {
+      display: block;
+      width: 100%;
+      padding: 13px 20px;
+      border-radius: 8px;
+      font-size: 0.97rem;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+      border: none;
+      color: #fff;
+    }
+    .disq-resource-btn.green { background: var(--green, #38bf72); }
+    .disq-resource-btn.green:hover { background: var(--green-dark, #2a9a5a); }
+    .disq-resource-btn.purple { background: var(--purple, #4e2c94); }
+    .disq-resource-btn.purple:hover { background: var(--purple-dark, #3a1f70); }
   </style>
 </head>
 <body>
@@ -375,53 +461,79 @@
               <p id="err-1" class="step-error"></p>
             </div>
 
-            <!-- ── STEP 2: Topic ── -->
+            <!-- ── STEP 2: Topic (multi-select checkboxes) ── -->
             <div class="form-step" id="step-2" style="display:none;">
               <p class="step-heading">What would you like help with today?</p>
-              <p class="step-sub">Choose the option that best describes your main reason for reaching out.</p>
+              <p class="step-sub">Select all that apply &mdash; you can choose more than one.</p>
 
-              <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--purple,#4e2c94);background:#ede8f7;display:inline-block;padding:4px 10px;border-radius:4px;margin-bottom:10px;">Retirement &amp; Savings</div>
-              <div class="survey-choices" id="choices-2">
-                <button type="button" class="survey-btn" data-group="topic" data-value="Rolling over a 401(k), 403(b), or TSP" onclick="selectSurveyBtn(this,'topic')">
-                  <span class="btn-icon">🔄</span> Rolling over a 401(k), 403(b), or TSP
-                </button>
-                <button type="button" class="survey-btn" data-group="topic" data-value="Roth conversion strategy" onclick="selectSurveyBtn(this,'topic')">
-                  <span class="btn-icon">📊</span> Roth conversion strategy
-                </button>
-                <button type="button" class="survey-btn" data-group="topic" data-value="Safe growth / CD alternative options" onclick="selectSurveyBtn(this,'topic')">
-                  <span class="btn-icon">🏦</span> Safe growth / CD alternative options
-                </button>
-                <button type="button" class="survey-btn" data-group="topic" data-value="Retirement income planning" onclick="selectSurveyBtn(this,'topic')">
-                  <span class="btn-icon">💰</span> Retirement income planning
-                </button>
-                <button type="button" class="survey-btn" data-group="topic" data-value="Social Security planning" onclick="selectSurveyBtn(this,'topic')">
-                  <span class="btn-icon">🏛️</span> Social Security planning
-                </button>
-                <button type="button" class="survey-btn" data-group="topic" data-value="Second opinion / review" onclick="selectSurveyBtn(this,'topic')">
-                  <span class="btn-icon">🔍</span> Second opinion / review
-                </button>
-                <button type="button" class="survey-btn" data-group="topic" data-value="Not sure yet" onclick="selectSurveyBtn(this,'topic')">
-                  <span class="btn-icon">💡</span> Not sure yet
-                </button>
+              <div class="topic-cat-label">Retirement &amp; Savings</div>
+              <div class="topic-check-group">
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Rolling over a 401(k), 403(b), or TSP">
+                  <span class="btn-icon">🔄</span><span>Rolling over a 401(k), 403(b), or TSP</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Retirement income planning">
+                  <span class="btn-icon">💰</span><span>Retirement income planning</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Roth conversion strategy">
+                  <span class="btn-icon">📊</span><span>Roth conversion strategy</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Safe growth / CD alternative options">
+                  <span class="btn-icon">🏦</span><span>Safe growth / CD alternative options</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Social Security planning">
+                  <span class="btn-icon">🏛️</span><span>Social Security planning</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Second opinion / review">
+                  <span class="btn-icon">🔍</span><span>Second opinion / review</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
               </div>
 
-              <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--purple,#4e2c94);background:#ede8f7;display:inline-block;padding:4px 10px;border-radius:4px;margin-top:18px;margin-bottom:10px;">Life Insurance</div>
-              <div class="survey-choices" id="choices-2-li">
-                <button type="button" class="survey-btn" data-group="topic" data-value="Life insurance coverage (term or permanent)" onclick="selectSurveyBtn(this,'topic')">
-                  <span class="btn-icon">🛡️</span> Life insurance coverage (term or permanent)
-                </button>
-                <button type="button" class="survey-btn" data-group="topic" data-value="Life insurance with living benefits" onclick="selectSurveyBtn(this,'topic')">
-                  <span class="btn-icon">❤️</span> Life insurance with living benefits
-                </button>
-                <button type="button" class="survey-btn" data-group="topic" data-value="Final expense / burial insurance" onclick="selectSurveyBtn(this,'topic')">
-                  <span class="btn-icon">🕊️</span> Final expense / burial insurance
-                </button>
-                <button type="button" class="survey-btn" data-group="topic" data-value="Life insurance review or replacement" onclick="selectSurveyBtn(this,'topic')">
-                  <span class="btn-icon">🔄</span> Life insurance review or replacement
-                </button>
+              <div class="topic-cat-label" style="margin-top:18px;">Life Insurance</div>
+              <div class="topic-check-group">
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Life insurance coverage (term or permanent)">
+                  <span class="btn-icon">🛡️</span><span>Life insurance coverage (term or permanent)</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Life insurance with living benefits">
+                  <span class="btn-icon">❤️</span><span>Life insurance with living benefits</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Final expense / burial insurance">
+                  <span class="btn-icon">🕊️</span><span>Final expense / burial insurance</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Life insurance review or replacement">
+                  <span class="btn-icon">🔄</span><span>Life insurance review or replacement</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
               </div>
 
-              <input type="hidden" name="topic" id="val-topic">
+              <div class="topic-cat-label" style="margin-top:18px;">General</div>
+              <div class="topic-check-group">
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Not sure yet">
+                  <span class="btn-icon">💡</span><span>Not sure yet</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+              </div>
+
+              <input type="hidden" name="topics" id="val-topic">
 
               <div class="step-nav">
                 <div class="step-nav-row">
@@ -439,12 +551,10 @@
 
               <div class="survey-choices" id="choices-3">
                 <button type="button" class="survey-btn" data-group="amount" data-value="Under $25,000" onclick="selectSurveyBtn(this,'amount')">Under $25,000</button>
-                <button type="button" class="survey-btn" data-group="amount" data-value="$25,001–$75,000" onclick="selectSurveyBtn(this,'amount')">$25,001 &ndash; $75,000</button>
-                <button type="button" class="survey-btn" data-group="amount" data-value="$75,001–$150,000" onclick="selectSurveyBtn(this,'amount')">$75,001 &ndash; $150,000</button>
-                <button type="button" class="survey-btn" data-group="amount" data-value="$150,001–$200,000" onclick="selectSurveyBtn(this,'amount')">$150,001 &ndash; $200,000</button>
-                <button type="button" class="survey-btn" data-group="amount" data-value="$200,001–$300,000" onclick="selectSurveyBtn(this,'amount')">$200,001 &ndash; $300,000</button>
-                <button type="button" class="survey-btn" data-group="amount" data-value="$300,001–$500,000" onclick="selectSurveyBtn(this,'amount')">$300,001 &ndash; $500,000</button>
-                <button type="button" class="survey-btn" data-group="amount" data-value="$500,000+" onclick="selectSurveyBtn(this,'amount')">$500,000+</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$25,000 – $75,000" onclick="selectSurveyBtn(this,'amount')">$25,000 &ndash; $75,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$75,001 – $150,000" onclick="selectSurveyBtn(this,'amount')">$75,001 &ndash; $150,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$150,001 – $300,000" onclick="selectSurveyBtn(this,'amount')">$150,001 &ndash; $300,000</button>
+                <button type="button" class="survey-btn" data-group="amount" data-value="$300,001+" onclick="selectSurveyBtn(this,'amount')">$300,001+</button>
               </div>
               <input type="hidden" name="amount" id="val-amount">
 
@@ -620,6 +730,23 @@
               <p class="form-privacy" style="margin-top:16px; font-size:0.82rem; color:#888; text-align:center;">No cost. No obligation. No pressure.</p>
             </div>
 
+            <!-- ── Disqualification screen ── -->
+            <div id="step-disq" style="display:none;">
+              <p class="step-heading" style="margin-bottom:16px;">Thank you for your interest</p>
+              <p style="color:#444; line-height:1.65; margin-bottom:14px;">
+                At this time, our personalized retirement review process is generally reserved for individuals with at least $25,000 available to review in retirement accounts, savings, CDs, or other assets.
+              </p>
+              <p style="color:#444; line-height:1.65; margin-bottom:24px;">
+                If you&rsquo;re still building toward that amount, we invite you to explore our educational resources, calculators, and guides to help you better understand your options.
+              </p>
+              <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+                <a href="resources.html" class="disq-resource-btn green">Explore Resources</a>
+                <a href="calculators.html" class="disq-resource-btn purple">Use Our Calculators</a>
+                <a href="index.html#guide-section" class="disq-resource-btn purple">Get Our Free Guide</a>
+              </div>
+              <button type="button" class="btn-back" style="width:100%;" onclick="showStep(3)">&larr; Go Back</button>
+            </div>
+
           </form>
         </div>
       </div>
@@ -713,9 +840,23 @@
         const el = document.getElementById('step-' + i);
         if (el) el.style.display = 'none';
       }
+      const disq = document.getElementById('step-disq');
+      if (disq) disq.style.display = 'none';
       const el = document.getElementById('step-' + stepId);
       if (el) el.style.display = 'block';
       updateProgress(stepId);
+      document.querySelector('.book-calendar-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function showDisq() {
+      for (let i = 1; i <= 7; i++) {
+        const el = document.getElementById('step-' + i);
+        if (el) el.style.display = 'none';
+      }
+      const disq = document.getElementById('step-disq');
+      if (disq) disq.style.display = 'block';
+      document.getElementById('funnel-bar').style.width = '100%';
+      document.getElementById('funnel-step-label').textContent = '';
       document.querySelector('.book-calendar-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -734,18 +875,18 @@
       if (email)     { const el = document.getElementById('f-email');       if (el) el.value = email; }
 
       if (topic) {
-        // Search both retirement and LI choice containers
-        document.querySelectorAll('#choices-2 .survey-btn, #choices-2-li .survey-btn').forEach(function(btn) {
-          if (btn.dataset.value && btn.dataset.value.toLowerCase() === topic.toLowerCase()) {
-            // Deselect all first
-            document.querySelectorAll('#choices-2 .survey-btn, #choices-2-li .survey-btn')
-              .forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-            document.getElementById('val-topic').value = btn.dataset.value;
-            // Set track based on prefilled topic
-            currentTrack = LI_TOPICS.includes(btn.dataset.value) ? 'life-insurance' : 'retirement';
+        // Find the matching checkbox and select it
+        document.querySelectorAll('#step-2 .topic-checkbox').forEach(function(cb) {
+          if (cb.value.toLowerCase() === topic.toLowerCase()) {
+            cb.checked = true;
+            var label = cb.closest('.topic-check-label');
+            if (label) label.classList.add('selected');
           }
         });
+        // Sync hidden field and track
+        var selected = Array.from(document.querySelectorAll('#step-2 .topic-checkbox:checked')).map(cb => cb.value);
+        document.getElementById('val-topic').value = selected.join(', ');
+        currentTrack = selected.some(t => LI_TOPICS.includes(t)) ? 'life-insurance' : 'retirement';
       }
     })();
 
@@ -779,16 +920,26 @@
       }
 
       if (n === 2) {
-        const val = document.getElementById('val-topic').value;
-        if (!val) { showErr('Please select an option to continue.'); return false; }
-        // Determine track from topic selection
-        currentTrack = LI_TOPICS.includes(val) ? 'life-insurance' : 'retirement';
+        const selected = Array.from(document.querySelectorAll('#step-2 .topic-checkbox:checked')).map(cb => cb.value);
+        if (selected.length === 0) { showErr('Please select at least one option to continue.'); return false; }
+        document.getElementById('val-topic').value = selected.join(', ');
+        currentTrack = selected.some(t => LI_TOPICS.includes(t)) ? 'life-insurance' : 'retirement';
         clearErr(); return true;
       }
 
       if (n === 3) {
         const val = document.getElementById('val-amount').value;
         if (!val) { showErr('Please select an option to continue.'); return false; }
+        // ── Routing gate: retirement-only + Under $25k → disqualify ──────────
+        if (val === 'Under $25,000') {
+          const topics = Array.from(document.querySelectorAll('#step-2 .topic-checkbox:checked')).map(cb => cb.value);
+          const hasLI      = topics.some(t => LI_TOPICS.includes(t));
+          const hasNotSure = topics.includes('Not sure yet');
+          if (!hasLI && !hasNotSure) {
+            showDisq();
+            return false;
+          }
+        }
         clearErr(); return true;
       }
 
@@ -860,15 +1011,18 @@
       if (pos > 0) showStep(steps[pos - 1]);
     }
 
+    // Toggle a topic checkbox row (multi-select, Step 2)
+    function toggleTopicCheck(e, label) {
+      e.preventDefault(); // prevent double-toggle from label default behavior
+      var cb = label.querySelector('input[type="checkbox"]');
+      cb.checked = !cb.checked;
+      label.classList.toggle('selected', cb.checked);
+    }
+
+    // Single-select survey buttons (all steps except Step 2)
     function selectSurveyBtn(btn, group) {
-      // Deselect all topic buttons across both containers
-      if (group === 'topic') {
-        document.querySelectorAll('#choices-2 .survey-btn, #choices-2-li .survey-btn')
-          .forEach(b => b.classList.remove('selected'));
-      } else {
-        btn.closest('.survey-choices').querySelectorAll('.survey-btn')
-          .forEach(b => b.classList.remove('selected'));
-      }
+      btn.closest('.survey-choices').querySelectorAll('.survey-btn')
+        .forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       document.getElementById('val-' + group).value = btn.dataset.value;
     }

@@ -212,6 +212,7 @@
 
     /* Topic multi-select checkboxes (Step 2) */
     .topic-check-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+    .topic-check-sub { display: block; font-size: 0.78rem; font-weight: 400; opacity: 0.82; margin-top: 3px; line-height: 1.4; }
     .topic-check-label {
       display: flex;
       align-items: center;
@@ -489,18 +490,14 @@
                   <span class="topic-check-mark">&#10003;</span>
                 </label>
                 <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Social Security planning">
-                  <span class="btn-icon">🏛️</span><span>Social Security planning</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Second opinion / review">
-                  <span class="btn-icon">🔍</span><span>Second opinion / review</span>
+                  <input type="checkbox" class="topic-checkbox" value="Professional Second Opinion Review ($150)">
+                  <span class="btn-icon">🔍</span>
+                  <span>Professional Second Opinion Review ($150)<span class="topic-check-sub">For individuals who want a detailed professional review without committing to a full strategy relationship.</span></span>
                   <span class="topic-check-mark">&#10003;</span>
                 </label>
               </div>
 
-              <div class="topic-cat-label" style="margin-top:18px;">Life Insurance</div>
+              <div class="topic-cat-label" style="margin-top:18px;">Life Insurance &amp; Protection</div>
               <div class="topic-check-group">
                 <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
                   <input type="checkbox" class="topic-checkbox" value="Life insurance coverage (term or permanent)">
@@ -520,6 +517,21 @@
                 <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
                   <input type="checkbox" class="topic-checkbox" value="Life insurance review or replacement">
                   <span class="btn-icon">🔄</span><span>Life insurance review or replacement</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Mortgage protection (income protection for your home)">
+                  <span class="btn-icon">🏠</span><span>Mortgage protection (income protection for your home)</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Cancer / critical illness protection">
+                  <span class="btn-icon">🩺</span><span>Cancer / critical illness protection</span>
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
+                  <input type="checkbox" class="topic-checkbox" value="Using savings to create tax-free life insurance income">
+                  <span class="btn-icon">💼</span><span>Using savings to create tax-free life insurance income</span>
                   <span class="topic-check-mark">&#10003;</span>
                 </label>
               </div>
@@ -810,7 +822,10 @@
       'Life insurance coverage (term or permanent)',
       'Life insurance with living benefits',
       'Final expense / burial insurance',
-      'Life insurance review or replacement'
+      'Life insurance review or replacement',
+      'Mortgage protection (income protection for your home)',
+      'Cancer / critical illness protection',
+      'Using savings to create tax-free life insurance income'
     ];
 
     // Step sequences per track

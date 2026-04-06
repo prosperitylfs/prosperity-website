@@ -587,8 +587,8 @@
               <div class="survey-choices" id="choices-4">
                 <button type="button" class="survey-btn" data-group="timeline" data-value="ASAP" onclick="selectSurveyBtn(this,'timeline')">ASAP</button>
                 <button type="button" class="survey-btn" data-group="timeline" data-value="Within 30 days" onclick="selectSurveyBtn(this,'timeline')">Within 30 days</button>
-                <button type="button" class="survey-btn" data-group="timeline" data-value="Within 1–3 months" onclick="selectSurveyBtn(this,'timeline')">Within 1&ndash;3 months</button>
-                <button type="button" class="survey-btn" data-group="timeline" data-value="Just exploring for now" onclick="selectSurveyBtn(this,'timeline')">Just exploring for now</button>
+                <button type="button" class="survey-btn" data-group="timeline" data-value="Within 1-3 months" onclick="selectSurveyBtn(this,'timeline')">Within 1&ndash;3 months</button>
+                <button type="button" class="survey-btn" data-group="timeline" data-value="Just exploring" onclick="selectSurveyBtn(this,'timeline')">Just exploring</button>
               </div>
               <input type="hidden" name="timeline" id="val-timeline">
 
@@ -743,6 +743,22 @@
               <p class="form-privacy" style="margin-top:16px; font-size:0.82rem; color:#888; text-align:center;">No cost. No obligation. No pressure.</p>
             </div>
 
+            <!-- ── Nurture screen (Just exploring) ── -->
+            <div id="step-nurture" style="display:none;">
+              <p class="step-heading" style="margin-bottom:16px;">Thanks for your interest!</p>
+              <p style="color:#444; line-height:1.65; margin-bottom:14px;">
+                It sounds like you&rsquo;re still in the research phase &mdash; and that&rsquo;s completely okay. When you&rsquo;re ready to take a closer look, we&rsquo;ll be here.
+              </p>
+              <p style="color:#444; line-height:1.65; margin-bottom:24px;">
+                In the meantime, explore our free educational resources and calculators to help you get started.
+              </p>
+              <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+                <a href="resources.html" class="disq-resource-btn green">Explore Resources</a>
+                <a href="calculators.html" class="disq-resource-btn purple">Use Our Calculators</a>
+              </div>
+              <button type="button" class="btn-back" style="width:100%;" onclick="showStep(4)">&larr; Go Back</button>
+            </div>
+
             <!-- ── Disqualification screen ── -->
             <div id="step-disq" style="display:none;">
               <p class="step-heading" style="margin-bottom:16px;">Thank you for your interest</p>
@@ -848,6 +864,30 @@
 
     let currentTrack = 'retirement'; // set after Step 2
 
+    // Insurance keyword fragments — matched as substrings (case-insensitive)
+    const INSURANCE_KEYWORDS = [
+      'life insurance',
+      'mortgage protection',
+      'cancer',
+      'critical illness',
+      'single premium',
+      'final expense',
+      'burial insurance',
+      'living benefits',
+    ];
+
+    // Classify a lead as INSURANCE, HOT, or NURTURE.
+    // topics: array of selected topic values
+    // timeline: string value from val-timeline
+    function classifyLead(topics, timeline) {
+      const topicsLower = topics.map(t => t.toLowerCase());
+      const isInsurance = INSURANCE_KEYWORDS.some(kw => topicsLower.some(t => t.includes(kw)));
+      if (isInsurance) return 'INSURANCE';
+      const hotTimelines = ['ASAP', 'Within 30 days', 'Within 1-3 months'];
+      if (hotTimelines.includes(timeline)) return 'HOT';
+      return 'NURTURE';
+    }
+
     function getSteps() {
       return TRACK_STEPS[currentTrack];
     }
@@ -862,13 +902,19 @@
         'Step ' + (pos + 1) + ' of ' + total;
     }
 
-    function showStep(stepId) {
+    function hideAllSteps() {
       for (let i = 1; i <= 7; i++) {
         const el = document.getElementById('step-' + i);
         if (el) el.style.display = 'none';
       }
-      const disq = document.getElementById('step-disq');
-      if (disq) disq.style.display = 'none';
+      ['step-disq', 'step-nurture'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+    }
+
+    function showStep(stepId) {
+      hideAllSteps();
       const el = document.getElementById('step-' + stepId);
       if (el) el.style.display = 'block';
       updateProgress(stepId);
@@ -876,12 +922,16 @@
     }
 
     function showDisq() {
-      for (let i = 1; i <= 7; i++) {
-        const el = document.getElementById('step-' + i);
-        if (el) el.style.display = 'none';
-      }
-      const disq = document.getElementById('step-disq');
-      if (disq) disq.style.display = 'block';
+      hideAllSteps();
+      document.getElementById('step-disq').style.display = 'block';
+      document.getElementById('funnel-bar').style.width = '100%';
+      document.getElementById('funnel-step-label').textContent = '';
+      document.querySelector('.book-calendar-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function showNurture() {
+      hideAllSteps();
+      document.getElementById('step-nurture').style.display = 'block';
       document.getElementById('funnel-bar').style.width = '100%';
       document.getElementById('funnel-step-label').textContent = '';
       document.querySelector('.book-calendar-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -973,6 +1023,15 @@
       if (n === 4) {
         const val = document.getElementById('val-timeline').value;
         if (!val) { showErr('Please select an option to continue.'); return false; }
+        // Block "Just exploring" unless they selected an insurance topic
+        if (val === 'Just exploring') {
+          const topics = Array.from(document.querySelectorAll('#step-2 .topic-checkbox:checked')).map(cb => cb.value);
+          const leadType = classifyLead(topics, val);
+          if (leadType === 'NURTURE') {
+            showNurture();
+            return false;
+          }
+        }
         clearErr(); return true;
       }
 
@@ -1007,13 +1066,19 @@
     // Actual POST logic (with x-api-key header) lives in assets/js/main.js → sendBookingLead()
     function postBookingLeadToCRM(callback) {
       function getVal(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+      const topics   = Array.from(document.querySelectorAll('#step-2 .topic-checkbox:checked')).map(cb => cb.value);
+      const timeline = getVal('val-timeline');
+      const leadType = classifyLead(topics, timeline); // INSURANCE | HOT | NURTURE
       window.sendBookingLead({
         first_name: getVal('f-first-name'),
         last_name:  getVal('f-last-name'),
         email:      getVal('f-email'),
         phone:      getVal('f-phone'),
-        lead_type:  currentTrack === 'life-insurance' ? 'life_insurance' : currentTrack === 'combined' ? 'retirement' : 'retirement',
+        lead_type:  leadType,
         topic:      getVal('val-topic'),
+        timeline:   timeline,
+        amount:     getVal('val-amount'),
+        assets:     getVal('val-assets'),
       }, callback);
     }
 

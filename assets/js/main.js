@@ -29,6 +29,49 @@ function postToCRM(data, leadType) {
 }
 
 window.postToCRM = postToCRM;
+
+// ── BOOKING FORM — CRM LEAD CAPTURE ───────────────────────────────────────
+// Called by book.html before showing the Calendly step.
+// Sends the booking form fields to the CRM with the required API key.
+// Never blocks the user — callback fires regardless of success or failure.
+var CRM_API_KEY = 'prosperity-crm-2025';
+
+function sendBookingLead(data, callback) {
+  var payload = {
+    first_name:  data.first_name  || '',
+    last_name:   data.last_name   || '',
+    email:       data.email       || '',
+    phone:       data.phone       || '',
+    lead_type:   data.lead_type   || 'retirement',
+    topic:       data.topic       || '',
+    lead_source: window.location.href,
+    created_at:  new Date().toISOString(),
+  };
+
+  var done = false;
+  function proceed() { if (!done) { done = true; callback(); } }
+
+  fetch(CRM_ENDPOINT, {
+    method:  'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key':    CRM_API_KEY,
+    },
+    body: JSON.stringify(payload),
+  })
+    .then(function(res) {
+      if (!res.ok) {
+        console.error('CRM lead save failed — status:', res.status);
+      }
+      proceed();
+    })
+    .catch(function(err) {
+      console.error('CRM lead save failed —', err);
+      proceed();
+    });
+}
+
+window.sendBookingLead = sendBookingLead;
 // ─────────────────────────────────────────────────────────────────────────
 
 // ── PHONE FORMATTING UTILITIES ─────────────────────────────────────────────

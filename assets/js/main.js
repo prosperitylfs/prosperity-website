@@ -6,47 +6,69 @@ var EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // e.g. 'template_xyz789'
 // ─────────────────────────────────────────────────────────────────────────
 
 // ── CRM LEAD CAPTURE ──────────────────────────────────────────────────────
-// Set this to your CRM server URL. Fire-and-forget — never blocks the form.
 var CRM_ENDPOINT = 'http://localhost:3001/api/leads';
+var CRM_API_KEY  = 'prosperity-crm-2025';
 
 /**
- * Silently post a lead to the CRM.
- * @param {Object} data - form field values
- * @param {string} leadType - 'guide' | 'retirement' | 'life_insurance' | 'contact'
+ * Post a lead to the CRM. Fire-and-forget — never blocks the user.
+ * Accepts an optional callback(success) called after the request settles.
+ *
+ * @param {Object}   data     - any lead fields; lead_type should already be set
+ * @param {string}   leadType - fallback lead_type if not present in data
+ * @param {Function} callback - optional; called with true (success) or false (fail)
  */
-function postToCRM(data, leadType) {
-  try {
-    var payload = Object.assign({}, data, {
-      lead_type:   leadType || 'contact',
-      lead_source: window.location.pathname,
+function postToCRM(data, leadType, callback) {
+  var payload = Object.assign({}, data, {
+    lead_type:   data.lead_type || leadType || 'contact',
+    lead_source: data.lead_source || window.location.href,
+    created_at:  new Date().toISOString(),
+  });
+
+  console.log('[CRM] Sending lead...', payload);
+
+  fetch(CRM_ENDPOINT, {
+    method:  'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key':    CRM_API_KEY,
+    },
+    body: JSON.stringify(payload),
+  })
+    .then(function(res) {
+      return res.json().then(function(body) { return { ok: res.ok, status: res.status, body: body }; });
+    })
+    .then(function(r) {
+      if (r.ok) {
+        console.log('[CRM] Lead saved successfully:', r.body);
+      } else {
+        console.error('[CRM] Lead save failed (' + r.status + '):', r.body);
+      }
+      if (typeof callback === 'function') callback(r.ok);
+    })
+    .catch(function(err) {
+      console.error('[CRM] Lead save error (network):', err);
+      if (typeof callback === 'function') callback(false);
     });
-    fetch(CRM_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).catch(function () {}); // silent — CRM server may not be running in all envs
-  } catch (e) {}
 }
 
 window.postToCRM = postToCRM;
 
-// ── BOOKING FORM — CRM LEAD CAPTURE ───────────────────────────────────────
-// Called by book.html before showing the Calendly step.
-// Sends the booking form fields to the CRM with the required API key.
-// Never blocks the user — callback fires regardless of success or failure.
-var CRM_API_KEY = 'prosperity-crm-2025';
-
+/**
+ * Send a booking form lead to the CRM, then call callback().
+ * Used by book.html immediately before showing the Calendly step.
+ * All fields collected through the multi-step form are passed through.
+ * Callback always fires — user is never blocked by a CRM failure.
+ *
+ * @param {Object}   data     - booking form fields
+ * @param {Function} callback - called after request settles
+ */
 function sendBookingLead(data, callback) {
-  var payload = {
-    first_name:  data.first_name  || '',
-    last_name:   data.last_name   || '',
-    email:       data.email       || '',
-    phone:       data.phone       || '',
-    lead_type:   data.lead_type   || 'retirement',
-    topic:       data.topic       || '',
+  var payload = Object.assign({
     lead_source: window.location.href,
     created_at:  new Date().toISOString(),
-  };
+  }, data);
+
+  console.log('[CRM] Sending booking lead...', payload);
 
   var done = false;
   function proceed() { if (!done) { done = true; callback(); } }
@@ -60,13 +82,18 @@ function sendBookingLead(data, callback) {
     body: JSON.stringify(payload),
   })
     .then(function(res) {
-      if (!res.ok) {
-        console.error('CRM lead save failed — status:', res.status);
+      return res.json().then(function(body) { return { ok: res.ok, status: res.status, body: body }; });
+    })
+    .then(function(r) {
+      if (r.ok) {
+        console.log('[CRM] Booking lead saved successfully:', r.body);
+      } else {
+        console.error('[CRM] Booking lead save failed (' + r.status + '):', r.body);
       }
       proceed();
     })
     .catch(function(err) {
-      console.error('CRM lead save failed —', err);
+      console.error('[CRM] Booking lead save error (network):', err);
       proceed();
     });
 }

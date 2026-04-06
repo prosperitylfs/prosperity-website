@@ -142,19 +142,6 @@
               <input id="lead-email" name="email" placeholder="Email address" type="email" required autocomplete="email" data-email-err="lead-email-err" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
               <p class="form-error-message" id="lead-email-err" style="display:none;"></p>
             </div>
-            <div class="form-group">
-              <label for="lead-interest" class="form-label" style="text-transform:none;">What would you like to discuss with Loretta?</label>
-              <select id="lead-interest" name="interest" required>
-                <option value="" disabled selected>Choose a topic</option>
-                <option>Retirement income planning</option>
-                <option>Retirement account rollover (401(k), 403(b), TSP, etc.)</option>
-                <option>Roth IRA conversion strategies</option>
-                <option>Current retirement strategy review</option>
-                <option>CD or savings alternatives</option>
-                <option>Life insurance with living benefits</option>
-                <option>Not sure — I have questions</option>
-              </select>
-            </div>
             <div class="form-consent">
               <label class="sms-consent">
                 <input type="checkbox" id="lead-sms-consent" required>
@@ -541,10 +528,9 @@
         const lastName     = document.getElementById('lead-last-name');
         const phone        = document.getElementById('lead-phone');
         const email        = document.getElementById('lead-email');
-        const interest     = document.getElementById('lead-interest');
         const consentBox   = document.getElementById('lead-sms-consent');
         const consentError = document.getElementById('lead-consent-error');
-        const fields       = [firstName, lastName, phone, email, interest];
+        const fields       = [firstName, lastName, phone, email];
 
         // Validate required text/select fields
         let valid = true;
@@ -587,7 +573,6 @@
           last_name:  lastName.value.trim(),
           phone:      e164Phone,
           email:      email.value.trim(),
-          topic:      interest.value
         });
         window.location.href = 'book.html?' + params.toString();
       });

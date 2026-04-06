@@ -829,9 +829,21 @@
 
     // Step sequences per track
     const TRACK_STEPS = {
-      retirement:      [1, 2, 3, 4, 5, 7],
-      'life-insurance': [1, 2, 6, 7]
+      retirement:       [1, 2, 3, 4, 5, 7],      // retirement/savings only
+      'life-insurance': [1, 2, 6, 7],             // insurance/protection only
+      combined:         [1, 2, 3, 4, 5, 6, 7],   // retirement + insurance both selected
     };
+
+    // Derive track from an array of selected topic values.
+    // hasLI  = at least one LI/protection topic selected
+    // hasNonLI = at least one non-LI topic selected (retirement, "Not sure yet", etc.)
+    function resolveTrack(selected) {
+      const hasLI    = selected.some(t => LI_TOPICS.includes(t));
+      const hasNonLI = selected.some(t => !LI_TOPICS.includes(t));
+      if (hasLI && hasNonLI) return 'combined';
+      if (hasLI)             return 'life-insurance';
+      return 'retirement';
+    }
 
     let currentTrack = 'retirement'; // set after Step 2
 
@@ -900,9 +912,7 @@
         // Sync hidden field and track
         var selected = Array.from(document.querySelectorAll('#step-2 .topic-checkbox:checked')).map(cb => cb.value);
         document.getElementById('val-topic').value = selected.join(', ');
-        // LI track only when user selected EXCLUSIVELY LI/protection topics.
-        // Any retirement/savings topic in the mix → retirement track (shows amount question).
-        currentTrack = selected.every(t => LI_TOPICS.includes(t)) ? 'life-insurance' : 'retirement';
+        currentTrack = resolveTrack(selected);
       }
     })();
 
@@ -939,9 +949,7 @@
         const selected = Array.from(document.querySelectorAll('#step-2 .topic-checkbox:checked')).map(cb => cb.value);
         if (selected.length === 0) { showErr('Please select at least one option to continue.'); return false; }
         document.getElementById('val-topic').value = selected.join(', ');
-        // LI track only when user selected EXCLUSIVELY LI/protection topics.
-        // Any retirement/savings topic in the mix → retirement track (shows amount question).
-        currentTrack = selected.every(t => LI_TOPICS.includes(t)) ? 'life-insurance' : 'retirement';
+        currentTrack = resolveTrack(selected);
         clearErr(); return true;
       }
 
@@ -1003,7 +1011,7 @@
         last_name:  getVal('f-last-name'),
         email:      getVal('f-email'),
         phone:      getVal('f-phone'),
-        lead_type:  currentTrack === 'life-insurance' ? 'life_insurance' : 'retirement',
+        lead_type:  currentTrack === 'life-insurance' ? 'life_insurance' : currentTrack === 'combined' ? 'retirement' : 'retirement',
         topic:      getVal('val-topic'),
       }, callback);
     }

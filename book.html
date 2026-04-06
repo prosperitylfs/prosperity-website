@@ -633,11 +633,12 @@
             <!-- ── STEP 6: Health & Quote Details ── -->
             <div class="form-step" id="step-6" style="display:none;">
 
-              <span class="step-section-label">Coverage Details</span>
+              <span class="step-section-label">Life Insurance Coverage Details</span>
 
               <!-- Q0: Monthly Budget -->
               <div class="step-question" style="padding-top:0;border-top:none;margin-top:0;">
-                <p class="step-heading">What monthly budget are you comfortable with?</p>
+                <p class="step-heading">What monthly budget are you comfortable investing in life insurance coverage?</p>
+                <p class="step-sub" style="margin-bottom:14px;">This helps us estimate the amount of life insurance coverage you may qualify for.</p>
                 <div class="survey-choices" id="choices-budget">
                   <button type="button" class="survey-btn" data-group="budget" data-value="Under $50/month" onclick="selectSurveyBtn(this,'budget')">Under $50/month</button>
                   <button type="button" class="survey-btn" data-group="budget" data-value="$50–$100/month" onclick="selectSurveyBtn(this,'budget')">$50 &ndash; $100/month</button>
@@ -990,7 +991,7 @@
         const heightIn = document.getElementById('f-height-in').value;
         const weight   = document.getElementById('f-weight').value.trim();
         const health   = document.getElementById('val-health').value;
-        if (!budget)         { showErr('Please answer: What monthly budget are you comfortable with?'); return false; }
+        if (!budget)         { showErr('Please answer: What monthly budget are you comfortable investing in life insurance coverage?'); return false; }
         if (!tobacco)        { showErr('Please answer: Do you use tobacco products?'); return false; }
         if (!heightFt)       { showErr('Please select your height (feet).'); return false; }
         if (heightIn === '') { showErr('Please select your height (inches).'); return false; }

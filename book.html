@@ -900,7 +900,9 @@
         // Sync hidden field and track
         var selected = Array.from(document.querySelectorAll('#step-2 .topic-checkbox:checked')).map(cb => cb.value);
         document.getElementById('val-topic').value = selected.join(', ');
-        currentTrack = selected.some(t => LI_TOPICS.includes(t)) ? 'life-insurance' : 'retirement';
+        // LI track only when user selected EXCLUSIVELY LI/protection topics.
+        // Any retirement/savings topic in the mix → retirement track (shows amount question).
+        currentTrack = selected.every(t => LI_TOPICS.includes(t)) ? 'life-insurance' : 'retirement';
       }
     })();
 
@@ -937,7 +939,9 @@
         const selected = Array.from(document.querySelectorAll('#step-2 .topic-checkbox:checked')).map(cb => cb.value);
         if (selected.length === 0) { showErr('Please select at least one option to continue.'); return false; }
         document.getElementById('val-topic').value = selected.join(', ');
-        currentTrack = selected.some(t => LI_TOPICS.includes(t)) ? 'life-insurance' : 'retirement';
+        // LI track only when user selected EXCLUSIVELY LI/protection topics.
+        // Any retirement/savings topic in the mix → retirement track (shows amount question).
+        currentTrack = selected.every(t => LI_TOPICS.includes(t)) ? 'life-insurance' : 'retirement';
         clearErr(); return true;
       }
 

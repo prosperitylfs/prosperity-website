@@ -825,11 +825,33 @@
       return true;
     }
 
+    // ── Collect booking form fields and send to CRM before showing Calendly ──
+    // Actual POST logic (with x-api-key header) lives in assets/js/main.js → sendBookingLead()
+    function postBookingLeadToCRM(callback) {
+      function getVal(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+      window.sendBookingLead({
+        first_name: getVal('f-first-name'),
+        last_name:  getVal('f-last-name'),
+        email:      getVal('f-email'),
+        phone:      getVal('f-phone'),
+        lead_type:  currentTrack === 'life-insurance' ? 'life_insurance' : 'retirement',
+        topic:      getVal('val-topic'),
+      }, callback);
+    }
+
     function nextStep(currentStepId) {
       if (!validateStep(currentStepId)) return;
       const steps = getSteps();
       const pos   = steps.indexOf(currentStepId);
-      if (pos < steps.length - 1) showStep(steps[pos + 1]);
+      if (pos < steps.length - 1) {
+        const nextStepId = steps[pos + 1];
+        if (nextStepId === 7) {
+          // Save lead to CRM first, then reveal the Calendly step
+          postBookingLeadToCRM(function() { showStep(7); });
+        } else {
+          showStep(nextStepId);
+        }
+      }
     }
 
     function prevStep(currentStepId) {

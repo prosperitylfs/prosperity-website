@@ -161,6 +161,55 @@
       color: var(--purple-dark, #3a1f70);
       font-weight: 600;
     }
+
+    /* ── Multi-step progress bar ── */
+    .li-step-header { margin-bottom: 20px; }
+    .li-step-bar {
+      height: 6px;
+      background: #e0d9f0;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .li-step-bar-fill {
+      height: 100%;
+      width: 50%;
+      background: var(--purple, #4e2c94);
+      border-radius: 3px;
+      transition: width 0.35s ease;
+    }
+    .li-step-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--purple, #4e2c94);
+      margin: 0;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── SMS consent ── */
+    .li-sms-consent-wrap {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.8rem;
+      line-height: 1.55;
+      color: #555;
+      cursor: pointer;
+      margin-top: 16px;
+      margin-bottom: 20px;
+    }
+    .li-sms-consent-wrap input[type="checkbox"] {
+      appearance: checkbox;
+      -webkit-appearance: checkbox;
+      width: 15px;
+      min-width: 15px;
+      height: 15px;
+      margin-top: 2px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .li-sms-consent-wrap span { display: inline; }
+    .li-sms-consent-wrap a { color: var(--purple, #4e2c94); text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -413,96 +462,117 @@
         <div class="content-section" id="life-insurance-form">
           <h2>Schedule Your Free Life Insurance Consultation</h2>
           <p style="margin-bottom:24px;">Fill out the form below and we&rsquo;ll be in touch to confirm your free, no-obligation review.</p>
+
+          <!-- Step progress indicator -->
+          <div class="li-step-header" aria-live="polite">
+            <div class="li-step-bar"><div class="li-step-bar-fill" id="li-bar-fill"></div></div>
+            <p class="li-step-label" id="li-step-label">Step 1 of 2 &mdash; Your Contact Info</p>
+          </div>
+
           <form class="book-form" novalidate onsubmit="handleLifeInsuranceForm(event)">
 
-            <div style="display:flex; gap:16px; flex-wrap:wrap;">
-              <div class="form-group" style="flex:1; min-width:140px;">
-                <label class="form-label" for="li-f-fname">First Name <span style="color:#c0392b;">*</span></label>
-                <input type="text" id="li-f-fname" name="first_name" placeholder="Jane" required>
+            <!-- ══ STEP 1: Contact Info + SMS Consent ══ -->
+            <div id="li-step-1">
+
+              <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                <div class="form-group" style="flex:1; min-width:140px;">
+                  <label class="form-label" for="li-f-fname">First Name <span style="color:#c0392b;">*</span></label>
+                  <input type="text" id="li-f-fname" name="first_name" placeholder="Jane" autocomplete="given-name">
+                </div>
+                <div class="form-group" style="flex:1; min-width:140px;">
+                  <label class="form-label" for="li-f-lname">Last Name <span style="color:#c0392b;">*</span></label>
+                  <input type="text" id="li-f-lname" name="last_name" placeholder="Smith" autocomplete="family-name">
+                </div>
               </div>
-              <div class="form-group" style="flex:1; min-width:140px;">
-                <label class="form-label" for="li-f-lname">Last Name <span style="color:#c0392b;">*</span></label>
-                <input type="text" id="li-f-lname" name="last_name" placeholder="Smith" required>
+
+              <div class="form-group">
+                <label class="form-label" for="li-f-phone">Phone Number <span style="color:#c0392b;">*</span></label>
+                <input type="tel" id="li-f-phone" name="phone" placeholder="(414) 555-0100" autocomplete="tel">
               </div>
-            </div>
 
-            <div class="form-group">
-              <label class="form-label" for="li-f-phone">Phone Number <span style="color:#c0392b;">*</span></label>
-              <input type="tel" id="li-f-phone" name="phone" placeholder="(414) 555-0100" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="li-f-email">Email Address <span style="color:#c0392b;">*</span></label>
-              <input type="email" id="li-f-email" name="email" placeholder="jane@example.com" required autocomplete="email" data-email-err="li-email-err" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
-              <p class="form-error-message" id="li-email-err" style="display:none;"></p>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="li-f-interest">What type of coverage are you interested in? <span style="color:#c0392b;">*</span></label>
-              <select id="li-f-interest" name="coverage_interest" required>
-                <option value="">Select an option&hellip;</option>
-                <option>Term Life Insurance</option>
-                <option>Whole Life Insurance</option>
-                <option>Final Expense Insurance</option>
-                <option>Life Insurance with Living Benefits</option>
-                <option>Not sure &mdash; I&rsquo;d like guidance</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="li-f-amount">Approximate coverage amount desired <span style="color:#c0392b;">*</span></label>
-              <select id="li-f-amount" name="coverage_amount" required>
-                <option value="">Select a range&hellip;</option>
-                <option>Under $50,000</option>
-                <option>$50,000 &ndash; $100,000</option>
-                <option>$100,000 &ndash; $250,000</option>
-                <option>$250,000 &ndash; $500,000</option>
-                <option>$500,000 &ndash; $1,000,000</option>
-                <option>Over $1,000,000</option>
-                <option>Not sure</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="li-f-budget">Monthly budget range <span style="color:#c0392b;">*</span></label>
-              <select id="li-f-budget" name="monthly_budget" required>
-                <option value="">Select a range&hellip;</option>
-                <option>Under $50/month</option>
-                <option>$50 &ndash; $100/month</option>
-                <option>$100 &ndash; $200/month</option>
-                <option>$200 &ndash; $300/month</option>
-                <option>$300+/month</option>
-                <option>Not sure yet</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Any major health concerns or recent diagnoses? <span style="color:#c0392b;">*</span></label>
-              <div class="li-option-group" id="li-health-group">
-                <label class="li-option-label"><input type="radio" name="li_health" value="No"><span>No</span></label>
-                <label class="li-option-label"><input type="radio" name="li_health" value="Yes"><span>Yes</span></label>
-                <label class="li-option-label"><input type="radio" name="li_health" value="Prefer to discuss privately"><span>Prefer to discuss privately</span></label>
+              <div class="form-group">
+                <label class="form-label" for="li-f-email">Email Address <span style="color:#c0392b;">*</span></label>
+                <input type="email" id="li-f-email" name="email" placeholder="jane@example.com" autocomplete="email" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
+                <p class="form-error-message" id="li-email-err" style="display:none;"></p>
               </div>
-            </div>
 
-            <div class="form-group">
-              <label class="form-label">Do you currently have life insurance? <span style="color:#c0392b;">*</span></label>
-              <div class="li-option-group" id="li-existing-group">
-                <label class="li-option-label"><input type="radio" name="li_existing" value="No"><span>No</span></label>
-                <label class="li-option-label"><input type="radio" name="li_existing" value="Yes"><span>Yes</span></label>
-                <label class="li-option-label"><input type="radio" name="li_existing" value="Not sure"><span>Not sure</span></label>
-              </div>
-            </div>
-
-            <div class="form-consent" style="margin-top:16px;">
-              <label class="sms-consent">
-                <input type="checkbox" id="li-sms-consent" name="sms_consent" required>
+              <label class="li-sms-consent-wrap">
+                <input type="checkbox" id="li-sms-consent" name="sms_consent">
                 <span>By checking this box, you expressly consent to receive SMS messages from Prosperity Life &amp; Financial Solutions LLC regarding your inquiry about life insurance, retirement planning, appointment scheduling, and follow-up support. Message frequency varies based on your interaction. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not a condition of purchase. View our <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="terms.html" target="_blank">Terms &amp; Conditions</a>.</span>
               </label>
-            </div>
-            <div style="margin-top:20px;">
-              <button type="submit" class="btn btn-amber btn-full">Request My Free Consultation &rarr;</button>
-            </div>
-            <p id="li-form-error" style="color:#c0392b; font-size:0.85rem; margin-top:10px; display:none;"></p>
+
+              <button type="button" class="btn btn-amber btn-full" onclick="liNextStep()">Next: Coverage Details &rarr;</button>
+              <p id="li-err-1" style="color:#c0392b; font-size:0.85rem; margin-top:10px; display:none;"></p>
+
+            </div><!-- /step-1 -->
+
+            <!-- ══ STEP 2: Coverage Questions ══ -->
+            <div id="li-step-2" style="display:none;">
+
+              <div class="form-group">
+                <label class="form-label" for="li-f-interest">What type of coverage are you interested in? <span style="color:#c0392b;">*</span></label>
+                <select id="li-f-interest" name="coverage_interest">
+                  <option value="">Select an option&hellip;</option>
+                  <option>Term Life Insurance</option>
+                  <option>Whole Life Insurance</option>
+                  <option>Final Expense Insurance</option>
+                  <option>Life Insurance with Living Benefits</option>
+                  <option>Not sure &mdash; I&rsquo;d like guidance</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="li-f-amount">Approximate coverage amount desired <span style="color:#c0392b;">*</span></label>
+                <select id="li-f-amount" name="coverage_amount">
+                  <option value="">Select a range&hellip;</option>
+                  <option>Under $50,000</option>
+                  <option>$50,000 &ndash; $100,000</option>
+                  <option>$100,000 &ndash; $250,000</option>
+                  <option>$250,000 &ndash; $500,000</option>
+                  <option>$500,000 &ndash; $1,000,000</option>
+                  <option>Over $1,000,000</option>
+                  <option>Not sure</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="li-f-budget">Monthly budget range <span style="color:#c0392b;">*</span></label>
+                <select id="li-f-budget" name="monthly_budget">
+                  <option value="">Select a range&hellip;</option>
+                  <option>Under $50/month</option>
+                  <option>$50 &ndash; $100/month</option>
+                  <option>$100 &ndash; $200/month</option>
+                  <option>$200 &ndash; $300/month</option>
+                  <option>$300+/month</option>
+                  <option>Not sure yet</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Any major health concerns or recent diagnoses? <span style="color:#c0392b;">*</span></label>
+                <div class="li-option-group" id="li-health-group">
+                  <label class="li-option-label"><input type="radio" name="li_health" value="No"><span>No</span></label>
+                  <label class="li-option-label"><input type="radio" name="li_health" value="Yes"><span>Yes</span></label>
+                  <label class="li-option-label"><input type="radio" name="li_health" value="Prefer to discuss privately"><span>Prefer to discuss privately</span></label>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Do you currently have life insurance? <span style="color:#c0392b;">*</span></label>
+                <div class="li-option-group" id="li-existing-group">
+                  <label class="li-option-label"><input type="radio" name="li_existing" value="No"><span>No</span></label>
+                  <label class="li-option-label"><input type="radio" name="li_existing" value="Yes"><span>Yes</span></label>
+                  <label class="li-option-label"><input type="radio" name="li_existing" value="Not sure"><span>Not sure</span></label>
+                </div>
+              </div>
+
+              <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; align-items:center;">
+                <button type="button" class="btn btn-primary" onclick="liPrevStep()" style="flex:0 0 auto;">&larr; Back</button>
+                <button type="submit" class="btn btn-amber" style="flex:1;">Request My Free Consultation &rarr;</button>
+              </div>
+              <p id="li-form-error" style="color:#c0392b; font-size:0.85rem; margin-top:10px; display:none;"></p>
+
+            </div><!-- /step-2 -->
 
           </form>
         </div>
@@ -567,6 +637,53 @@
 
   <script src="assets/js/main.js"></script>
   <script>
+    // ── Step 1 → Step 2 ──
+    function liNextStep() {
+      var firstName = document.getElementById('li-f-fname').value.trim();
+      var lastName  = document.getElementById('li-f-lname').value.trim();
+      var phone     = document.getElementById('li-f-phone').value.trim();
+      var email     = document.getElementById('li-f-email').value.trim();
+      var consent   = document.getElementById('li-sms-consent').checked;
+      var errEl     = document.getElementById('li-err-1');
+      var emailErr  = document.getElementById('li-email-err');
+
+      function showErr(msg) { errEl.textContent = msg; errEl.style.display = 'block'; errEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+      errEl.style.display = 'none';
+      emailErr.style.display = 'none';
+
+      if (!firstName || !lastName) { showErr('Please enter your first and last name.'); return; }
+      if (!phone) { showErr('Please enter your phone number.'); return; }
+      var e164Phone = toE164(phone);
+      if (!e164Phone) { showErr('Please enter a valid 10-digit US phone number (e.g. 414-441-1177).'); document.getElementById('li-f-phone').focus(); return; }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        emailErr.textContent = 'Please enter a valid email address.';
+        emailErr.style.display = 'block';
+        document.getElementById('li-f-email').focus();
+        return;
+      }
+      if (!consent) { showErr('Please check the SMS consent box to continue.'); return; }
+
+      // Normalize phone value for step 2 submission
+      document.getElementById('li-f-phone').value = e164Phone;
+
+      // Show step 2
+      document.getElementById('li-step-1').style.display = 'none';
+      document.getElementById('li-step-2').style.display = 'block';
+      document.getElementById('li-bar-fill').style.width = '100%';
+      document.getElementById('li-step-label').innerHTML = 'Step 2 of 2 \u2014 Coverage Details';
+      document.getElementById('life-insurance-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ── Step 2 → Step 1 ──
+    function liPrevStep() {
+      document.getElementById('li-step-2').style.display = 'none';
+      document.getElementById('li-step-1').style.display = 'block';
+      document.getElementById('li-bar-fill').style.width = '50%';
+      document.getElementById('li-step-label').innerHTML = 'Step 1 of 2 \u2014 Your Contact Info';
+      document.getElementById('life-insurance-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ── Step 2 submit → redirect to qualifier ──
     function handleLifeInsuranceForm(e) {
       e.preventDefault();
       var firstName = document.getElementById('li-f-fname').value.trim();
@@ -578,43 +695,28 @@
       var budget    = document.getElementById('li-f-budget').value;
       var health    = document.querySelector('input[name="li_health"]:checked');
       var existing  = document.querySelector('input[name="li_existing"]:checked');
-      var consent   = document.getElementById('li-sms-consent').checked;
       var errEl     = document.getElementById('li-form-error');
 
       function showErr(msg) { errEl.textContent = msg; errEl.style.display = 'block'; errEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
 
-      if (!firstName || !lastName)  { showErr('Please enter your first and last name.'); return; }
-      if (!phone)                   { showErr('Please enter your phone number.'); return; }
-      var e164Phone = toE164(phone);
-      if (!e164Phone)               { showErr('Please enter a valid 10-digit US phone number (e.g. 414-441-1177).'); document.getElementById('li-f-phone').focus(); return; }
-      var emailErr = document.getElementById('li-email-err');
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        emailErr.textContent = 'Please enter a valid email address.';
-        emailErr.style.display = 'block';
-        document.getElementById('li-f-email').focus();
-        return;
-      }
-      emailErr.style.display = 'none';
-      if (!interest)  { showErr('Please select a coverage type.'); return; }
-      if (!amount)    { showErr('Please select an approximate coverage amount.'); return; }
-      if (!budget)    { showErr('Please select a monthly budget range.'); return; }
-      if (!health)    { showErr('Please answer the health question.'); return; }
-      if (!existing)  { showErr('Please indicate whether you currently have life insurance.'); return; }
-      if (!consent)   { showErr('Please agree to the Terms & Conditions to continue.'); return; }
+      if (!interest) { showErr('Please select a coverage type.'); return; }
+      if (!amount)   { showErr('Please select an approximate coverage amount.'); return; }
+      if (!budget)   { showErr('Please select a monthly budget range.'); return; }
+      if (!health)   { showErr('Please answer the health question.'); return; }
+      if (!existing) { showErr('Please indicate whether you currently have life insurance.'); return; }
 
       errEl.style.display = 'none';
 
-      // Advance to the Life Insurance qualifying form
       var params = new URLSearchParams({
-        first_name:       firstName,
-        last_name:        lastName,
-        phone:            e164Phone,
-        email:            email,
-        coverage_type:    interest,
-        coverage_amount:  amount,
-        monthly_budget:   budget,
-        health_concerns:  health.value,
-        has_coverage:     existing.value
+        first_name:      firstName,
+        last_name:       lastName,
+        phone:           phone,
+        email:           email,
+        coverage_type:   interest,
+        coverage_amount: amount,
+        monthly_budget:  budget,
+        health_concerns: health.value,
+        has_coverage:    existing.value
       });
       window.location.href = 'life-insurance-qualifier.html?' + params.toString();
     }

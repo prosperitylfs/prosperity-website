@@ -632,14 +632,14 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 .hero-inner {
   position: relative;
-  max-width: 1280px;
+  max-width: 900px;
   margin-left: auto;
   margin-right: auto;
   padding: 0 40px;
-  display: grid;
-  grid-template-columns: 1fr 420px;
-  gap: 60px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  text-align: center;
 }
 
 .hero-content { min-width: 0; }
@@ -747,6 +747,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 28px;
+  justify-content: center;
 }
 
 .hero-trust {
@@ -756,6 +757,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   font-size: 1.13rem;
   font-weight: 500;
   color: #ffffff;
+  justify-content: center;
 }
 
 .hero-trust span {
@@ -764,11 +766,9 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   gap: 6px;
 }
 
-/* Hero form */
+/* Hero form (removed — kept as no-op for compat) */
 .hero-form-wrap {
-  width: 100%;
-  max-width: 420px;
-  justify-self: end;
+  display: none;
 }
 
 .lead-form {
@@ -1092,7 +1092,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   font-size: 16px;
   color: #ffffff;
   line-height: 1.6;
-  text-align: left;
+  text-align: center;
 }
 .hero-states-label {
   font-weight: 600;
@@ -2264,8 +2264,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     margin-right: 0 !important;
   }
 
-  .hero-inner     { grid-template-columns: 1fr; gap: 36px; padding: 0 24px; }
-  .hero-form-wrap { justify-self: center; width: 100%; max-width: 460px; margin-left: auto; margin-right: auto; }
+  .hero-inner     { padding: 0 24px; }
   .hero-lead      { max-width: none; }
 
   .why-inner   { flex-direction: column; gap: 40px; }
@@ -2475,58 +2474,6 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   }
   .homepage .hero-content {
     padding-bottom: 10px !important;
-  }
-
-  /* ── 1. CONSULTATION FORM SECTION ──────────────────────────────
-     .hero-form-wrap  = transparent grid column wrapping the white card
-     .lead-form / #lead = the white card itself
-     960px rule sets: max-width:460px; justify-self:center — clear both */
-  .homepage .hero-form-wrap {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-    justify-self: unset !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-  }
-  .homepage .lead-form,
-  .homepage #lead {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    padding: 16px !important;
-    box-sizing: border-box !important;
-  }
-  .homepage .lead-form input,
-  .homepage .lead-form select,
-  .homepage .lead-form textarea,
-  .homepage .lead-form button,
-  .homepage #lead input,
-  .homepage #lead select,
-  .homepage #lead textarea,
-  .homepage #lead button {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
-  /* Submit button — .btn base has white-space:nowrap & line-height:1 which clips text on mobile */
-  .homepage #lead button[type="button"],
-  .homepage #lead-continue {
-    display: block !important;
-    white-space: normal !important;
-    word-break: keep-all !important;
-    overflow-wrap: break-word !important;
-    line-height: 1.25 !important;
-    font-size: 0.93rem !important;
-    padding: 14px 16px !important;
-    text-align: center !important;
-    margin-top: 4px !important;
-  }
-  /* First/last name row — stacks to single column on mobile */
-  .homepage .name-row {
-    flex-direction: column !important;
   }
 
   /* ── 2. CTA BUTTON SECTION ─────────────────────────────────────

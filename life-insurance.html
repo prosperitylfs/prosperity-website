@@ -466,7 +466,7 @@
           <!-- Step progress indicator -->
           <div class="li-step-header" aria-live="polite">
             <div class="li-step-bar"><div class="li-step-bar-fill" id="li-bar-fill"></div></div>
-            <p class="li-step-label" id="li-step-label">Step 1 of 2 &mdash; Your Contact Info</p>
+            <p class="li-step-label" id="li-step-label">Step 1 of 3 &mdash; Your Contact Info</p>
           </div>
 
           <form class="book-form" novalidate onsubmit="handleLifeInsuranceForm(event)">
@@ -568,11 +568,28 @@
 
               <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; align-items:center;">
                 <button type="button" class="btn btn-primary" onclick="liPrevStep()" style="flex:0 0 auto;">&larr; Back</button>
-                <button type="submit" class="btn btn-amber" style="flex:1;">Request My Free Consultation &rarr;</button>
+                <button type="submit" class="btn btn-amber" style="flex:1;">Schedule My Free Consultation &rarr;</button>
               </div>
               <p id="li-form-error" style="color:#c0392b; font-size:0.85rem; margin-top:10px; display:none;"></p>
 
             </div><!-- /step-2 -->
+
+            <!-- ══ STEP 3: Calendly Booking ══ -->
+            <div id="li-step-3" style="display:none;">
+              <p style="font-weight:600; color:var(--purple-dark,#3a1f70); margin-bottom:6px;">Almost done &mdash; pick a time that works for you</p>
+              <p style="font-size:0.88rem; color:#666; margin-bottom:20px;">Choose an available slot below. The call is free and there&rsquo;s no obligation.</p>
+              <div style="width:100%; max-width:100%;">
+                <div class="calendly-inline-widget"
+                     data-url="https://calendly.com/loretta-prosperitylfs/30min"
+                     style="min-width:320px;height:750px;">
+                </div>
+              </div>
+              <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async></script>
+              <div style="margin-top:16px;">
+                <button type="button" class="btn btn-primary" onclick="liPrevStep()" style="width:100%;">&larr; Back</button>
+              </div>
+              <p style="margin-top:12px; font-size:0.82rem; color:#888; text-align:center;">No cost. No obligation. No pressure.</p>
+            </div><!-- /step-3 -->
 
           </form>
         </div>
@@ -583,7 +600,7 @@
         <div class="sidebar-cta">
           <h3>Free Life Insurance Review</h3>
           <p>Find out whether your current coverage still fits &mdash; or explore new options that better protect your family and legacy.</p>
-          <a class="btn btn-primary" href="life-insurance-qualifier.html">Get a Free Coverage Review</a>
+          <a class="btn btn-primary" href="#life-insurance-form">Get a Free Coverage Review</a>
           <ul class="sidebar-links">
             <li><a href="retirement-planning.html">Retirement Planning</a></li>
             <li><a href="annuities.html">Annuities &amp; Safe Money</a></li>
@@ -669,21 +686,31 @@
       // Show step 2
       document.getElementById('li-step-1').style.display = 'none';
       document.getElementById('li-step-2').style.display = 'block';
-      document.getElementById('li-bar-fill').style.width = '100%';
-      document.getElementById('li-step-label').innerHTML = 'Step 2 of 2 \u2014 Coverage Details';
+      document.getElementById('li-bar-fill').style.width = '66.6%';
+      document.getElementById('li-step-label').innerHTML = 'Step 2 of 3 \u2014 Coverage Details';
       document.getElementById('life-insurance-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // ── Step 2 → Step 1 ──
+    // ── Step 2 → Step 1 (or Step 3 → Step 2) ──
     function liPrevStep() {
-      document.getElementById('li-step-2').style.display = 'none';
-      document.getElementById('li-step-1').style.display = 'block';
-      document.getElementById('li-bar-fill').style.width = '50%';
-      document.getElementById('li-step-label').innerHTML = 'Step 1 of 2 \u2014 Your Contact Info';
+      var s1 = document.getElementById('li-step-1');
+      var s2 = document.getElementById('li-step-2');
+      var s3 = document.getElementById('li-step-3');
+      if (s3 && s3.style.display !== 'none') {
+        s3.style.display = 'none';
+        s2.style.display = 'block';
+        document.getElementById('li-bar-fill').style.width = '66.6%';
+        document.getElementById('li-step-label').innerHTML = 'Step 2 of 3 \u2014 Coverage Details';
+      } else {
+        s2.style.display = 'none';
+        s1.style.display = 'block';
+        document.getElementById('li-bar-fill').style.width = '33.3%';
+        document.getElementById('li-step-label').innerHTML = 'Step 1 of 3 \u2014 Your Contact Info';
+      }
       document.getElementById('life-insurance-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // ── Step 2 submit → redirect to qualifier ──
+    // ── Step 2 submit → CRM → Calendly (Step 3) ──
     function handleLifeInsuranceForm(e) {
       e.preventDefault();
       var firstName = document.getElementById('li-f-fname').value.trim();
@@ -707,18 +734,27 @@
 
       errEl.style.display = 'none';
 
-      var params = new URLSearchParams({
-        first_name:      firstName,
-        last_name:       lastName,
-        phone:           phone,
-        email:           email,
-        coverage_type:   interest,
-        coverage_amount: amount,
-        monthly_budget:  budget,
-        health_concerns: health.value,
-        has_coverage:    existing.value
-      });
-      window.location.href = 'life-insurance-qualifier.html?' + params.toString();
+      // Send lead to CRM, then reveal Calendly
+      if (typeof window.postToCRM === 'function') {
+        window.postToCRM({
+          first_name:      firstName,
+          last_name:       lastName,
+          phone:           phone,
+          email:           email,
+          lead_type:       'Life Insurance Lead',
+          coverage_type:   interest,
+          coverage_amount: amount,
+          monthly_budget:  budget,
+          health_concerns: health.value,
+          has_coverage:    existing.value
+        });
+      }
+
+      document.getElementById('li-step-2').style.display = 'none';
+      document.getElementById('li-step-3').style.display = 'block';
+      document.getElementById('li-bar-fill').style.width = '100%';
+      document.getElementById('li-step-label').innerHTML = 'Step 3 of 3 \u2014 Schedule Your Call';
+      document.getElementById('life-insurance-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     // Radio highlight fallback for older browsers

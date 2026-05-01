@@ -479,62 +479,30 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 }
 
 /* ---------- Hero Video ---------- */
-/* Reusable responsive video wrapper — pairs with the padding-top ratio trick */
+/* Reusable responsive video wrapper */
 .video-wrapper {
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
 }
 
-.hero-video-wrap {
+/* Homepage hero video — aspect-ratio approach, no padding-bottom hack */
+.homepage-vimeo-video {
   width: 100%;
-  max-width: 900px;
-  margin: 2rem auto 0;
-  border-radius: 20px;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 12px 35px rgba(0,0,0,0.18);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+  margin-top: 40px;
+  margin-bottom: 40px;
   background: #000;
 }
 
-/* Responsive 16:9 video wrapper — padding-bottom trick for broad iOS/tablet compatibility */
-.homepage-vimeo-video {
-  position: relative;
-  width: 100%;
-  margin-top: 40px;
-  margin-bottom: 40px;
-  padding-bottom: 56.25%; /* 16:9 — % is of element's own width */
-  height: 0;
-  overflow: hidden;
-  border-radius: 14px;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.35);
-}
-
 .homepage-vimeo-video iframe {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
-  border: 0;
   display: block;
-}
-
-/* Desktop only: shift iframe up to clip Vimeo's title bar overlay */
-@media (min-width: 769px) {
-  .homepage-vimeo-video iframe {
-    top: -42px;
-    height: calc(100% + 42px);
-  }
-  .homepage-vimeo-video::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 42px;
-    z-index: 2;
-    pointer-events: none;
-  }
+  border: 0;
 }
 
 .hero-video-label {
@@ -606,12 +574,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 @media (max-width: 640px) {
   .hero-video-wrap {
-    width: 100%;
-    max-width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 18px;
-    margin-bottom: 24px;
+    padding: 0 16px;
   }
   .hero-video-label { text-align: center; }
 }
@@ -641,7 +604,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   text-align: center;
 }
 
-/* Hero video block — escapes container, full section width */
+/* Hero video block — no .container parent, expands to full section width */
 .hero-video-wrap {
   width: 100%;
   max-width: 1300px;
@@ -2568,24 +2531,18 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   }
 
   /* ── 4. VIMEO VIDEO (hero section) ─────────────────────────────
-     .homepage-vimeo-video = div wrapping the iframe inside .hero-content */
+     aspect-ratio approach — no padding-bottom hack needed */
   .homepage-vimeo-video {
-    position: relative !important;
     width: 100% !important;
     max-width: 100% !important;
-    min-width: 0 !important;
-    padding-bottom: 56.25% !important;
-    height: 0 !important;
-    overflow: hidden !important;
-    border-radius: 18px !important;
-    box-sizing: border-box !important;
+    aspect-ratio: 16 / 9 !important;
+    height: auto !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
+    margin-top: 20px !important;
+    margin-bottom: 20px !important;
   }
   .homepage-vimeo-video iframe {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
     width: 100% !important;
     height: 100% !important;
     display: block !important;

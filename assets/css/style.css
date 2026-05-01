@@ -500,7 +500,10 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 .homepage-vimeo-video {
   position: relative;
   width: 100%;
-  padding-bottom: 56.25%; /* 16:9 ratio */
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-bottom: 56.25%; /* 16:9 ratio — % is relative to element's own width, stays correct */
   height: 0;
   overflow: hidden;
   border-radius: 18px;
@@ -632,7 +635,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 .hero-inner {
   position: relative;
-  max-width: 900px;
+  max-width: 1140px;
   margin-left: auto;
   margin-right: auto;
   padding: 0 40px;

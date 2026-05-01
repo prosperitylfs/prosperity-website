@@ -122,37 +122,13 @@
           </div>
         </div>
         <div class="hero-form-wrap">
-          <form id="lead" class="lead-form" aria-label="Request a consultation" novalidate>
+          <div class="lead-form">
             <div class="form-header">
               <h3>Request Your Free Retirement Consultation</h3>
               <p>Talk with Loretta &mdash; no obligation.</p>
             </div>
-            <div class="name-row">
-              <div class="form-group">
-                <input id="lead-first-name" name="first_name" placeholder="First name" required>
-              </div>
-              <div class="form-group">
-                <input id="lead-last-name" name="last_name" placeholder="Last name" required>
-              </div>
-            </div>
-            <div class="form-group">
-              <input id="lead-phone" name="phone" placeholder="Phone number" required>
-            </div>
-            <div class="form-group">
-              <input id="lead-email" name="email" placeholder="Email address" type="email" required autocomplete="email" data-email-err="lead-email-err" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
-              <p class="form-error-message" id="lead-email-err" style="display:none;"></p>
-            </div>
-            <div class="form-consent">
-              <label class="sms-consent">
-                <input type="checkbox" id="lead-sms-consent" required>
-                <span>By checking this box, you expressly consent to receive SMS messages from Prosperity Life &amp; Financial Solutions LLC regarding your inquiry about life insurance, retirement planning, appointment scheduling, and follow-up support. Message frequency varies based on your interaction. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not a condition of purchase. View our <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="terms.html" target="_blank">Terms &amp; Conditions</a>.</span>
-              </label>
-              <p id="lead-consent-error" class="form-error-message" aria-live="polite" style="display:none;">Please check the SMS consent box before continuing.</p>
-            </div>
-            <button type="submit" class="btn btn-primary btn-full" id="lead-continue">Request My Free Retirement Consultation</button>
-            <p class="form-privacy">We respect your privacy. No spam, ever.</p>
-            <div id="lead-message" class="form-message" aria-live="polite"></div>
-          </form>
+            <a href="book.html" class="btn btn-primary btn-full">Schedule Your Free Consultation</a>
+          </div>
         </div>
       </div>
     </section>
@@ -518,63 +494,6 @@
       });
     }
 
-    // Hero lead form — validate then send to booking page
-    const continueBtn = document.getElementById('lead-continue');
-    if (continueBtn) {
-      continueBtn.addEventListener('click', function() {
-        const firstName    = document.getElementById('lead-first-name');
-        const lastName     = document.getElementById('lead-last-name');
-        const phone        = document.getElementById('lead-phone');
-        const email        = document.getElementById('lead-email');
-        const consentBox   = document.getElementById('lead-sms-consent');
-        const consentError = document.getElementById('lead-consent-error');
-        const fields       = [firstName, lastName, phone, email];
-
-        // Validate required text/select fields
-        let valid = true;
-        fields.forEach(function(el) {
-          const empty = el.value.trim() === '' || el.value === '';
-          el.style.borderColor = empty ? 'var(--red, #e53e3e)' : '';
-          if (empty) valid = false;
-        });
-        if (!valid) return;
-
-        // Validate email format with inline error
-        const emailErrEl = document.getElementById('lead-email-err');
-        if (!isValidEmail(email.value.trim())) {
-          if (emailErrEl) { emailErrEl.textContent = 'Please enter a valid email address.'; emailErrEl.style.display = 'block'; }
-          email.classList.add('input-error');
-          email.focus();
-          return;
-        }
-        if (emailErrEl) { emailErrEl.textContent = ''; emailErrEl.style.display = 'none'; }
-        email.classList.remove('input-error');
-
-        // Require SMS consent checkbox — block redirect if unchecked
-        if (!consentBox || !consentBox.checked) {
-          if (consentError) consentError.style.display = 'block';
-          if (consentBox) consentBox.focus();
-          return;
-        }
-        if (consentError) consentError.style.display = 'none';
-
-        // Normalize phone to E.164 before redirect
-        var e164Phone = toE164(phone.value.trim());
-        if (!e164Phone) {
-          phone.style.borderColor = 'var(--red, #e53e3e)';
-          phone.focus();
-          return;
-        }
-
-        const params = new URLSearchParams({
-          first_name: firstName.value.trim(),
-          last_name:  lastName.value.trim(),
-          phone:      e164Phone,
-          email:      email.value.trim(),
-        });
-        window.location.href = 'book.html?' + params.toString();
-      });
-    }
   </script>
   <script>
     function loadVideo(element) {

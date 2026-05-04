@@ -600,60 +600,88 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   pointer-events: none;
 }
 
-/* Single constrained container — the ONLY width control for hero content */
+/* Hero constrained container */
 .hero-container {
-  max-width: 1080px;
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
-  padding: 44px 24px;
+  padding: 56px 40px;
   box-sizing: border-box;
 }
 
-/* Headline block */
-.hero-text-wrap {
-  text-align: center;
-  margin-bottom: 28px;
-}
-
-/* Two-column grid: video left, form right */
+/* Two-column flex: left (text+video+CTA) | right (form) */
 .hero-two-col {
   display: flex;
   flex-wrap: nowrap;
-  gap: 28px;
-  align-items: center;
+  gap: 56px;
+  align-items: flex-start;
 }
 
-/* Left column: video */
-.hero-vid-col {
-  flex: 0 0 63%;
+/* Left column — headline, subheadline, video, CTA, trust */
+.hero-left-col {
+  flex: 0 0 60%;
   min-width: 0;
 }
 
-/* Video: 16:9 via padding-bottom — works reliably inside flex */
-.hero-two-col .homepage-vimeo-video {
+/* Left col: text left-aligned */
+.hero-left-col .hero-preheadline { margin-bottom: 16px; }
+
+.hero-left-col .hero-title {
+  font-size: clamp(2.2rem, 3.8vw, 3.2rem);
+  margin-bottom: 16px;
+  max-width: none;
+}
+
+.hero-left-col .hero-subtext {
+  margin-bottom: 20px;
+  max-width: none;
+}
+
+/* Video inside left col */
+.hero-left-col .homepage-vimeo-video {
   margin-top: 0;
   margin-bottom: 0;
   border-radius: 10px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.30);
 }
 
-/* Right column: form */
-.hero-form-col {
-  flex: 0 0 calc(37% - 28px);
+/* CTA button row under video */
+.hero-left-col .hero-ctas {
+  justify-content: flex-start;
+  margin-top: 20px;
+  margin-bottom: 16px;
+}
+
+/* Trust line and states: left-aligned */
+.hero-left-col .hero-trust {
+  justify-content: flex-start;
+  font-size: 1rem;
+  margin-bottom: 0;
+}
+
+.hero-left-col .hero-states {
+  text-align: left;
+  margin-top: 12px;
+  font-size: 15px;
+}
+
+/* Right column — guide form card */
+.hero-right-col {
+  flex: 1;
   min-width: 0;
-  width: 100%;
+  align-self: center;
 }
 
 /* White form card */
 .hero-guide-card {
   background: #ffffff;
   border-radius: 12px;
-  padding: 22px 18px;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.18);
+  padding: 28px 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.20);
 }
 
 .hero-guide-card-title {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: var(--purple-dark);
   margin-bottom: 6px;
@@ -661,55 +689,46 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 }
 
 .hero-guide-card-sub {
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   color: #555;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   line-height: 1.55;
 }
 
 .hero-guide-card .form-group,
-.hero-guide-card label {
-  margin-bottom: 4px;
-}
+.hero-guide-card label { margin-bottom: 4px; }
+.hero-guide-card input  { margin-bottom: 8px; }
+.hero-guide-card .form-consent { margin-top: 8px; margin-bottom: 12px; }
 
-.hero-guide-card input {
-  margin-bottom: 8px;
-}
-
-.hero-guide-card .form-consent {
-  margin-top: 8px;
-  margin-bottom: 12px;
-}
-
-/* Trust signals below the grid */
-.hero-cta-wrap {
-  text-align: center;
-  margin-top: 28px;
-}
-
-/* Hero video block (unused legacy wrapper — kept as no-op) */
+/* Hero video block (legacy — no-op) */
 .hero-video-wrap { display: none; }
+.hero-text-wrap  { display: none; }
+.hero-cta-wrap   { display: none; }
+.hero-vid-col    { display: none; }
+.hero-form-col   { display: none; }
 
-/* Guide copy centered when displayed alone */
-.guide-copy--centered {
-  max-width: 820px;
-  margin: 0 auto;
-}
+/* Guide copy centered when displayed alone (below hero) */
+.guide-copy--centered { max-width: 820px; margin: 0 auto; }
 
-/* Mobile: stack video then form */
+/* Mobile: single column */
 @media (max-width: 768px) {
   .hero-container {
-    padding: 32px 16px;
+    padding: 36px 16px;
   }
   .hero-two-col {
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
   }
-  .hero-vid-col,
-  .hero-form-col {
+  .hero-left-col,
+  .hero-right-col {
     flex: none;
     width: 100%;
   }
+  .hero-left-col .hero-ctas  { justify-content: center; }
+  .hero-left-col .hero-trust { justify-content: center; }
+  .hero-left-col .hero-states { text-align: center; }
+  .hero-left-col .hero-title,
+  .hero-left-col .hero-subtext { text-align: center; }
 }
 
 /* Advisor trust badge in hero */
@@ -2369,7 +2388,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   section { padding: 56px 0; }
   .section-header { margin-bottom: 36px; }
 
-  .hero { padding: 36px 16px 44px; }
+  .hero-container { padding: 36px 16px 44px; }
   .hero-title   { font-size: clamp(2rem, 8vw, 2.6rem); }
   .hero-subtext { font-size: 17px; }
 
@@ -2516,8 +2535,8 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     writing-mode: horizontal-tb !important;
   }
 
-  /* ── Hero video: inside the two-col flex, margins are zero (gap handles spacing) */
-  .hero-two-col .homepage-vimeo-video {
+  /* ── Hero video: inside left col, margins controlled by surrounding elements */
+  .hero-left-col .homepage-vimeo-video {
     margin-top: 0 !important;
     margin-bottom: 0 !important;
   }

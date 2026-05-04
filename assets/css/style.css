@@ -602,7 +602,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 /* Single constrained container — the ONLY width control for hero content */
 .hero-container {
-  max-width: 960px;
+  max-width: 1080px;
   width: 100%;
   margin: 0 auto;
   padding: 44px 24px;
@@ -625,7 +625,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 /* Left column: video */
 .hero-vid-col {
-  flex: 0 0 58%;
+  flex: 0 0 63%;
   min-width: 0;
 }
 
@@ -639,7 +639,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 /* Right column: form */
 .hero-form-col {
-  flex: 0 0 calc(42% - 28px);
+  flex: 0 0 calc(37% - 28px);
   min-width: 0;
   width: 100%;
 }

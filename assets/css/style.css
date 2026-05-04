@@ -582,7 +582,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 /* ---------- Hero ---------- */
 .hero {
   background: linear-gradient(135deg, #3a1f70, #4e2c94);
-  padding: 60px 20px;
+  padding: 40px 16px;
   position: relative;
   overflow: hidden;
 }
@@ -598,7 +598,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 /* Hero text block — readable width, centered */
 .hero-text-wrap {
-  max-width: 1100px;
+  max-width: 1024px;
   margin: 0 auto 25px;
   padding: 0;
   text-align: center;
@@ -615,7 +615,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 /* Hero CTA + trust block — centered, readable */
 .hero-cta-wrap {
-  max-width: 1100px;
+  max-width: 1024px;
   margin: 28px auto 0;
   padding: 0;
   text-align: center;
@@ -625,9 +625,9 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 .hero-two-col {
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
-  gap: 30px;
+  gap: 24px;
   align-items: center;
-  max-width: 1100px;
+  max-width: 1024px;
   margin: 0 auto;
   padding: 0;
   box-sizing: border-box;
@@ -635,6 +635,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 .hero-vid-col {
   min-width: 0;
+  max-width: 560px;
 }
 
 /* Video inside the grid: no standalone margins, controlled by grid gap */
@@ -647,7 +648,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 .hero-form-col {
   min-width: 0;
-  max-width: 420px;
+  max-width: 380px;
   justify-self: end;
   width: 100%;
 }
@@ -2365,7 +2366,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   section { padding: 56px 0; }
   .section-header { margin-bottom: 36px; }
 
-  .hero { padding: 44px 16px 52px; }
+  .hero { padding: 36px 16px 44px; }
   .hero-title   { font-size: clamp(2rem, 8vw, 2.6rem); }
   .hero-subtext { font-size: 17px; }
 

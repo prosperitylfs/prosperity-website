@@ -91,89 +91,82 @@
 
     <!-- ===== HERO ===== -->
     <section class="hero">
-      <!-- Single constrained container for all hero content -->
       <div class="hero-container">
+        <div class="hero-two-col">
 
-      <!-- Headline + subheadline -->
-      <div class="hero-text-wrap">
-        <p class="hero-preheadline">Safe Retirement &amp; Income Strategies</p>
-        <h1 class="hero-title">What Should You Do With<br>Your 401(k), 403(b), TSP, 457, or IRA?</h1>
-        <p class="hero-subtext">Discover strategies to protect your retirement savings, reduce market risk, and create reliable retirement income.</p>
-      </div>
+          <!-- Left column: headline, subheadline, video, CTA, trust -->
+          <div class="hero-left-col">
+            <p class="hero-preheadline">Safe Retirement &amp; Income Strategies</p>
+            <h1 class="hero-title">What Should You Do With<br>Your 401(k), 403(b), TSP, 457, or IRA?</h1>
+            <p class="hero-subtext">Discover strategies to protect your retirement savings, reduce market risk, and create reliable retirement income.</p>
 
-      <!-- Two-column: video (left) + guide form (right) -->
-      <div class="hero-two-col">
+            <div class="homepage-vimeo-video">
+              <iframe
+                src="https://player.vimeo.com/video/1177704985?h=990ecd9521&title=0&byline=0&portrait=0&badge=0&autopause=0&player_id=0&app_id=58479"
+                title="What Should You Do With Your Retirement Accounts"
+                frameborder="0"
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowfullscreen>
+              </iframe>
+            </div>
 
-        <!-- Left: Vimeo video -->
-        <div class="hero-vid-col">
-          <div class="homepage-vimeo-video">
-            <iframe
-              src="https://player.vimeo.com/video/1177704985?h=990ecd9521&title=0&byline=0&portrait=0&badge=0&autopause=0&player_id=0&app_id=58479"
-              title="What Should You Do With Your Retirement Accounts"
-              frameborder="0"
-              allow="autoplay; fullscreen; picture-in-picture"
-              allowfullscreen>
-            </iframe>
-          </div>
-        </div>
-
-        <!-- Right: guide opt-in form -->
-        <div class="hero-form-col">
-          <div class="hero-guide-card">
-            <h3 class="hero-guide-card-title">Get the Free 13 Mistakes Guide</h3>
-            <p class="hero-guide-card-sub">Enter your details below and get access to this quick guide to help you avoid common rollover mistakes.</p>
-            <form id="guide-form" class="book-form" novalidate>
-              <div class="form-row">
-                <div class="form-group half">
-                  <label for="first-name">First Name</label>
-                  <input id="first-name" type="text" name="fields[name]" placeholder="Your first name" required>
-                </div>
-                <div class="form-group half">
-                  <label for="last-name">Last Name</label>
-                  <input id="last-name" type="text" name="fields[last_name]" placeholder="Your last name" required>
-                </div>
-              </div>
-              <label for="email">Email Address</label>
-              <input id="email" type="email" name="fields[email]" placeholder="Your email address" required pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
-              <label for="guide-phone">Phone Number</label>
-              <input id="guide-phone" type="text" name="fields[phone]" placeholder="Best number to reach you" required>
-              <div class="form-consent">
-                <label class="consent-label" for="sms-consent">
-                  <input id="sms-consent" type="checkbox" required>
-                  <span class="consent-text">
-                    By checking this box, you expressly consent to receive SMS messages from Prosperity Life &amp; Financial Solutions LLC regarding your inquiry about life insurance, retirement planning, appointment scheduling, and follow-up support. Message frequency varies based on your interaction. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not a condition of purchase. View our <a href="privacy-policy.html">Privacy Policy</a> and <a href="terms-and-conditions.html">Terms &amp; Conditions</a>.
-                  </span>
-                </label>
-              </div>
-              <button type="submit" class="form-primary-btn">Send My Free Guide</button>
-              <p class="form-privacy">We respect your privacy. Your information will never be shared and you can unsubscribe anytime.</p>
-              <div id="guide-home-message" class="form-message" aria-live="polite"></div>
-            </form>
-            <!-- Thank-you state -->
-            <div id="guide-home-thankyou" style="display:none; text-align:center; padding:8px 0 4px;">
-              <div style="width:52px; height:52px; background:#e6f7ee; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:1.5rem; color:#1a7a4a;">&#10003;</div>
-              <h3 style="font-size:1.1rem; font-weight:700; color:var(--purple-dark); margin-bottom:8px;">Check your inbox!</h3>
-              <p style="font-size:0.9rem; color:var(--text); margin-bottom:20px; line-height:1.6;">Thank you! Your retirement guide has been sent to your email. If you don&rsquo;t see it in a few minutes, check your spam folder.</p>
-              <p style="font-size:0.78rem; color:var(--text); line-height:1.55;">Have questions? <a href="book.html" style="color:var(--purple); font-weight:600;">Schedule a free consultation.</a></p>
+            <div class="hero-ctas">
+              <a class="btn btn-amber btn-hero" href="book.html">Schedule Your Free Consultation (No Obligation)</a>
+            </div>
+            <div class="hero-trust">
+              <span>&#10003; No cost</span>
+              <span>&#10003; No obligation</span>
+              <span>&#10003; No pressure</span>
+            </div>
+            <div class="hero-states">
+              <span class="hero-states-label">Licensed Financial Professional Serving Clients In:</span><br>
+              Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina
             </div>
           </div>
-        </div>
 
-      </div><!-- /.hero-two-col -->
+          <!-- Right column: guide opt-in form -->
+          <div class="hero-right-col">
+            <div class="hero-guide-card">
+              <h3 class="hero-guide-card-title">Get the Free 13 Mistakes Guide</h3>
+              <p class="hero-guide-card-sub">Enter your details below and get access to this quick guide to help you avoid common rollover mistakes.</p>
+              <form id="guide-form" class="book-form" novalidate>
+                <div class="form-row">
+                  <div class="form-group half">
+                    <label for="first-name">First Name</label>
+                    <input id="first-name" type="text" name="fields[name]" placeholder="Your first name" required>
+                  </div>
+                  <div class="form-group half">
+                    <label for="last-name">Last Name</label>
+                    <input id="last-name" type="text" name="fields[last_name]" placeholder="Your last name" required>
+                  </div>
+                </div>
+                <label for="email">Email Address</label>
+                <input id="email" type="email" name="fields[email]" placeholder="Your email address" required pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
+                <label for="guide-phone">Phone Number</label>
+                <input id="guide-phone" type="text" name="fields[phone]" placeholder="Best number to reach you" required>
+                <div class="form-consent">
+                  <label class="consent-label" for="sms-consent">
+                    <input id="sms-consent" type="checkbox" required>
+                    <span class="consent-text">
+                      By checking this box, you expressly consent to receive SMS messages from Prosperity Life &amp; Financial Solutions LLC regarding your inquiry about life insurance, retirement planning, appointment scheduling, and follow-up support. Message frequency varies based on your interaction. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not a condition of purchase. View our <a href="privacy-policy.html">Privacy Policy</a> and <a href="terms-and-conditions.html">Terms &amp; Conditions</a>.
+                    </span>
+                  </label>
+                </div>
+                <button type="submit" class="form-primary-btn">Send My Free Guide</button>
+                <p class="form-privacy">We respect your privacy. Your information will never be shared and you can unsubscribe anytime.</p>
+                <div id="guide-home-message" class="form-message" aria-live="polite"></div>
+              </form>
+              <!-- Thank-you state -->
+              <div id="guide-home-thankyou" style="display:none; text-align:center; padding:8px 0 4px;">
+                <div style="width:52px; height:52px; background:#e6f7ee; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:1.5rem; color:#1a7a4a;">&#10003;</div>
+                <h3 style="font-size:1.1rem; font-weight:700; color:var(--purple-dark); margin-bottom:8px;">Check your inbox!</h3>
+                <p style="font-size:0.9rem; color:var(--text); margin-bottom:20px; line-height:1.6;">Thank you! Your retirement guide has been sent to your email. If you don&rsquo;t see it in a few minutes, check your spam folder.</p>
+                <p style="font-size:0.78rem; color:var(--text); line-height:1.55;">Have questions? <a href="book.html" style="color:var(--purple); font-weight:600;">Schedule a free consultation.</a></p>
+              </div>
+            </div>
+          </div>
 
-      <!-- Trust signals -->
-      <div class="hero-cta-wrap">
-        <div class="hero-trust">
-          <span>&#10003; No cost</span>
-          <span>&#10003; No obligation</span>
-          <span>&#10003; No pressure</span>
-        </div>
-        <div class="hero-states">
-          <span class="hero-states-label">Licensed Financial Professional Serving Clients In:</span><br>
-          Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina
-        </div>
-      </div>
-
+        </div><!-- /.hero-two-col -->
       </div><!-- /.hero-container -->
     </section>
 

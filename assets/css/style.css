@@ -605,7 +605,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
-  padding: 56px 40px;
+  padding: 36px 40px 44px;
   box-sizing: border-box;
 }
 
@@ -623,21 +623,28 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   min-width: 0;
 }
 
-/* Left col: text left-aligned */
-.hero-left-col .hero-preheadline { margin-bottom: 16px; }
+/* Left col: all text left-aligned */
+.hero-left-col .hero-preheadline {
+  font-size: 13px;
+  padding: 5px 12px;
+  margin-bottom: 12px;
+}
 
 .hero-left-col .hero-title {
-  font-size: clamp(2.2rem, 3.8vw, 3.2rem);
-  margin-bottom: 16px;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1.2;
+  margin-bottom: 12px;
   max-width: none;
 }
 
 .hero-left-col .hero-subtext {
-  margin-bottom: 20px;
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 16px;
   max-width: none;
 }
 
-/* Video inside left col */
+/* Video inside left col — sits tight under the subheadline */
 .hero-left-col .homepage-vimeo-video {
   margin-top: 0;
   margin-bottom: 0;
@@ -729,6 +736,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .hero-left-col .hero-states { text-align: center; }
   .hero-left-col .hero-title,
   .hero-left-col .hero-subtext { text-align: center; }
+  .hero-left-col .hero-preheadline { display: block; text-align: center; margin-left: auto; margin-right: auto; }
 }
 
 /* Advisor trust badge in hero */

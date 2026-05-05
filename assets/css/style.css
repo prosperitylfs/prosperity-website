@@ -3881,7 +3881,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 .testimonials-title {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #FFFFFF !important;
   text-align: center;
   margin-bottom: 18px;
   max-width: 700px;
@@ -3905,7 +3905,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 }
 
 .testimonial-card {
-  background: #EAF7F1;
+  background: #EAF7F1 !important;
   border-radius: 16px;
   box-shadow: 0 12px 30px rgba(0,0,0,0.18);
   padding: 32px 28px;

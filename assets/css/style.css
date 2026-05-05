@@ -3878,6 +3878,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   border-bottom: 2px solid rgba(255,255,255,0.1);
 }
 
+.testimonials-section .section-header h2.testimonials-title,
 .testimonials-title {
   font-size: 2.5rem;
   font-weight: 700;

@@ -3871,8 +3871,10 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 /* ---------- Testimonials ---------- */
 .testimonials-section {
-  background: linear-gradient(135deg, #3a1f70, #4e2c94);
-  padding: 100px 0 110px;
+  background: #5e38b0;
+  padding: 120px 0 130px;
+  margin-bottom: 40px;
+  border-bottom: 2px solid rgba(255,255,255,0.1);
 }
 
 .testimonials-title {
@@ -3902,14 +3904,14 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 }
 
 .testimonial-card {
-  background: rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.15);
   border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.25);
   padding: 32px 28px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  border: 1px solid rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.25);
   text-align: left;
 }
 

@@ -146,9 +146,9 @@
                 <input id="guide-phone" type="text" name="fields[phone]" placeholder="Best number to reach you" required>
                 <div class="form-consent">
                   <label class="consent-label" for="sms-consent">
-                    <input id="sms-consent" type="checkbox" required>
+                    <input id="sms-consent" type="checkbox">
                     <span class="consent-text">
-                      By checking this box, you expressly consent to receive SMS messages from Prosperity Life &amp; Financial Solutions LLC regarding your inquiry about life insurance, retirement planning, appointment scheduling, and follow-up support. Message frequency varies based on your interaction. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not a condition of purchase. View our <a href="privacy-policy.html">Privacy Policy</a> and <a href="terms-and-conditions.html">Terms &amp; Conditions</a>.
+                      SMS consent is optional and not required to receive your guide, schedule an appointment, request a quote, or use our services.<br><br>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, quotes, and follow-ups. Message frequency varies, up to 5 messages per month. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="/terms.html">Terms &amp; Conditions</a> and <a href="/privacy-policy.html">Privacy Policy</a>.
                     </span>
                   </label>
                 </div>
@@ -492,13 +492,6 @@
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.value.trim())) {
         if (msgEl) { msgEl.textContent = 'Please enter a valid email address.'; msgEl.style.color = '#c0392b'; }
         email.focus();
-        return;
-      }
-
-      // Consent check
-      if (!consent.checked) {
-        if (msgEl) { msgEl.textContent = 'Please agree to the SMS consent to continue.'; msgEl.style.color = '#c0392b'; }
-        consent.focus();
         return;
       }
 

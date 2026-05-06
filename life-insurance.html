@@ -498,7 +498,7 @@
 
               <label class="li-sms-consent-wrap">
                 <input type="checkbox" id="li-sms-consent" name="sms_consent">
-                <span>By checking this box, you expressly consent to receive SMS messages from Prosperity Life &amp; Financial Solutions LLC regarding your inquiry about life insurance, retirement planning, appointment scheduling, and follow-up support. Message frequency varies based on your interaction. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not a condition of purchase. View our <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="terms.html" target="_blank">Terms &amp; Conditions</a>.</span>
+                <span>SMS consent is optional and not required to receive your guide, schedule an appointment, request a quote, or use our services.<br><br>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, quotes, and follow-ups. Message frequency varies, up to 5 messages per month. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="/terms.html">Terms &amp; Conditions</a> and <a href="/privacy-policy.html">Privacy Policy</a>.</span>
               </label>
 
               <button type="button" class="btn btn-amber btn-full" onclick="liNextStep()">Next: Coverage Details &rarr;</button>
@@ -678,7 +678,6 @@
         document.getElementById('li-f-email').focus();
         return;
       }
-      if (!consent) { showErr('Please check the SMS consent box to continue.'); return; }
 
       // Normalize phone value for step 2 submission
       document.getElementById('li-f-phone').value = e164Phone;

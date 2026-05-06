@@ -280,16 +280,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
 
-      // Validate required checkboxes (e.g. SMS consent)
-      var unchecked = form.querySelector('input[type="checkbox"][required]:not(:checked)');
-      if (unchecked) {
-        if (messageEl) {
-          messageEl.textContent = 'Please check the SMS consent box before submitting.';
-          messageEl.className = 'form-message error';
-        }
-        unchecked.focus();
-        return;
-      }
+      // Note: SMS consent checkbox is optional, not required
 
       if (messageEl) { messageEl.textContent = ''; messageEl.className = 'form-message'; }
 

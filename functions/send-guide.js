@@ -22,7 +22,7 @@ export async function onRequestPost(context) {
     '13 Costly Mistakes to Avoid When Rolling Over Your 401(k), 403(b), or TSP.',
     '',
     'You can view your guide here:',
-    'https://prosperity-website.pages.dev/retirement-rollover-mistakes-guide.html',
+    'https://www.prosperitylfs.com/guides/7_retirement_savings_mistakes_guide.pdf',
     '',
     'Schedule your free consultation here:',
     'https://calendly.com/loretta-prosperitylfs/30min',

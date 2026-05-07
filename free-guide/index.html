@@ -390,10 +390,25 @@
       var consentCheckbox = document.getElementById('sms-consent-checkbox');
       var consentHidden = document.getElementById('sms-consent-hidden');
 
+      function setError(message) {
+        if (messageEl) {
+          messageEl.textContent = message;
+          messageEl.className = 'form-message error';
+        }
+      }
+
+      function clearError() {
+        if (messageEl) {
+          messageEl.textContent = '';
+          messageEl.className = 'form-message';
+        }
+      }
+
       if (!form) return;
 
-      form.addEventListener('submit', function (e) {
+      form.addEventListener('submit', async function (e) {
         e.preventDefault();
+        clearError();
 
         var firstName = form.elements['first_name'].value.trim();
         var lastName = form.elements['last_name'].value.trim();
@@ -401,26 +416,46 @@
         var phoneErr = normalizeFormPhones(form);
 
         if (!firstName || !lastName || !email) {
-          messageEl.textContent = 'Please fill in all required fields.';
-          messageEl.className = 'form-message error';
+          setError('Please fill in all required fields.');
           return;
         }
 
         if (!isValidEmail(email)) {
-          messageEl.textContent = 'Please enter a valid email address.';
-          messageEl.className = 'form-message error';
+          setError('Please enter a valid email address.');
           return;
         }
 
         if (phoneErr) {
-          messageEl.textContent = phoneErr;
-          messageEl.className = 'form-message error';
+          setError(phoneErr);
           return;
         }
 
+        var phoneValue = form.elements['phone'].value.trim();
         consentHidden.value = consentCheckbox.checked ? 'yes' : 'no';
 
-        window.location.href = '/thank-you-guide';
+        var payload = {
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          phone: phoneValue,
+          sms_consent: consentHidden.value
+        };
+
+        try {
+          var response = await fetch('/send-guide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) {
+            var body = await response.json().catch(function () { return null; });
+            setError(body && body.error ? body.error : 'Unable to send the guide email. Please try again.');
+            return;
+          }
+          window.location.href = '/thank-you-guide';
+        } catch (err) {
+          setError('Unable to send the guide email. Please try again.');
+        }
       });
     });
   </script>

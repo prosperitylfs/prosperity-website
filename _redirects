@@ -1,7 +1,6 @@
 # PDF and static asset bypass
-/guides/*.pdf 200
+/*.pdf 200
 /assets/* 200
-/guides/* 200
 
 # All other routes → SPA fallback for client-side routing
 /* /index.html 200

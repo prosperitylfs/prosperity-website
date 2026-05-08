@@ -1,5 +1,5 @@
 # PDF files
-/guides/*.pdf
+/*.pdf
   Content-Type: application/pdf
 
 # All static assets

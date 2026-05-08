@@ -10,101 +10,184 @@
   <link rel="stylesheet" href="/assets/css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
+    /* Screen styles */
+    body {
+      background: #f5f4f9;
+    }
+
+    .site-header {
+      display: block;
+    }
+
+    .site-footer {
+      display: block;
+    }
+
+    .guide-print-button {
+      display: flex;
+      justify-content: center;
+      padding: 20px 20px 0;
+      background: #f5f4f9;
+    }
+
+    .guide-print-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #4e2c94;
+      color: white;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.18s, transform 0.12s;
+      box-shadow: 0 4px 12px rgba(78,44,148,0.2);
+    }
+
+    .guide-print-btn:hover {
+      background: #3a1f70;
+      transform: translateY(-1px);
+    }
+
+    .guide-print-btn i {
+      font-size: 1.1rem;
+    }
+
     .guide-section {
-      background: #f8f7fc;
-      padding: 80px 20px;
+      background: #f5f4f9;
+      padding: 40px 20px 60px;
     }
+
     .guide-container {
-      max-width: 950px;
+      max-width: 850px;
       margin: 0 auto;
-      width: 92%;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(78,44,148,0.12);
+      overflow: hidden;
     }
+
     .guide-header {
       text-align: center;
-      padding: 50px 20px;
+      padding: 56px 48px;
       background: linear-gradient(135deg, #4e2c94, #6b3bb8);
       color: white;
     }
+
     .guide-header-content {
-      max-width: 950px;
-      margin: 0 auto;
-      width: 92%;
+      max-width: 100%;
     }
-    .guide-subtitle {
-      font-size: 1.1rem;
-      font-weight: 600;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.9);
+
+    .guide-logo {
       margin-bottom: 24px;
     }
+
+    .guide-logo img {
+      max-height: 40px;
+      width: auto;
+    }
+
+    .guide-subtitle {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 20px;
+    }
+
     .guide-title {
-      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-size: 2.4rem;
       font-weight: 800;
       line-height: 1.3;
       margin-bottom: 32px;
       color: white;
     }
+
+    .guide-desc {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.95);
+      margin-bottom: 36px;
+    }
+
     .guide-author {
       font-size: 1.05rem;
       font-weight: 600;
       margin-bottom: 8px;
       color: rgba(255,255,255,0.95);
     }
+
     .guide-author-title {
       font-size: 0.95rem;
       color: rgba(255,255,255,0.85);
       margin-bottom: 6px;
     }
+
     .guide-company {
       font-size: 0.95rem;
       color: rgba(255,255,255,0.85);
       margin-bottom: 12px;
     }
+
     .guide-contact {
       font-size: 0.95rem;
       color: rgba(255,255,255,0.85);
     }
+
     .guide-hero-image {
-      margin-top: 40px;
+      margin-top: 32px;
       text-align: center;
     }
+
     .guide-hero-image img {
-      max-width: 340px;
+      max-width: 280px;
       height: auto;
-      border-radius: 16px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
     }
+
     .guide-card {
       background: white;
-      border-radius: 20px;
-      padding: 56px 48px;
-      box-shadow: 0 8px 32px rgba(78,44,148,0.08);
-      margin-bottom: 48px;
+      padding: 48px 48px;
+      border-top: 1px solid #f0f0f5;
     }
+
+    .guide-card:first-child {
+      border-top: none;
+    }
+
     .guide-intro {
-      font-size: 1.15rem;
-      line-height: 1.8;
+      font-size: 1.1rem;
+      line-height: 1.7;
       color: #333;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
+
     .guide-intro-sub {
       font-size: 1.05rem;
-      line-height: 1.75;
+      line-height: 1.7;
       color: #666;
     }
+
     .guide-section-item {
-      margin-bottom: 48px;
-      padding-bottom: 48px;
-      border-bottom: 1px solid #ede8f7;
+      margin-bottom: 44px;
+      padding-bottom: 44px;
+      border-bottom: 1px solid #f0f0f5;
     }
+
     .guide-section-item:last-child {
       border-bottom: none;
       margin-bottom: 0;
       padding-bottom: 0;
     }
+
     .guide-section-number {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       background: #389f72;
       color: white;
       font-weight: 800;
@@ -112,135 +195,366 @@
       width: 44px;
       height: 44px;
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
+
     .guide-section-heading {
-      font-size: 1.5rem;
+      font-size: 1.45rem;
       font-weight: 800;
       color: #4e2c94;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       line-height: 1.25;
     }
+
     .guide-section-body {
-      font-size: 1.06rem;
-      line-height: 1.8;
+      font-size: 1.05rem;
+      line-height: 1.7;
       color: #555;
     }
+
+    .guide-section-body p {
+      margin-bottom: 12px;
+    }
+
+    .guide-section-body p:last-child {
+      margin-bottom: 0;
+    }
+
     .guide-cta-section {
       background: linear-gradient(135deg, #389f72, #2a9a5a);
-      border-radius: 20px;
-      padding: 56px 48px;
+      padding: 48px 48px;
       text-align: center;
       color: white;
-      margin-top: 48px;
+      border-top: 1px solid #f0f0f5;
     }
+
     .guide-cta-title {
-      font-size: 2rem;
+      font-size: 1.8rem;
       font-weight: 800;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       line-height: 1.2;
     }
+
     .guide-cta-subtitle {
-      font-size: 1.1rem;
-      margin-bottom: 36px;
+      font-size: 1.05rem;
+      margin-bottom: 32px;
       color: rgba(255,255,255,0.95);
-      line-height: 1.7;
+      line-height: 1.6;
     }
+
     .guide-cta-button {
       display: inline-block;
       background: white;
       color: #389f72;
       text-decoration: none;
-      padding: 18px 48px;
-      border-radius: 10px;
+      padding: 16px 40px;
+      border-radius: 8px;
       font-weight: 700;
       font-size: 1.05rem;
       transition: transform 0.18s, box-shadow 0.18s;
       box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     }
+
     .guide-cta-button:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 24px rgba(0,0,0,0.25);
     }
-    .guide-footer-nav {
-      padding: 40px 20px;
-      text-align: center;
-    }
-    .guide-back-link {
-      color: #4e2c94;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 1rem;
-    }
-    .guide-back-link:hover {
-      text-decoration: underline;
-    }
+
+    /* Responsive */
     @media (max-width: 768px) {
       .guide-section {
-        padding: 50px 20px;
+        padding: 30px 16px 40px;
       }
+
       .guide-container {
-        width: 95%;
+        max-width: 100%;
+        border-radius: 0;
+        box-shadow: none;
       }
-      .guide-header-content {
-        width: 95%;
+
+      .guide-header {
+        padding: 40px 28px;
       }
+
       .guide-card {
-        padding: 36px 28px;
-        margin-bottom: 32px;
+        padding: 32px 28px;
       }
-      .guide-intro {
-        font-size: 1.08rem;
+
+      .guide-title {
+        font-size: 2rem;
       }
-      .guide-intro-sub {
+
+      .guide-desc {
         font-size: 1rem;
+        margin-bottom: 28px;
       }
+
+      .guide-hero-image img {
+        max-width: 240px;
+      }
+
       .guide-section-heading {
         font-size: 1.3rem;
       }
+
       .guide-section-body {
-        font-size: 1.01rem;
-      }
-      .guide-cta-section {
-        padding: 40px 28px;
-        margin-top: 32px;
-      }
-      .guide-cta-title {
-        font-size: 1.6rem;
-      }
-      .guide-cta-subtitle {
         font-size: 1rem;
-        margin-bottom: 28px;
       }
-      .guide-header {
-        padding: 36px 20px;
+
+      .guide-cta-section {
+        padding: 36px 28px;
       }
-      .guide-hero-image img {
-        max-width: 300px;
+
+      .guide-cta-title {
+        font-size: 1.5rem;
       }
-      .guide-title {
-        margin-bottom: 28px;
+
+      .guide-print-button {
+        padding: 16px 20px 0;
+      }
+
+      .guide-print-btn {
+        padding: 10px 24px;
+        font-size: 0.95rem;
       }
     }
+
     @media (max-width: 480px) {
+      .guide-section {
+        padding: 20px 16px 32px;
+      }
+
+      .guide-header {
+        padding: 32px 20px;
+      }
+
       .guide-card {
-        padding: 28px 20px;
+        padding: 24px 20px;
       }
-      .guide-intro {
-        font-size: 1.04rem;
+
+      .guide-title {
+        font-size: 1.75rem;
+        margin-bottom: 24px;
       }
+
+      .guide-subtitle {
+        font-size: 0.9rem;
+        margin-bottom: 16px;
+      }
+
+      .guide-desc {
+        font-size: 0.95rem;
+        margin-bottom: 24px;
+      }
+
+      .guide-hero-image img {
+        max-width: 200px;
+      }
+
       .guide-section-heading {
         font-size: 1.2rem;
       }
+
       .guide-section-body {
         font-size: 0.98rem;
       }
+
+      .guide-cta-section {
+        padding: 28px 20px;
+      }
+
+      .guide-cta-title {
+        font-size: 1.4rem;
+        margin-bottom: 12px;
+      }
+
+      .guide-cta-subtitle {
+        font-size: 0.98rem;
+        margin-bottom: 24px;
+      }
+
       .guide-cta-button {
-        padding: 16px 32px;
+        padding: 14px 32px;
         font-size: 1rem;
+      }
+
+      .guide-print-button {
+        padding: 12px 16px 0;
+      }
+
+      .guide-print-btn {
+        padding: 9px 20px;
+        font-size: 0.9rem;
+      }
+    }
+
+    /* Print styles */
+    @media print {
+      /* Hide non-print elements */
+      .site-header,
+      .site-footer,
+      .guide-print-button {
+        display: none !important;
+      }
+
+      body {
+        background: white;
+      }
+
+      .guide-section {
+        background: white;
+        padding: 0;
+        margin: 0;
+      }
+
+      .guide-container {
+        max-width: 100%;
+        box-shadow: none;
+        border-radius: 0;
+        background: white;
+        page-break-inside: avoid;
+      }
+
+      .guide-header {
+        background: white;
+        color: #333;
+        padding: 0.5in 1in;
+        border-bottom: 3px solid #4e2c94;
+        page-break-inside: avoid;
+      }
+
+      .guide-header-content {
+        max-width: 100%;
+      }
+
+      .guide-logo {
+        margin-bottom: 20px;
+      }
+
+      .guide-logo img {
+        max-height: 35px;
+      }
+
+      .guide-subtitle {
+        color: #4e2c94;
+        margin-bottom: 16px;
+        font-size: 0.95rem;
+      }
+
+      .guide-title {
+        color: #4e2c94;
+        font-size: 2.2rem;
+        margin-bottom: 24px;
+      }
+
+      .guide-desc {
+        color: #666;
+        font-size: 1rem;
+        margin-bottom: 28px;
+      }
+
+      .guide-hero-image {
+        margin-top: 24px;
+        page-break-inside: avoid;
+      }
+
+      .guide-hero-image img {
+        max-width: 260px;
+        box-shadow: none;
+      }
+
+      .guide-author,
+      .guide-author-title,
+      .guide-company,
+      .guide-contact {
+        color: #333;
+        margin-bottom: 6px;
+      }
+
+      .guide-card {
+        padding: 0.5in 1in;
+        border-top: 1px solid #ddd;
+        page-break-inside: avoid;
+      }
+
+      .guide-card:first-child {
+        border-top: none;
+      }
+
+      .guide-intro {
+        color: #333;
+        font-size: 1.05rem;
+        margin-bottom: 12px;
+      }
+
+      .guide-intro-sub {
+        color: #555;
+        font-size: 1rem;
+      }
+
+      .guide-section-item {
+        page-break-inside: avoid;
+        margin-bottom: 32px;
+        padding-bottom: 32px;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .guide-section-number {
+        background: #389f72;
+        font-size: 1.1rem;
+        width: 40px;
+        height: 40px;
+        margin-bottom: 12px;
+      }
+
+      .guide-section-heading {
+        color: #4e2c94;
+        font-size: 1.35rem;
+        margin-bottom: 12px;
+      }
+
+      .guide-section-body {
+        color: #555;
+        font-size: 1rem;
+        line-height: 1.6;
+      }
+
+      .guide-cta-section {
+        background: #f5f4f9;
+        color: #333;
+        padding: 0.5in 1in;
+        border-top: 3px solid #389f72;
+        page-break-inside: avoid;
+      }
+
+      .guide-cta-title {
+        color: #4e2c94;
+        font-size: 1.6rem;
+        margin-bottom: 12px;
+      }
+
+      .guide-cta-subtitle {
+        color: #666;
+        font-size: 1rem;
+        margin-bottom: 20px;
+      }
+
+      .guide-cta-button {
+        background: #4e2c94;
+        color: white;
+        display: inline-block;
+        padding: 10px 28px;
+        font-size: 0.95rem;
+        box-shadow: none;
+        border: none;
+      }
+
+      /* Page setup */
+      @page {
+        size: letter;
+        margin: 0.5in;
+        orphans: 3;
+        widows: 3;
       }
     }
   </style>
@@ -298,26 +612,37 @@
       <a class="mobile-cta" href="/book.html">Book Consultation</a>
     </nav>
   </header>
+  
   <main>
-    <section class="guide-header">
-      <div class="guide-header-content">
-        <div class="guide-subtitle">FREE EDUCATIONAL GUIDE</div>
-        <h1 class="guide-title">7 Retirement &amp; Savings Mistakes Many People Don't Realize They're Making</h1>
-        <p style="font-size: 1.05rem; line-height: 1.6; color: rgba(255,255,255,0.9); margin-top: 28px;">A Simple Educational Guide to Help You Better Understand Important Retirement &amp; Savings Decisions</p>
-        <div class="guide-hero-image">
-          <img src="/assets/images/in-purple-suit.png" alt="Loretta Stewart" onerror="this.style.display='none'">
-        </div>
-        <div style="margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 30px;">
-          <div class="guide-author">Loretta Stewart</div>
-          <div class="guide-author-title">Life &amp; Retirement Advisor</div>
-          <div class="guide-company">Prosperity Life &amp; Financial Solutions</div>
-          <div class="guide-contact">414-441-1177 | www.prosperitylfs.com</div>
-        </div>
-      </div>
-    </section>
+    <div class="guide-print-button">
+      <button class="guide-print-btn" onclick="window.print()">
+        <i class="fa-solid fa-download"></i>
+        Download / Print Guide
+      </button>
+    </div>
 
     <section class="guide-section">
       <div class="guide-container">
+        <div class="guide-header">
+          <div class="guide-header-content">
+            <div class="guide-logo">
+              <img src="/assets/images/logo.png" alt="Prosperity Logo" onerror="this.style.display='none'">
+            </div>
+            <div class="guide-subtitle">FREE EDUCATIONAL GUIDE</div>
+            <h1 class="guide-title">7 Retirement &amp; Savings Mistakes Many People Don't Realize They're Making</h1>
+            <p class="guide-desc">A Simple Educational Guide to Help You Better Understand Important Retirement &amp; Savings Decisions</p>
+            <div class="guide-hero-image">
+              <img src="/assets/images/in-purple-suit.png" alt="Loretta Stewart" onerror="this.style.display='none'">
+            </div>
+            <div style="margin-top: 32px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 30px;">
+              <div class="guide-author">Loretta Stewart</div>
+              <div class="guide-author-title">Life &amp; Retirement Advisor</div>
+              <div class="guide-company">Prosperity Life &amp; Financial Solutions</div>
+              <div class="guide-contact">414-441-1177 | www.prosperitylfs.com</div>
+            </div>
+          </div>
+        </div>
+
         <div class="guide-card">
           <div class="guide-intro">
             Retirement and savings decisions can feel overwhelming, especially when you're trying to protect the money you worked hard to build. Many people make critical mistakes simply because they didn't know better—or didn't have the right information at the right time.
@@ -332,12 +657,8 @@
             <div class="guide-section-number">1</div>
             <h2 class="guide-section-heading">Keeping Too Much Money in Low-Interest Savings Accounts</h2>
             <div class="guide-section-body">
-              <p style="margin-bottom: 12px;">
-                Many people keep large portions of their retirement savings in regular savings accounts or money market accounts earning minimal interest. While these accounts offer safety, they often fail to keep pace with inflation, meaning your purchasing power quietly erodes over time.
-              </p>
-              <p style="margin-bottom: 0;">
-                Instead, explore options like CDs, high-yield savings alternatives, and guaranteed income products that provide better returns while still protecting your principal. The goal is growth without unnecessary risk.
-              </p>
+              <p>Many people keep large portions of their retirement savings in regular savings accounts or money market accounts earning minimal interest. While these accounts offer safety, they often fail to keep pace with inflation, meaning your purchasing power quietly erodes over time.</p>
+              <p>Instead, explore options like CDs, high-yield savings alternatives, and guaranteed income products that provide better returns while still protecting your principal. The goal is growth without unnecessary risk.</p>
             </div>
           </div>
 
@@ -345,12 +666,8 @@
             <div class="guide-section-number">2</div>
             <h2 class="guide-section-heading">Forgetting About Old Retirement Accounts</h2>
             <div class="guide-section-body">
-              <p style="margin-bottom: 12px;">
-                Over the course of your career, you may have opened numerous 401(k)s, 403(b)s, TSPs, or IRAs with different employers. It's easy to lose track of these accounts, and forgotten accounts can create problems later.
-              </p>
-              <p style="margin-bottom: 0;">
-                Consolidating old accounts can simplify your financial life, reduce fees, and make it easier to manage your overall strategy. Plus, you won't miss important distribution deadlines or tax implications. Take time to locate all your accounts and evaluate whether consolidation makes sense.
-              </p>
+              <p>Over the course of your career, you may have opened numerous 401(k)s, 403(b)s, TSPs, or IRAs with different employers. It's easy to lose track of these accounts, and forgotten accounts can create problems later.</p>
+              <p>Consolidating old accounts can simplify your financial life, reduce fees, and make it easier to manage your overall strategy. Plus, you won't miss important distribution deadlines or tax implications. Take time to locate all your accounts and evaluate whether consolidation makes sense.</p>
             </div>
           </div>
 
@@ -358,12 +675,8 @@
             <div class="guide-section-number">3</div>
             <h2 class="guide-section-heading">Not Understanding All Available Retirement Options</h2>
             <div class="guide-section-body">
-              <p style="margin-bottom: 12px;">
-                Many retirement account holders don't fully understand the options available to them. Whether it's the difference between a traditional IRA and a Roth IRA, or how annuities work, gaps in knowledge can lead to missed opportunities.
-              </p>
-              <p style="margin-bottom: 0;">
-                Taking time to understand your options—such as employer plans, IRAs, annuities, safe money alternatives, and life insurance products—helps you make decisions that align with your unique situation. There's no one-size-fits-all answer, but knowing your choices is essential.
-              </p>
+              <p>Many retirement account holders don't fully understand the options available to them. Whether it's the difference between a traditional IRA and a Roth IRA, or how annuities work, gaps in knowledge can lead to missed opportunities.</p>
+              <p>Taking time to understand your options—such as employer plans, IRAs, annuities, safe money alternatives, and life insurance products—helps you make decisions that align with your unique situation. There's no one-size-fits-all answer, but knowing your choices is essential.</p>
             </div>
           </div>
 
@@ -371,12 +684,8 @@
             <div class="guide-section-number">4</div>
             <h2 class="guide-section-heading">Waiting Too Long to Create an Income Plan</h2>
             <div class="guide-section-body">
-              <p style="margin-bottom: 12px;">
-                Having savings is important, but many people don't think strategically about how to convert those savings into reliable retirement income. Without a clear plan, retirees often withdraw money haphazardly, which can deplete accounts faster than expected and increase tax burdens.
-              </p>
-              <p style="margin-bottom: 0;">
-                Creating a retirement income strategy years before you retire gives you time to optimize decisions and adjust as needed. A well-thought-out plan can help ensure your money lasts as long as you do.
-              </p>
+              <p>Having savings is important, but many people don't think strategically about how to convert those savings into reliable retirement income. Without a clear plan, retirees often withdraw money haphazardly, which can deplete accounts faster than expected and increase tax burdens.</p>
+              <p>Creating a retirement income strategy years before you retire gives you time to optimize decisions and adjust as needed. A well-thought-out plan can help ensure your money lasts as long as you do.</p>
             </div>
           </div>
 
@@ -384,12 +693,8 @@
             <div class="guide-section-number">5</div>
             <h2 class="guide-section-heading">Overlooking Tax Considerations</h2>
             <div class="guide-section-body">
-              <p style="margin-bottom: 12px;">
-                Many people don't realize how much taxes can impact their retirement. Different account types have different tax treatment, and withdrawal strategies can significantly affect your overall tax bill in retirement.
-              </p>
-              <p style="margin-bottom: 0;">
-                Understanding concepts like Required Minimum Distributions (RMDs), tax-efficient withdrawal sequencing, and Roth conversions can help you keep more of your hard-earned money. Small tax-smart moves today can result in meaningful savings over time.
-              </p>
+              <p>Many people don't realize how much taxes can impact their retirement. Different account types have different tax treatment, and withdrawal strategies can significantly affect your overall tax bill in retirement.</p>
+              <p>Understanding concepts like Required Minimum Distributions (RMDs), tax-efficient withdrawal sequencing, and Roth conversions can help you keep more of your hard-earned money. Small tax-smart moves today can result in meaningful savings over time.</p>
             </div>
           </div>
 
@@ -397,12 +702,8 @@
             <div class="guide-section-number">6</div>
             <h2 class="guide-section-heading">Not Reviewing Beneficiaries Regularly</h2>
             <div class="guide-section-body">
-              <p style="margin-bottom: 12px;">
-                Many people set up their beneficiaries years ago and forget about them. Life changes—marriages, divorces, births, deaths—but beneficiary designations often sit unchanged, which can result in your assets going to unintended recipients.
-              </p>
-              <p style="margin-bottom: 0;">
-                Review your beneficiary designations on all retirement accounts, life insurance policies, and other assets at least every few years or whenever your life situation changes. This ensures your legacy reflects your current intentions and values.
-              </p>
+              <p>Many people set up their beneficiaries years ago and forget about them. Life changes—marriages, divorces, births, deaths—but beneficiary designations often sit unchanged, which can result in your assets going to unintended recipients.</p>
+              <p>Review your beneficiary designations on all retirement accounts, life insurance policies, and other assets at least every few years or whenever your life situation changes. This ensures your legacy reflects your current intentions and values.</p>
             </div>
           </div>
 
@@ -410,12 +711,8 @@
             <div class="guide-section-number">7</div>
             <h2 class="guide-section-heading">Waiting Too Long to Ask Questions</h2>
             <div class="guide-section-body">
-              <p style="margin-bottom: 12px;">
-                Many people struggle with decisions about their retirement but put off seeking professional guidance. They worry about costs, feel uncertain about what to ask, or simply don't know where to start.
-              </p>
-              <p style="margin-bottom: 0;">
-                The earlier you get answers to your questions, the more time you have to act on that knowledge. Whether it's understanding your options, evaluating your current strategy, or creating a comprehensive retirement plan, getting clarity sooner rather than later puts you in a stronger position.
-              </p>
+              <p>Many people struggle with decisions about their retirement but put off seeking professional guidance. They worry about costs, feel uncertain about what to ask, or simply don't know where to start.</p>
+              <p>The earlier you get answers to your questions, the more time you have to act on that knowledge. Whether it's understanding your options, evaluating your current strategy, or creating a comprehensive retirement plan, getting clarity sooner rather than later puts you in a stronger position.</p>
             </div>
           </div>
         </div>

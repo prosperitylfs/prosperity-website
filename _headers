@@ -1,0 +1,12 @@
+# PDF files
+/guides/*.pdf
+  Content-Type: application/pdf
+
+# All static assets
+/assets/*
+  Cache-Control: public, max-age=31536000
+
+# HTML files
+/*.html
+  Cache-Control: public, max-age=3600
+  Content-Type: text/html; charset=utf-8

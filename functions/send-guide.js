@@ -23,7 +23,7 @@ export async function onRequestPost(context) {
     '"7 Retirement & Savings Mistakes Many People Don\'t Realize They\'re Making"',
     '',
     'You can access your guide here:',
-    'https://www.prosperitylfs.com/free-guide/',
+    'https://www.prosperitylfs.com/guides/7-retirement-savings-mistakes-guide.pdf',
     '',
     'If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:',
     'https://calendly.com/loretta-prosperitylfs/30min',

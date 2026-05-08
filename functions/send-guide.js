@@ -35,6 +35,21 @@ export async function onRequestPost(context) {
     '414-441-1177',
   ].join('\n');
 
+  const html = `
+    <p>Hi ${first_name},</p>
+    <p>Thank you for requesting your free guide:</p>
+    <p><strong>&quot;7 Retirement &amp; Savings Mistakes Many People Don't Realize They're Making&quot;</strong></p>
+    <p>You can view and download your guide here:</p>
+    <p><a href="https://canva.link/l29cwgguu0g48z2" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #389f72; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Free Guide</a></p>
+    <p>If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:</p>
+    <p><a href="https://calendly.com/loretta-prosperitylfs/30min" target="_blank" rel="noopener noreferrer">https://calendly.com/loretta-prosperitylfs/30min</a></p>
+    <p>Best,<br>
+    Loretta Stewart<br>
+    Life &amp; Retirement Advisor<br>
+    Prosperity Life &amp; Financial Solutions<br>
+    414-441-1177</p>
+  `;
+
   const resendRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -46,6 +61,7 @@ export async function onRequestPost(context) {
       to: [email],
       subject: 'Your Free Retirement Guide Is Ready',
       text,
+      html,
     }),
   });
 

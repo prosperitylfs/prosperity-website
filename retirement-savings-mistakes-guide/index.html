@@ -12,21 +12,23 @@
   <style>
     .guide-section {
       background: #f8f7fc;
-      padding: 60px 20px;
+      padding: 80px 20px;
     }
     .guide-container {
-      max-width: 720px;
+      max-width: 950px;
       margin: 0 auto;
+      width: 92%;
     }
     .guide-header {
       text-align: center;
-      padding: 60px 20px;
+      padding: 50px 20px;
       background: linear-gradient(135deg, #4e2c94, #6b3bb8);
       color: white;
     }
     .guide-header-content {
-      max-width: 700px;
+      max-width: 950px;
       margin: 0 auto;
+      width: 92%;
     }
     .guide-subtitle {
       font-size: 1.1rem;
@@ -68,7 +70,7 @@
       text-align: center;
     }
     .guide-hero-image img {
-      max-width: 280px;
+      max-width: 340px;
       height: auto;
       border-radius: 16px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.2);
@@ -76,24 +78,24 @@
     .guide-card {
       background: white;
       border-radius: 20px;
-      padding: 50px 40px;
+      padding: 56px 48px;
       box-shadow: 0 8px 32px rgba(78,44,148,0.08);
-      margin-bottom: 40px;
+      margin-bottom: 48px;
     }
     .guide-intro {
-      font-size: 1.05rem;
+      font-size: 1.15rem;
       line-height: 1.8;
       color: #333;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
     }
     .guide-intro-sub {
-      font-size: 0.98rem;
+      font-size: 1.05rem;
       line-height: 1.75;
       color: #666;
     }
     .guide-section-item {
-      margin-bottom: 40px;
-      padding-bottom: 40px;
+      margin-bottom: 48px;
+      padding-bottom: 48px;
       border-bottom: 1px solid #ede8f7;
     }
     .guide-section-item:last-child {
@@ -106,56 +108,56 @@
       background: #389f72;
       color: white;
       font-weight: 800;
-      font-size: 1.1rem;
-      width: 40px;
-      height: 40px;
+      font-size: 1.2rem;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
     }
     .guide-section-heading {
-      font-size: 1.4rem;
+      font-size: 1.5rem;
       font-weight: 800;
       color: #4e2c94;
-      margin-bottom: 14px;
-      line-height: 1.2;
+      margin-bottom: 16px;
+      line-height: 1.25;
     }
     .guide-section-body {
-      font-size: 1rem;
+      font-size: 1.06rem;
       line-height: 1.8;
       color: #555;
     }
     .guide-cta-section {
       background: linear-gradient(135deg, #389f72, #2a9a5a);
       border-radius: 20px;
-      padding: 50px 40px;
+      padding: 56px 48px;
       text-align: center;
       color: white;
-      margin-top: 40px;
+      margin-top: 48px;
     }
     .guide-cta-title {
-      font-size: 1.8rem;
+      font-size: 2rem;
       font-weight: 800;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
       line-height: 1.2;
     }
     .guide-cta-subtitle {
-      font-size: 1.05rem;
-      margin-bottom: 32px;
+      font-size: 1.1rem;
+      margin-bottom: 36px;
       color: rgba(255,255,255,0.95);
-      line-height: 1.6;
+      line-height: 1.7;
     }
     .guide-cta-button {
       display: inline-block;
       background: white;
       color: #389f72;
       text-decoration: none;
-      padding: 16px 40px;
+      padding: 18px 48px;
       border-radius: 10px;
       font-weight: 700;
-      font-size: 1rem;
+      font-size: 1.05rem;
       transition: transform 0.18s, box-shadow 0.18s;
       box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     }
@@ -177,23 +179,68 @@
       text-decoration: underline;
     }
     @media (max-width: 768px) {
+      .guide-section {
+        padding: 50px 20px;
+      }
+      .guide-container {
+        width: 95%;
+      }
+      .guide-header-content {
+        width: 95%;
+      }
       .guide-card {
-        padding: 32px 24px;
+        padding: 36px 28px;
+        margin-bottom: 32px;
+      }
+      .guide-intro {
+        font-size: 1.08rem;
+      }
+      .guide-intro-sub {
+        font-size: 1rem;
       }
       .guide-section-heading {
-        font-size: 1.25rem;
+        font-size: 1.3rem;
+      }
+      .guide-section-body {
+        font-size: 1.01rem;
       }
       .guide-cta-section {
-        padding: 36px 24px;
+        padding: 40px 28px;
+        margin-top: 32px;
       }
       .guide-cta-title {
-        font-size: 1.5rem;
+        font-size: 1.6rem;
+      }
+      .guide-cta-subtitle {
+        font-size: 1rem;
+        margin-bottom: 28px;
       }
       .guide-header {
-        padding: 40px 20px;
+        padding: 36px 20px;
       }
       .guide-hero-image img {
-        max-width: 220px;
+        max-width: 300px;
+      }
+      .guide-title {
+        margin-bottom: 28px;
+      }
+    }
+    @media (max-width: 480px) {
+      .guide-card {
+        padding: 28px 20px;
+      }
+      .guide-intro {
+        font-size: 1.04rem;
+      }
+      .guide-section-heading {
+        font-size: 1.2rem;
+      }
+      .guide-section-body {
+        font-size: 0.98rem;
+      }
+      .guide-cta-button {
+        padding: 16px 32px;
+        font-size: 1rem;
       }
     }
   </style>

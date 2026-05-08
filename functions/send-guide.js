@@ -23,7 +23,7 @@ export async function onRequestPost(context) {
     '"7 Retirement & Savings Mistakes Many People Don\'t Realize They\'re Making"',
     '',
     'You can view and download your guide here:',
-    'https://canva.link/l29cwgguu0g48z2',
+    'https://www.prosperitylfs.com/free-guide-download',
     '',
     'If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:',
     'https://calendly.com/loretta-prosperitylfs/30min',
@@ -40,7 +40,7 @@ export async function onRequestPost(context) {
     <p>Thank you for requesting your free guide:</p>
     <p><strong>&quot;7 Retirement &amp; Savings Mistakes Many People Don't Realize They're Making&quot;</strong></p>
     <p>You can view and download your guide here:</p>
-    <p><a href="https://canva.link/l29cwgguu0g48z2" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #389f72; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Free Guide</a></p>
+    <p><a href="https://www.prosperitylfs.com/free-guide-download" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #389f72; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Download Your Free Guide</a></p>
     <p>If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:</p>
     <p><a href="https://calendly.com/loretta-prosperitylfs/30min" target="_blank" rel="noopener noreferrer">https://calendly.com/loretta-prosperitylfs/30min</a></p>
     <p>Best,<br>

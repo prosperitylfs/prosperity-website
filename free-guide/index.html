@@ -13,20 +13,25 @@
     .free-hero {
       background: linear-gradient(135deg, var(--purple-dark), var(--purple));
       color: #ffffff;
-      padding: 90px 0 90px;
+      padding: 80px 0 60px;
+    }
+    .hero-header {
+      text-align: center;
+      max-width: 900px;
+      margin: 0 auto 70px;
     }
     .free-hero-grid {
       display: grid;
       grid-template-columns: 1.1fr 0.95fr;
       gap: 50px;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
     }
     .hero-left {
       display: flex;
       flex-direction: column;
       gap: 32px;
-      max-width: 720px;
+      max-width: 100%;
     }
     .hero-left img {
       width: 100%;
@@ -44,23 +49,21 @@
       letter-spacing: 0.24em;
       text-transform: uppercase;
       font-size: 1.05rem;
-      margin-bottom: 18px;
+      margin-bottom: 20px;
     }
     .hero-title {
-      font-size: clamp(2rem, 3vw, 3rem);
+      font-size: clamp(2.2rem, 3.5vw, 3.2rem);
       font-weight: 800;
-      line-height: 1.25;
-      margin: 0;
+      line-height: 1.3;
+      margin: 0 0 24px;
       color: #ffffff;
-      max-width: 650px;
       letter-spacing: -0.02em;
     }
     .hero-subtitle {
-      font-size: 1.14rem;
-      line-height: 1.72;
-      color: rgba(255,255,255,0.94);
-      max-width: 680px;
-      margin: 20px 0 28px;
+      font-size: 1.08rem;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.92);
+      margin: 0;
     }
     .hero-copy {
       background: var(--green);
@@ -218,6 +221,9 @@
       .hero-left, .hero-right {
         align-items: stretch;
       }
+      .hero-header {
+        margin-bottom: 50px;
+      }
     }
     @media (max-width: 780px) {
       .free-form-card {
@@ -227,16 +233,25 @@
       .field-row {
         grid-template-columns: 1fr;
       }
+      .hero-header {
+        margin-bottom: 40px;
+      }
     }
     @media (max-width: 680px) {
       .free-hero {
-        padding: 48px 0 60px;
+        padding: 48px 0 48px;
       }
       .hero-copy {
         padding: 22px;
       }
       .hero-title {
-        font-size: 2rem;
+        font-size: clamp(1.75rem, 5vw, 2.2rem);
+      }
+      .hero-subtitle {
+        font-size: 1rem;
+      }
+      .hero-header {
+        margin-bottom: 32px;
       }
     }
   </style>
@@ -297,11 +312,13 @@
   <main>
     <section class="free-hero">
       <div class="container">
+        <div class="hero-header">
+          <span class="hero-eyebrow">FREE GUIDE</span>
+          <h1 class="hero-title">Get the Free "7 Retirement &amp; Savings Mistakes Many People Don't Realize They're Making" Guide</h1>
+          <p class="hero-subtitle">If you have $25,000 or more in savings, CDs, a 401(k), 403(b), TSP, 457, IRA, or retirement account, this guide can help you better understand the savings and retirement mistakes many people don't realize they're making.</p>
+        </div>
         <div class="free-hero-grid">
           <div class="hero-left">
-            <span class="hero-eyebrow">FREE GUIDE</span>
-            <h1 class="hero-title">Get the Free “7 Retirement &amp; Savings Mistakes Many People Don’t Realize They’re Making” Guide</h1>
-            <p class="hero-subtitle">If you have $25,000 or more in savings, CDs, a 401(k), 403(b), TSP, 457, IRA, or retirement account, this guide can help you better understand the savings and retirement mistakes many people don’t realize they’re making.</p>
             <div class="hero-photo-wrap">
               <img src="/assets/images/in-purple-suit.png" alt="Loretta Stewart" onerror="this.style.display='none'">
             </div>

@@ -13,17 +13,17 @@
     .free-hero {
       background: linear-gradient(135deg, var(--purple-dark), var(--purple));
       color: #ffffff;
-      padding: 20px 20px 18px;
+      padding: 16px 20px 14px;
     }
     .hero-header {
       text-align: center;
       max-width: 900px;
-      margin: 0 auto 14px;
+      margin: 0 auto 12px;
     }
     .free-hero-grid {
       display: grid;
       grid-template-columns: 1fr 285px;
-      gap: 15px;
+      gap: 12px;
       align-items: start;
       max-width: 1180px;
       margin: 0 auto;
@@ -31,12 +31,12 @@
     .hero-left {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       max-width: 100%;
     }
     .hero-left img {
       width: 100%;
-      max-width: 200px;
+      max-width: 290px;
       border-radius: 24px;
       display: block;
       margin: 0 auto;
@@ -55,46 +55,48 @@
       margin-bottom: 10px;
     }
     .hero-title {
-      font-size: clamp(0.9rem, 1.44vw, 1.6rem);
+      font-size: clamp(0.6rem, 0.96vw, 1.1rem);
       font-weight: 800;
-      line-height: 1.0;
+      line-height: 0.95;
       max-width: 1000px;
       margin: 0 auto 8px;
       color: #ffffff;
       letter-spacing: -0.02em;
     }
     .hero-subtitle {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       line-height: 1.35;
       max-width: 850px;
-      margin: 0 auto 12px;
+      margin: 0 auto 10px;
       color: rgba(255,255,255,0.92);
     }
     .hero-copy {
       background: var(--green);
       border: 1px solid rgba(255,255,255,0.18);
       border-radius: 24px;
-      padding: 12px;
+      padding: 10px;
       color: #ffffff;
+      max-width: 290px;
+      margin: 0 auto;
     }
     .hero-copy p {
       margin: 0 0 10px;
       line-height: 1.45;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
     .hero-copy ul {
       list-style: none;
       padding: 0;
       margin: 0;
       display: grid;
-      gap: 5px;
+      gap: 4px;
     }
     .hero-copy li {
       position: relative;
       padding-left: 28px;
       font-weight: 500;
       line-height: 1.45;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
     }
     .hero-copy li::before {
       content: '\2713';
@@ -224,22 +226,22 @@
     @media (max-width: 992px) {
       .free-hero-grid {
         grid-template-columns: 1fr;
-        gap: 15px;
+        gap: 12px;
       }
       .hero-left, .hero-right {
         align-items: stretch;
       }
       .hero-title {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
       }
       .hero-subtitle {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
       }
       .free-form-card {
         max-width: 100%;
       }
       .hero-left img {
-        max-width: 200px;
+        max-width: 290px;
       }
       .hero-header {
         margin-bottom: 18px;
@@ -259,16 +261,16 @@
     }
     @media (max-width: 680px) {
       .free-hero {
-        padding: 20px 0 20px;
+        padding: 16px 0 16px;
       }
       .hero-copy {
-        padding: 12px;
+        padding: 10px;
       }
       .hero-title {
-        font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+        font-size: clamp(0.9rem, 2.8vw, 1.2rem);
       }
       .hero-subtitle {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
       }
       .hero-header {
         margin-bottom: 16px;

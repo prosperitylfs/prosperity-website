@@ -108,37 +108,47 @@
     }
     .free-form-card {
       width: 100%;
-      max-width: 285px;
+      max-width: 360px;
       background: #ffffff;
-      border-radius: 24px;
-      padding: 16px;
-      box-shadow: 0 20px 48px rgba(58,31,112,0.14);
+      border-radius: 32px;
+      padding: 26px;
+      box-shadow: 0 26px 70px rgba(31,15,71,0.12);
       border: 1px solid rgba(58,31,112,0.08);
       margin: auto 0;
     }
     .free-form-card h2 {
       margin-top: 0;
-      margin-bottom: 6px;
-      font-size: 1.5rem;
+      margin-bottom: 8px;
+      font-size: 1.75rem;
       color: var(--purple-dark);
-      line-height: 1.08;
+      line-height: 1.05;
+      font-weight: 600;
     }
     .free-form-card .book-sub {
-      margin-bottom: 16px;
+      margin-bottom: 18px;
       color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .free-form-card .form-accent {
+      width: 48px;
+      height: 4px;
+      background: var(--green);
+      border-radius: 999px;
+      margin-bottom: 18px;
     }
     .free-form-card label {
       display: block;
-      margin-bottom: 4px;
-      font-size: 0.9rem;
+      margin-bottom: 6px;
+      font-size: 0.95rem;
       font-weight: 600;
       color: var(--purple-dark);
     }
     .free-form-card .field-row {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-bottom: 10px;
+      gap: 12px;
+      margin-bottom: 12px;
     }
     .free-form-card .field-row .field-group {
       width: 100%;
@@ -147,15 +157,15 @@
     .free-form-card input[type="email"],
     .free-form-card input[type="tel"] {
       width: 100%;
-      min-height: 40px;
-      padding: 8px 10px;
-      font-size: 13px;
-      line-height: 1.4;
+      min-height: 44px;
+      padding: 12px 14px;
+      font-size: 14px;
+      line-height: 1.45;
       border: 1.5px solid var(--border-light);
-      border-radius: 10px;
+      border-radius: 14px;
       color: var(--text);
       background: #ffffff;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       box-sizing: border-box;
     }
     .free-form-card input[type="text"]:focus,
@@ -167,20 +177,20 @@
     }
     .free-form-card .sms-consent {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: flex-start;
-      margin: 12px 0 12px;
+      margin: 14px 0 18px;
     }
     .free-form-card .sms-consent input[type="checkbox"] {
-      margin-top: 2px;
-      width: 14px;
-      height: 14px;
+      margin-top: 3px;
+      width: 16px;
+      height: 16px;
       flex-shrink: 0;
     }
     .free-form-card .sms-consent span {
-      font-size: 11px;
+      font-size: 0.85rem;
       color: #4a4a68;
-      line-height: 1.4;
+      line-height: 1.5;
     }
     .free-form-card .sms-consent span a {
       color: var(--purple-dark);
@@ -189,16 +199,16 @@
     .free-form-card button[type="submit"],
     .free-form-card .btn-full {
       width: 100%;
-      height: 36px;
-      font-size: 0.9rem;
+      height: 44px;
+      font-size: 1rem;
       font-weight: 700;
-      border-radius: 10px;
+      border-radius: 14px;
       background: var(--green);
       color: #ffffff;
       border: none;
       cursor: pointer;
       transition: background 0.18s ease, transform 0.18s ease;
-      margin-top: 2px;
+      margin-top: 4px;
     }
     .free-form-card button[type="submit"]:hover,
     .free-form-card .btn-full:hover {
@@ -207,8 +217,8 @@
     }
     .free-form-card .form-message {
       margin-top: 10px;
-      font-size: 0.85rem;
-      line-height: 1.4;
+      font-size: 0.9rem;
+      line-height: 1.5;
     }
     .free-form-card .form-message.error {
       color: #c0392b;
@@ -226,54 +236,68 @@
     @media (max-width: 992px) {
       .free-hero-grid {
         grid-template-columns: 1fr;
-        gap: 12px;
+        gap: 20px;
       }
-      .hero-left, .hero-right {
-        align-items: stretch;
-      }
-      .hero-title {
-        font-size: 1.2rem;
-      }
-      .hero-subtitle {
-        font-size: 0.75rem;
-      }
-      .free-form-card {
-        max-width: 100%;
+      .hero-left {
+        grid-template-columns: 1fr;
+        padding: 22px;
       }
       .hero-left img {
-        max-width: 290px;
+        max-width: 100%;
       }
-      .hero-header {
-        margin-bottom: 18px;
+      .hero-card-title {
+        font-size: 1.35rem;
       }
-    }
-    @media (max-width: 780px) {
+      .hero-title {
+        font-size: 1.8rem;
+      }
+      .hero-subtitle {
+        font-size: 0.9rem;
+      }
       .free-form-card {
         max-width: 100%;
-        padding: 16px 14px;
-      }
-      .field-row {
-        grid-template-columns: 1fr;
       }
       .hero-header {
         margin-bottom: 20px;
       }
     }
-    @media (max-width: 680px) {
-      .free-hero {
-        padding: 16px 0 16px;
+    @media (max-width: 780px) {
+      .free-form-card {
+        max-width: 100%;
+        padding: 20px 18px;
       }
-      .hero-copy {
-        padding: 10px;
-      }
-      .hero-title {
-        font-size: clamp(0.9rem, 2.8vw, 1.2rem);
-      }
-      .hero-subtitle {
-        font-size: 0.7rem;
+      .field-row {
+        grid-template-columns: 1fr;
       }
       .hero-header {
-        margin-bottom: 16px;
+        margin-bottom: 22px;
+      }
+      .hero-copy p {
+        font-size: 0.95rem;
+      }
+    }
+    @media (max-width: 680px) {
+      .free-hero {
+        padding: 18px 0 18px;
+      }
+      .hero-left {
+        grid-template-columns: 1fr;
+        padding: 18px 16px;
+      }
+      .hero-title {
+        font-size: clamp(1.3rem, 5vw, 1.95rem);
+      }
+      .hero-subtitle {
+        font-size: 0.82rem;
+      }
+      .hero-card-title {
+        font-size: 1.25rem;
+      }
+      .hero-copy ul {
+        gap: 8px;
+      }
+      .free-form-card {
+        padding: 18px 16px;
       }
     }
   </style>
@@ -345,6 +369,8 @@
               <img src="/assets/images/in-purple-suit.png" alt="Loretta Stewart" onerror="this.style.display='none'">
             </div>
             <div class="hero-copy">
+              <h2 class="hero-card-title">Helping You Build a Stronger, Safer Retirement</h2>
+              <div class="hero-card-accent"></div>
               <p>Retirement and savings decisions can feel overwhelming, especially when you’re trying to protect the money you worked hard to build. This free guide was created to help you identify common savings and retirement mistakes, protect your principal, and explore safer options.</p>
               <ul>
                 <li>Learn the 7 retirement and savings mistakes many people miss</li>
@@ -357,6 +383,7 @@
           <aside>
             <div class="free-form-card">
               <h2>Send Me the Free Guide</h2>
+              <div class="form-accent"></div>
               <p class="book-sub">Just enter your details below to receive the guide.</p>
               <form id="free-guide-form" novalidate>
                 <div class="field-row">

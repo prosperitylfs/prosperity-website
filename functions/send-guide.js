@@ -9,18 +9,23 @@ export async function onRequestPost(context) {
     return json({ error: 'Invalid request.' }, 400);
   }
 
-  const { first_name, email } = data;
+  const { first_name, email, guide } = data;
+  const isRetirementSavingsGuide = guide === 'retirement-savings';
 
   if (!first_name || !email) {
     return json({ error: 'Missing required fields.' }, 400);
   }
+
+  const guideTitle = isRetirementSavingsGuide
+    ? '7 Retirement & Savings Mistakes Guide'
+    : 'Retirement Guide';
 
   const text = [
     `Hi ${first_name},`,
     '',
     'Thank you for requesting your free guide:',
     '',
-    '"7 Retirement & Savings Mistakes Many People Don\'t Realize They\'re Making"',
+    `"${guideTitle}"`,
     '',
     'You can view and download your guide here:',
     'https://www.prosperitylfs.com/free-guide-download',
@@ -38,7 +43,7 @@ export async function onRequestPost(context) {
   const html = `
     <p>Hi ${first_name},</p>
     <p>Thank you for requesting your free guide:</p>
-    <p><strong>&quot;7 Retirement &amp; Savings Mistakes Many People Don't Realize They're Making&quot;</strong></p>
+    <p><strong>&quot;${guideTitle}&quot;</strong></p>
     <p>You can view and download your guide here:</p>
     <p><a href="https://www.prosperitylfs.com/free-guide-download" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #389f72; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Download Your Free Guide</a></p>
     <p>If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:</p>
@@ -59,7 +64,9 @@ export async function onRequestPost(context) {
     body: JSON.stringify({
       from: 'Loretta Stewart <loretta@prosperitylfs.com>',
       to: [email],
-      subject: 'Your Free Retirement Guide Is Ready',
+      subject: isRetirementSavingsGuide
+        ? 'Your Free “7 Retirement & Savings Mistakes Guide”'
+        : 'Your Free Retirement Guide Is Ready',
       text,
       html,
     }),

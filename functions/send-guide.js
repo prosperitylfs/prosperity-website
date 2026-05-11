@@ -18,7 +18,11 @@ export async function onRequestPost(context) {
 
   const guideTitle = isRetirementSavingsGuide
     ? '7 Retirement & Savings Mistakes Guide'
-    : 'Retirement Guide';
+    : 'Your Free Guide';
+
+  const emailIntroLine = isRetirementSavingsGuide
+    ? 'Here is your free 7 Retirement & Savings Mistakes Guide.'
+    : 'Here is your free guide.';
 
   const text = [
     `Hi ${first_name},`,
@@ -44,6 +48,7 @@ export async function onRequestPost(context) {
     <p>Hi ${first_name},</p>
     <p>Thank you for requesting your free guide:</p>
     <p><strong>&quot;${guideTitle}&quot;</strong></p>
+    <p>${emailIntroLine}</p>
     <p>You can view and download your guide here:</p>
     <p><a href="https://www.prosperitylfs.com/free-guide-download" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #389f72; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Download Your Free Guide</a></p>
     <p>If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:</p>
@@ -65,8 +70,8 @@ export async function onRequestPost(context) {
       from: 'Loretta Stewart <loretta@prosperitylfs.com>',
       to: [email],
       subject: isRetirementSavingsGuide
-        ? 'Your Free “7 Retirement & Savings Mistakes Guide”'
-        : 'Your Free Retirement Guide Is Ready',
+        ? 'Your Free 7 Retirement & Savings Mistakes Guide'
+        : 'Your Free Guide Is Ready',
       text,
       html,
     }),

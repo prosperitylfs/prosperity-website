@@ -436,12 +436,6 @@
                 </label>
               </div>
 
-              <div class="sms-consent-group" style="margin-top:12px;">
-                <label class="sms-consent">
-                  <input type="checkbox" id="terms-consent-1" name="terms_consent" required>
-                  <span>I agree to the <a href="/terms.html">Terms &amp; Conditions</a> and <a href="/privacy-policy.html">Privacy Policy</a>. <span style="color:#c0392b;">*</span></span>
-                </label>
-              </div>
 
               <div class="step-nav">
                 <button type="button" class="btn-next-step" onclick="nextStep(1)">Next &rarr;</button>
@@ -534,13 +528,6 @@
 
               <input type="hidden" name="topics" id="val-topic">
 
-              <!-- TERMS CONSENT -->
-              <div class="sms-consent-group" style="margin-top:24px;">
-                <label class="sms-consent">
-                  <input type="checkbox" name="terms_consent" id="book-terms-consent" required>
-                  <span>I agree to the <a href="/terms.html">Terms &amp; Conditions</a> and <a href="/privacy-policy.html">Privacy Policy</a>. <span style="color:#c0392b;">*</span></span>
-                </label>
-              </div>
               <div class="step-nav">
                 <div class="step-nav-row">
                   <button type="button" class="btn-back" onclick="prevStep(2)">&larr; Back</button>
@@ -722,8 +709,6 @@
         }
         if (fEmailErr) { fEmailErr.textContent = ''; fEmailErr.style.display = 'none'; }
         document.getElementById('f-email').classList.remove('input-error');
-        const termsConsent = document.getElementById('terms-consent-1').checked;
-        if (!termsConsent) { showErr('Please agree to the Terms & Conditions and Privacy Policy.'); return false; }
         clearErr(); return true;
       }
 

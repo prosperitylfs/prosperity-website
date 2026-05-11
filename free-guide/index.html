@@ -13,17 +13,17 @@
     .free-hero {
       background: linear-gradient(135deg, var(--purple-dark), var(--purple));
       color: #ffffff;
-      padding: 70px 20px 60px;
+      padding: 35px 20px 30px;
     }
     .hero-header {
       text-align: center;
       max-width: 900px;
-      margin: 0 auto 40px;
+      margin: 0 auto 20px;
     }
     .free-hero-grid {
       display: grid;
-      grid-template-columns: 1fr 430px;
-      gap: 50px;
+      grid-template-columns: 1fr 380px;
+      gap: 30px;
       align-items: start;
       max-width: 1180px;
       margin: 0 auto;
@@ -31,12 +31,12 @@
     .hero-left {
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 16px;
       max-width: 100%;
     }
     .hero-left img {
       width: 100%;
-      max-width: 520px;
+      max-width: 380px;
       border-radius: 24px;
       display: block;
       margin: 0 auto;
@@ -52,47 +52,47 @@
       letter-spacing: 0.24em;
       text-transform: uppercase;
       font-size: 1.05rem;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     .hero-title {
-      font-size: clamp(2.5rem, 4vw, 4.4rem);
+      font-size: clamp(1.75rem, 2.8vw, 3rem);
       font-weight: 800;
-      line-height: 1.12;
+      line-height: 1.05;
       max-width: 1000px;
-      margin: 0 auto 24px;
+      margin: 0 auto 16px;
       color: #ffffff;
       letter-spacing: -0.02em;
     }
     .hero-subtitle {
-      font-size: 1.2rem;
-      line-height: 1.7;
+      font-size: 1rem;
+      line-height: 1.5;
       max-width: 850px;
-      margin: 0 auto 50px;
+      margin: 0 auto 30px;
       color: rgba(255,255,255,0.92);
     }
     .hero-copy {
       background: var(--green);
       border: 1px solid rgba(255,255,255,0.18);
       border-radius: 24px;
-      padding: 28px;
+      padding: 20px;
       color: #ffffff;
     }
     .hero-copy p {
-      margin: 0 0 20px;
-      line-height: 1.75;
+      margin: 0 0 16px;
+      line-height: 1.6;
     }
     .hero-copy ul {
       list-style: none;
       padding: 0;
       margin: 0;
       display: grid;
-      gap: 12px;
+      gap: 10px;
     }
     .hero-copy li {
       position: relative;
       padding-left: 32px;
       font-weight: 500;
-      line-height: 1.7;
+      line-height: 1.6;
     }
     .hero-copy li::before {
       content: '\2713';
@@ -104,28 +104,28 @@
     }
     .free-form-card {
       width: 100%;
-      max-width: 430px;
+      max-width: 380px;
       background: #ffffff;
       border-radius: 24px;
-      padding: 36px;
+      padding: 24px;
       box-shadow: 0 20px 48px rgba(58,31,112,0.14);
       border: 1px solid rgba(58,31,112,0.08);
       margin: auto 0;
     }
     .free-form-card h2 {
       margin-top: 0;
-      margin-bottom: 12px;
-      font-size: 1.9rem;
+      margin-bottom: 8px;
+      font-size: 1.7rem;
       color: var(--purple-dark);
       line-height: 1.08;
     }
     .free-form-card .book-sub {
-      margin-bottom: 28px;
+      margin-bottom: 20px;
       color: var(--text-muted);
     }
     .free-form-card label {
       display: block;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       font-size: 0.93rem;
       font-weight: 600;
       color: var(--purple-dark);
@@ -133,8 +133,8 @@
     .free-form-card .field-row {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
-      margin-bottom: 16px;
+      gap: 12px;
+      margin-bottom: 12px;
     }
     .free-form-card .field-row .field-group {
       width: 100%;
@@ -143,15 +143,15 @@
     .free-form-card input[type="email"],
     .free-form-card input[type="tel"] {
       width: 100%;
-      min-height: 48px;
-      padding: 12px 14px;
-      font-size: 15px;
+      min-height: 44px;
+      padding: 10px 12px;
+      font-size: 14px;
       line-height: 1.4;
       border: 1.5px solid var(--border-light);
       border-radius: 10px;
       color: var(--text);
       background: #ffffff;
-      margin-bottom: 18px;
+      margin-bottom: 14px;
       box-sizing: border-box;
     }
     .free-form-card input[type="text"]:focus,
@@ -163,20 +163,20 @@
     }
     .free-form-card .sms-consent {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       align-items: flex-start;
-      margin: 22px 0 20px;
+      margin: 16px 0 16px;
     }
     .free-form-card .sms-consent input[type="checkbox"] {
-      margin-top: 3px;
-      width: 18px;
-      height: 18px;
+      margin-top: 2px;
+      width: 16px;
+      height: 16px;
       flex-shrink: 0;
     }
     .free-form-card .sms-consent span {
-      font-size: 13px;
+      font-size: 12px;
       color: #4a4a68;
-      line-height: 1.55;
+      line-height: 1.5;
     }
     .free-form-card .sms-consent span a {
       color: var(--purple-dark);
@@ -185,8 +185,8 @@
     .free-form-card button[type="submit"],
     .free-form-card .btn-full {
       width: 100%;
-      height: 50px;
-      font-size: 1rem;
+      height: 44px;
+      font-size: 0.95rem;
       font-weight: 700;
       border-radius: 10px;
       background: var(--green);
@@ -194,7 +194,7 @@
       border: none;
       cursor: pointer;
       transition: background 0.18s ease, transform 0.18s ease;
-      margin-top: 4px;
+      margin-top: 2px;
     }
     .free-form-card button[type="submit"]:hover,
     .free-form-card .btn-full:hover {
@@ -202,9 +202,9 @@
       transform: translateY(-1px);
     }
     .free-form-card .form-message {
-      margin-top: 18px;
-      font-size: 0.95rem;
-      line-height: 1.6;
+      margin-top: 14px;
+      font-size: 0.9rem;
+      line-height: 1.5;
     }
     .free-form-card .form-message.error {
       color: #c0392b;
@@ -222,54 +222,54 @@
     @media (max-width: 992px) {
       .free-hero-grid {
         grid-template-columns: 1fr;
-        gap: 40px;
+        gap: 24px;
       }
       .hero-left, .hero-right {
         align-items: stretch;
       }
       .hero-title {
-        font-size: 2.6rem;
+        font-size: 2rem;
       }
       .hero-subtitle {
-        font-size: 1.05rem;
+        font-size: 0.9rem;
       }
       .free-form-card {
         max-width: 100%;
       }
       .hero-left img {
-        max-width: 420px;
+        max-width: 320px;
       }
       .hero-header {
-        margin-bottom: 36px;
+        margin-bottom: 24px;
       }
     }
     @media (max-width: 780px) {
       .free-form-card {
         max-width: 100%;
-        padding: 28px 22px;
+        padding: 20px 18px;
       }
       .field-row {
         grid-template-columns: 1fr;
       }
       .hero-header {
-        margin-bottom: 40px;
+        margin-bottom: 28px;
       }
     }
     @media (max-width: 680px) {
       .free-hero {
-        padding: 48px 0 48px;
+        padding: 32px 0 32px;
       }
       .hero-copy {
-        padding: 22px;
+        padding: 18px;
       }
       .hero-title {
-        font-size: clamp(1.75rem, 5vw, 2.2rem);
+        font-size: clamp(1.5rem, 4vw, 2rem);
       }
       .hero-subtitle {
-        font-size: 1rem;
+        font-size: 0.9rem;
       }
       .hero-header {
-        margin-bottom: 32px;
+        margin-bottom: 24px;
       }
     }
   </style>

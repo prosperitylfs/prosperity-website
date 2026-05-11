@@ -13,41 +13,93 @@
     .free-hero {
       background: linear-gradient(180deg, #2b1062 0%, #3f1a96 45%, #5625bf 100%);
       color: #ffffff;
-      padding: 20px 20px 18px;
+      padding: 24px 20px 24px;
+    }
+    .free-hero .container {
+      max-width: 1200px;
     }
     .hero-header {
       text-align: center;
       max-width: 900px;
-      margin: 0 auto 24px;
+      margin: 0 auto 28px;
     }
     .free-hero-grid {
       display: grid;
-      grid-template-columns: minmax(0, 2.3fr) minmax(360px, 1fr);
-      gap: 28px;
+      grid-template-columns: minmax(0, 1.6fr) minmax(360px, 1fr);
+      gap: 32px;
       align-items: start;
-      max-width: 1180px;
+      max-width: 1200px;
       margin: 0 auto;
     }
     .hero-left {
-      display: grid;
-      grid-template-columns: minmax(360px, 600px) 1fr;
+      display: flex;
+      flex-direction: column;
       gap: 24px;
       align-items: center;
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.16);
       border-radius: 32px;
-      padding: 26px;
+      padding: 28px;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
       max-width: 100%;
     }
+    .hero-photo-wrap {
+      width: 100%;
+      max-width: 620px;
+      margin: 0 auto;
+    }
     .hero-left img {
       width: 100%;
-      max-width: none;
+      max-width: 100%;
+      height: auto;
       border-radius: 28px;
       display: block;
-      margin: 0;
       object-fit: cover;
       box-shadow: 0 28px 80px rgba(0,0,0,0.28);
+    }
+    .hero-benefits-card {
+      width: 100%;
+      max-width: 620px;
+      background: var(--green);
+      border-radius: 24px;
+      padding: 18px 20px;
+      color: #ffffff;
+      box-shadow: 0 18px 44px rgba(0,0,0,0.12);
+    }
+    .hero-benefits-card p {
+      margin: 0 0 14px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .hero-benefits-card ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 10px;
+    }
+    .hero-benefits-card li {
+      position: relative;
+      padding-left: 32px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      font-weight: 500;
+    }
+    .hero-benefits-card li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      top: 4px;
+      width: 20px;
+      height: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      color: var(--green);
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 700;
     }
     .hero-eyebrow {
       display: inline-flex;
@@ -61,95 +113,37 @@
       margin-bottom: 12px;
     }
     .hero-title {
-      font-size: clamp(2rem, 3.1vw, 3rem);
+      font-size: clamp(1.85rem, 2.5vw, 2.35rem);
       font-weight: 600;
-      line-height: 1.05;
+      line-height: 1.08;
       max-width: 820px;
       margin: 0 auto 14px;
       color: #ffffff;
       letter-spacing: -0.02em;
     }
     .hero-subtitle {
-      font-size: 0.98rem;
-      line-height: 1.65;
+      font-size: 1rem;
+      line-height: 1.7;
       max-width: 760px;
       margin: 0 auto;
-      color: rgba(255,255,255,0.92);
+      color: rgba(255,255,255,0.9);
     }
     .hero-copy {
-      background: transparent;
-      border: none;
-      border-radius: 0;
-      padding: 0;
-      color: #ffffff;
-      margin: 0;
-    }
-    .hero-card-title {
-      margin: 0 0 10px;
-      font-size: 1.55rem;
-      font-weight: 600;
-      line-height: 1.12;
-      color: #ffffff;
-    }
-    .hero-card-accent {
-      width: 52px;
-      height: 4px;
-      background: rgba(99,229,158,0.95);
-      border-radius: 999px;
-      margin-bottom: 16px;
-    }
-    .hero-copy p {
-      margin: 0 0 14px;
-      line-height: 1.7;
-      font-size: 0.95rem;
-      max-width: 520px;
-    }
-    .hero-copy ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: grid;
-      gap: 10px;
-      max-width: 520px;
-    }
-    .hero-copy li {
-      position: relative;
-      padding-left: 34px;
-      font-weight: 500;
-      line-height: 1.6;
-      font-size: 0.95rem;
-      color: rgba(255,255,255,0.94);
-      margin: 0;
-    }
-    .hero-copy li::before {
-      content: '✓';
-      position: absolute;
-      left: 0;
-      top: 4px;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: #ffffff;
-      background: var(--green);
-      font-size: 0.75rem;
-      font-weight: 700;
+      display: none;
     }
     .free-form-card {
       width: 100%;
-      max-width: 360px;
+      max-width: 420px;
       background: #ffffff;
       border-radius: 32px;
-      padding: 26px;
+      padding: 32px;
       box-shadow: 0 26px 70px rgba(31,15,71,0.12);
       border: 1px solid rgba(58,31,112,0.08);
       margin: auto 0;
     }
     .free-form-card h2 {
       margin-top: 0;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       font-size: 1.75rem;
       color: var(--purple-dark);
       line-height: 1.05;
@@ -399,10 +393,8 @@
             <div class="hero-photo-wrap">
               <img src="/assets/images/in-purple-suit.png" alt="Loretta Stewart" onerror="this.style.display='none'">
             </div>
-            <div class="hero-copy">
-              <h2 class="hero-card-title">Helping You Build a Stronger, Safer Retirement</h2>
-              <div class="hero-card-accent"></div>
-              <p>Retirement and savings decisions can feel overwhelming, especially when you’re trying to protect the money you worked hard to build. This free guide was created to help you identify common savings and retirement mistakes, protect your principal, and explore safer options.</p>
+            <div class="hero-benefits-card">
+              <p>This free guide was created to help you:</p>
               <ul>
                 <li>Learn the 7 retirement and savings mistakes many people miss</li>
                 <li>Understand options for CDs, 401(k)s, IRAs, and other retirement accounts</li>
@@ -438,7 +430,7 @@
                 <input type="hidden" name="sms_consent" id="sms-consent-hidden" value="no">
                 <div class="sms-consent">
                   <input type="checkbox" id="sms-consent-checkbox" aria-describedby="sms-consent-text">
-                  <span id="sms-consent-text">SMS consent is optional and not required to receive your guide, schedule an appointment, request a quote, or use our services.<br><br>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, quotes, and follow-ups. Message frequency varies, up to 5 messages per month. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="/terms">Terms &amp; Conditions</a> and <a href="/privacy">Privacy Policy</a>.</span>
+                  <span id="sms-consent-text">SMS consent is optional and not required to receive your guide, schedule an appointment, request a quote, or use our services.<br><br>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, quotes, and follow-ups. Message frequency varies, up to 5 messages per month. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="/terms.html">Terms &amp; Conditions</a> and <a href="/privacy-policy.html">Privacy Policy</a>.</span>
                 </div>
                 <button type="submit" class="btn btn-amber btn-full">Send My Free Guide</button>
                 <p id="free-guide-message" class="form-message" aria-live="polite"></p>

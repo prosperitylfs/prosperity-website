@@ -23,7 +23,7 @@
     .free-hero-grid {
       display: grid;
       grid-template-columns: 1fr 285px;
-      gap: 18px;
+      gap: 15px;
       align-items: start;
       max-width: 1180px;
       margin: 0 auto;
@@ -31,12 +31,12 @@
     .hero-left {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       max-width: 100%;
     }
     .hero-left img {
       width: 100%;
-      max-width: 240px;
+      max-width: 200px;
       border-radius: 24px;
       display: block;
       margin: 0 auto;
@@ -55,46 +55,46 @@
       margin-bottom: 10px;
     }
     .hero-title {
-      font-size: clamp(1.2rem, 1.92vw, 2rem);
+      font-size: clamp(0.9rem, 1.44vw, 1.6rem);
       font-weight: 800;
-      line-height: 1.02;
+      line-height: 1.0;
       max-width: 1000px;
-      margin: 0 auto 10px;
+      margin: 0 auto 8px;
       color: #ffffff;
       letter-spacing: -0.02em;
     }
     .hero-subtitle {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       line-height: 1.35;
       max-width: 850px;
-      margin: 0 auto 15px;
+      margin: 0 auto 12px;
       color: rgba(255,255,255,0.92);
     }
     .hero-copy {
       background: var(--green);
       border: 1px solid rgba(255,255,255,0.18);
       border-radius: 24px;
-      padding: 14px;
+      padding: 12px;
       color: #ffffff;
     }
     .hero-copy p {
       margin: 0 0 10px;
       line-height: 1.45;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
     .hero-copy ul {
       list-style: none;
       padding: 0;
       margin: 0;
       display: grid;
-      gap: 6px;
+      gap: 5px;
     }
     .hero-copy li {
       position: relative;
       padding-left: 28px;
       font-weight: 500;
       line-height: 1.45;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
     .hero-copy li::before {
       content: '\2713';
@@ -224,22 +224,22 @@
     @media (max-width: 992px) {
       .free-hero-grid {
         grid-template-columns: 1fr;
-        gap: 18px;
+        gap: 15px;
       }
       .hero-left, .hero-right {
         align-items: stretch;
       }
       .hero-title {
-        font-size: 1.8rem;
+        font-size: 1.5rem;
       }
       .hero-subtitle {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
       }
       .free-form-card {
         max-width: 100%;
       }
       .hero-left img {
-        max-width: 240px;
+        max-width: 200px;
       }
       .hero-header {
         margin-bottom: 18px;
@@ -262,13 +262,13 @@
         padding: 20px 0 20px;
       }
       .hero-copy {
-        padding: 14px;
+        padding: 12px;
       }
       .hero-title {
-        font-size: clamp(1.3rem, 4vw, 1.8rem);
+        font-size: clamp(1.1rem, 3.5vw, 1.5rem);
       }
       .hero-subtitle {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
       }
       .hero-header {
         margin-bottom: 16px;

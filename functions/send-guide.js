@@ -35,7 +35,7 @@ export async function onRequestPost(context) {
     'https://www.prosperitylfs.com/free-guide-download',
     '',
     'If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:',
-    'https://calendly.com/loretta-prosperitylfs/30min',
+    'https://www.prosperitylfs.com/book',
     '',
     'Best,',
     'Loretta Stewart',
@@ -54,12 +54,12 @@ export async function onRequestPost(context) {
     <p>You can view and download your guide here:</p>
     <p><a href="https://www.prosperitylfs.com/free-guide-download" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #389f72; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Download Your Free Guide</a></p>
     <p>If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:</p>
-    <p><a href="https://calendly.com/loretta-prosperitylfs/30min" target="_blank" rel="noopener noreferrer">https://calendly.com/loretta-prosperitylfs/30min</a></p>
+    <p><a href="https://www.prosperitylfs.com/book" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;background:#4e2c94;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Schedule Your Free Consultation</a></p>
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:18px;border-top:1px solid #e8e4f5;padding-top:16px;font-family:Arial,Helvetica,sans-serif;color:#1f1f1f;">
       <tr>
-        <td valign="top" style="padding-right:12px;width:88px;">
+        <td valign="top" style="padding-right:12px;width:140px;">
           <a href="https://www.prosperitylfs.com" target="_blank" style="text-decoration:none;display:inline-block;">
-            <img src="https://www.prosperitylfs.com/assets/images/logo.png" width="88" alt="Prosperity Life & Financial Solutions" style="display:block;border:none;outline:none;text-decoration:none;width:88px;height:auto;" />
+            <img src="https://www.prosperitylfs.com/logo.png" width="132" alt="Prosperity Life & Financial Solutions" style="display:block;border:none;outline:none;text-decoration:none;width:132px;height:auto;" />
           </a>
         </td>
         <td valign="top" style="padding-left:12px;">

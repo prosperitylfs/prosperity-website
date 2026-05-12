@@ -67,15 +67,15 @@ export async function onRequestPost(context) {
           <div style="font-size:13px;color:#4f4f4f;line-height:1.5;margin-bottom:10px;">Life &amp; Retirement Advisor<br>Prosperity Life &amp; Financial Solutions LLC</div>
           <div style="font-size:13px;color:#4f4f4f;line-height:1.6;margin-bottom:12px;">
             <div style="margin-bottom:6px;">
-              <span style="display:inline-block;width:16px;font-size:15px;line-height:1;vertical-align:middle;color:#000000;">☎</span>
+              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23000' d='M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24 11.42 11.42 0 0 0 3.58.57 1 1 0 0 1 1 1v3.62a1 1 0 0 1-1 1A17 17 0 0 1 3 5a1 1 0 0 1 1-1h3.62a1 1 0 0 1 1 1 11.42 11.42 0 0 0 .57 3.58 1 1 0 0 1-.24 1.02l-2.2 2.2Z'/%3E%3C/svg%3E" width="14" height="14" style="display:inline-block;vertical-align:middle;margin-right:6px;" alt="" />
               <a href="tel:+14144411177" style="color:#389f72;text-decoration:none;vertical-align:middle;">414-441-1177</a>
             </div>
             <div style="margin-bottom:6px;">
-              <span style="display:inline-block;width:16px;font-size:15px;line-height:1;vertical-align:middle;color:#000000;">✉</span>
+              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23000' d='M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4.3l-8 5-8-5V6l8 5 8-5v2.3z'/%3E%3C/svg%3E" width="14" height="14" style="display:inline-block;vertical-align:middle;margin-right:6px;" alt="" />
               <a href="mailto:loretta@prosperitylfs.com" style="color:#389f72;text-decoration:none;vertical-align:middle;">loretta@prosperitylfs.com</a>
             </div>
             <div>
-              <span style="display:inline-block;width:16px;font-size:15px;line-height:1;vertical-align:middle;color:#000000;">🌐</span>
+              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23000' d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm2.09 3.5a7.98 7.98 0 0 1 3.41 2.33A8.01 8.01 0 0 0 14.09 5.5zM12 4c1.46 0 2.83.4 4.01 1.09A8 8 0 0 0 12 4zm-2.09 1.5A8 8 0 0 0 6.5 7.83 7.98 7.98 0 0 1 9.91 5.5zM4.08 10.5A7.96 7.96 0 0 1 4 12a7.96 7.96 0 0 1 .08 1.5 9.99 9.99 0 0 0 3.35-1.57 9.99 9.99 0 0 0-3.35-1.43zM12 20c-1.46 0-2.83-.4-4.01-1.09A8 8 0 0 0 12 20zm2.09-1.5A8 8 0 0 0 17.5 16.17 7.98 7.98 0 0 1 14.09 18.5zM4.08 13.5a9.99 9.99 0 0 0 3.35 1.57 9.99 9.99 0 0 0-3.35-1.57zM19.92 13.5a9.99 9.99 0 0 0-3.35 1.57 9.99 9.99 0 0 0 3.35-1.57z'/%3E%3C/svg%3E" width="14" height="14" style="display:inline-block;vertical-align:middle;margin-right:6px;" alt="" />
               <a href="https://www.prosperitylfs.com" target="_blank" style="color:#389f72;text-decoration:none;vertical-align:middle;">prosperitylfs.com</a>
             </div>
           </div>

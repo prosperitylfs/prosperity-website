@@ -32,7 +32,7 @@ export async function onRequestPost(context) {
     `"${guideTitle}"`,
     '',
     'You can view and download your guide here:',
-    'https://www.prosperitylfs.com/free-guide-download',
+    'https://www.prosperitylfs.com/7-retirement-savings-mistakes-guide.pdf',
     '',
     'If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:',
     'https://www.prosperitylfs.com/book',
@@ -44,7 +44,7 @@ export async function onRequestPost(context) {
     <p><strong>&quot;${guideTitle}&quot;</strong></p>
     <p>${emailIntroLine}</p>
     <p>You can view and download your guide here:</p>
-    <p><a href="https://www.prosperitylfs.com/free-guide-download" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #389f72; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Download Your Free Guide</a></p>
+    <p><a href="https://www.prosperitylfs.com/7-retirement-savings-mistakes-guide.pdf" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #389f72; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Download Your Free Guide</a></p>
     <p>If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:</p>
     <p><a href="https://www.prosperitylfs.com/book" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;background:#4e2c94;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Schedule Your Free Consultation</a></p>
     <img 

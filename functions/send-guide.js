@@ -57,9 +57,9 @@ export async function onRequestPost(context) {
     <p><a href="https://www.prosperitylfs.com/book" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;background:#4e2c94;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Schedule Your Free Consultation</a></p>
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:18px;border-top:1px solid #e8e4f5;padding-top:16px;font-family:Arial,Helvetica,sans-serif;color:#1f1f1f;">
       <tr>
-        <td valign="top" style="padding-right:12px;width:140px;">
+        <td valign="top" style="padding-right:12px;width:120px;">
           <a href="https://www.prosperitylfs.com" target="_blank" style="text-decoration:none;display:inline-block;">
-            <img src="https://www.prosperitylfs.com/logo.png" width="132" alt="Prosperity Life & Financial Solutions" style="display:block;border:none;outline:none;text-decoration:none;width:132px;height:auto;" />
+            <img src="https://www.prosperitylfs.com/assets/images/Small%20Logo.png" width="120" alt="Prosperity Life & Financial Solutions" style="display:block;border:none;outline:none;text-decoration:none;width:120px;height:auto;" />
           </a>
         </td>
         <td valign="top" style="padding-left:12px;">
@@ -69,9 +69,6 @@ export async function onRequestPost(context) {
             <div style="margin-bottom:6px;"><strong style="color:#2b1062;">P:</strong> <a href="tel:+14144411177" style="color:#389f72;text-decoration:none;">414-441-1177</a></div>
             <div style="margin-bottom:6px;"><strong style="color:#2b1062;">E:</strong> <a href="mailto:loretta@prosperitylfs.com" style="color:#389f72;text-decoration:none;">loretta@prosperitylfs.com</a></div>
             <div><strong style="color:#2b1062;">W:</strong> <a href="https://www.prosperitylfs.com" target="_blank" style="color:#389f72;text-decoration:none;">prosperitylfs.com</a></div>
-          </div>
-          <div>
-            <a href="https://www.prosperitylfs.com/book" target="_blank" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#4e2c94;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;">Book a Free Consultation</a>
           </div>
         </td>
       </tr>

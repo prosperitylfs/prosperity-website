@@ -57,18 +57,27 @@ export async function onRequestPost(context) {
     <p><a href="https://www.prosperitylfs.com/book" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;background:#4e2c94;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Schedule Your Free Consultation</a></p>
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:18px;border-top:1px solid #e8e4f5;padding-top:16px;font-family:Arial,Helvetica,sans-serif;color:#1f1f1f;">
       <tr>
-        <td valign="top" style="padding-right:12px;width:120px;">
+        <td valign="top" style="padding-right:12px;width:110px;">
           <a href="https://www.prosperitylfs.com" target="_blank" style="text-decoration:none;display:inline-block;">
-            <img src="https://www.prosperitylfs.com/assets/images/Small%20Logo.png" width="120" alt="Prosperity Life & Financial Solutions" style="display:block;border:none;outline:none;text-decoration:none;width:120px;height:auto;" />
+            <img src="https://www.prosperitylfs.com/assets/images/Small%20Logo.png" width="110" alt="Prosperity Life & Financial Solutions" style="display:block;border:none;outline:none;text-decoration:none;width:110px;height:auto;image-rendering:auto;" />
           </a>
         </td>
         <td valign="top" style="padding-left:12px;">
           <div style="font-size:16px;font-weight:700;color:#2b1062;line-height:1.3;margin-bottom:4px;">Loretta Stewart</div>
           <div style="font-size:13px;color:#4f4f4f;line-height:1.5;margin-bottom:10px;">Life &amp; Retirement Advisor<br>Prosperity Life &amp; Financial Solutions LLC</div>
           <div style="font-size:13px;color:#4f4f4f;line-height:1.6;margin-bottom:12px;">
-            <div style="margin-bottom:6px;"><strong style="color:#2b1062;">P:</strong> <a href="tel:+14144411177" style="color:#389f72;text-decoration:none;">414-441-1177</a></div>
-            <div style="margin-bottom:6px;"><strong style="color:#2b1062;">E:</strong> <a href="mailto:loretta@prosperitylfs.com" style="color:#389f72;text-decoration:none;">loretta@prosperitylfs.com</a></div>
-            <div><strong style="color:#2b1062;">W:</strong> <a href="https://www.prosperitylfs.com" target="_blank" style="color:#389f72;text-decoration:none;">prosperitylfs.com</a></div>
+            <div style="margin-bottom:6px;">
+              <span style="display:inline-block;width:16px;font-size:15px;line-height:1;vertical-align:middle;color:#000000;">☎</span>
+              <a href="tel:+14144411177" style="color:#389f72;text-decoration:none;vertical-align:middle;">414-441-1177</a>
+            </div>
+            <div style="margin-bottom:6px;">
+              <span style="display:inline-block;width:16px;font-size:15px;line-height:1;vertical-align:middle;color:#000000;">✉</span>
+              <a href="mailto:loretta@prosperitylfs.com" style="color:#389f72;text-decoration:none;vertical-align:middle;">loretta@prosperitylfs.com</a>
+            </div>
+            <div>
+              <span style="display:inline-block;width:16px;font-size:15px;line-height:1;vertical-align:middle;color:#000000;">🌐</span>
+              <a href="https://www.prosperitylfs.com" target="_blank" style="color:#389f72;text-decoration:none;vertical-align:middle;">prosperitylfs.com</a>
+            </div>
           </div>
         </td>
       </tr>

@@ -47,7 +47,12 @@ export async function onRequestPost(context) {
     <p><a href="https://www.prosperitylfs.com/free-guide-download" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #389f72; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Download Your Free Guide</a></p>
     <p>If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:</p>
     <p><a href="https://www.prosperitylfs.com/book" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;background:#4e2c94;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Schedule Your Free Consultation</a></p>
-    <img src="https://www.prosperitylfs.com/images/Loretta%20email%20signature.png" alt="Loretta Stewart - Prosperity Life & Financial Solutions" width="520" style="display:block; width:520px; max-width:100%; height:auto; border:0; margin-top:24px;">
+    <img 
+      src="https://www.prosperitylfs.com/assets/images/loretta-email-signature.png"
+      alt="Loretta Stewart - Prosperity Life & Financial Solutions"
+      width="520"
+      style="display:block; width:520px; max-width:100%; height:auto; border:0; margin-top:24px;"
+    >
   `;
 
   const resendRes = await fetch('https://api.resend.com/emails', {

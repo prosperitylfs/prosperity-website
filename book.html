@@ -537,19 +537,22 @@
               <p id="err-2" class="step-error"></p>
             </div>
 
-            <!-- ── STEP 3: Redirect to GoHighLevel Booking ── -->
+            <!-- ── STEP 3: Schedule with GoHighLevel Booking ── -->
             <div class="form-step" id="step-3" style="display:none;">
-              <p class="step-heading">Redirecting to scheduling...</p>
-              <p class="step-sub">You'll be taken to our booking calendar in just a moment.</p>
+              <p class="step-heading">Almost done &mdash; pick a time that works for you</p>
+              <p class="step-sub">Choose an available slot below. The call is 30 minutes and completely free.</p>
+
               <div style="width:100%; max-width:100%; margin-top:40px; text-align:center;">
-                <p style="font-size:0.95rem; color:#666; margin-bottom:20px;">If you are not redirected automatically, <a href="https://api.leadconnectorhq.com/widget/bookings/retirement-insurance" style="color:#4e2c94; font-weight:600; text-decoration:none;">click here</a>.</p>
+                <p style="font-size:0.95rem; color:#666; margin-bottom:24px;">Click the button below to open our booking calendar and select your preferred date and time.</p>
+                <a href="https://api.leadconnectorhq.com/widget/bookings/retirement-insurance" target="_blank" rel="noopener noreferrer" class="btn btn-amber" style="display:inline-block; padding:14px 40px; background:#389f72; color:white; text-decoration:none; border-radius:8px; font-weight:600; font-size:1rem;">Schedule Your Consultation</a>
               </div>
-              <script>
-                // Redirect to GoHighLevel booking after short delay for visibility
-                setTimeout(function() {
-                  window.location.href = 'https://api.leadconnectorhq.com/widget/bookings/retirement-insurance';
-                }, 800);
-              </script>
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-back" onclick="prevStep(3)">&larr; Back</button>
+                </div>
+              </div>
+              <p class="form-privacy" style="margin-top:16px; font-size:0.82rem; color:#888; text-align:center;">No cost. No obligation. No pressure.</p>
             </div>
 
           </form>
@@ -610,7 +613,7 @@
   </script>
 
   <script>
-    // Fixed 3-step sequence for all users: contact → topics → Calendly
+    // Fixed 3-step sequence for all users: contact → topics → GoHighLevel booking
     const STEPS = [1, 2, 3];
 
     const INSURANCE_KEYWORDS = [
@@ -714,7 +717,7 @@
       return true;
     }
 
-    // ── Collect fields and send to CRM before showing Calendly ──
+    // ── Collect fields and send to CRM before showing GoHighLevel booking ──
     // POST logic lives in assets/js/main.js → sendBookingLead()
     function postBookingLeadToCRM(callback) {
       function getVal(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
@@ -736,7 +739,7 @@
       if (pos < STEPS.length - 1) {
         const nextStepId = STEPS[pos + 1];
         if (nextStepId === 3) {
-          // Save lead to CRM first, then redirect to GoHighLevel booking
+          // Save lead to CRM first, then show GoHighLevel booking step
           postBookingLeadToCRM(function() { showStep(3); });
         } else {
           showStep(nextStepId);

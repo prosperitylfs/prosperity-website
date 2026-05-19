@@ -394,168 +394,55 @@
       <div class="book-form-wrap">
         <div class="book-calendar-card">
 
-          <!-- Progress bar -->
-          <div class="funnel-progress">
-            <div class="funnel-bar-wrap">
-              <div class="funnel-bar" id="funnel-bar" style="width:33.3%"></div>
-            </div>
-            <span class="funnel-step-label" id="funnel-step-label">Step 1 of 3</span>
+          <!-- Embedded GoHighLevel survey (replaces previous qualification form) -->
+          <div class="iframe-embed-wrap" style="width:100%;">
+            <iframe
+              id="HQRf4FGLmpLgIHI64Z0F"
+              src="https://api.leadconnectorhq.com/widget/survey/HQRf4FGLmpLgIHI64Z0F"
+              title="survey"
+              scrolling="no"
+              style="border:none;width:100%;min-height:600px;height:600px;"
+              loading="lazy"
+              allow="clipboard-read; clipboard-write; camera; microphone; autoplay"
+            ></iframe>
           </div>
 
-          <form id="qual-form" class="book-form" novalidate>
+          <script src="https://link.msgsndr.com/js/form_embed.js"></script>
+          <script>
+            (function() {
+              var iframe = document.getElementById('HQRf4FGLmpLgIHI64Z0F');
+              if (!iframe) return;
 
-            <!-- ── STEP 1: Contact Info + SMS Consent ── -->
-            <div class="form-step" id="step-1">
-              <p class="step-heading">Let&rsquo;s get started</p>
-              <p class="step-sub">Enter your contact info so we can reach you about your consultation.</p>
+              // Listen for postMessage events from the embed to set iframe height
+              window.addEventListener('message', function(e) {
+                try {
+                  var data = (typeof e.data === 'string') ? JSON.parse(e.data) : e.data;
+                  if (!data) return;
+                  // Common patterns: {height: 1200} or {h:1200} or {iframeHeight:1200}
+                  var h = data.height || data.h || data.iframeHeight || data.iframe_height || data.size;
+                  if (h && !isNaN(h)) {
+                    iframe.style.height = (parseInt(h, 10) + 16) + 'px';
+                  }
+                } catch (err) {
+                  // Ignore non-JSON messages
+                }
+              }, false);
 
-              <div class="name-row">
-                <div class="form-group">
-                  <label class="form-label" for="f-first-name">First Name <span class="req">*</span></label>
-                  <input type="text" id="f-first-name" name="first_name" placeholder="Jane" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="f-last-name">Last Name <span class="req">*</span></label>
-                  <input type="text" id="f-last-name" name="last_name" placeholder="Smith" required>
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="f-phone">Phone Number <span class="req">*</span></label>
-                <input type="tel" id="f-phone" name="phone" placeholder="(414) 555-0100" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="f-email">Email Address <span class="req">*</span></label>
-                <input type="email" id="f-email" name="email" placeholder="jane@example.com" required autocomplete="email" data-email-err="f-email-err" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" title="Please enter a valid email address, such as name@example.com">
-                <p class="form-error-message" id="f-email-err" style="display:none;"></p>
-              </div>
+              // Fallback: listen for a data-height attribute set by the embed script
+              var last = 0;
+              setInterval(function() {
+                var attr = iframe.getAttribute('data-height') || iframe.dataset.height;
+                if (attr && attr !== last) {
+                  last = attr;
+                  if (!isNaN(attr)) iframe.style.height = (parseInt(attr, 10) + 16) + 'px';
+                }
+              }, 500);
 
-              <div class="sms-consent-group">
-                <label class="sms-consent">
-                  <input type="checkbox" id="sms-consent-1" name="sms_consent">
-                  <span>SMS consent is optional and not required to receive your guide, schedule an appointment, request a quote, or use our services.<br><br>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, quotes, and follow-ups. Message frequency varies, up to 5 messages per month. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="/terms.html">Terms &amp; Conditions</a> and <a href="/privacy-policy.html">Privacy Policy</a>.</span>
-                </label>
-              </div>
+              // Ensure width fills container on resize
+              window.addEventListener('resize', function() { iframe.style.width = '100%'; });
+            })();
+          </script>
 
-
-              <div class="step-nav">
-                <button type="button" class="btn-next-step" onclick="nextStep(1)">Next &rarr;</button>
-              </div>
-              <p id="err-1" class="step-error"></p>
-            </div>
-
-            <!-- ── STEP 2: Topic (multi-select checkboxes) ── -->
-            <div class="form-step" id="step-2" style="display:none;">
-              <p class="step-heading">What would you like help with today?</p>
-              <p class="step-sub">Select all that apply &mdash; you can choose more than one.</p>
-
-              <div class="topic-cat-label">Retirement &amp; Savings</div>
-              <div class="topic-check-group">
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Rolling over a 401(k), 403(b), or TSP">
-                  <span class="btn-icon">🔄</span><span>Rolling over a 401(k), 403(b), or TSP</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Retirement income planning">
-                  <span class="btn-icon">💰</span><span>Retirement income planning</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Roth conversion strategy">
-                  <span class="btn-icon">📊</span><span>Roth conversion strategy</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Safe growth / CD alternative options">
-                  <span class="btn-icon">🏦</span><span>Safe growth / CD alternative options</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Professional Second Opinion Review ($150)">
-                  <span class="btn-icon">🔍</span>
-                  <span>Professional Second Opinion Review ($150)<span class="topic-check-sub">For individuals who want a detailed professional review without committing to a full strategy relationship.</span></span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-              </div>
-
-              <div class="topic-cat-label" style="margin-top:18px;">Life Insurance &amp; Protection</div>
-              <div class="topic-check-group">
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Life insurance coverage (term or permanent)">
-                  <span class="btn-icon">🛡️</span><span>Life insurance coverage (term or permanent)</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Life insurance with living benefits">
-                  <span class="btn-icon">❤️</span><span>Life insurance with living benefits</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Final expense / burial insurance">
-                  <span class="btn-icon">🕊️</span><span>Final expense / burial insurance</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Life insurance review or replacement">
-                  <span class="btn-icon">🔄</span><span>Life insurance review or replacement</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Mortgage protection (income protection for your home)">
-                  <span class="btn-icon">🏠</span><span>Mortgage protection (income protection for your home)</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Cancer / critical illness protection">
-                  <span class="btn-icon">🩺</span><span>Cancer / critical illness protection</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Using savings to create tax-free life insurance income">
-                  <span class="btn-icon">💼</span><span>Using savings to create tax-free life insurance income</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-              </div>
-
-              <div class="topic-cat-label" style="margin-top:18px;">General</div>
-              <div class="topic-check-group">
-                <label class="topic-check-label" onclick="toggleTopicCheck(event,this)">
-                  <input type="checkbox" class="topic-checkbox" value="Not sure yet">
-                  <span class="btn-icon">💡</span><span>Not sure yet</span>
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-              </div>
-
-              <input type="hidden" name="topics" id="val-topic">
-
-              <div class="step-nav">
-                <div class="step-nav-row">
-                  <button type="button" class="btn-back" onclick="prevStep(2)">&larr; Back</button>
-                  <button type="button" class="btn-next-step" onclick="nextStep(2)">Next &rarr;</button>
-                </div>
-              </div>
-              <p id="err-2" class="step-error"></p>
-            </div>
-
-            <!-- ── STEP 3: Schedule with GoHighLevel Booking ── -->
-            <div class="form-step" id="step-3" style="display:none;">
-              <p class="step-heading">Almost done &mdash; pick a time that works for you</p>
-              <p class="step-sub">Choose an available slot below. The call is 30 minutes and completely free.</p>
-
-              <div style="width:100%; max-width:100%; margin-top:40px; text-align:center;">
-                <p style="font-size:0.95rem; color:#666; margin-bottom:24px;">Click the button below to open our booking calendar and select your preferred date and time.</p>
-                <a href="https://api.leadconnectorhq.com/widget/bookings/retirement-insurance" target="_blank" rel="noopener noreferrer" class="btn btn-amber" style="display:inline-block; padding:14px 40px; background:#389f72; color:white; text-decoration:none; border-radius:8px; font-weight:600; font-size:1rem;">Schedule Your Consultation</a>
-              </div>
-
-              <div class="step-nav">
-                <div class="step-nav-row">
-                  <button type="button" class="btn-back" onclick="prevStep(3)">&larr; Back</button>
-                </div>
-              </div>
-              <p class="form-privacy" style="margin-top:16px; font-size:0.82rem; color:#888; text-align:center;">No cost. No obligation. No pressure.</p>
-            </div>
-
-          </form>
         </div>
       </div>
 

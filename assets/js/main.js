@@ -6,7 +6,10 @@ var EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // e.g. 'template_xyz789'
 // ─────────────────────────────────────────────────────────────────────────
 
 // ── CRM LEAD CAPTURE ──────────────────────────────────────────────────────
-var CRM_ENDPOINT = 'http://localhost:3001/api/leads';
+// Production: set  window.CRM_API_BASE = 'https://your-app.up.railway.app'
+// in a <script> tag that runs BEFORE this file loads on every HTML page.
+// Local dev falls back to localhost automatically.
+var CRM_ENDPOINT = (window.CRM_API_BASE || 'http://localhost:3001') + '/api/leads';
 var CRM_API_KEY  = 'prosperity-crm-2025';
 
 /**

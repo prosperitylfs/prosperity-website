@@ -311,31 +311,6 @@
       font-size: 1rem;
       line-height: 1.75;
     }
-    .iframe-embed-wrap {
-      width: 100%;
-      padding: 0;
-      margin: 0;
-      background: #fff;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-    }
-    .iframe-embed-wrap iframe {
-      width: 100%;
-      min-height: 620px;
-      height: auto;
-      display: block;
-    }
-    .ghl-mobile-fallback {
-      display: none;
-      margin-top: 18px;
-      font-size: 0.96rem;
-      color: #4a4a4a;
-    }
-    .ghl-mobile-fallback a {
-      color: var(--purple, #4e2c94);
-      text-decoration: underline;
-    }
     @media (max-width: 960px) {
       .book-layout {
         grid-template-columns: 1fr !important;
@@ -350,26 +325,6 @@
       }
       .book-calendar-card {
         gap: 10px !important;
-      }
-      .iframe-embed-wrap {
-        width: 100% !important;
-        min-height: 850px !important;
-        overflow: visible !important;
-        border-radius: 14px !important;
-        box-shadow: 0 12px 24px rgba(0,0,0,0.08) !important;
-      }
-      .iframe-embed-wrap iframe {
-        width: 100% !important;
-        min-height: 850px !important;
-        height: 850px !important;
-        display: block !important;
-        opacity: 1 !important;
-        transform: none !important;
-        position: static !important;
-        visibility: visible !important;
-      }
-      .ghl-mobile-fallback {
-        display: block !important;
       }
     }
 
@@ -491,59 +446,49 @@
       <div class="book-form-wrap">
         <div class="book-calendar-card">
 
-          <!-- Embedded GoHighLevel survey (replaces previous qualification form) -->
+          <!-- Cal.com inline booking calendar -->
           <div class="ghl-card-header">
-            <h2>Start Your Retirement Review</h2>
-            <p>Answer a few quick questions, then choose a time that works for you.</p>
+            <h2>Schedule Your Free Retirement Review</h2>
+            <p>Choose a time that works for you &mdash; no obligation, no pressure.</p>
           </div>
-          <div class="iframe-embed-wrap">
-            <iframe
-              id="HQRf4FGLmpLgIHI64Z0F"
-              src="https://api.leadconnectorhq.com/widget/survey/HQRf4FGLmpLgIHI64Z0F"
-              title="survey"
-              scrolling="no"
-              style="border:none;width:100%;min-height:620px;height:auto;display:block;"
-              allow="clipboard-read; clipboard-write; camera; microphone; autoplay"
-            ></iframe>
-          </div>
-          <div class="ghl-mobile-fallback">
-            Having trouble viewing the form? <a href="https://api.leadconnectorhq.com/widget/survey/HQRf4FGLmpLgIHI64Z0F" target="_blank" rel="noopener">Open the retirement review form here.</a>
-          </div>
-
-          <script src="https://link.msgsndr.com/js/form_embed.js"></script>
-          <script>
-            (function() {
-              var iframe = document.getElementById('HQRf4FGLmpLgIHI64Z0F');
-              if (!iframe) return;
-
-              // Listen for postMessage events from the embed to set iframe height
-              window.addEventListener('message', function(e) {
-                try {
-                  var data = (typeof e.data === 'string') ? JSON.parse(e.data) : e.data;
-                  if (!data) return;
-                  // Common patterns: {height: 1200} or {h:1200} or {iframeHeight:1200}
-                  var h = data.height || data.h || data.iframeHeight || data.iframe_height || data.size;
-                  if (h && !isNaN(h)) {
-                    iframe.style.height = (parseInt(h, 10) + 16) + 'px';
-                  }
-                } catch (err) {
-                  // Ignore non-JSON messages
+          <div id="prosperity-cal-inline" style="width:100%; min-height:600px; overflow:scroll; border-radius:16px;"></div>
+          <script type="text/javascript">
+            (function (C, A, L) {
+              var p = function (a, ar) { a.q.push(ar); };
+              var d = C.document;
+              C.Cal = C.Cal || function () {
+                var cal = C.Cal;
+                var ar = arguments;
+                if (!cal.loaded) {
+                  cal.ns = {}; cal.q = cal.q || [];
+                  d.head.appendChild(d.createElement('script')).src = A;
+                  cal.loaded = true;
                 }
-              }, false);
-
-              // Fallback: listen for a data-height attribute set by the embed script
-              var last = 0;
-              setInterval(function() {
-                var attr = iframe.getAttribute('data-height') || iframe.dataset.height;
-                if (attr && attr !== last) {
-                  last = attr;
-                  if (!isNaN(attr)) iframe.style.height = (parseInt(attr, 10) + 16) + 'px';
+                if (ar[0] === L) {
+                  var api = function () { p(api, arguments); };
+                  var namespace = ar[1];
+                  api.q = api.q || [];
+                  if (typeof namespace === 'string') {
+                    cal.ns[namespace] = cal.ns[namespace] || api;
+                    p(cal.ns[namespace], ar);
+                    p(cal, ['-NEXT-', ar]);
+                  } else { p(cal, ar); }
+                  return;
                 }
-              }, 500);
+                p(cal, ar);
+              };
+            })(window, 'https://app.cal.com/embed/embed.js', 'init');
 
-              // Ensure width fills container on resize
-              window.addEventListener('resize', function() { iframe.style.width = '100%'; });
-            })();
+            Cal('init', { origin: 'https://cal.com' });
+            Cal('inline', {
+              elementOrSelector: '#prosperity-cal-inline',
+              calLink: 'prosperitylfs',
+              layout: 'month_view'
+            });
+            Cal('ui', {
+              hideEventTypeDetails: false,
+              layout: 'month_view'
+            });
           </script>
 
         </div>

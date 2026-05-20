@@ -574,20 +574,16 @@
 
             </div><!-- /step-2 -->
 
-            <!-- ══ STEP 3: Calendly Booking ══ -->
+            <!-- ══ STEP 3: Schedule ══ -->
             <div id="li-step-3" style="display:none;">
               <p style="font-weight:600; color:var(--purple-dark,#3a1f70); margin-bottom:6px;">Almost done &mdash; pick a time that works for you</p>
-              <p style="font-size:0.88rem; color:#666; margin-bottom:20px;">Choose an available slot below. The call is free and there&rsquo;s no obligation.</p>
-              <div style="width:100%; max-width:100%;">
-          <div id="life-insurance-booking-redirect" style="text-align:center; padding:40px 20px;">
-          <p style="font-size:0.95rem; color:#666; margin-bottom:20px;">Ready to schedule? Click below to book your free consultation.</p>
-          <a href="/book.html" class="btn btn-primary" style="display:inline-block; padding:12px 32px; background:#389f72; color:white; text-decoration:none; border-radius:8px; font-weight:600;">Schedule Your Free Consultation</a>
-          <p style="font-size:0.85rem; color:#999; margin-top:12px;">30-minute call &bull; No cost &bull; No obligation</p>
-        </div>
-              <div style="margin-top:16px;">
-                <button type="button" class="btn btn-primary" onclick="liPrevStep()" style="width:100%;">&larr; Back</button>
+              <p style="font-size:0.88rem; color:#666; margin-bottom:24px;">Click below to choose an available time slot. The call is free and there&rsquo;s no obligation.</p>
+              <div style="text-align:center; padding:32px 20px; background:#f9f7fd; border-radius:12px; border:1.5px solid #e4dff0;">
+                <p style="font-size:1rem; font-weight:600; color:var(--purple-dark,#3a1f70); margin-bottom:18px;">Your information has been received. Ready to schedule?</p>
+                <a href="book.html" class="btn btn-amber" style="display:inline-block; padding:14px 36px; font-size:1rem; font-weight:700; text-decoration:none; border-radius:8px;">Schedule Your Free Consultation &rarr;</a>
+                <p style="font-size:0.85rem; color:#888; margin-top:14px;">30-minute call &bull; No cost &bull; No obligation</p>
               </div>
-              <p style="margin-top:12px; font-size:0.82rem; color:#888; text-align:center;">No cost. No obligation. No pressure.</p>
+              <p style="margin-top:14px; font-size:0.82rem; color:#888; text-align:center;">No cost. No obligation. No pressure.</p>
             </div><!-- /step-3 -->
 
           </form>
@@ -732,21 +728,20 @@
 
       errEl.style.display = 'none';
 
-      // Send lead to CRM, then reveal Calendly
-      if (typeof window.postToCRM === 'function') {
-        window.postToCRM({
-          first_name:      firstName,
-          last_name:       lastName,
-          phone:           phone,
-          email:           email,
-          lead_type:       'Life Insurance Lead',
-          coverage_type:   interest,
-          coverage_amount: amount,
-          monthly_budget:  budget,
-          health_concerns: health.value,
-          has_coverage:    existing.value
-        });
-      }
+      // Send lead to CRM (fire-and-forget)
+      console.log('[LI Form] Sending lead to CRM…');
+      postToCRM({
+        first_name:      firstName,
+        last_name:       lastName,
+        phone:           phone,
+        email:           email,
+        lead_type:       'Life Insurance Lead',
+        coverage_type:   interest,
+        coverage_amount: amount,
+        monthly_budget:  budget,
+        health_concerns: health.value,
+        has_coverage:    existing.value
+      });
 
       document.getElementById('li-step-2').style.display = 'none';
       document.getElementById('li-step-3').style.display = 'block';

@@ -8,12 +8,17 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-// Allow your website's origin to POST leads, and localhost for dev
+// ALLOWED_ORIGINS accepts a comma-separated list of origins (preferred).
+// Legacy single-value ALLOWED_ORIGIN is still accepted for backward compat.
+const _envOrigins = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || '')
+  .split(',').map(o => o.trim()).filter(Boolean);
+
 const allowedOrigins = [
   'http://localhost:3001',
-  'http://127.0.0.1:5500',    // VS Code Live Server default
+  'http://localhost:5500',     // VS Code Live Server (localhost variant)
+  'http://127.0.0.1:5500',    // VS Code Live Server (127.0.0.1 variant)
   'http://127.0.0.1:3001',
-  ...(process.env.ALLOWED_ORIGIN ? [process.env.ALLOWED_ORIGIN] : []),
+  ..._envOrigins,
 ];
 
 app.use(cors({

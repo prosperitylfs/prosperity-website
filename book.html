@@ -442,54 +442,154 @@
 
       </div>
 
-      <!-- Right: Qualification + Calendar -->
+      <!-- Right: Multi-step booking form -->
       <div class="book-form-wrap">
         <div class="book-calendar-card">
 
-          <!-- Cal.com inline booking calendar -->
+          <!-- Card header -->
           <div class="ghl-card-header">
-            <h2>Schedule Your Free Retirement Review</h2>
-            <p>Choose a time that works for you &mdash; no obligation, no pressure.</p>
+            <h2>Get Started With Your Free Review</h2>
+            <p>Three quick steps &mdash; takes about 60 seconds.</p>
           </div>
-          <div id="prosperity-cal-inline" style="width:100%; min-height:600px; overflow:scroll; border-radius:16px;"></div>
-          <script type="text/javascript">
-            (function (C, A, L) {
-              var p = function (a, ar) { a.q.push(ar); };
-              var d = C.document;
-              C.Cal = C.Cal || function () {
-                var cal = C.Cal;
-                var ar = arguments;
-                if (!cal.loaded) {
-                  cal.ns = {}; cal.q = cal.q || [];
-                  d.head.appendChild(d.createElement('script')).src = A;
-                  cal.loaded = true;
-                }
-                if (ar[0] === L) {
-                  var api = function () { p(api, arguments); };
-                  var namespace = ar[1];
-                  api.q = api.q || [];
-                  if (typeof namespace === 'string') {
-                    cal.ns[namespace] = cal.ns[namespace] || api;
-                    p(cal.ns[namespace], ar);
-                    p(cal, ['-NEXT-', ar]);
-                  } else { p(cal, ar); }
-                  return;
-                }
-                p(cal, ar);
-              };
-            })(window, 'https://app.cal.com/embed/embed.js', 'init');
 
-            Cal('init', { origin: 'https://cal.com' });
-            Cal('inline', {
-              elementOrSelector: '#prosperity-cal-inline',
-              calLink: 'prosperitylfs',
-              layout: 'month_view'
-            });
-            Cal('ui', {
-              hideEventTypeDetails: false,
-              layout: 'month_view'
-            });
-          </script>
+          <!-- Progress bar -->
+          <div class="funnel-progress">
+            <div class="funnel-bar-wrap"><div class="funnel-bar" id="book-bar" style="width:33%;"></div></div>
+            <span class="funnel-step-label" id="book-step-label">Step 1 of 3</span>
+          </div>
+
+          <form class="book-form" novalidate onsubmit="return false;">
+
+            <!-- ══ STEP 1: Contact Info + SMS Consent ══ -->
+            <div id="book-step-1" class="form-step">
+              <h3 class="step-heading">Your Contact Information</h3>
+              <p class="step-sub">We&rsquo;ll use these details to confirm your appointment.</p>
+
+              <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+                <div style="flex:1; min-width:120px;">
+                  <label class="form-label" for="bk-fname">First Name <span class="req">*</span></label>
+                  <input type="text" id="bk-fname" placeholder="Jane" autocomplete="given-name">
+                </div>
+                <div style="flex:1; min-width:120px;">
+                  <label class="form-label" for="bk-lname">Last Name <span class="req">*</span></label>
+                  <input type="text" id="bk-lname" placeholder="Smith" autocomplete="family-name">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="bk-phone">Phone Number <span class="req">*</span></label>
+                <input type="tel" id="bk-phone" placeholder="(414) 555-0100" autocomplete="tel">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="bk-email">Email Address <span class="req">*</span></label>
+                <input type="email" id="bk-email" placeholder="jane@example.com" autocomplete="email">
+                <p id="bk-email-err" class="form-error-message" style="display:none;"></p>
+              </div>
+
+              <div class="sms-consent-group">
+                <label class="sms-consent">
+                  <input type="checkbox" id="bk-sms-consent">
+                  <span>SMS consent is optional and not required to schedule an appointment, request a quote, or use our services. I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies, up to 5 messages per month. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="terms.html">Terms &amp; Conditions</a> and <a href="privacy-policy.html">Privacy Policy</a>.</span>
+                </label>
+              </div>
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-next-step" onclick="bookNext(1)">Next: Your Retirement Goals &rarr;</button>
+                </div>
+              </div>
+              <p id="bk-err-1" class="step-error"></p>
+            </div><!-- /step-1 -->
+
+            <!-- ══ STEP 2: Retirement Questions ══ -->
+            <div id="book-step-2" class="form-step" style="display:none;">
+              <h3 class="step-heading">A Few Quick Questions</h3>
+              <p class="step-sub">This helps Loretta prepare for your consultation.</p>
+
+              <!-- Topics: multi-select checkboxes -->
+              <span class="topic-cat-label">What would you like to discuss? <span class="req">*</span></span>
+              <div class="topic-check-group" id="bk-topic-group">
+                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
+                  <span>🏦&nbsp; Retirement income planning</span>
+                  <input type="checkbox" class="bk-topic-cb" value="Retirement income planning">
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
+                  <span>🔄&nbsp; 401(k), 403(b), TSP, or IRA rollover</span>
+                  <input type="checkbox" class="bk-topic-cb" value="401k/403b/TSP/IRA rollover">
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
+                  <span>📈&nbsp; Annuities &amp; guaranteed income</span>
+                  <input type="checkbox" class="bk-topic-cb" value="Annuities &amp; guaranteed income">
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
+                  <span>💱&nbsp; Roth conversion strategy</span>
+                  <input type="checkbox" class="bk-topic-cb" value="Roth conversion strategy">
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
+                  <span>🛡️&nbsp; Life insurance / living benefits</span>
+                  <input type="checkbox" class="bk-topic-cb" value="Life insurance / living benefits">
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
+                  <span>💰&nbsp; Safe money &amp; CD alternatives</span>
+                  <input type="checkbox" class="bk-topic-cb" value="Safe money &amp; CD alternatives">
+                  <span class="topic-check-mark">&#10003;</span>
+                </label>
+              </div>
+
+              <!-- Retirement timeline: single-select -->
+              <div style="margin-top:22px;">
+                <span class="topic-cat-label">When do you plan to retire? <span class="req">*</span></span>
+                <div class="survey-choices" id="bk-timeline-group">
+                  <button type="button" class="survey-btn" data-group="bk-timeline" data-value="Within 1–2 years" onclick="selectBookSurvey(this)">⏰&nbsp; Within 1&ndash;2 years</button>
+                  <button type="button" class="survey-btn" data-group="bk-timeline" data-value="3–5 years" onclick="selectBookSurvey(this)">📅&nbsp; 3&ndash;5 years</button>
+                  <button type="button" class="survey-btn" data-group="bk-timeline" data-value="6–10 years" onclick="selectBookSurvey(this)">🗓️&nbsp; 6&ndash;10 years</button>
+                  <button type="button" class="survey-btn" data-group="bk-timeline" data-value="Already retired" onclick="selectBookSurvey(this)">✅&nbsp; Already retired</button>
+                  <button type="button" class="survey-btn" data-group="bk-timeline" data-value="Not sure / planning ahead" onclick="selectBookSurvey(this)">🤔&nbsp; Not sure / planning ahead</button>
+                </div>
+                <input type="hidden" id="bk-timeline" value="">
+              </div>
+
+              <!-- Approximate assets: optional single-select -->
+              <div style="margin-top:22px;">
+                <span class="topic-cat-label">Approximate retirement savings <span class="step-optional">Optional</span></span>
+                <div class="survey-choices" id="bk-assets-group">
+                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="Under $25,000" onclick="selectBookSurvey(this)">Under $25,000</button>
+                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="$25,000–$100,000" onclick="selectBookSurvey(this)">$25,000 &ndash; $100,000</button>
+                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="$100,000–$250,000" onclick="selectBookSurvey(this)">$100,000 &ndash; $250,000</button>
+                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="$250,000–$500,000" onclick="selectBookSurvey(this)">$250,000 &ndash; $500,000</button>
+                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="Over $500,000" onclick="selectBookSurvey(this)">Over $500,000</button>
+                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="Prefer not to say" onclick="selectBookSurvey(this)">Prefer not to say</button>
+                </div>
+                <input type="hidden" id="bk-assets" value="">
+              </div>
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-back" onclick="bookBack(2)">&larr; Back</button>
+                  <button type="button" class="btn-next-step" onclick="bookNext(2)">Next: Schedule &rarr;</button>
+                </div>
+              </div>
+              <p id="bk-err-2" class="step-error"></p>
+            </div><!-- /step-2 -->
+
+            <!-- ══ STEP 3: Confirmation + Calendar Link ══ -->
+            <div id="book-step-3" class="form-step" style="display:none;">
+              <div style="text-align:center; padding:12px 0 8px;">
+                <div style="width:56px; height:56px; background:#e6f7ee; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:1.4rem; color:#1a7a4a;">&#10003;</div>
+                <h3 class="step-heading" style="text-align:center; font-size:1.25rem; margin-bottom:10px;">Your Information Has Been Received</h3>
+                <p style="font-size:0.95rem; color:#555; margin:0 0 28px; line-height:1.7;">Thank you! Click below to choose a time for your free 30-minute retirement consultation. No obligation &mdash; just a conversation.</p>
+                <a href="https://cal.com/prosperitylfs" class="btn-next-step" style="display:inline-block; text-decoration:none; padding:14px 28px; border-radius:8px; font-size:1rem; max-width:340px; width:100%; text-align:center; box-sizing:border-box;">Schedule Your Consultation &rarr;</a>
+                <p style="font-size:0.82rem; color:#888; margin-top:14px; line-height:1.5;">30 minutes &bull; Free &bull; No obligation &bull; No pressure</p>
+              </div>
+            </div><!-- /step-3 -->
+
+          </form>
 
         </div>
       </div>
@@ -545,6 +645,107 @@
         mobileNav.setAttribute('aria-hidden', !isOpen);
       });
     }
+  </script>
+  <script>
+    (function () {
+      var bkContact = {};
+
+      function bookShowStep(n) {
+        [1, 2, 3].forEach(function (i) {
+          var el = document.getElementById('book-step-' + i);
+          if (el) el.style.display = (i === n) ? 'block' : 'none';
+        });
+        var pcts = { 1: '33%', 2: '66%', 3: '100%' };
+        var bar = document.getElementById('book-bar');
+        var lbl = document.getElementById('book-step-label');
+        if (bar) bar.style.width = pcts[n];
+        if (lbl) lbl.textContent = 'Step ' + n + ' of 3';
+        var card = document.querySelector('.book-calendar-card');
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      function showErr(id, msg) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = 'block';
+      }
+      function clearErr(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+
+      window.bookNext = function (step) {
+        if (step === 1) {
+          var fname = document.getElementById('bk-fname').value.trim();
+          var lname = document.getElementById('bk-lname').value.trim();
+          var phone = document.getElementById('bk-phone').value.trim();
+          var email = document.getElementById('bk-email').value.trim();
+          var emailErr = document.getElementById('bk-email-err');
+          clearErr('bk-err-1');
+          if (emailErr) { emailErr.textContent = ''; emailErr.style.display = 'none'; }
+
+          if (!fname || !lname) { showErr('bk-err-1', 'Please enter your first and last name.'); return; }
+          if (!phone) { showErr('bk-err-1', 'Please enter your phone number.'); return; }
+          var e164 = toE164(phone);
+          if (!e164) { showErr('bk-err-1', 'Please enter a valid 10-digit US phone number.'); document.getElementById('bk-phone').focus(); return; }
+          document.getElementById('bk-phone').value = e164;
+          if (!isValidEmail(email)) {
+            if (emailErr) { emailErr.textContent = 'Please enter a valid email address.'; emailErr.style.display = 'block'; }
+            document.getElementById('bk-email').focus();
+            return;
+          }
+          bkContact = { fname: fname, lname: lname, phone: e164, email: email, sms: document.getElementById('bk-sms-consent').checked };
+          bookShowStep(2);
+
+        } else if (step === 2) {
+          var topics = Array.from(document.querySelectorAll('.bk-topic-cb:checked')).map(function (cb) { return cb.value; });
+          var timeline = document.getElementById('bk-timeline').value;
+          clearErr('bk-err-2');
+          if (!topics.length) { showErr('bk-err-2', 'Please select at least one topic to discuss.'); return; }
+          if (!timeline) { showErr('bk-err-2', 'Please select your retirement timeline.'); return; }
+
+          postToCRM({
+            first_name:          bkContact.fname,
+            last_name:           bkContact.lname,
+            phone:               bkContact.phone,
+            email:               bkContact.email,
+            sms_consent:         bkContact.sms ? 'yes' : 'no',
+            lead_type:           'Retirement Lead',
+            topics:              topics.join(', '),
+            retirement_timeline: timeline,
+            assets:              document.getElementById('bk-assets').value || '',
+          });
+          bookShowStep(3);
+        }
+      };
+
+      window.bookBack = function (step) { bookShowStep(step - 1); };
+
+      window.toggleBookTopic = function (e, label) {
+        e.preventDefault();
+        var cb = label.querySelector('input[type="checkbox"]');
+        if (!cb) return;
+        cb.checked = !cb.checked;
+        label.classList.toggle('selected', cb.checked);
+      };
+
+      window.selectBookSurvey = function (btn) {
+        var groupId = btn.dataset.group;
+        document.querySelectorAll('.survey-btn[data-group="' + groupId + '"]').forEach(function (b) { b.classList.remove('selected'); });
+        btn.classList.add('selected');
+        var hidden = document.getElementById(groupId);
+        if (hidden) hidden.value = btn.dataset.value;
+      };
+
+      // Init phone formatting on the booking phone input
+      document.addEventListener('DOMContentLoaded', function () {
+        var ph = document.getElementById('bk-phone');
+        if (ph && typeof attachPhoneFormatting === 'function') attachPhoneFormatting(ph);
+      });
+    })();
   </script>
 
 </body>

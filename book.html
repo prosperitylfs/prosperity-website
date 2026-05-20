@@ -276,6 +276,64 @@
       margin-bottom: 10px;
     }
 
+    /* GoHighLevel survey card styling */
+    .book-form-wrap {
+      padding: 22px 22px 20px;
+    }
+    .book-calendar-card {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 0;
+      background: transparent;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .ghl-card-header {
+      padding: 0 0 0 0;
+      margin: 0;
+    }
+    .ghl-card-header h2 {
+      margin: 0 0 6px;
+      font-size: 1.6rem;
+      line-height: 1.15;
+      color: var(--purple-dark, #3a1f70);
+    }
+    .ghl-card-header p {
+      margin: 0;
+      color: #5a5a5a;
+      font-size: 0.96rem;
+      line-height: 1.7;
+    }
+    .iframe-embed-wrap {
+      width: 100%;
+      padding: 0;
+      margin: 0;
+      background: #fff;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.08);
+    }
+    .iframe-embed-wrap iframe {
+      width: 100%;
+      min-height: 740px;
+      height: 740px;
+      display: block;
+    }
+    @media (max-width: 960px) {
+      .book-form-wrap {
+        padding: 18px 16px 16px;
+      }
+      .iframe-embed-wrap {
+        border-radius: 14px;
+        box-shadow: 0 14px 32px rgba(0,0,0,0.08);
+      }
+      .iframe-embed-wrap iframe {
+        min-height: 680px;
+        height: auto;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -395,13 +453,17 @@
         <div class="book-calendar-card">
 
           <!-- Embedded GoHighLevel survey (replaces previous qualification form) -->
-          <div class="iframe-embed-wrap" style="width:100%;">
+          <div class="ghl-card-header">
+            <h2>Start Your Retirement Review</h2>
+            <p>Answer a few quick questions, then choose a time that works for you.</p>
+          </div>
+          <div class="iframe-embed-wrap">
             <iframe
               id="HQRf4FGLmpLgIHI64Z0F"
               src="https://api.leadconnectorhq.com/widget/survey/HQRf4FGLmpLgIHI64Z0F"
               title="survey"
               scrolling="no"
-              style="border:none;width:100%;min-height:600px;height:600px;"
+              style="border:none;width:100%;min-height:740px;height:740px;"
               loading="lazy"
               allow="clipboard-read; clipboard-write; camera; microphone; autoplay"
             ></iframe>

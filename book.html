@@ -326,6 +326,16 @@
       height: auto;
       display: block;
     }
+    .ghl-mobile-fallback {
+      display: none;
+      margin-top: 18px;
+      font-size: 0.96rem;
+      color: #4a4a4a;
+    }
+    .ghl-mobile-fallback a {
+      color: var(--purple, #4e2c94);
+      text-decoration: underline;
+    }
     @media (max-width: 960px) {
       .book-layout {
         grid-template-columns: 1fr !important;
@@ -352,6 +362,14 @@
         width: 100% !important;
         min-height: 850px !important;
         height: 850px !important;
+        display: block !important;
+        opacity: 1 !important;
+        transform: none !important;
+        position: static !important;
+        visibility: visible !important;
+      }
+      .ghl-mobile-fallback {
+        display: block !important;
       }
     }
 
@@ -484,10 +502,12 @@
               src="https://api.leadconnectorhq.com/widget/survey/HQRf4FGLmpLgIHI64Z0F"
               title="survey"
               scrolling="no"
-              style="border:none;width:100%;min-height:620px;height:auto;"
-              loading="lazy"
+              style="border:none;width:100%;min-height:620px;height:auto;display:block;"
               allow="clipboard-read; clipboard-write; camera; microphone; autoplay"
             ></iframe>
+          </div>
+          <div class="ghl-mobile-fallback">
+            Having trouble viewing the form? <a href="https://api.leadconnectorhq.com/widget/survey/HQRf4FGLmpLgIHI64Z0F" target="_blank" rel="noopener">Open the retirement review form here.</a>
           </div>
 
           <script src="https://link.msgsndr.com/js/form_embed.js"></script>

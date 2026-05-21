@@ -1,5 +1,7 @@
-// Reads API config from localStorage (set via /settings.html)
-// Defaults to same origin so the dashboard works wherever the server is hosted.
+// Fallback config — in production this file is never served.
+// server.js intercepts GET /config.js and returns a dynamically generated
+// version that includes the API key from process.env.CRM_API_KEY.
+// localStorage overrides are still respected for manual local dev use.
 window.CRM = {
   get baseUrl() {
     return localStorage.getItem('crm_base_url') || window.location.origin;

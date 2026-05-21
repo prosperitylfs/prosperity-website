@@ -63,6 +63,33 @@ app.use('/api/contacts', requireApiKey, require('./routes/contacts'));
 // Health check
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
+// ─── Dashboard config — served dynamically so the API key comes from the server
+// environment rather than requiring manual localStorage setup in every browser.
+// This route takes priority over the static config.js in public/.
+app.get('/config.js', (req, res) => {
+  const apiKey = process.env.CRM_API_KEY || '';
+  res.type('application/javascript').send(
+`window.CRM = {
+  get baseUrl() { return window.location.origin; },
+  get apiKey()  { return ${JSON.stringify(apiKey)}; },
+  headers() {
+    const h = { 'Content-Type': 'application/json' };
+    if (this.apiKey) h['x-api-key'] = this.apiKey;
+    return h;
+  },
+  async fetch(path, opts = {}) {
+    const url = this.baseUrl + path;
+    const res = await fetch(url, { ...opts, headers: { ...this.headers(), ...(opts.headers || {}) } });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || \`HTTP \${res.status}\`);
+    }
+    return res.json();
+  }
+};`
+  );
+});
+
 // ─── Serve CRM Dashboard (static) ────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 

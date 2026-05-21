@@ -6,11 +6,13 @@ var EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // e.g. 'template_xyz789'
 // ─────────────────────────────────────────────────────────────────────────
 
 // ── CRM LEAD CAPTURE ──────────────────────────────────────────────────────
-// Production: set  window.CRM_API_BASE = 'https://your-app.up.railway.app'
-// in a <script> tag that runs BEFORE this file loads on every HTML page.
-// Local dev falls back to localhost automatically.
-var CRM_ENDPOINT = (window.CRM_API_BASE || 'http://localhost:3001') + '/api/leads';
-var CRM_API_KEY  = 'prosperity-crm-2025';
+// Set window.CRM_API_BASE = 'https://your-crm.onrender.com' in a <script>
+// tag before this file loads on every page that submits leads.
+// Evaluated at call time so the correct URL is always used.
+var CRM_API_KEY = 'prosperity-crm-2025';
+function getCrmEndpoint() {
+  return (window.CRM_API_BASE || 'http://localhost:3001') + '/api/leads';
+}
 
 /**
  * Post a lead to the CRM. Fire-and-forget — never blocks the user.
@@ -29,7 +31,7 @@ function postToCRM(data, leadType, callback) {
 
   console.log('[CRM] Sending lead...', payload);
 
-  fetch(CRM_ENDPOINT, {
+  fetch(getCrmEndpoint(), {
     method:  'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -76,7 +78,7 @@ function sendBookingLead(data, callback) {
   var done = false;
   function proceed() { if (!done) { done = true; callback(); } }
 
-  fetch(CRM_ENDPOINT, {
+  fetch(getCrmEndpoint(), {
     method:  'POST',
     headers: {
       'Content-Type': 'application/json',

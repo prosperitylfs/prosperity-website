@@ -6,12 +6,9 @@ var EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // e.g. 'template_xyz789'
 // ─────────────────────────────────────────────────────────────────────────
 
 // ── CRM LEAD CAPTURE ──────────────────────────────────────────────────────
-// Override window.CRM_API_BASE in a <script> before this file if needed.
-// Defaults to the production Render CRM; falls back gracefully in local dev.
 var CRM_API_KEY = 'prosperity-crm-2025';
 function getCrmEndpoint() {
-  var base = window.CRM_API_BASE || 'https://prosperity-crm.onrender.com';
-  return base.replace(/\/$/, '') + '/api/leads';
+  return 'https://prosperity-crm.onrender.com/api/leads';
 }
 
 /**

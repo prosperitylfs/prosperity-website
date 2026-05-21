@@ -345,17 +345,11 @@
 
               <!-- Success message (hidden until submit) -->
               <div class="liq-success" id="liq-success">
-                <h2 style="font-size:1.2rem; margin-bottom:4px; color:var(--purple-dark);">One Last Step &mdash; Pick a Time</h2>
-                <p class="book-sub" style="margin-bottom:0;">Choose a time below to schedule your free 30-minute consultation with Loretta.</p>
-                <!-- Calendly inline widget begin -->
-                <div style="width:100%; max-width:100%; margin-top:20px;">
-                <div style="text-align:center; padding:40px 20px;">
-                  <p style="font-size:0.95rem; color:#666; margin-bottom:20px;">Ready to schedule? Click below to book your free consultation.</p>
-                  <a href="/book.html" class="btn btn-primary" style="display:inline-block; padding:12px 32px; background:#389f72; color:white; text-decoration:none; border-radius:8px; font-weight:600;">Schedule Your Free Consultation</a>
-                  <p style="font-size:0.85rem; color:#999; margin-top:12px;">30-minute call &bull; No cost &bull; No obligation</p>
+                <div style="text-align:center; padding:40px 20px; background:#f9f7fd; border-radius:12px; border:1.5px solid #e4dff0;">
+                  <div style="width:52px; height:52px; background:#e6f7ee; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:1.3rem; color:#1a7a4a;">&#10003;</div>
+                  <h2 style="font-size:1.1rem; margin-bottom:8px; color:var(--purple-dark);">Your information has been received.</h2>
+                  <p style="font-size:0.9rem; color:#555; margin-bottom:0;">Taking you to schedule your free life insurance consultation&hellip;</p>
                 </div>
-                <!-- Calendly inline widget end -->
-              </div>
 
               <!-- Form -->
               <div id="liq-form-wrap">
@@ -738,11 +732,15 @@
         sms_consent:     consent ? 'yes' : 'no',
       });
 
-      // Hide form, show success message
+      // Hide form, show success message, then redirect to booking
       document.getElementById('liq-form-wrap').style.display = 'none';
       var successEl = document.getElementById('liq-success');
       successEl.style.display = 'block';
       successEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      setTimeout(function() {
+        window.location.href = 'https://cal.com/prosperitylfs/life-insurance-consultation';
+      }, 1500);
     });
   </script>
 </body>

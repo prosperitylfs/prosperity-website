@@ -574,16 +574,13 @@
 
             </div><!-- /step-2 -->
 
-            <!-- ══ STEP 3: Schedule ══ -->
+            <!-- ══ STEP 3: Redirecting to Cal.com ══ -->
             <div id="li-step-3" style="display:none;">
-              <p style="font-weight:600; color:var(--purple-dark,#3a1f70); margin-bottom:6px;">Almost done &mdash; pick a time that works for you</p>
-              <p style="font-size:0.88rem; color:#666; margin-bottom:24px;">Click below to choose an available time slot. The call is free and there&rsquo;s no obligation.</p>
               <div style="text-align:center; padding:32px 20px; background:#f9f7fd; border-radius:12px; border:1.5px solid #e4dff0;">
-                <p style="font-size:1rem; font-weight:600; color:var(--purple-dark,#3a1f70); margin-bottom:18px;">Your information has been received. Ready to schedule?</p>
-                <a href="book.html" class="btn btn-amber" style="display:inline-block; padding:14px 36px; font-size:1rem; font-weight:700; text-decoration:none; border-radius:8px;">Schedule Your Free Consultation &rarr;</a>
-                <p style="font-size:0.85rem; color:#888; margin-top:14px;">30-minute call &bull; No cost &bull; No obligation</p>
+                <div style="width:52px; height:52px; background:#e6f7ee; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:1.3rem; color:#1a7a4a;">&#10003;</div>
+                <p style="font-size:1rem; font-weight:600; color:var(--purple-dark,#3a1f70); margin-bottom:8px;">Your information has been received.</p>
+                <p style="font-size:0.9rem; color:#555; margin-bottom:0;">Taking you to schedule your free consultation&hellip;</p>
               </div>
-              <p style="margin-top:14px; font-size:0.82rem; color:#888; text-align:center;">No cost. No obligation. No pressure.</p>
             </div><!-- /step-3 -->
 
           </form>
@@ -749,6 +746,10 @@
       document.getElementById('li-bar-fill').style.width = '100%';
       document.getElementById('li-step-label').innerHTML = 'Step 3 of 3 \u2014 Schedule Your Call';
       document.getElementById('life-insurance-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      setTimeout(function() {
+        window.location.href = 'https://cal.com/prosperitylfs/life-insurance-consultation';
+      }, 1500);
     }
 
     // Radio highlight fallback for older browsers

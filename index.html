@@ -499,6 +499,17 @@
       // Disable button while sending
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending…'; }
 
+      // Fire-and-forget CRM submission — does not block guide delivery
+      postToCRM({
+        first_name:  firstName.value.trim(),
+        last_name:   lastName.value.trim(),
+        email:       email.value.trim(),
+        phone:       phone.value.trim(),
+        sms_consent: consent && consent.checked ? 'yes' : 'no',
+        lead_type:   'Retirement Guide Lead',
+        lead_source: '13 Mistakes Retirement Guide',
+      });
+
       try {
         var res = await fetch('/send-guide', {
           method: 'POST',

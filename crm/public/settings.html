@@ -37,17 +37,18 @@
       <section class="card" style="max-width:480px">
         <h2 class="card-title">API Connection</h2>
         <p style="margin-bottom:1rem;color:var(--text-muted);font-size:.9rem;">
-          The CRM dashboard reads data from the local API server.
-          Set your API key below — it is saved in your browser only.
+          The API base URL defaults to this server's origin — leave it blank unless you
+          are connecting to a different server. Enter the <strong>CRM_API_KEY</strong>
+          set in your Render environment variables. Settings are saved in this browser only.
         </p>
 
         <label class="form-label">API Base URL</label>
         <input type="text" id="setting-base-url" class="search-input" style="width:100%;margin-bottom:1rem"
-          placeholder="http://localhost:3001">
+          placeholder="Leave blank to use this server's URL">
 
         <label class="form-label">API Key (x-api-key)</label>
         <input type="password" id="setting-api-key" class="search-input" style="width:100%;margin-bottom:1.25rem"
-          placeholder="your-api-key">
+          placeholder="Paste your CRM_API_KEY here">
 
         <button id="save-settings-btn" class="btn btn-primary">Save Settings</button>
         <span id="settings-saved" class="save-msg hidden">Saved!</span>
@@ -60,7 +61,7 @@
     const urlInput = document.getElementById('setting-base-url');
     const keyInput = document.getElementById('setting-api-key');
 
-    urlInput.value = localStorage.getItem('crm_base_url') || 'http://localhost:3001';
+    urlInput.value = localStorage.getItem('crm_base_url') || '';
     keyInput.value = localStorage.getItem('crm_api_key') || '';
 
     document.getElementById('save-settings-btn').addEventListener('click', () => {

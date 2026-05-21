@@ -1,8 +1,8 @@
 // Reads API config from localStorage (set via /settings.html)
-// Falls back to same-origin (since dashboard is served by the CRM server itself)
+// Defaults to same origin so the dashboard works wherever the server is hosted.
 window.CRM = {
   get baseUrl() {
-    return localStorage.getItem('crm_base_url') || '';
+    return localStorage.getItem('crm_base_url') || window.location.origin;
   },
   get apiKey() {
     return localStorage.getItem('crm_api_key') || '';

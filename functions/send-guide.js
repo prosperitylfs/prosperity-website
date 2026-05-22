@@ -19,7 +19,7 @@ export async function onRequestPost(context) {
 
   // ── Retirement & Rollover Mistakes Guide (homepage form) ──────────────────
   if (isRetirementRollover) {
-    const guideUrl         = 'https://www.prosperitylfs.com/retirement-savings-mistakes-guide/13%20Retirement%20%26%20Rollover%20Mistakes%20to%20Avoid.pdf';
+    const guideUrl         = 'https://www.prosperitylfs.com/13-costly-rollover-mistakes-guide.pdf';
     const consultationUrl  = 'https://cal.com/prosperitylfs/retirement-safemoney-consultation';
 
     const text = [

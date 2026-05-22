@@ -1,7 +1,6 @@
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  // Parse JSON body
   let data;
   try {
     data = await request.json();
@@ -10,75 +9,161 @@ export async function onRequestPost(context) {
   }
 
   const { first_name, email, guide } = data;
-  const isRetirementSavingsGuide = guide === 'retirement-savings';
 
   if (!first_name || !email) {
     return json({ error: 'Missing required fields.' }, 400);
   }
 
-  const guideTitle = isRetirementSavingsGuide
-    ? '7 Retirement & Savings Mistakes Guide'
-    : 'Your Free Guide';
+  const isRetirementRollover  = guide === 'retirement-rollover';
+  const isRetirementSavings   = guide === 'retirement-savings';
 
-  const emailIntroLine = isRetirementSavingsGuide
-    ? 'Here is your free 7 Retirement & Savings Mistakes Guide.'
-    : 'Here is your free guide.';
+  // ── Retirement & Rollover Mistakes Guide (homepage form) ──────────────────
+  if (isRetirementRollover) {
+    const guideUrl         = 'https://www.prosperitylfs.com/retirement-savings-mistakes-guide/13%20Retirement%20%26%20Rollover%20Mistakes%20to%20Avoid.pdf';
+    const consultationUrl  = 'https://cal.com/prosperitylfs/retirement-safemoney-consultation';
 
-  const text = [
-    `Hi ${first_name},`,
-    '',
-    'Thank you for requesting your free guide:',
-    '',
-    `"${guideTitle}"`,
-    '',
-    'You can view and download your guide here:',
-    'https://www.prosperitylfs.com/7-retirement-savings-mistakes-guide-new.pdf',
-    '',
-    'If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:',
-    'https://www.prosperitylfs.com/book',
-  ].join('\n');
+    const text = [
+      `Hi ${first_name},`,
+      '',
+      'Thank you for requesting your free guide:',
+      '',
+      '"13 Retirement & Rollover Mistakes to Avoid"',
+      '',
+      "Inside, you'll discover important strategies and common mistakes many people overlook when reviewing retirement accounts such as:",
+      '',
+      '• 401(k)s',
+      '• 403(b)s',
+      '• TSP accounts',
+      '• IRAs',
+      '• CDs and safe money alternatives',
+      '• Retirement income planning strategies',
+      '',
+      'This guide was designed to help you better understand your options, reduce unnecessary risk, and avoid costly rollover mistakes before making important retirement decisions.',
+      '',
+      'Click below to access your free guide:',
+      guideUrl,
+      '',
+      'If you would like to discuss your current retirement accounts, rollover options, or safe money strategies, you can also schedule a complimentary consultation below.',
+      '',
+      consultationUrl,
+      '',
+      'Warm regards,',
+      'Loretta Stewart',
+      'Prosperity Life & Financial Solutions',
+    ].join('\n');
 
-  const html = `
-    <p>Hi ${first_name},</p>
-    <p>Thank you for requesting your free guide:</p>
-    <p><strong>&quot;${guideTitle}&quot;</strong></p>
-    <p>${emailIntroLine}</p>
-    <p>You can view and download your guide here:</p>
-    <p><a href="https://www.prosperitylfs.com/7-retirement-savings-mistakes-guide-new.pdf" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #389f72; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Download Your Free Guide</a></p>
-    <p>If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:</p>
-    <p><a href="https://www.prosperitylfs.com/book" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;background:#4e2c94;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Schedule Your Free Consultation</a></p>
-    <img 
-      src="https://www.prosperitylfs.com/assets/images/loretta-email-signature.png"
-      alt="Loretta Stewart - Prosperity Life & Financial Solutions"
-      width="520"
-      style="display:block; width:520px; max-width:100%; height:auto; border:0; margin-top:24px;"
-    >
-  `;
+    const html = `
+      <p>Hi ${first_name},</p>
+      <p>Thank you for requesting your free guide:</p>
+      <p><strong>&ldquo;13 Retirement &amp; Rollover Mistakes to Avoid&rdquo;</strong></p>
+      <p>Inside, you&rsquo;ll discover important strategies and common mistakes many people overlook when reviewing retirement accounts such as:</p>
+      <ul style="margin:8px 0 16px 20px; padding:0; line-height:1.8;">
+        <li>401(k)s</li>
+        <li>403(b)s</li>
+        <li>TSP accounts</li>
+        <li>IRAs</li>
+        <li>CDs and safe money alternatives</li>
+        <li>Retirement income planning strategies</li>
+      </ul>
+      <p>This guide was designed to help you better understand your options, reduce unnecessary risk, and avoid costly rollover mistakes before making important retirement decisions.</p>
+      <p style="margin-top:20px;">Click below to access your free guide:</p>
+      <p><a href="${guideUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;background-color:#389f72;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;">Download Your Free Guide</a></p>
+      <p style="margin-top:20px;">If you would like to discuss your current retirement accounts, rollover options, or safe money strategies, you can also schedule a complimentary consultation below.</p>
+      <p><a href="${consultationUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;background:#4e2c94;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Schedule Your Free Consultation</a></p>
+      <img
+        src="https://www.prosperitylfs.com/assets/images/loretta-email-signature.png"
+        alt="Loretta Stewart - Prosperity Life &amp; Financial Solutions"
+        width="520"
+        style="display:block;width:520px;max-width:100%;height:auto;border:0;margin-top:24px;"
+      >
+    `;
 
-  const resendRes = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: 'Loretta Stewart <loretta@prosperitylfs.com>',
-      to: [email],
-      subject: isRetirementSavingsGuide
-        ? 'Your Free 7 Retirement & Savings Mistakes Guide'
-        : 'Your Free Guide Is Ready',
-      text,
-      html,
-    }),
-  });
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Loretta Stewart <loretta@prosperitylfs.com>',
+        to: [email],
+        subject: 'Your Free Retirement & Rollover Guide Is Ready',
+        text,
+        html,
+      }),
+    });
 
-  if (!resendRes.ok) {
-    const errText = await resendRes.text();
-    console.error('Resend error:', resendRes.status, errText);
-    return json({ error: 'Could not send email. Please try again.' }, 500);
+    if (!resendRes.ok) {
+      const errText = await resendRes.text();
+      console.error('Resend error:', resendRes.status, errText);
+      return json({ error: 'Could not send email. Please try again.' }, 500);
+    }
+
+    return json({ ok: true }, 200);
   }
 
-  return json({ ok: true }, 200);
+  // ── 7 Retirement & Savings Mistakes Guide (free-guide page) ───────────────
+  if (isRetirementSavings) {
+    const guideUrl        = 'https://www.prosperitylfs.com/7-retirement-savings-mistakes-guide-new.pdf';
+    const consultationUrl = 'https://www.prosperitylfs.com/book';
+
+    const text = [
+      `Hi ${first_name},`,
+      '',
+      'Thank you for requesting your free guide:',
+      '',
+      '"7 Retirement & Savings Mistakes Guide"',
+      '',
+      'You can view and download your guide here:',
+      guideUrl,
+      '',
+      'If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:',
+      consultationUrl,
+    ].join('\n');
+
+    const html = `
+      <p>Hi ${first_name},</p>
+      <p>Thank you for requesting your free guide:</p>
+      <p><strong>&quot;7 Retirement &amp; Savings Mistakes Guide&quot;</strong></p>
+      <p>Here is your free 7 Retirement &amp; Savings Mistakes Guide.</p>
+      <p>You can view and download your guide here:</p>
+      <p><a href="${guideUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;background-color:#389f72;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;">Download Your Free Guide</a></p>
+      <p>If you have questions or would like to review your retirement or savings options, you can schedule a free consultation here:</p>
+      <p><a href="${consultationUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;background:#4e2c94;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Schedule Your Free Consultation</a></p>
+      <img
+        src="https://www.prosperitylfs.com/assets/images/loretta-email-signature.png"
+        alt="Loretta Stewart - Prosperity Life &amp; Financial Solutions"
+        width="520"
+        style="display:block;width:520px;max-width:100%;height:auto;border:0;margin-top:24px;"
+      >
+    `;
+
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Loretta Stewart <loretta@prosperitylfs.com>',
+        to: [email],
+        subject: 'Your Free 7 Retirement & Savings Mistakes Guide',
+        text,
+        html,
+      }),
+    });
+
+    if (!resendRes.ok) {
+      const errText = await resendRes.text();
+      console.error('Resend error:', resendRes.status, errText);
+      return json({ error: 'Could not send email. Please try again.' }, 500);
+    }
+
+    return json({ ok: true }, 200);
+  }
+
+  // ── Fallback (unknown guide type) ─────────────────────────────────────────
+  return json({ error: 'Unknown guide type.' }, 400);
 }
 
 function json(body, status) {

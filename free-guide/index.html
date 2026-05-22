@@ -435,6 +435,10 @@
                   <label for="phone">Phone Number</label>
                   <input id="phone" name="phone" type="tel" placeholder="(414) 555-0100" required>
                 </div>
+                <div class="sms-consent" style="margin-bottom:10px;">
+                  <input type="checkbox" id="free-guide-terms-consent">
+                  <span id="free-guide-terms-text">I agree to the <a href="/privacy-policy">Privacy Policy</a> and <a href="/terms-and-conditions">Terms &amp; Conditions</a> and consent to being contacted regarding my request or appointment.</span>
+                </div>
                 <input type="hidden" name="sms_consent" id="sms-consent-hidden" value="no">
                 <div class="sms-consent">
                   <input type="checkbox" id="sms-consent-checkbox" aria-describedby="sms-consent-text">
@@ -529,6 +533,12 @@
 
         if (phoneErr) {
           setError(phoneErr);
+          return;
+        }
+
+        var freeGuideTerms = document.getElementById('free-guide-terms-consent');
+        if (!freeGuideTerms || !freeGuideTerms.checked) {
+          setError('Please accept the Privacy Policy and Terms & Conditions to continue.');
           return;
         }
 

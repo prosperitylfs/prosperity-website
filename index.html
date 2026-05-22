@@ -145,6 +145,12 @@
                 <label for="guide-phone">Phone Number</label>
                 <input id="guide-phone" type="text" name="fields[phone]" placeholder="Best number to reach you" required>
                 <div class="form-consent">
+                  <label class="consent-label">
+                    <input id="guide-terms-consent" type="checkbox">
+                    <span class="consent-text">I agree to the <a href="/privacy-policy">Privacy Policy</a> and <a href="/terms-and-conditions">Terms &amp; Conditions</a> and consent to being contacted regarding my request or appointment.</span>
+                  </label>
+                </div>
+                <div class="form-consent">
                   <label class="consent-label" for="sms-consent">
                     <input id="sms-consent" type="checkbox">
                     <span class="consent-text">
@@ -496,18 +502,26 @@
         return;
       }
 
+      // Terms consent check
+      var termsConsent = form.querySelector('#guide-terms-consent');
+      if (!termsConsent || !termsConsent.checked) {
+        if (msgEl) { msgEl.textContent = 'Please accept the Privacy Policy and Terms & Conditions to continue.'; msgEl.style.color = '#c0392b'; }
+        return;
+      }
+
       // Disable button while sending
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending…'; }
 
       // Fire-and-forget CRM submission — does not block guide delivery
       postToCRM({
-        first_name:  firstName.value.trim(),
-        last_name:   lastName.value.trim(),
-        email:       email.value.trim(),
-        phone:       phone.value.trim(),
-        sms_consent: consent && consent.checked ? 'yes' : 'no',
-        lead_type:   'Retirement Guide Lead',
-        lead_source: '13 Retirement & Rollover Mistakes to Avoid',
+        first_name:    firstName.value.trim(),
+        last_name:     lastName.value.trim(),
+        email:         email.value.trim(),
+        phone:         phone.value.trim(),
+        sms_consent:   consent && consent.checked ? 'yes' : 'no',
+        terms_accepted: 'yes',
+        lead_type:     'Retirement Guide Lead',
+        lead_source:   '13 Retirement & Rollover Mistakes to Avoid',
       });
 
       try {
@@ -518,7 +532,8 @@
             first_name: firstName.value.trim(),
             last_name:  lastName.value.trim(),
             email:      email.value.trim(),
-            phone:      phone.value.trim()
+            phone:      phone.value.trim(),
+            guide:      'retirement-rollover'
           })
         });
 

@@ -489,6 +489,13 @@
 
               <div class="sms-consent-group">
                 <label class="sms-consent">
+                  <input type="checkbox" id="bk-terms-consent">
+                  <span>I agree to the <a href="/privacy-policy">Privacy Policy</a> and <a href="/terms-and-conditions">Terms &amp; Conditions</a> and consent to being contacted regarding my request or appointment.</span>
+                </label>
+              </div>
+
+              <div class="sms-consent-group">
+                <label class="sms-consent">
                   <input type="checkbox" id="bk-sms-consent">
                   <span>SMS consent is optional and not required to schedule an appointment, request a quote, or use our services. I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, and follow-ups. Message frequency varies, up to 5 messages per month. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="terms.html">Terms &amp; Conditions</a> and <a href="privacy-policy.html">Privacy Policy</a>.</span>
                 </label>
@@ -696,7 +703,8 @@
             document.getElementById('bk-email').focus();
             return;
           }
-          bkContact = { fname: fname, lname: lname, phone: e164, email: email, sms: document.getElementById('bk-sms-consent').checked };
+          if (!document.getElementById('bk-terms-consent').checked) { showErr('bk-err-1', 'Please accept the Privacy Policy and Terms & Conditions to continue.'); return; }
+          bkContact = { fname: fname, lname: lname, phone: e164, email: email, sms: document.getElementById('bk-sms-consent').checked, terms: true };
           bookShowStep(2);
 
         } else if (step === 2) {
@@ -712,6 +720,7 @@
             phone:               bkContact.phone,
             email:               bkContact.email,
             sms_consent:         bkContact.sms ? 'yes' : 'no',
+            terms_accepted:      'yes',
             lead_type:           'Retirement Lead',
             topics:              topics.join(', '),
             retirement_timeline: timeline,

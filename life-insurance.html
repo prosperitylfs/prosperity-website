@@ -497,6 +497,11 @@
               </div>
 
               <label class="li-sms-consent-wrap">
+                <input type="checkbox" id="li-terms-consent">
+                <span>I agree to the <a href="/privacy-policy">Privacy Policy</a> and <a href="/terms-and-conditions">Terms &amp; Conditions</a> and consent to being contacted regarding my request or appointment.</span>
+              </label>
+
+              <label class="li-sms-consent-wrap">
                 <input type="checkbox" id="li-sms-consent" name="sms_consent">
                 <span>SMS consent is optional and not required to receive your guide, schedule an appointment, request a quote, or use our services.<br><br>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding my inquiry, appointment scheduling, quotes, and follow-ups. Message frequency varies, up to 5 messages per month. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="/terms.html">Terms &amp; Conditions</a> and <a href="/privacy-policy.html">Privacy Policy</a>.</span>
               </label>
@@ -672,6 +677,8 @@
         return;
       }
 
+      if (!document.getElementById('li-terms-consent').checked) { showErr('Please accept the Privacy Policy and Terms & Conditions to continue.'); return; }
+
       // Normalize phone value for step 2 submission
       document.getElementById('li-f-phone').value = e164Phone;
 
@@ -738,7 +745,8 @@
         coverage_amount: amount,
         monthly_budget:  budget,
         health_concerns: health.value,
-        has_coverage:    existing.value
+        has_coverage:    existing.value,
+        terms_accepted:  'yes',
       });
 
       document.getElementById('li-step-2').style.display = 'none';

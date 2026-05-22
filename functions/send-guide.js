@@ -14,8 +14,8 @@ export async function onRequestPost(context) {
     return json({ error: 'Missing required fields.' }, 400);
   }
 
-  const isRetirementRollover  = guide === 'retirement-rollover';
-  const isRetirementSavings   = guide === 'retirement-savings';
+  const isRetirementSavings  = guide === 'retirement-savings';
+  const isRetirementRollover = !isRetirementSavings; // default for homepage form + any missing/unknown guide type
 
   // ── Retirement & Rollover Mistakes Guide (homepage form) ──────────────────
   if (isRetirementRollover) {
@@ -162,8 +162,6 @@ export async function onRequestPost(context) {
     return json({ ok: true }, 200);
   }
 
-  // ── Fallback (unknown guide type) ─────────────────────────────────────────
-  return json({ error: 'Unknown guide type.' }, 400);
 }
 
 function json(body, status) {

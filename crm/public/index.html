@@ -35,6 +35,10 @@
           <p class="page-subtitle" id="contact-count">Loading…</p>
         </div>
         <div class="header-actions">
+          <div class="view-toggle">
+            <button id="btn-view-list" class="view-btn active">List</button>
+            <button id="btn-view-pipeline" class="view-btn">Pipeline</button>
+          </div>
           <input type="text" id="search-input" class="search-input" placeholder="Search name, email, phone…">
           <select id="filter-type" class="filter-select">
             <option value="">All lead types</option>
@@ -70,7 +74,7 @@
 
       <div id="error-banner" class="error-banner hidden"></div>
 
-      <div class="table-card">
+      <div class="table-card" id="table-card">
         <table class="contacts-table" id="contacts-table">
           <thead>
             <tr>
@@ -93,6 +97,8 @@
         <div class="empty-icon">📋</div>
         <p>No contacts yet. Leads submitted through the website will appear here.</p>
       </div>
+
+      <div id="pipeline-board" class="pipeline-board hidden"></div>
     </main>
   </div>
 

@@ -515,3 +515,266 @@ body {
 .hidden       { display: none !important; }
 .text-muted   { color: var(--text-muted); }
 .text-small   { font-size: .8rem; }
+
+/* ── View toggle ─────────────────────────────────────────────────────────── */
+
+.view-toggle {
+  display: flex;
+  gap: .2rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .2rem;
+  flex-shrink: 0;
+}
+
+.view-btn {
+  padding: .35rem .875rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-family: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background .15s, color .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+
+.view-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,.1);
+}
+
+.view-btn:hover:not(.active) { color: var(--text); }
+
+/* ── Pipeline board ──────────────────────────────────────────────────────── */
+
+.pipeline-board {
+  display: flex;
+  gap: .875rem;
+  overflow-x: auto;
+  align-items: stretch;
+  height: calc(100vh - 190px);
+  padding-bottom: .5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pipeline-board::-webkit-scrollbar       { height: 6px; }
+.pipeline-board::-webkit-scrollbar-track { background: transparent; }
+.pipeline-board::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Pipeline column ─────────────────────────────────────────────────────── */
+
+.pipeline-col {
+  flex-shrink: 0;
+  width: 252px;
+  display: flex;
+  flex-direction: column;
+  background: #f0eef5;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.pipeline-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .6rem .875rem;
+  flex-shrink: 0;
+}
+
+.pipeline-col-title {
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.pipeline-col-count {
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 .4rem;
+  font-size: .68rem;
+  font-weight: 700;
+  transition: background .2s;
+}
+
+/* Column header color variants */
+.col-header-blue       { background: #dbeafe; color: #1e40af; }
+.col-header-amber      { background: #fef3c7; color: #92400e; }
+.col-header-orange     { background: #ffedd5; color: #c2410c; }
+.col-header-purple     { background: var(--purple-light); color: var(--purple); }
+.col-header-teal       { background: #ccfbf1; color: #0f766e; }
+.col-header-green      { background: #d1fae5; color: #065f46; }
+.col-header-green-dark { background: #a7f3d0; color: #064e3b; }
+.col-header-indigo     { background: #e0e7ff; color: #3730a3; }
+.col-header-red        { background: #fee2e2; color: #991b1b; }
+.col-header-gray       { background: #f3f4f6; color: #4b5563; }
+
+/* ── Pipeline column body ────────────────────────────────────────────────── */
+
+.pipeline-col-body {
+  padding: .5rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 60px;
+  transition: background .15s;
+}
+
+.pipeline-col-body::-webkit-scrollbar       { width: 4px; }
+.pipeline-col-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.pipeline-col-body.drag-over {
+  background: rgba(78,44,148,.06);
+  outline: 2px dashed var(--purple);
+  outline-offset: -3px;
+}
+
+.pipeline-col-empty {
+  text-align: center;
+  padding: 1.25rem .5rem;
+  color: var(--text-muted);
+  font-size: .75rem;
+  border: 2px dashed var(--border);
+  border-radius: 6px;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Pipeline card ───────────────────────────────────────────────────────── */
+
+.pipeline-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .7rem .75rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition: box-shadow .15s, border-color .15s, opacity .2s, transform .15s;
+  will-change: transform;
+}
+
+.pipeline-card:hover {
+  box-shadow: 0 3px 10px rgba(78,44,148,.14);
+  border-color: var(--purple);
+}
+
+.pipeline-card:active { cursor: grabbing; }
+
+.pipeline-card.drag-source {
+  opacity: .3;
+  transform: scale(.97);
+}
+
+/* ── Drag ghost ──────────────────────────────────────────────────────────── */
+
+.drag-ghost {
+  position: fixed !important;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: .93;
+  box-shadow: 0 16px 40px rgba(0,0,0,.18), 0 4px 8px rgba(0,0,0,.1);
+  transform: rotate(1.5deg);
+  cursor: grabbing !important;
+  border-color: var(--purple) !important;
+  transition: none !important;
+}
+
+/* ── Card content ────────────────────────────────────────────────────────── */
+
+.pc-name-row {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  margin-bottom: .45rem;
+}
+
+.avatar-sm {
+  width: 26px;
+  height: 26px;
+  font-size: .62rem;
+  flex-shrink: 0;
+}
+
+.pc-name {
+  font-weight: 600;
+  font-size: .845rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pc-detail {
+  font-size: .78rem;
+  color: var(--text);
+  margin-bottom: .15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pc-muted { color: var(--text-muted); }
+
+.pc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: .5rem;
+  flex-wrap: wrap;
+  gap: .25rem;
+}
+
+.pc-date {
+  font-size: .68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pc-source {
+  font-size: .7rem;
+  color: var(--text-muted);
+  margin-top: .2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tag-xs {
+  font-size: .62rem !important;
+  padding: .1rem .4rem !important;
+}
+
+/* ── Mobile pipeline ─────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .pipeline-board {
+    height: auto;
+    min-height: 50vh;
+  }
+  .pipeline-col { width: 224px; }
+  .pipeline-col-body { max-height: 60vh; }
+}
+
+@media (max-width: 640px) {
+  .pipeline-board { gap: .625rem; }
+  .pipeline-col   { width: 200px; }
+  .header-actions { gap: .375rem; }
+  .view-btn       { padding: .35rem .6rem; }
+  .search-input   { min-width: 150px; }
+}

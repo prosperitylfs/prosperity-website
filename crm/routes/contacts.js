@@ -2,6 +2,16 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
 
+function normalizePhone(raw) {
+  if (!raw) return { display: null, e164: null };
+  const digits = String(raw).replace(/\D/g, '');
+  const ten = digits.length === 10 ? digits
+    : (digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : null);
+  const e164    = ten ? `+1${ten}` : null;
+  const display = ten ? `(${ten.slice(0,3)}) ${ten.slice(3,6)}-${ten.slice(6)}` : raw.trim();
+  return { display, e164 };
+}
+
 // GET /api/contacts — list all, newest first
 router.get('/', (req, res) => {
   const { q, lead_type, limit = 200, offset = 0 } = req.query;
@@ -49,7 +59,7 @@ router.patch('/:id', (req, res) => {
   const contact = db.prepare('SELECT id FROM contacts WHERE id = ?').get(req.params.id);
   if (!contact) return res.status(404).json({ error: 'Not found' });
 
-  const allowed = ['first_name', 'last_name', 'phone', 'alt_phone', 'email', 'role', 'tags', 'notes', 'lead_type', 'lead_source'];
+  const allowed = ['first_name', 'last_name', 'phone', 'alt_phone', 'email', 'role', 'tags', 'notes', 'lead_type', 'lead_source', 'phone_e164'];
   const updates = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
@@ -57,6 +67,15 @@ router.patch('/:id', (req, res) => {
 
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
+  if (updates.phone !== undefined) {
+    const { display, e164 } = normalizePhone(updates.phone);
+    updates.phone = display;
+    if (e164) updates.phone_e164 = e164;
+  }
+  if (updates.alt_phone !== undefined) {
+    updates.alt_phone = normalizePhone(updates.alt_phone).display;
   }
 
   updates.updated_at = new Date().toISOString();

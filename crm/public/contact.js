@@ -11,6 +11,14 @@ function escHtml(str) {
   return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function formatPhone(raw) {
+  if (!raw) return raw;
+  const digits = String(raw).replace(/\D/g, '');
+  const ten = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits.length === 10 ? digits : null;
+  if (!ten) return raw;
+  return `(${ten.slice(0,3)}) ${ten.slice(3,6)}-${ten.slice(6)}`;
+}
+
 function formatDate(iso, includeTime = false) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -40,8 +48,8 @@ function renderInfo(contact) {
 
   const fields = [
     ['Email',       contact.email],
-    ['Phone',       contact.phone],
-    ['Alt Phone',   contact.alt_phone],
+    ['Phone',       contact.phone     ? formatPhone(contact.phone)     : null],
+    ['Alt Phone',   contact.alt_phone ? formatPhone(contact.alt_phone) : null],
     ['Lead Source', contact.lead_source],
     ['Role',        contact.role],
     ['Notes',       contact.notes],
@@ -87,7 +95,10 @@ function renderComms(comms) {
         const skip = new Set(['honeypot']);
         const rows = Object.entries(data)
           .filter(([k, v]) => !skip.has(k) && v !== null && v !== undefined && String(v).trim() !== '')
-          .map(([k, v]) => `<div class="form-row"><span class="form-key">${escHtml(k.replace(/_/g, ' '))}</span><span class="form-val">${escHtml(v)}</span></div>`)
+          .map(([k, v]) => {
+            const displayVal = (k === 'phone' || k === 'alt_phone') ? formatPhone(v) || v : v;
+            return `<div class="form-row"><span class="form-key">${escHtml(k.replace(/_/g, ' '))}</span><span class="form-val">${escHtml(displayVal)}</span></div>`;
+          })
           .join('');
         bodyHtml = rows ? `<div class="form-data">${rows}</div>` : '';
       } catch {

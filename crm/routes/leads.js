@@ -19,9 +19,12 @@ const db = require('../db/database');
 
 function normalizePhone(raw) {
   if (!raw) return { display: null, e164: null };
-  const digits = raw.replace(/\D/g, '');
-  const e164 = digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith('1') ? `+${digits}` : null;
-  return { display: raw.trim(), e164 };
+  const digits = String(raw).replace(/\D/g, '');
+  const ten = digits.length === 10 ? digits
+    : (digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : null);
+  const e164    = ten ? `+1${ten}` : null;
+  const display = ten ? `(${ten.slice(0,3)}) ${ten.slice(3,6)}-${ten.slice(6)}` : raw.trim();
+  return { display, e164 };
 }
 
 function formatLeadTypeLabel(raw) {

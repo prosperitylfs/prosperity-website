@@ -28,6 +28,14 @@ function escHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function formatPhone(raw) {
+  if (!raw) return raw;
+  const digits = String(raw).replace(/\D/g, '');
+  const ten = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits.length === 10 ? digits : null;
+  if (!ten) return raw;
+  return `(${ten.slice(0,3)}) ${ten.slice(3,6)}-${ten.slice(6)}`;
+}
+
 function leadTypeClass(lt) {
   if (!lt) return 'tag-gray';
   if (lt.toLowerCase().includes('guide'))    return 'tag-green';
@@ -62,7 +70,7 @@ function renderContacts(contacts) {
           </div>
         </td>
         <td class="text-muted">${c.email ? escHtml(c.email) : '—'}</td>
-        <td class="text-muted">${c.phone ? escHtml(c.phone) : '—'}</td>
+        <td class="text-muted">${c.phone ? escHtml(formatPhone(c.phone)) : '—'}</td>
         <td>${tag(c.lead_type, leadTypeClass(c.lead_type))}</td>
         <td class="text-muted text-small">${c.lead_source ? escHtml(c.lead_source) : '—'}</td>
         <td class="text-muted text-small">${formatDate(c.created_at)}</td>

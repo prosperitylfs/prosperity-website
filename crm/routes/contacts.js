@@ -14,7 +14,7 @@ function normalizePhone(raw) {
 
 // GET /api/contacts — list all, newest first
 router.get('/', (req, res) => {
-  const { q, lead_type, limit = 200, offset = 0 } = req.query;
+  const { q, lead_type, lead_status, sms_consent, appointment_booked, limit = 200, offset = 0 } = req.query;
 
   let sql = 'SELECT * FROM contacts';
   const params = [];
@@ -28,6 +28,18 @@ router.get('/', (req, res) => {
   if (lead_type) {
     conditions.push('lead_type = ?');
     params.push(lead_type);
+  }
+  if (lead_status) {
+    conditions.push('lead_status = ?');
+    params.push(lead_status);
+  }
+  if (sms_consent !== undefined && sms_consent !== '') {
+    conditions.push('sms_consent = ?');
+    params.push(Number(sms_consent));
+  }
+  if (appointment_booked !== undefined && appointment_booked !== '') {
+    conditions.push('appointment_booked = ?');
+    params.push(Number(appointment_booked));
   }
 
   if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
@@ -59,7 +71,13 @@ router.patch('/:id', (req, res) => {
   const contact = db.prepare('SELECT id FROM contacts WHERE id = ?').get(req.params.id);
   if (!contact) return res.status(404).json({ error: 'Not found' });
 
-  const allowed = ['first_name', 'last_name', 'phone', 'alt_phone', 'email', 'role', 'tags', 'notes', 'lead_type', 'lead_source', 'phone_e164'];
+  const allowed = [
+    'first_name', 'last_name', 'phone', 'alt_phone', 'email',
+    'role', 'tags', 'notes', 'lead_type', 'lead_source', 'phone_e164',
+    'lead_status', 'sms_consent', 'appointment_booked', 'appointment_date', 'last_contacted',
+    'retirement_assets', 'account_types', 'retirement_timeline', 'interested_in', 'existing_advisor',
+    'coverage_goal', 'existing_coverage', 'mortgage_protection', 'final_expense', 'children_grandchildren',
+  ];
   const updates = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];

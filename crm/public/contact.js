@@ -36,6 +36,8 @@ function tag(text, cls = '') {
   return text ? `<span class="tag ${cls}">${escHtml(text)}</span>` : '';
 }
 
+function boolVal(v) { return v ? 'Yes' : null; }
+
 function renderInfo(contact) {
   document.getElementById('contact-name').textContent =
     [contact.first_name, contact.last_name].filter(Boolean).join(' ') || '(No name)';
@@ -46,13 +48,35 @@ function renderInfo(contact) {
     `<span class="meta-date">Added ${formatDate(contact.created_at)}</span>`,
   ].filter(Boolean).join(' ');
 
+  // Set status dropdown
+  const statusEl = document.getElementById('lead-status-select');
+  if (statusEl) statusEl.value = contact.lead_status || 'New Lead';
+
   const fields = [
-    ['Email',       contact.email],
-    ['Phone',       contact.phone     ? formatPhone(contact.phone)     : null],
-    ['Alt Phone',   contact.alt_phone ? formatPhone(contact.alt_phone) : null],
-    ['Lead Source', contact.lead_source],
-    ['Role',        contact.role],
-    ['Notes',       contact.notes],
+    // Contact
+    ['Email',         contact.email],
+    ['Phone',         contact.phone     ? formatPhone(contact.phone)     : null],
+    ['Alt Phone',     contact.alt_phone ? formatPhone(contact.alt_phone) : null],
+    ['Lead Source',   contact.lead_source],
+    ['SMS Consent',   boolVal(contact.sms_consent)],
+    ['Appt Booked',   boolVal(contact.appointment_booked)],
+    ['Appt Date',     contact.appointment_date],
+    ['Last Contacted',contact.last_contacted],
+    // Retirement
+    ['Ret. Assets',    contact.retirement_assets],
+    ['Account Types',  contact.account_types],
+    ['Ret. Timeline',  contact.retirement_timeline],
+    ['Interested In',  contact.interested_in],
+    ['Existing Advisor', contact.existing_advisor],
+    // Life Insurance
+    ['Coverage Goal',  contact.coverage_goal],
+    ['Existing Coverage', contact.existing_coverage],
+    ['Mortgage Protection', boolVal(contact.mortgage_protection)],
+    ['Final Expense',  boolVal(contact.final_expense)],
+    ['Children/GC',    boolVal(contact.children_grandchildren)],
+    // Misc
+    ['Role',           contact.role],
+    ['Notes',          contact.notes],
   ].filter(([, v]) => v);
 
   document.getElementById('contact-info').innerHTML = fields.map(([label, value]) => `
@@ -96,8 +120,9 @@ function renderComms(comms) {
         const rows = Object.entries(data)
           .filter(([k, v]) => !skip.has(k) && v !== null && v !== undefined && String(v).trim() !== '')
           .map(([k, v]) => {
-            const displayVal = (k === 'phone' || k === 'alt_phone') ? formatPhone(v) || v : v;
-            return `<div class="form-row"><span class="form-key">${escHtml(k.replace(/_/g, ' '))}</span><span class="form-val">${escHtml(displayVal)}</span></div>`;
+            let displayVal = (k === 'phone' || k === 'alt_phone') ? formatPhone(v) || v : v;
+            if (typeof displayVal === 'object' && displayVal !== null) displayVal = JSON.stringify(displayVal);
+            return `<div class="form-row"><span class="form-key">${escHtml(k.replace(/_/g, ' '))}</span><span class="form-val">${escHtml(String(displayVal ?? ''))}</span></div>`;
           })
           .join('');
         bodyHtml = rows ? `<div class="form-data">${rows}</div>` : '';
@@ -140,6 +165,21 @@ async function loadContact() {
     showError(`Could not load contact: ${err.message}`);
   }
 }
+
+// Auto-save lead status on change
+document.getElementById('lead-status-select').addEventListener('change', async function () {
+  const msgEl = document.getElementById('status-save-msg');
+  try {
+    await CRM.fetch(`/api/contacts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ lead_status: this.value }),
+    });
+    msgEl.classList.remove('hidden');
+    setTimeout(() => msgEl.classList.add('hidden'), 2000);
+  } catch (err) {
+    showError(`Could not update status: ${err.message}`);
+  }
+});
 
 // Add note
 document.getElementById('add-note-btn').addEventListener('click', async () => {

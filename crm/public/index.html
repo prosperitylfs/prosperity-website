@@ -38,11 +38,32 @@
           <input type="text" id="search-input" class="search-input" placeholder="Search name, email, phone…">
           <select id="filter-type" class="filter-select">
             <option value="">All lead types</option>
-            <option value="Guide Lead">Guide Lead</option>
+            <option value="Retirement Guide Lead">Retirement Guide Lead</option>
             <option value="Retirement Lead">Retirement Lead</option>
-            <option value="Life Insurance Lead">Life Insurance Lead</option>
             <option value="Roth Conversion Lead">Roth Conversion Lead</option>
-            <option value="Contact Form">Contact Form</option>
+            <option value="Life Insurance Lead">Life Insurance Lead</option>
+            <option value="Contact Form Lead">Contact Form Lead</option>
+            <option value="Existing Client">Existing Client</option>
+            <option value="Referral Partner">Referral Partner</option>
+          </select>
+          <select id="filter-status" class="filter-select">
+            <option value="">All statuses</option>
+            <option value="New Lead">New Lead</option>
+            <option value="Attempted Contact">Attempted Contact</option>
+            <option value="Contacted">Contacted</option>
+            <option value="Appointment Scheduled">Appointment Scheduled</option>
+            <option value="Appointment Completed">Appointment Completed</option>
+            <option value="Follow-Up Needed">Follow-Up Needed</option>
+            <option value="Application Submitted">Application Submitted</option>
+            <option value="Sold">Sold</option>
+            <option value="Long-Term Nurture">Long-Term Nurture</option>
+            <option value="Do Not Contact">Do Not Contact</option>
+            <option value="Dead Lead">Dead Lead</option>
+          </select>
+          <select id="filter-sms" class="filter-select">
+            <option value="">All SMS</option>
+            <option value="1">SMS Consent</option>
+            <option value="0">No SMS Consent</option>
           </select>
         </div>
       </div>
@@ -57,12 +78,13 @@
               <th>Email</th>
               <th>Phone</th>
               <th>Lead Type</th>
+              <th>Status</th>
               <th>Source</th>
               <th>Added</th>
             </tr>
           </thead>
           <tbody id="contacts-tbody">
-            <tr><td colspan="6" class="loading-row">Loading contacts…</td></tr>
+            <tr><td colspan="7" class="loading-row">Loading contacts…</td></tr>
           </tbody>
         </table>
       </div>

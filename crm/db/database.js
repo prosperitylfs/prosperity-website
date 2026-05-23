@@ -89,4 +89,30 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_calls_contact       ON comm_calls(contact_id);
 `);
 
+// ─── Migrations ───────────────────────────────────────────────────────────────
+// Add columns to existing tables without dropping data. Safe to run on every boot.
+function addCol(table, col, def) {
+  try { db.prepare(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`).run(); }
+  catch (e) { if (!e.message.includes('duplicate column')) throw e; }
+}
+
+// Lead management fields
+addCol('contacts', 'lead_status',            "TEXT DEFAULT 'New Lead'");
+addCol('contacts', 'sms_consent',            'INTEGER DEFAULT 0');
+addCol('contacts', 'appointment_booked',     'INTEGER DEFAULT 0');
+addCol('contacts', 'appointment_date',       'TEXT');
+addCol('contacts', 'last_contacted',         'TEXT');
+// Retirement fields
+addCol('contacts', 'retirement_assets',      'TEXT');
+addCol('contacts', 'account_types',          'TEXT');
+addCol('contacts', 'retirement_timeline',    'TEXT');
+addCol('contacts', 'interested_in',          'TEXT');
+addCol('contacts', 'existing_advisor',       'TEXT');
+// Life insurance fields
+addCol('contacts', 'coverage_goal',          'TEXT');
+addCol('contacts', 'existing_coverage',      'TEXT');
+addCol('contacts', 'mortgage_protection',    'INTEGER DEFAULT 0');
+addCol('contacts', 'final_expense',          'INTEGER DEFAULT 0');
+addCol('contacts', 'children_grandchildren', 'INTEGER DEFAULT 0');
+
 module.exports = db;

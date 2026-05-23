@@ -35,6 +35,25 @@
           <h1 class="page-title" id="contact-name">Loading…</h1>
           <div id="contact-meta" class="contact-meta"></div>
         </div>
+        <div class="status-control">
+          <label class="form-label" for="lead-status-select">Lead Status</label>
+          <div style="display:flex;align-items:center;gap:.5rem">
+            <select id="lead-status-select" class="filter-select">
+              <option value="New Lead">New Lead</option>
+              <option value="Attempted Contact">Attempted Contact</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Appointment Scheduled">Appointment Scheduled</option>
+              <option value="Appointment Completed">Appointment Completed</option>
+              <option value="Follow-Up Needed">Follow-Up Needed</option>
+              <option value="Application Submitted">Application Submitted</option>
+              <option value="Sold">Sold</option>
+              <option value="Long-Term Nurture">Long-Term Nurture</option>
+              <option value="Do Not Contact">Do Not Contact</option>
+              <option value="Dead Lead">Dead Lead</option>
+            </select>
+            <span id="status-save-msg" class="save-msg hidden">Saved!</span>
+          </div>
+        </div>
       </div>
 
       <div id="error-banner" class="error-banner hidden"></div>

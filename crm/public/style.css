@@ -333,6 +333,9 @@ body {
 .tag-blue   { background: #dbeafe; color: #1e40af; }
 .tag-amber  { background: #fef3c7; color: #92400e; }
 .tag-gray   { background: #f3f4f6; color: #6b7280; }
+.tag-teal   { background: #ccfbf1; color: #0f766e; }
+.tag-indigo { background: #e0e7ff; color: #3730a3; }
+.tag-red    { background: #fee2e2; color: #991b1b; }
 
 .badge {
   display: inline-block;
@@ -490,10 +493,18 @@ body {
   white-space: pre-wrap;
 }
 
+/* ── Status control (contact detail header) ──────────────────────────────── */
+
+.status-control {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  flex-shrink: 0;
+}
+
 /* ── Settings ────────────────────────────────────────────────────────────── */
 
 .save-msg {
-  margin-left: .75rem;
   font-size: .875rem;
   color: var(--green-dark);
   font-weight: 600;

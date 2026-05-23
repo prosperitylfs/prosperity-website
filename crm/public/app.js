@@ -16,32 +16,34 @@ const btnViewPipeline = document.getElementById('btn-view-pipeline');
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 let debounceTimer;
-let allContacts = [];
-let currentView = localStorage.getItem('crm-view') || 'list';
-let dragState   = null;
-let wasDragged  = false;
-let ghostEl     = null;
+let allContacts  = [];
+let currentView  = localStorage.getItem('crm-view') || 'list';
+let dragState    = null;
+let wasDragged   = false;
+let ghostEl      = null;
+let notePopover  = null;
 
-// ─── Pipeline column order ─────────────────────────────────────────────────────
+// ─── Visible pipeline columns (7 main stages) ──────────────────────────────────
+// Remaining statuses (Attempted Contact, Application Submitted, Do Not Contact,
+// Dead Lead) stay available in the status dropdown but don't appear as columns.
 const PIPELINE_STATUSES = [
-  'New Lead', 'Attempted Contact', 'Contacted',
-  'Appointment Scheduled', 'Appointment Completed', 'Follow-Up Needed',
-  'Application Submitted', 'Sold', 'Long-Term Nurture',
-  'Do Not Contact', 'Dead Lead',
+  'New Lead',
+  'Contacted',
+  'Appointment Scheduled',
+  'Appointment Completed',
+  'Follow-Up Needed',
+  'Sold',
+  'Long-Term Nurture',
 ];
 
 const STATUS_HEADER_CLASS = {
   'New Lead':              'col-header-blue',
-  'Attempted Contact':     'col-header-amber',
   'Contacted':             'col-header-purple',
   'Appointment Scheduled': 'col-header-teal',
   'Appointment Completed': 'col-header-green',
   'Follow-Up Needed':      'col-header-orange',
-  'Application Submitted': 'col-header-indigo',
   'Sold':                  'col-header-green-dark',
   'Long-Term Nurture':     'col-header-purple',
-  'Do Not Contact':        'col-header-red',
-  'Dead Lead':             'col-header-gray',
 };
 
 // ─── Utilities ─────────────────────────────────────────────────────────────────
@@ -158,11 +160,21 @@ function renderPipeline(contacts) {
   emptyEl.classList.add('hidden');
   countEl.textContent = `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`;
 
-  // Group contacts by status; unknown statuses fall into New Lead
+  // Contacts whose status is not a visible column fall into the nearest visible one.
+  // Attempted Contact → Contacted; Application Submitted → Follow-Up Needed;
+  // Do Not Contact / Dead Lead → Long-Term Nurture (shown in pipeline but no dedicated col).
+  const fallback = {
+    'Attempted Contact':     'Contacted',
+    'Application Submitted': 'Follow-Up Needed',
+    'Do Not Contact':        'Long-Term Nurture',
+    'Dead Lead':             'Long-Term Nurture',
+  };
+
   const grouped = Object.fromEntries(PIPELINE_STATUSES.map(s => [s, []]));
   for (const c of contacts) {
     const s = c.lead_status || 'New Lead';
-    (grouped[s] ?? grouped['New Lead']).push(c);
+    const bucket = grouped[s] ? s : (fallback[s] || 'New Lead');
+    grouped[bucket].push(c);
   }
 
   pipelineBoard.innerHTML = PIPELINE_STATUSES.map(status => {
@@ -182,14 +194,30 @@ function renderPipeline(contacts) {
     `;
   }).join('');
 
-  // Wire up drag and click on all cards
-  pipelineBoard.querySelectorAll('.pipeline-card').forEach(bindCard);
+  // Drag on each card (click handled by board delegation below)
+  pipelineBoard.querySelectorAll('.pipeline-card').forEach(card => {
+    card.addEventListener('pointerdown', onPointerDown);
+  });
+
+  // Single delegated click handler — replaces per-card click listeners
+  pipelineBoard.removeEventListener('click', handleBoardClick);
+  pipelineBoard.addEventListener('click', handleBoardClick);
 }
 
+// ─── Card template ─────────────────────────────────────────────────────────────
 function buildCard(c) {
   const name     = [c.first_name, c.last_name].filter(Boolean).join(' ') || '(No name)';
   const initials = [c.first_name, c.last_name].filter(Boolean).map(n => n[0]).join('').toUpperCase() || '?';
   const phone    = c.phone ? formatPhone(c.phone) : null;
+  const callHref = c.phone_e164 || (c.phone ? '+1' + c.phone.replace(/\D/g, '') : null);
+
+  const actionCall  = phone
+    ? `<a class="pc-action-btn" href="tel:${escHtml(callHref || phone)}" data-action="call" title="Call ${escHtml(phone)}">Call</a>`
+    : '';
+  const actionEmail = c.email
+    ? `<a class="pc-action-btn" href="mailto:${escHtml(c.email)}" data-action="email" title="Email ${escHtml(c.email)}">Email</a>`
+    : '';
+
   return `
     <div class="pipeline-card" data-id="${c.id}" data-status="${escHtml(c.lead_status || 'New Lead')}">
       <div class="pc-name-row">
@@ -203,34 +231,125 @@ function buildCard(c) {
         <span class="pc-date">${formatDate(c.created_at)}</span>
       </div>
       ${c.lead_source ? `<div class="pc-source">${escHtml(c.lead_source)}</div>` : ''}
+      <div class="pc-actions">
+        ${actionCall}
+        ${actionEmail}
+        <button class="pc-action-btn" data-action="note" title="Add a note">Note</button>
+        <a class="pc-action-btn pc-action-view" href="/contact.html?id=${c.id}" data-action="view" title="View full contact">View</a>
+      </div>
     </div>
   `;
 }
 
-function bindCard(card) {
-  card.addEventListener('pointerdown', onPointerDown);
-  card.addEventListener('click', onCardClick);
+// ─── Board click delegation ────────────────────────────────────────────────────
+function handleBoardClick(e) {
+  closeNotePopover();
+
+  const btn = e.target.closest('.pc-action-btn');
+  if (btn) {
+    if (btn.dataset.action === 'note') {
+      e.preventDefault();
+      const card = btn.closest('.pipeline-card');
+      if (card) showQuickNote(btn, card.dataset.id);
+    }
+    // call / email / view all use their native href — just stop card navigation
+    return;
+  }
+
+  const card = e.target.closest('.pipeline-card');
+  if (card) {
+    if (wasDragged) { wasDragged = false; return; }
+    location.href = `/contact.html?id=${card.dataset.id}`;
+  }
 }
 
-function onCardClick(e) {
-  if (wasDragged) { wasDragged = false; return; }
-  location.href = `/contact.html?id=${e.currentTarget.dataset.id}`;
+// ─── Quick note popover ────────────────────────────────────────────────────────
+function showQuickNote(triggerEl, contactId) {
+  const rect = triggerEl.getBoundingClientRect();
+  const pw = 248;
+  const ph = 155; // estimated height
+
+  let left = rect.left;
+  let top  = rect.bottom + 6;
+
+  // Keep within viewport
+  if (left + pw > window.innerWidth - 10) left = window.innerWidth - pw - 10;
+  if (left < 10) left = 10;
+  if (top + ph > window.innerHeight - 10) top = rect.top - ph - 6;
+  if (top < 10) top = 10;
+
+  notePopover = document.createElement('div');
+  notePopover.className = 'quick-note-popover';
+  notePopover.style.cssText = `left:${left}px;top:${top}px;width:${pw}px`;
+  notePopover.innerHTML = `
+    <div class="qn-title">Quick Note</div>
+    <textarea class="qn-textarea" placeholder="Type a note… (Ctrl+Enter to save)" rows="3"></textarea>
+    <div class="qn-footer">
+      <button class="btn btn-primary qn-save">Save Note</button>
+      <button class="btn qn-cancel">Cancel</button>
+    </div>
+  `;
+  document.body.appendChild(notePopover);
+  notePopover.querySelector('.qn-textarea').focus();
+
+  async function save() {
+    const body = notePopover.querySelector('.qn-textarea').value.trim();
+    if (!body) return;
+    const saveBtn = notePopover.querySelector('.qn-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    try {
+      await CRM.fetch(`/api/contacts/${contactId}/notes`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      });
+      closeNotePopover();
+    } catch (err) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Note';
+      showError(`Could not save note: ${err.message}`);
+    }
+  }
+
+  notePopover.querySelector('.qn-save').addEventListener('click', save);
+  notePopover.querySelector('.qn-cancel').addEventListener('click', closeNotePopover);
+  notePopover.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeNotePopover();
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) save();
+  });
+
+  // Stash outside-click handler so we can remove it on close
+  function onOutsideClick(e) {
+    if (notePopover && !notePopover.contains(e.target) && e.target !== triggerEl) {
+      closeNotePopover();
+    }
+  }
+  // Delay to prevent the same click that opened it from immediately closing it
+  setTimeout(() => document.addEventListener('click', onOutsideClick), 100);
+  notePopover._dismiss = () => document.removeEventListener('click', onOutsideClick);
+}
+
+function closeNotePopover() {
+  if (!notePopover) return;
+  notePopover._dismiss?.();
+  notePopover.remove();
+  notePopover = null;
 }
 
 // ─── Drag and drop (pointer events — mouse + touch) ────────────────────────────
 function onPointerDown(e) {
-  // Left button / first touch only
   if (e.button !== undefined && e.button !== 0) return;
+  // Don't start drag if the press originated on an action button
+  if (e.target.closest('.pc-action-btn')) return;
 
   const card = e.currentTarget;
   const rect = card.getBoundingClientRect();
 
-  // Create ghost (clone positioned over the original)
   ghostEl = card.cloneNode(true);
   ghostEl.className = 'pipeline-card drag-ghost';
-  ghostEl.style.width  = rect.width + 'px';
-  ghostEl.style.left   = rect.left + 'px';
-  ghostEl.style.top    = rect.top  + 'px';
+  ghostEl.style.width = rect.width + 'px';
+  ghostEl.style.left  = rect.left  + 'px';
+  ghostEl.style.top   = rect.top   + 'px';
   document.body.appendChild(ghostEl);
 
   dragState = {
@@ -261,7 +380,6 @@ function onPointerMove(e) {
 
   ghostEl.style.transform = `translate(${dx}px, ${dy}px)`;
 
-  // Detect target column (hide ghost so elementFromPoint hits the board)
   ghostEl.style.pointerEvents = 'none';
   const el = document.elementFromPoint(e.clientX, e.clientY);
   ghostEl.style.pointerEvents = '';
@@ -287,14 +405,13 @@ function onPointerUp() {
   if (newStatus === originalStatus) return;
 
   // Optimistic DOM move
-  const destBody = currentCol.querySelector('.pipeline-col-body');
+  const destBody    = currentCol.querySelector('.pipeline-col-body');
   const emptyMarker = destBody.querySelector('.pipeline-col-empty');
   if (emptyMarker) emptyMarker.remove();
 
   card.dataset.status = newStatus;
   destBody.appendChild(card);
-  card.addEventListener('pointerdown', onPointerDown);
-  card.addEventListener('click', onCardClick);
+  card.addEventListener('pointerdown', onPointerDown); // re-bind drag after DOM move
 
   refreshColEmpty(pipelineBoard.querySelector(`.pipeline-col[data-status="${CSS.escape(originalStatus)}"]`));
   adjustColCount(originalStatus, -1);
@@ -308,14 +425,13 @@ function onPointerUp() {
     showError(`Could not update status: ${err.message}`);
     // Revert
     card.dataset.status = originalStatus;
-    const srcCol  = pipelineBoard.querySelector(`.pipeline-col[data-status="${CSS.escape(originalStatus)}"]`);
-    const srcBody = srcCol?.querySelector('.pipeline-col-body');
+    const srcBody = pipelineBoard.querySelector(`.pipeline-col[data-status="${CSS.escape(originalStatus)}"]`)
+                                 ?.querySelector('.pipeline-col-body');
     if (srcBody) {
       const em = srcBody.querySelector('.pipeline-col-empty');
       if (em) em.remove();
       srcBody.appendChild(card);
       card.addEventListener('pointerdown', onPointerDown);
-      card.addEventListener('click', onCardClick);
     }
     refreshColEmpty(currentCol);
     adjustColCount(newStatus, -1);
@@ -341,9 +457,8 @@ function cleanupDrag(card) {
 
 function refreshColEmpty(colEl) {
   if (!colEl) return;
-  const body  = colEl.querySelector('.pipeline-col-body');
-  const cards = body.querySelectorAll('.pipeline-card');
-  if (cards.length === 0 && !body.querySelector('.pipeline-col-empty')) {
+  const body = colEl.querySelector('.pipeline-col-body');
+  if (body.querySelectorAll('.pipeline-card').length === 0 && !body.querySelector('.pipeline-col-empty')) {
     body.innerHTML = '<div class="pipeline-col-empty">Drop here</div>';
   }
 }
@@ -360,9 +475,9 @@ async function loadContacts() {
   const lt = filterEl.value;
   const ls = filterStatusEl.value;
   const sm = filterSmsEl.value;
-  if (q)       params.set('q', q);
-  if (lt)      params.set('lead_type', lt);
-  if (ls)      params.set('lead_status', ls);
+  if (q)        params.set('q', q);
+  if (lt)       params.set('lead_type', lt);
+  if (ls)       params.set('lead_status', ls);
   if (sm !== '') params.set('sms_consent', sm);
 
   try {

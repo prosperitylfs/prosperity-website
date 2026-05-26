@@ -1220,6 +1220,7 @@ body {
 .badge-call-busy     { background: #fef3c7; color: #92400e; }
 .badge-call-failed   { background: #fee2e2; color: #991b1b; }
 .badge-call-progress { background: #dbeafe; color: #1e40af; }
+.badge-call-ringing  { background: #ede8f7; color: var(--purple-dark); }
 .badge-call-init     { background: var(--border); color: var(--text-muted); }
 
 /* Visual call-status indicators on pipeline cards */

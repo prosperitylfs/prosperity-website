@@ -77,22 +77,36 @@ router.post('/dial-result/:call_id', (req, res) => {
 
 // ─── POST /api/twilio/status/:call_id ────────────────────────────────────────
 // Twilio status callback for the parent (agent) leg.
-// Only used to catch agent no-answer / busy before <Dial> fires.
+// Tracks ringing and catches agent no-answer/busy before <Dial> fires.
 router.post('/status/:call_id', (req, res) => {
   const { CallStatus } = req.body;
   const callId = req.params.call_id;
 
+  if (CallStatus === 'ringing') {
+    // Agent's phone is ringing — update from 'initiated' to 'ringing'
+    db.prepare(
+      "UPDATE comm_calls SET status = 'ringing' WHERE id = ? AND status = 'initiated'"
+    ).run(callId);
+
+    const call = db.prepare('SELECT contact_id FROM comm_calls WHERE id = ?').get(callId);
+    if (call) {
+      db.prepare(
+        "UPDATE contacts SET last_call_status = 'ringing' WHERE id = ? AND last_call_status = 'initiated'"
+      ).run(call.contact_id);
+    }
+  }
+
+  // If agent never answered (no-answer/busy/failed) update while still pre-dial
   const terminalBeforeDial = ['no-answer', 'busy', 'failed', 'canceled'];
   if (terminalBeforeDial.includes(CallStatus)) {
-    // Only update if the call never reached in-progress (agent didn't answer)
     db.prepare(
-      "UPDATE comm_calls SET status = ? WHERE id = ? AND status = 'initiated'"
+      "UPDATE comm_calls SET status = ? WHERE id = ? AND status IN ('initiated','ringing')"
     ).run(CallStatus, callId);
 
     const call = db.prepare('SELECT contact_id FROM comm_calls WHERE id = ?').get(callId);
     if (call) {
       db.prepare(
-        "UPDATE contacts SET last_call_status = ? WHERE id = ? AND last_call_status = 'initiated'"
+        "UPDATE contacts SET last_call_status = ? WHERE id = ? AND last_call_status IN ('initiated','ringing')"
       ).run(CallStatus, call.contact_id);
     }
   }

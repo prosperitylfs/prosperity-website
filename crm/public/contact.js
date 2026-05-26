@@ -178,8 +178,8 @@ async function initiateDetailCall(btn) {
       method: 'POST',
       body: JSON.stringify({ contact_id: id }),
     });
-    btn.innerHTML = '✓ Calling you now…';
-    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 6000);
+    btn.innerHTML = '✓ Your phone is ringing — answer to connect';
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 8000);
     await loadCallLogs();
   } catch (err) {
     showError(`Call failed: ${err.message}`);
@@ -239,6 +239,7 @@ function renderCallLogs(logs) {
 function callStatusBadge(status) {
   const map = {
     'initiated':   ['badge-call-init',     'Initiated'],
+    'ringing':     ['badge-call-ringing',  'Ringing'],
     'in-progress': ['badge-call-progress', 'In Progress'],
     'completed':   ['badge-call-done',     'Completed'],
     'no-answer':   ['badge-call-noanswer', 'No Answer'],

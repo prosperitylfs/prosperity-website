@@ -56,7 +56,7 @@ router.post('/outbound', async (req, res) => {
       url:                  twimlUrl,
       method:               'POST',
       statusCallback:       statusUrl,
-      statusCallbackEvent:  ['completed', 'no-answer', 'busy', 'failed', 'canceled'],
+      statusCallbackEvent:  ['initiated', 'ringing', 'in-progress', 'completed', 'no-answer', 'busy', 'failed', 'canceled'],
       statusCallbackMethod: 'POST',
       timeout:              30,
     });

@@ -276,14 +276,19 @@ function handleBoardClick(e) {
 
   const btn = e.target.closest('.pc-action-btn');
   if (btn) {
-    e.preventDefault();
-    if (btn.dataset.action === 'note') {
+    const action = btn.dataset.action;
+    if (action === 'note') {
+      e.preventDefault();
       const card = btn.closest('.pipeline-card');
       if (card) showQuickNote(btn, card.dataset.id);
-    } else if (btn.dataset.action === 'call') {
-      initiateCall(btn, btn.dataset.contactId, btn.dataset.phone);
+      return;
     }
-    // email / view use their native href
+    if (action === 'call') {
+      e.preventDefault();
+      initiateCall(btn, btn.dataset.contactId, btn.dataset.phone);
+      return;
+    }
+    // email / view: let the browser follow their href naturally
     return;
   }
 
@@ -515,8 +520,8 @@ async function initiateCall(btn, contactId, fallbackPhone) {
       method: 'POST',
       body: JSON.stringify({ contact_id: contactId }),
     });
-    btn.innerHTML = '✓ Calling you…';
-    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 5000);
+    btn.innerHTML = '✓ Your phone is ringing…';
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 6000);
     loadContacts(); // refresh cards so "Called Today" badge appears
   } catch (err) {
     showError(`Call failed: ${err.message}`);
@@ -540,8 +545,8 @@ async function initiateCallById(btn, contactId) {
       method: 'POST',
       body: JSON.stringify({ contact_id: contactId }),
     });
-    btn.innerHTML = '✓';
-    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 5000);
+    btn.innerHTML = '✓ Ringing…';
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 6000);
   } catch (err) {
     showError(`Call failed: ${err.message}`);
     btn.disabled = false;

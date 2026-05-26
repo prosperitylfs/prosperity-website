@@ -7,6 +7,8 @@ if (!id) {
   document.getElementById('contact-name').textContent = 'No contact ID';
 }
 
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
 function escHtml(str) {
   return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -14,7 +16,8 @@ function escHtml(str) {
 function formatPhone(raw) {
   if (!raw) return raw;
   const digits = String(raw).replace(/\D/g, '');
-  const ten = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits.length === 10 ? digits : null;
+  const ten = digits.length === 11 && digits.startsWith('1') ? digits.slice(1)
+            : digits.length === 10 ? digits : null;
   if (!ten) return raw;
   return `(${ten.slice(0,3)}) ${ten.slice(3,6)}-${ten.slice(6)}`;
 }
@@ -27,6 +30,24 @@ function formatDate(iso, includeTime = false) {
   return d.toLocaleDateString('en-US', opts);
 }
 
+function formatCurrency(val) {
+  if (val == null || val === '') return null;
+  const n = typeof val === 'number' ? val : parseFloat(val);
+  if (isNaN(n)) return null;
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+}
+
+function parseCurrencyInput(str) {
+  if (!str) return null;
+  const n = parseFloat(String(str).replace(/[$,\s]/g, ''));
+  return isNaN(n) ? null : n;
+}
+
+function toDateInput(val) {
+  if (!val) return '';
+  return String(val).slice(0, 10);
+}
+
 function showError(msg) {
   errorEl.textContent = msg;
   errorEl.classList.remove('hidden');
@@ -36,7 +57,107 @@ function tag(text, cls = '') {
   return text ? `<span class="tag ${cls}">${escHtml(text)}</span>` : '';
 }
 
-function boolVal(v) { return v ? 'Yes' : null; }
+// ─── Section field definitions ────────────────────────────────────────────────
+// Each entry maps a form element ID → DB column key → field type.
+
+const SECTIONS = {
+  retirement: [
+    { id: 'f-retirement_account_type',       key: 'retirement_account_type',       type: 'select' },
+    { id: 'f-current_institution',           key: 'current_institution',           type: 'text' },
+    { id: 'f-estimated_rollover_amount',     key: 'estimated_rollover_amount',     type: 'currency' },
+    { id: 'f-retirement_timeline',           key: 'retirement_timeline',           type: 'select' },
+    { id: 'f-has_current_advisor',           key: 'has_current_advisor',           type: 'bool' },
+    { id: 'f-interested_in_roth_conversion', key: 'interested_in_roth_conversion', type: 'bool' },
+  ],
+  life: [
+    { id: 'f-insurance_company', key: 'insurance_company', type: 'text' },
+    { id: 'f-policy_type',       key: 'policy_type',       type: 'select' },
+    { id: 'f-face_amount',       key: 'face_amount',       type: 'currency' },
+    { id: 'f-monthly_premium',   key: 'monthly_premium',   type: 'currency' },
+    { id: 'f-annual_premium',    key: 'annual_premium',    type: 'currency' },
+    { id: 'f-policy_status',     key: 'policy_status',     type: 'select' },
+    { id: 'f-application_date',  key: 'application_date',  type: 'date' },
+    { id: 'f-policy_issue_date', key: 'policy_issue_date', type: 'date' },
+  ],
+  annuity: [
+    { id: 'f-annuity_carrier',  key: 'annuity_carrier',  type: 'text' },
+    { id: 'f-annuity_type',     key: 'annuity_type',     type: 'select' },
+    { id: 'f-annuity_premium',  key: 'annuity_premium',  type: 'currency' },
+    { id: 'f-estimated_income', key: 'estimated_income', type: 'currency' },
+    { id: 'f-surrender_period', key: 'surrender_period', type: 'text' },
+    { id: 'f-income_rider',     key: 'income_rider',     type: 'bool' },
+  ],
+  followup: [
+    { id: 'f-next_follow_up_date', key: 'next_follow_up_date', type: 'date' },
+    { id: 'f-last_contact_date',   key: 'last_contact_date',   type: 'date' },
+    { id: 'f-commission_estimate', key: 'commission_estimate', type: 'currency' },
+  ],
+};
+
+// ─── Populate all section fields from a contact object ────────────────────────
+
+function populateSections(contact) {
+  for (const fields of Object.values(SECTIONS)) {
+    for (const f of fields) {
+      const el = document.getElementById(f.id);
+      if (!el) continue;
+      const val = contact[f.key];
+      if (f.type === 'bool') {
+        el.checked = !!val;
+      } else if (f.type === 'date') {
+        el.value = toDateInput(val);
+      } else if (f.type === 'currency') {
+        // Store raw number; placeholder shows "$0" so context is clear
+        el.value = (val != null && val !== '') ? String(val) : '';
+      } else {
+        el.value = val || '';
+      }
+    }
+  }
+}
+
+// ─── Save a section (called from onclick in HTML) ─────────────────────────────
+
+async function saveCrmSection(event, key) {
+  const btn = event.currentTarget;
+  const savedEl = document.getElementById('saved-' + key);
+  const origText = btn.textContent;
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  // Collect current field values
+  const data = {};
+  for (const f of SECTIONS[key]) {
+    const el = document.getElementById(f.id);
+    if (!el) continue;
+    if (f.type === 'bool') {
+      data[f.key] = el.checked ? 1 : 0;
+    } else if (f.type === 'currency') {
+      data[f.key] = parseCurrencyInput(el.value); // null if blank
+    } else {
+      data[f.key] = el.value.trim() || null;
+    }
+  }
+
+  try {
+    const updated = await CRM.fetch(`/api/contacts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    // Re-populate from server response so displayed values are authoritative
+    populateSections(updated);
+    savedEl.classList.remove('hidden');
+    setTimeout(() => savedEl.classList.add('hidden'), 2500);
+  } catch (err) {
+    showError(`Could not save: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+// ─── Contact info (read-only header card) ─────────────────────────────────────
 
 function renderInfo(contact) {
   document.getElementById('contact-name').textContent =
@@ -44,65 +165,53 @@ function renderInfo(contact) {
 
   document.getElementById('contact-meta').innerHTML = [
     contact.lead_type ? tag(contact.lead_type, 'tag-purple') : '',
-    contact.role      ? tag(contact.role, 'tag-gray') : '',
+    contact.role && contact.role !== 'lead' ? tag(contact.role, 'tag-gray') : '',
     `<span class="meta-date">Added ${formatDate(contact.created_at)}</span>`,
   ].filter(Boolean).join(' ');
 
-  // Set status dropdown
   const statusEl = document.getElementById('lead-status-select');
   if (statusEl) statusEl.value = contact.lead_status || 'New Lead';
 
   const fields = [
-    // Contact
-    ['Email',         contact.email],
-    ['Phone',         contact.phone     ? formatPhone(contact.phone)     : null],
-    ['Alt Phone',     contact.alt_phone ? formatPhone(contact.alt_phone) : null],
-    ['Lead Source',   contact.lead_source],
-    ['SMS Consent',   boolVal(contact.sms_consent)],
-    ['Appt Booked',   boolVal(contact.appointment_booked)],
-    ['Appt Date',     contact.appointment_date],
-    ['Last Contacted',contact.last_contacted],
-    // Retirement
-    ['Ret. Assets',    contact.retirement_assets],
-    ['Account Types',  contact.account_types],
-    ['Ret. Timeline',  contact.retirement_timeline],
-    ['Interested In',  contact.interested_in],
-    ['Existing Advisor', contact.existing_advisor],
-    // Life Insurance
-    ['Coverage Goal',  contact.coverage_goal],
-    ['Existing Coverage', contact.existing_coverage],
-    ['Mortgage Protection', boolVal(contact.mortgage_protection)],
-    ['Final Expense',  boolVal(contact.final_expense)],
-    ['Children/GC',    boolVal(contact.children_grandchildren)],
-    // Misc
-    ['Role',           contact.role],
-    ['Notes',          contact.notes],
+    ['Email',          contact.email],
+    ['Phone',          contact.phone     ? formatPhone(contact.phone)     : null],
+    ['Alt Phone',      contact.alt_phone ? formatPhone(contact.alt_phone) : null],
+    ['Lead Source',    contact.lead_source],
+    ['SMS Consent',    contact.sms_consent     ? 'Yes' : null],
+    ['Appt Booked',    contact.appointment_booked ? 'Yes' : null],
+    ['Appt Date',      contact.appointment_date],
+    ['Last Contacted', contact.last_contacted],
   ].filter(([, v]) => v);
 
-  document.getElementById('contact-info').innerHTML = fields.map(([label, value]) => `
-    <div class="info-row">
-      <span class="info-label">${escHtml(label)}</span>
-      <span class="info-value">${escHtml(value)}</span>
-    </div>
-  `).join('') || '<p class="text-muted">No details on file.</p>';
+  document.getElementById('contact-info').innerHTML = fields.length
+    ? fields.map(([label, value]) => `
+        <div class="info-row">
+          <span class="info-label">${escHtml(label)}</span>
+          <span class="info-value">${escHtml(value)}</span>
+        </div>`).join('')
+    : '<p class="text-muted">No details on file.</p>';
 }
+
+// ─── Notes ────────────────────────────────────────────────────────────────────
 
 function renderNotes(notes) {
   const el = document.getElementById('notes-list');
-  if (!notes.length) {
+  const rows = Array.isArray(notes) ? notes.filter(n => n && typeof n === 'object') : [];
+  if (!rows.length) {
     el.innerHTML = '<p class="text-muted">No notes yet.</p>';
     return;
   }
-  el.innerHTML = notes.map(n => `
+  el.innerHTML = rows.map(n => `
     <div class="timeline-item">
       <div class="timeline-dot"></div>
       <div class="timeline-body">
         <div class="timeline-meta">${formatDate(n.created_at, true)}</div>
-        <div class="timeline-text">${escHtml(n.body)}</div>
+        <div class="timeline-text">${escHtml(typeof n.body === 'string' ? n.body : JSON.stringify(n.body))}</div>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
+
+// ─── Communications ───────────────────────────────────────────────────────────
 
 function renderComms(comms) {
   const el = document.getElementById('comms-list');
@@ -110,7 +219,6 @@ function renderComms(comms) {
     el.innerHTML = '<p class="text-muted">No activity yet.</p>';
     return;
   }
-
   el.innerHTML = comms.map(c => {
     let bodyHtml = '';
     if (c.comm_type === 'form' && c.body) {
@@ -120,11 +228,13 @@ function renderComms(comms) {
         const rows = Object.entries(data)
           .filter(([k, v]) => !skip.has(k) && v !== null && v !== undefined && String(v).trim() !== '')
           .map(([k, v]) => {
-            let displayVal = (k === 'phone' || k === 'alt_phone') ? formatPhone(v) || v : v;
-            if (typeof displayVal === 'object' && displayVal !== null) displayVal = JSON.stringify(displayVal);
-            return `<div class="form-row"><span class="form-key">${escHtml(k.replace(/_/g, ' '))}</span><span class="form-val">${escHtml(String(displayVal ?? ''))}</span></div>`;
-          })
-          .join('');
+            let dv = (k === 'phone' || k === 'alt_phone') ? formatPhone(v) || v : v;
+            if (typeof dv === 'object' && dv !== null) dv = JSON.stringify(dv);
+            return `<div class="form-row">
+              <span class="form-key">${escHtml(k.replace(/_/g, ' '))}</span>
+              <span class="form-val">${escHtml(String(dv ?? ''))}</span>
+            </div>`;
+          }).join('');
         bodyHtml = rows ? `<div class="form-data">${rows}</div>` : '';
       } catch {
         bodyHtml = `<pre class="comm-body">${escHtml(c.body)}</pre>`;
@@ -133,8 +243,8 @@ function renderComms(comms) {
       bodyHtml = `<div class="comm-body-text">${escHtml(c.body)}</div>`;
     }
 
-    const typeIcon = { form: '📋', email: '✉️', sms: '💬', call: '📞' }[c.comm_type] || '📌';
-    const dirBadge = c.direction === 'inbound'
+    const icon = { form: '📋', email: '✉️', sms: '💬', call: '📞' }[c.comm_type] || '📌';
+    const dir  = c.direction === 'inbound'
       ? '<span class="badge badge-in">Inbound</span>'
       : '<span class="badge badge-out">Outbound</span>';
 
@@ -143,22 +253,23 @@ function renderComms(comms) {
         <div class="timeline-dot"></div>
         <div class="timeline-body">
           <div class="timeline-meta">
-            ${typeIcon} <strong>${escHtml(c.subject || c.comm_type)}</strong>
-            ${dirBadge}
+            ${icon} <strong>${escHtml(c.subject || c.comm_type)}</strong> ${dir}
             <span style="float:right">${formatDate(c.created_at, true)}</span>
           </div>
           ${bodyHtml}
         </div>
-      </div>
-    `;
+      </div>`;
   }).join('');
 }
+
+// ─── Load contact ─────────────────────────────────────────────────────────────
 
 async function loadContact() {
   if (!id) return;
   try {
     const contact = await CRM.fetch(`/api/contacts/${id}`);
     renderInfo(contact);
+    populateSections(contact);
     renderNotes(contact.notes || []);
     renderComms(contact.communications || []);
   } catch (err) {
@@ -166,7 +277,8 @@ async function loadContact() {
   }
 }
 
-// Auto-save lead status on change
+// ─── Lead status auto-save ────────────────────────────────────────────────────
+
 document.getElementById('lead-status-select').addEventListener('change', async function () {
   const msgEl = document.getElementById('status-save-msg');
   try {
@@ -181,7 +293,8 @@ document.getElementById('lead-status-select').addEventListener('change', async f
   }
 });
 
-// Add note
+// ─── Add note ─────────────────────────────────────────────────────────────────
+
 document.getElementById('add-note-btn').addEventListener('click', async () => {
   const body = document.getElementById('new-note-body').value.trim();
   if (!body) return;

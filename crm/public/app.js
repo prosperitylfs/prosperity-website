@@ -57,6 +57,13 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function formatCurrency(val) {
+  if (val == null || val === '') return null;
+  const n = typeof val === 'number' ? val : parseFloat(val);
+  if (isNaN(n)) return null;
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+}
+
 function escHtml(str) {
   if (str == null) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -218,6 +225,15 @@ function buildCard(c) {
     ? `<a class="pc-action-btn" href="mailto:${escHtml(c.email)}" data-action="email" title="Email ${escHtml(c.email)}">Email</a>`
     : '';
 
+  const prodItems = [];
+  if (c.face_amount)               prodItems.push(`Life: ${formatCurrency(c.face_amount)}`);
+  if (c.annuity_premium)           prodItems.push(`Ann: ${formatCurrency(c.annuity_premium)}`);
+  if (c.estimated_rollover_amount) prodItems.push(`Rollover: ${formatCurrency(c.estimated_rollover_amount)}`);
+  if (c.commission_estimate)       prodItems.push(`Comm: ${formatCurrency(c.commission_estimate)}`);
+  const prodLine = prodItems.length
+    ? `<div class="pc-production">${escHtml(prodItems.join(' · '))}</div>`
+    : '';
+
   return `
     <div class="pipeline-card" data-id="${c.id}" data-status="${escHtml(c.lead_status || 'New Lead')}">
       <div class="pc-name-row">
@@ -231,6 +247,7 @@ function buildCard(c) {
         <span class="pc-date">${formatDate(c.created_at)}</span>
       </div>
       ${c.lead_source ? `<div class="pc-source">${escHtml(c.lead_source)}</div>` : ''}
+      ${prodLine}
       <div class="pc-actions">
         ${actionCall}
         ${actionEmail}

@@ -114,5 +114,31 @@ addCol('contacts', 'existing_coverage',      'TEXT');
 addCol('contacts', 'mortgage_protection',    'INTEGER DEFAULT 0');
 addCol('contacts', 'final_expense',          'INTEGER DEFAULT 0');
 addCol('contacts', 'children_grandchildren', 'INTEGER DEFAULT 0');
+// Retirement / rollover structured fields
+addCol('contacts', 'retirement_account_type',       'TEXT');
+addCol('contacts', 'current_institution',           'TEXT');
+addCol('contacts', 'estimated_rollover_amount',     'REAL');
+addCol('contacts', 'has_current_advisor',           'INTEGER DEFAULT 0');
+addCol('contacts', 'interested_in_roth_conversion', 'INTEGER DEFAULT 0');
+// Life insurance structured fields
+addCol('contacts', 'insurance_company',   'TEXT');
+addCol('contacts', 'policy_type',         'TEXT');
+addCol('contacts', 'face_amount',         'REAL');
+addCol('contacts', 'monthly_premium',     'REAL');
+addCol('contacts', 'annual_premium',      'REAL');
+addCol('contacts', 'policy_status',       'TEXT');
+addCol('contacts', 'application_date',    'TEXT');
+addCol('contacts', 'policy_issue_date',   'TEXT');
+// Annuity structured fields
+addCol('contacts', 'annuity_carrier',     'TEXT');
+addCol('contacts', 'annuity_type',        'TEXT');
+addCol('contacts', 'annuity_premium',     'REAL');
+addCol('contacts', 'income_rider',        'INTEGER DEFAULT 0');
+addCol('contacts', 'estimated_income',    'REAL');
+addCol('contacts', 'surrender_period',    'TEXT');
+// CRM / follow-up fields
+addCol('contacts', 'next_follow_up_date', 'TEXT');
+addCol('contacts', 'last_contact_date',   'TEXT');
+addCol('contacts', 'commission_estimate', 'REAL');
 
 module.exports = db;

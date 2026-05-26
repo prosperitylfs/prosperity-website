@@ -91,7 +91,14 @@ app.get('/config.js', (req, res) => {
 });
 
 // ─── Serve CRM Dashboard (static) ────────────────────────────────────────────
-app.use(express.static(path.join(__dirname, 'public')));
+// No-cache on HTML/JS/CSS so the browser always fetches the latest version.
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders(res, filePath) {
+    if (/\.(html|js|css)$/.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-store');
+    }
+  },
+}));
 
 // Fallback: serve dashboard for any unmatched route (SPA-style)
 app.get(/.*/, (req, res) => {

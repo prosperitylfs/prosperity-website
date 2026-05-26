@@ -63,7 +63,10 @@ router.get('/:id', (req, res) => {
     'SELECT * FROM communications WHERE contact_id = ? ORDER BY created_at DESC'
   ).all(contact.id);
 
-  res.json({ ...contact, notes, communications });
+  // Exclude the legacy contacts.notes TEXT column so it never collides with
+  // the contact_notes array. Old records may have "[object Object]" stored there.
+  const { notes: _legacyNotes, ...contactFields } = contact;
+  res.json({ ...contactFields, notes, communications });
 });
 
 // PATCH /api/contacts/:id — update contact fields
@@ -77,6 +80,12 @@ router.patch('/:id', (req, res) => {
     'lead_status', 'sms_consent', 'appointment_booked', 'appointment_date', 'last_contacted',
     'retirement_assets', 'account_types', 'retirement_timeline', 'interested_in', 'existing_advisor',
     'coverage_goal', 'existing_coverage', 'mortgage_protection', 'final_expense', 'children_grandchildren',
+    'retirement_account_type', 'current_institution', 'estimated_rollover_amount',
+    'has_current_advisor', 'interested_in_roth_conversion',
+    'insurance_company', 'policy_type', 'face_amount', 'monthly_premium', 'annual_premium',
+    'policy_status', 'application_date', 'policy_issue_date',
+    'annuity_carrier', 'annuity_type', 'annuity_premium', 'income_rider', 'estimated_income', 'surrender_period',
+    'next_follow_up_date', 'last_contact_date', 'commission_estimate',
   ];
   const updates = {};
   for (const key of allowed) {

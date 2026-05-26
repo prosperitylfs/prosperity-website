@@ -140,5 +140,11 @@ addCol('contacts', 'surrender_period',    'TEXT');
 addCol('contacts', 'next_follow_up_date', 'TEXT');
 addCol('contacts', 'last_contact_date',   'TEXT');
 addCol('contacts', 'commission_estimate', 'REAL');
+// Click-to-call tracking
+addCol('contacts', 'last_called_at',    'TEXT');
+addCol('contacts', 'last_call_status',  'TEXT');
+// comm_calls enrichment for click-to-call
+addCol('comm_calls', 'contact_name', 'TEXT');
+addCol('comm_calls', 'notes',        'TEXT');
 
 module.exports = db;

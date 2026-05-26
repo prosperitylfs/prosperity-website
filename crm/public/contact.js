@@ -157,6 +157,119 @@ async function saveCrmSection(event, key) {
   }
 }
 
+// ─── Click-to-call (detail page) ──────────────────────────────────────────────
+
+function wireCallButton(contact) {
+  const action = document.getElementById('call-action');
+  const btn    = document.getElementById('detail-call-btn');
+  if (!action || !btn || !contact.phone) return;
+  if (window.CRM_TWILIO_ENABLED) {
+    action.classList.remove('hidden');
+    btn.onclick = () => initiateDetailCall(btn);
+  }
+}
+
+async function initiateDetailCall(btn) {
+  const origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="call-spinner"></span> Calling…';
+  try {
+    await CRM.fetch('/api/calls/outbound', {
+      method: 'POST',
+      body: JSON.stringify({ contact_id: id }),
+    });
+    btn.innerHTML = '✓ Calling you now…';
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 6000);
+    await loadCallLogs();
+  } catch (err) {
+    showError(`Call failed: ${err.message}`);
+    btn.disabled = false;
+    btn.innerHTML = origHtml;
+  }
+}
+
+// ─── Recent calls ─────────────────────────────────────────────────────────────
+
+async function loadCallLogs() {
+  try {
+    const logs = await CRM.fetch(`/api/calls/contact/${id}`);
+    renderCallLogs(logs);
+  } catch {
+    // Don't block the page if the calls endpoint isn't available yet
+  }
+}
+
+function renderCallLogs(logs) {
+  const el = document.getElementById('calls-list');
+  if (!el) return;
+  if (!logs.length) {
+    el.innerHTML = '<p class="text-muted">No calls logged yet.</p>';
+    return;
+  }
+
+  const today = new Date().toDateString();
+  el.innerHTML = logs.map(c => {
+    const isToday = c.started_at && new Date(c.started_at).toDateString() === today;
+    const badge   = callStatusBadge(c.status);
+    const todayPill = isToday ? '<span class="call-ind-today call-ind-pill">Called Today</span>' : '';
+    const vmBadge   = c.notes === 'voicemail_left'
+      ? '<span class="call-ind-voicemail call-ind-pill">Voicemail Left</span>'
+      : '';
+
+    const canMarkVm = (c.status === 'no-answer' || c.status === 'completed' || c.status === 'in-progress')
+      && c.notes !== 'voicemail_left';
+
+    return `
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-body">
+          <div class="timeline-meta">
+            ☎ <strong>Outbound Call</strong>
+            ${badge} ${todayPill} ${vmBadge}
+            <span style="float:right">${formatDate(c.started_at, true)}</span>
+          </div>
+          ${c.to_number ? `<div class="call-detail-row">To: ${escHtml(formatPhone(c.to_number))}</div>` : ''}
+          ${c.duration_sec ? `<div class="call-detail-row">Duration: ${formatDuration(c.duration_sec)}</div>` : ''}
+          ${canMarkVm ? `<button class="call-mark-btn" onclick="markVoicemail(${c.id})">Mark Voicemail Left</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function callStatusBadge(status) {
+  const map = {
+    'initiated':   ['badge-call-init',     'Initiated'],
+    'in-progress': ['badge-call-progress', 'In Progress'],
+    'completed':   ['badge-call-done',     'Completed'],
+    'no-answer':   ['badge-call-noanswer', 'No Answer'],
+    'busy':        ['badge-call-busy',     'Busy'],
+    'failed':      ['badge-call-failed',   'Failed'],
+    'canceled':    ['badge-call-failed',   'Canceled'],
+    'unknown':     ['badge-call-init',     'Unknown'],
+  };
+  const [cls, label] = map[status] || ['badge-call-init', status || '—'];
+  return `<span class="call-status-badge ${cls}">${escHtml(label)}</span>`;
+}
+
+function formatDuration(sec) {
+  if (!sec) return '';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+async function markVoicemail(callId) {
+  try {
+    await CRM.fetch(`/api/calls/${callId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notes: 'voicemail_left' }),
+    });
+    await loadCallLogs();
+  } catch (err) {
+    showError(`Could not update call: ${err.message}`);
+  }
+}
+
 // ─── Contact info (read-only header card) ─────────────────────────────────────
 
 function renderInfo(contact) {
@@ -276,9 +389,11 @@ async function loadContact() {
   try {
     const contact = await CRM.fetch(`/api/contacts/${id}`);
     renderInfo(contact);
+    wireCallButton(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
     renderComms(contact.communications || []);
+    await loadCallLogs();
   } catch (err) {
     showError(`Could not load contact: ${err.message}`);
   }

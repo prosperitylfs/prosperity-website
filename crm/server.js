@@ -57,8 +57,14 @@ function requireApiKey(req, res, next) {
 // Lead capture — PUBLIC (no auth) so website forms can post
 app.use('/api/leads', require('./routes/leads'));
 
+// Twilio webhooks — PUBLIC (Twilio calls these from its own servers, no CRM key)
+app.use('/api/twilio', require('./routes/twilio'));
+
 // CRM contacts — protected
 app.use('/api/contacts', requireApiKey, require('./routes/contacts'));
+
+// Call management — protected
+app.use('/api/calls', requireApiKey, require('./routes/calls'));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
@@ -67,9 +73,15 @@ app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOSt
 // environment rather than requiring manual localStorage setup in every browser.
 // This route takes priority over the static config.js in public/.
 app.get('/config.js', (req, res) => {
-  const apiKey = process.env.CRM_API_KEY || '';
+  const apiKey        = process.env.CRM_API_KEY || '';
+  const twilioEnabled = !!(
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_FROM_NUMBER &&
+    process.env.AGENT_PHONE_NUMBER
+  );
   res.type('application/javascript').send(
-`window.CRM = {
+`window.CRM_TWILIO_ENABLED = ${twilioEnabled};
+window.CRM = {
   get baseUrl() { return window.location.origin; },
   get apiKey()  { return ${JSON.stringify(apiKey)}; },
   headers() {

@@ -151,7 +151,9 @@ function renderContacts(contacts) {
           </div>
         </td>
         <td class="text-muted">${c.email ? `<a class="email-link" href="https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(c.email)}&su=Prosperity%20Life%20%26%20Financial%20Solutions%20Follow-Up" target="_blank" rel="noopener" title="Send Email" onclick="event.stopPropagation()">${escHtml(c.email)}</a>` : '—'}</td>
-        <td class="text-muted">${c.phone ? escHtml(formatPhone(c.phone)) : '—'}</td>
+        <td class="text-muted">${c.phone
+            ? `<button class="phone-call-btn" data-phone="${escHtml(c.phone_e164 || c.phone)}" onclick="event.stopPropagation(); initiateCallById(this, ${c.id})" title="Call ${escHtml(formatPhone(c.phone))}">☎ ${escHtml(formatPhone(c.phone))}</button>`
+            : '—'}</td>
         <td>${tag(c.lead_type, leadTypeClass(c.lead_type))}</td>
         <td>${tag(c.lead_status || 'New Lead', leadStatusClass(c.lead_status || 'New Lead'))}</td>
         <td class="text-muted text-small">${c.lead_source ? escHtml(c.lead_source) : '—'}</td>
@@ -218,8 +220,12 @@ function buildCard(c) {
   const phone    = c.phone ? formatPhone(c.phone) : null;
   const callHref = c.phone_e164 || (c.phone ? '+1' + c.phone.replace(/\D/g, '') : null);
 
-  const actionCall  = phone
-    ? `<a class="pc-action-btn" href="tel:${escHtml(callHref || phone)}" data-action="call" title="Call ${escHtml(phone)}">Call</a>`
+  const calledToday   = c.last_called_at && new Date(c.last_called_at).toDateString() === new Date().toDateString();
+  const missedToday   = calledToday && (c.last_call_status === 'no-answer' || c.last_call_status === 'busy');
+  const voicemailLeft = c.last_call_status === 'voicemail_left' && calledToday;
+
+  const actionCall = phone
+    ? `<button class="pc-action-btn pc-action-call" data-action="call" data-contact-id="${c.id}" data-phone="${escHtml(callHref || phone)}" title="Call ${escHtml(phone)}">☎ Call</button>`
     : '';
   const gmailUrl = c.email
     ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(c.email)}&su=Prosperity%20Life%20%26%20Financial%20Solutions%20Follow-Up`
@@ -249,6 +255,9 @@ function buildCard(c) {
         ${c.lead_type ? `<span class="tag tag-xs ${leadTypeClass(c.lead_type)}">${escHtml(c.lead_type)}</span>` : ''}
         <span class="pc-date">${formatDate(c.created_at)}</span>
       </div>
+      ${calledToday && !missedToday && !voicemailLeft ? '<div class="call-indicator call-ind-today">Called Today</div>' : ''}
+      ${missedToday ? '<div class="call-indicator call-ind-missed">Missed Call</div>' : ''}
+      ${voicemailLeft ? '<div class="call-indicator call-ind-voicemail">Voicemail Left</div>' : ''}
       ${c.lead_source ? `<div class="pc-source">${escHtml(c.lead_source)}</div>` : ''}
       ${prodLine}
       <div class="pc-actions">
@@ -267,12 +276,14 @@ function handleBoardClick(e) {
 
   const btn = e.target.closest('.pc-action-btn');
   if (btn) {
+    e.preventDefault();
     if (btn.dataset.action === 'note') {
-      e.preventDefault();
       const card = btn.closest('.pipeline-card');
       if (card) showQuickNote(btn, card.dataset.id);
+    } else if (btn.dataset.action === 'call') {
+      initiateCall(btn, btn.dataset.contactId, btn.dataset.phone);
     }
-    // call / email / view all use their native href — just stop card navigation
+    // email / view use their native href
     return;
   }
 
@@ -486,6 +497,56 @@ function refreshColEmpty(colEl) {
 function adjustColCount(status, delta) {
   const el = document.getElementById('col-count-' + status.replace(/ /g, '-'));
   if (el) el.textContent = Math.max(0, parseInt(el.textContent || '0') + delta);
+}
+
+// ─── Click-to-call ─────────────────────────────────────────────────────────────
+
+async function initiateCall(btn, contactId, fallbackPhone) {
+  if (!window.CRM_TWILIO_ENABLED) {
+    window.location.href = `tel:${fallbackPhone}`;
+    return;
+  }
+  const origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="call-spinner"></span> Calling…';
+
+  try {
+    await CRM.fetch('/api/calls/outbound', {
+      method: 'POST',
+      body: JSON.stringify({ contact_id: contactId }),
+    });
+    btn.innerHTML = '✓ Calling you…';
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 5000);
+    loadContacts(); // refresh cards so "Called Today" badge appears
+  } catch (err) {
+    showError(`Call failed: ${err.message}`);
+    btn.disabled = false;
+    btn.innerHTML = origHtml;
+  }
+}
+
+// Used by the list-view phone button (inline onclick)
+async function initiateCallById(btn, contactId) {
+  if (!window.CRM_TWILIO_ENABLED) {
+    window.location.href = `tel:${btn.dataset.phone}`;
+    return;
+  }
+  const origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="call-spinner"></span>';
+
+  try {
+    await CRM.fetch('/api/calls/outbound', {
+      method: 'POST',
+      body: JSON.stringify({ contact_id: contactId }),
+    });
+    btn.innerHTML = '✓';
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 5000);
+  } catch (err) {
+    showError(`Call failed: ${err.message}`);
+    btn.disabled = false;
+    btn.innerHTML = origHtml;
+  }
 }
 
 // ─── Load contacts ─────────────────────────────────────────────────────────────

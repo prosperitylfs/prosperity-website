@@ -797,7 +797,7 @@ body {
 }
 
 .pc-action-btn.pc-action-email:hover {
-  background: var(--purple-xlight);
+  background: var(--purple-light);
   color: var(--purple-dark);
   border-color: var(--purple-dark);
   font-weight: 600;
@@ -1128,4 +1128,151 @@ body {
 @media (max-width: 680px) {
   .crm-grid { grid-template-columns: 1fr; }
   .crm-field-full { grid-column: 1; }
+}
+
+/* ── Click-to-call ───────────────────────────────────────────────────────── */
+
+/* Spinning indicator used inside call buttons while connecting */
+.call-spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: crm-spin 0.65s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes crm-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Call CTA button — header of contact detail page */
+.btn-call {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .55rem 1.1rem;
+  background: var(--purple);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: .875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+
+.btn-call:hover {
+  background: var(--purple-dark);
+  box-shadow: 0 2px 8px rgba(78,44,148,.30);
+}
+
+.btn-call:disabled {
+  opacity: .7;
+  cursor: not-allowed;
+}
+
+/* Pipeline card Call button — phone icon emphasis */
+.pc-action-btn.pc-action-call:hover {
+  background: var(--purple-light);
+  color: var(--purple-dark);
+  border-color: var(--purple-dark);
+  font-weight: 600;
+}
+
+/* Phone number button in list view */
+.phone-call-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--purple);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.phone-call-btn:hover {
+  color: var(--purple-dark);
+  text-decoration: underline;
+}
+
+/* Call status badges in the Recent Calls timeline */
+.call-status-badge {
+  display: inline-block;
+  padding: .15rem .5rem;
+  border-radius: 4px;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  vertical-align: middle;
+}
+
+.badge-call-done     { background: #d1fae5; color: #065f46; }
+.badge-call-noanswer { background: #fef3c7; color: #92400e; }
+.badge-call-busy     { background: #fef3c7; color: #92400e; }
+.badge-call-failed   { background: #fee2e2; color: #991b1b; }
+.badge-call-progress { background: #dbeafe; color: #1e40af; }
+.badge-call-init     { background: var(--border); color: var(--text-muted); }
+
+/* Visual call-status indicators on pipeline cards */
+.call-indicator {
+  display: inline-block;
+  margin-top: .3rem;
+  padding: .15rem .5rem;
+  border-radius: 4px;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.call-ind-today     { background: #dbeafe; color: #1e40af; }
+.call-ind-missed    { background: #fef3c7; color: #92400e; }
+.call-ind-voicemail { background: #ede8f7; color: var(--purple-dark); }
+
+/* Pill variant used inside Recent Calls timeline */
+.call-ind-pill {
+  display: inline-block;
+  padding: .15rem .5rem;
+  border-radius: 4px;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  vertical-align: middle;
+}
+
+/* Detail page call row metadata */
+.call-detail-row {
+  font-size: .8rem;
+  color: var(--text-muted);
+  margin-top: .2rem;
+}
+
+/* Mark Voicemail button inside Recent Calls */
+.call-mark-btn {
+  margin-top: .4rem;
+  padding: .2rem .6rem;
+  background: none;
+  border: 1px solid var(--purple);
+  border-radius: 5px;
+  color: var(--purple);
+  font-family: inherit;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+
+.call-mark-btn:hover {
+  background: var(--purple);
+  color: #fff;
 }

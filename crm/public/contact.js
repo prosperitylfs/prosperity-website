@@ -172,22 +172,29 @@ function renderInfo(contact) {
   const statusEl = document.getElementById('lead-status-select');
   if (statusEl) statusEl.value = contact.lead_status || 'New Lead';
 
+  const emailGmailUrl = contact.email
+    ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(contact.email)}&su=Prosperity%20Life%20%26%20Financial%20Solutions%20Follow-Up`
+    : null;
+
   const fields = [
-    ['Email',          contact.email],
-    ['Phone',          contact.phone     ? formatPhone(contact.phone)     : null],
-    ['Alt Phone',      contact.alt_phone ? formatPhone(contact.alt_phone) : null],
-    ['Lead Source',    contact.lead_source],
-    ['SMS Consent',    contact.sms_consent     ? 'Yes' : null],
-    ['Appt Booked',    contact.appointment_booked ? 'Yes' : null],
-    ['Appt Date',      contact.appointment_date],
-    ['Last Contacted', contact.last_contacted],
+    ['Email',          contact.email,       emailGmailUrl],
+    ['Phone',          contact.phone     ? formatPhone(contact.phone)     : null, null],
+    ['Alt Phone',      contact.alt_phone ? formatPhone(contact.alt_phone) : null, null],
+    ['Lead Source',    contact.lead_source, null],
+    ['SMS Consent',    contact.sms_consent        ? 'Yes' : null, null],
+    ['Appt Booked',    contact.appointment_booked ? 'Yes' : null, null],
+    ['Appt Date',      contact.appointment_date,  null],
+    ['Last Contacted', contact.last_contacted,    null],
   ].filter(([, v]) => v);
 
   document.getElementById('contact-info').innerHTML = fields.length
-    ? fields.map(([label, value]) => `
+    ? fields.map(([label, value, href]) => `
         <div class="info-row">
           <span class="info-label">${escHtml(label)}</span>
-          <span class="info-value">${escHtml(value)}</span>
+          <span class="info-value">${href
+            ? `<a class="email-link" href="${escHtml(href)}" target="_blank" rel="noopener" title="Send Email">${escHtml(value)}</a>`
+            : escHtml(value)
+          }</span>
         </div>`).join('')
     : '<p class="text-muted">No details on file.</p>';
 }

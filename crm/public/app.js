@@ -150,7 +150,7 @@ function renderContacts(contacts) {
             <span class="contact-name">${escHtml(name)}</span>
           </div>
         </td>
-        <td class="text-muted">${c.email ? escHtml(c.email) : '—'}</td>
+        <td class="text-muted">${c.email ? `<a class="email-link" href="https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(c.email)}&su=Prosperity%20Life%20%26%20Financial%20Solutions%20Follow-Up" target="_blank" rel="noopener" title="Send Email" onclick="event.stopPropagation()">${escHtml(c.email)}</a>` : '—'}</td>
         <td class="text-muted">${c.phone ? escHtml(formatPhone(c.phone)) : '—'}</td>
         <td>${tag(c.lead_type, leadTypeClass(c.lead_type))}</td>
         <td>${tag(c.lead_status || 'New Lead', leadStatusClass(c.lead_status || 'New Lead'))}</td>
@@ -221,8 +221,11 @@ function buildCard(c) {
   const actionCall  = phone
     ? `<a class="pc-action-btn" href="tel:${escHtml(callHref || phone)}" data-action="call" title="Call ${escHtml(phone)}">Call</a>`
     : '';
-  const actionEmail = c.email
-    ? `<a class="pc-action-btn" href="mailto:${escHtml(c.email)}" data-action="email" title="Email ${escHtml(c.email)}">Email</a>`
+  const gmailUrl = c.email
+    ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(c.email)}&su=Prosperity%20Life%20%26%20Financial%20Solutions%20Follow-Up`
+    : null;
+  const actionEmail = gmailUrl
+    ? `<a class="pc-action-btn pc-action-email" href="${escHtml(gmailUrl)}" data-action="email" target="_blank" rel="noopener" title="Send Email">Email</a>`
     : '';
 
   const prodItems = [];

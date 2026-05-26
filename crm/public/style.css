@@ -796,6 +796,24 @@ body {
   border-color: var(--purple);
 }
 
+.pc-action-btn.pc-action-email:hover {
+  background: var(--purple-xlight);
+  color: var(--purple-dark);
+  border-color: var(--purple-dark);
+  font-weight: 600;
+}
+
+/* Email link — list view & contact detail page */
+.email-link {
+  color: var(--purple);
+  text-decoration: none;
+  font-weight: 500;
+}
+.email-link:hover {
+  color: var(--purple-dark);
+  text-decoration: underline;
+}
+
 .pc-action-view {
   background: var(--purple-light);
   color: var(--purple);

@@ -178,5 +178,14 @@ addCol('comm_calls', 'contact_name', 'TEXT');
 addCol('comm_calls', 'notes',        'TEXT');
 addCol('comm_calls', 'transcription','TEXT');
 addCol('comm_calls', 'listened_at',  'TEXT'); // marks voicemail/missed as reviewed
+// Cal.com integration
+addCol('appointments', 'cal_booking_uid', 'TEXT');
+try {
+  db.prepare(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_appts_cal_uid ON appointments(cal_booking_uid) WHERE cal_booking_uid IS NOT NULL'
+  ).run();
+} catch (e) {
+  if (!e.message.includes('already exists')) throw e;
+}
 
 module.exports = db;

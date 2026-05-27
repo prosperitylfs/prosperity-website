@@ -31,7 +31,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
 }));
 
-app.use(express.json());
+// Capture raw body buffer for HMAC webhook signature verification (Cal.com, etc.)
+app.use(express.json({
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // ─── API Key middleware (protects CRM read/write endpoints) ───────────────────
@@ -59,6 +62,10 @@ app.use('/api/leads', require('./routes/leads'));
 
 // Twilio webhooks — PUBLIC (Twilio calls these from its own servers, no CRM key)
 app.use('/api/twilio', require('./routes/twilio'));
+
+// Cal.com booking webhooks — PUBLIC (Cal.com posts from its servers, no CRM key)
+// Optional HMAC protection via CALCOM_WEBHOOK_SECRET env var
+app.use('/api/calcom', require('./routes/calcom'));
 
 // CRM contacts — protected
 app.use('/api/contacts', requireApiKey, require('./routes/contacts'));

@@ -189,6 +189,10 @@ function buildMobileContactCard(c) {
     ? `<button class="mcc-call-btn" data-phone="${escHtml(callHref || phone)}" onclick="event.stopPropagation(); initiateCallById(this, ${c.id})" title="Call ${escHtml(phone)}">☎</button>`
     : '';
 
+  const emailBtn = c.email
+    ? `<button class="mcc-email-btn" onclick="event.stopPropagation(); mccOpenEmail(${c.id}, '${escHtml(c.email)}')" title="Send email">✉</button>`
+    : '';
+
   return `
     <div class="mobile-contact-card" onclick="location.href='/contact.html?id=${c.id}'">
       <div class="mcc-top">
@@ -199,6 +203,7 @@ function buildMobileContactCard(c) {
         </div>
         <div class="mcc-btns">
           ${callBtn}
+          ${emailBtn}
           <a class="mcc-view-btn" href="/contact.html?id=${c.id}" onclick="event.stopPropagation()">→</a>
         </div>
       </div>
@@ -280,8 +285,11 @@ function buildCard(c) {
   const gmailUrl = c.email
     ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(c.email)}&su=Prosperity%20Life%20%26%20Financial%20Solutions%20Follow-Up`
     : null;
-  const actionEmail = gmailUrl
-    ? `<a class="pc-action-btn pc-action-email" href="${escHtml(gmailUrl)}" data-action="email" target="_blank" rel="noopener" title="Send Email">Email</a>`
+  // Email button: opens CRM modal when Gmail configured, falls back to Gmail compose
+  const actionEmail = c.email
+    ? `<button class="pc-action-btn pc-action-email" data-action="email"
+         data-contact-id="${c.id}" data-email="${escHtml(c.email)}" data-name="${escHtml(name)}"
+         title="Send Email">Email</button>`
     : '';
 
   const prodItems = [];
@@ -338,7 +346,20 @@ function handleBoardClick(e) {
       initiateCall(btn, btn.dataset.contactId, btn.dataset.phone);
       return;
     }
-    // email / view: let the browser follow their href naturally
+    if (action === 'email') {
+      e.preventDefault();
+      const email = btn.dataset.email;
+      const cid   = parseInt(btn.dataset.contactId);
+      if (window.CRM_GMAIL_ENABLED && email && typeof openEmailModal === 'function') {
+        openEmailModal(cid, email, 'Prosperity Life & Financial Solutions Follow-Up');
+      } else if (email) {
+        // Fallback: open Gmail compose
+        const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent('Prosperity Life & Financial Solutions Follow-Up')}`;
+        window.open(url, '_blank', 'noopener');
+      }
+      return;
+    }
+    // view: let href navigate
     return;
   }
 
@@ -641,6 +662,17 @@ async function loadContacts() {
       tbody.innerHTML = '';
       countEl.textContent = '';
     }
+  }
+}
+
+// ─── Mobile contact card email helper ─────────────────────────────────────────
+
+function mccOpenEmail(contactId, email) {
+  if (window.CRM_GMAIL_ENABLED && typeof openEmailModal === 'function') {
+    openEmailModal(contactId, email, 'Prosperity Life & Financial Solutions Follow-Up');
+  } else {
+    const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent('Prosperity Life & Financial Solutions Follow-Up')}`;
+    window.open(url, '_blank', 'noopener');
   }
 }
 

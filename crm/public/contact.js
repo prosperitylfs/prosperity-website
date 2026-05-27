@@ -166,10 +166,63 @@ function wireCallButton(contact) {
   const phone = contact.phone_e164 || (contact.phone ? '+1' + contact.phone.replace(/\D/g, '') : null);
   if (!phone) return;
 
-  if (!window.CRM_TWILIO_ENABLED) return; // hide button when Twilio not configured
+  if (!window.CRM_TWILIO_ENABLED) return;
 
   action.classList.remove('hidden');
   btn.onclick = () => initiateDetailCall(btn);
+}
+
+// ─── Send email (detail page) ──────────────────────────────────────────────────
+
+function wireEmailButton(contact) {
+  if (!contact.email) return;
+
+  // Header "Send Email" button
+  const action = document.getElementById('email-action');
+  const btn    = document.getElementById('detail-email-btn');
+  if (action && btn) {
+    action.classList.remove('hidden');
+    btn.onclick = () => openEmailModal(parseInt(id), contact.email,
+      'Prosperity Life & Financial Solutions Follow-Up');
+  }
+
+  // "Compose" button in Email History card
+  const composeBtn = document.getElementById('compose-email-btn');
+  if (composeBtn) {
+    composeBtn.classList.remove('hidden');
+    composeBtn.onclick = () => openEmailModal(parseInt(id), contact.email,
+      'Prosperity Life & Financial Solutions Follow-Up');
+  }
+}
+
+// ─── Email history ─────────────────────────────────────────────────────────────
+
+async function loadEmailHistory() {
+  try {
+    const emails = await CRM.fetch(`/api/email/contact/${id}`);
+    renderEmailHistory(emails);
+  } catch {
+    // Silently skip — email feature may not be active
+  }
+}
+
+function renderEmailHistory(emails) {
+  const el = document.getElementById('email-history-list');
+  if (!el) return;
+  if (!emails || !emails.length) {
+    el.innerHTML = '<p class="text-muted">No emails sent yet.</p>';
+    return;
+  }
+  el.innerHTML = emails.map(e => `
+    <div class="email-log-item">
+      <div class="email-log-subject">✉ ${escHtml(e.subject || '(No subject)')}</div>
+      <div class="email-log-meta">
+        To: ${escHtml(e.to_email)}
+        &nbsp;·&nbsp; ${formatDate(e.sent_at, true)}
+        &nbsp;·&nbsp; <span class="tag tag-green" style="font-size:.68rem;padding:.1rem .45rem">Sent</span>
+      </div>
+      ${e.body ? `<div class="email-log-preview">${escHtml(e.body.slice(0, 160))}${e.body.length > 160 ? '…' : ''}</div>` : ''}
+    </div>`).join('');
 }
 
 async function initiateDetailCall(btn) {
@@ -457,10 +510,11 @@ async function loadContact() {
     const contact = await CRM.fetch(`/api/contacts/${id}`);
     renderInfo(contact);
     wireCallButton(contact);
+    wireEmailButton(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
     renderComms(contact.communications || []);
-    await loadCallLogs();
+    await Promise.all([loadCallLogs(), loadEmailHistory()]);
   } catch (err) {
     showError(`Could not load contact: ${err.message}`);
   }

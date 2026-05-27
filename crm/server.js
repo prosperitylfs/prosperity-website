@@ -66,6 +66,9 @@ app.use('/api/contacts', requireApiKey, require('./routes/contacts'));
 // Call management — protected
 app.use('/api/calls', requireApiKey, require('./routes/calls'));
 
+// Email / Gmail — protected
+app.use('/api/email', requireApiKey, require('./routes/email'));
+
 // Health check
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
@@ -79,8 +82,16 @@ app.get('/config.js', (req, res) => {
     process.env.TWILIO_FROM_NUMBER &&
     process.env.AGENT_PHONE_NUMBER
   );
+  const gmailEnabled  = !!(
+    process.env.GMAIL_CLIENT_ID &&
+    process.env.GMAIL_CLIENT_SECRET &&
+    process.env.GMAIL_REFRESH_TOKEN
+  );
+  const gmailFrom = process.env.GMAIL_FROM || 'loretta@prosperitylfs.com';
   res.type('application/javascript').send(
 `window.CRM_TWILIO_ENABLED = ${twilioEnabled};
+window.CRM_GMAIL_ENABLED   = ${gmailEnabled};
+window.CRM_GMAIL_FROM      = ${JSON.stringify(gmailFrom)};
 window.CRM = {
   get baseUrl() { return window.location.origin; },
   get apiKey()  { return ${JSON.stringify(apiKey)}; },

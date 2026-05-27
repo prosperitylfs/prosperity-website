@@ -71,6 +71,9 @@
           <div id="call-action" class="hidden">
             <button id="detail-call-btn" class="btn btn-call" title="Start click-to-call">☎ Call</button>
           </div>
+          <div id="email-action" class="hidden">
+            <button id="detail-email-btn" class="btn-email" title="Send email">✉ Send Email</button>
+          </div>
           <div class="status-control">
             <label class="form-label" for="lead-status-select">Lead Status</label>
             <div style="display:flex;align-items:center;gap:.5rem">
@@ -345,6 +348,17 @@
             <h2 class="card-title">Activity &amp; Form Submissions</h2>
             <div id="comms-list" class="timeline"></div>
           </div>
+
+          <!-- Email History -->
+          <div class="card" id="email-history-card">
+            <div class="card-section-header">
+              <h2 class="card-title" style="margin-bottom:0">Email History</h2>
+              <button id="compose-email-btn" class="btn-email hidden" title="Send email">✉ Compose</button>
+            </div>
+            <div id="email-history-list">
+              <p class="text-muted">No emails sent yet.</p>
+            </div>
+          </div>
         </div>
 
       </div><!-- /detail-grid -->
@@ -353,6 +367,7 @@
 
   <script src="config.js"></script>
   <script src="nav.js"></script>
+  <script src="email-modal.js"></script>
   <script src="contact.js"></script>
 </body>
 </html>

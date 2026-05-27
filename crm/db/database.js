@@ -82,12 +82,25 @@ db.exec(`
     FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
   );
 
+  CREATE TABLE IF NOT EXISTS emails (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    contact_id       INTEGER,
+    to_email         TEXT NOT NULL,
+    subject          TEXT,
+    body             TEXT,
+    status           TEXT DEFAULT 'sent',
+    gmail_message_id TEXT,
+    sent_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_contacts_email      ON contacts(email);
   CREATE INDEX IF NOT EXISTS idx_contacts_phone_e164 ON contacts(phone_e164);
   CREATE INDEX IF NOT EXISTS idx_contacts_created    ON contacts(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_comms_contact       ON communications(contact_id);
   CREATE INDEX IF NOT EXISTS idx_notes_contact       ON contact_notes(contact_id);
   CREATE INDEX IF NOT EXISTS idx_calls_contact       ON comm_calls(contact_id);
+  CREATE INDEX IF NOT EXISTS idx_emails_contact      ON emails(contact_id);
 `);
 
 // ─── Migrations ───────────────────────────────────────────────────────────────

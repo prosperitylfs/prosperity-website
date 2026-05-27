@@ -162,13 +162,7 @@ router.post('/voicemail', (req, res) => {
   // transcribeCallback is wired up so enabling transcription later requires only the env var.
   res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna-Neural" language="en-US">
-    Hello, you&apos;ve reached Prosperity Life &amp; Financial Solutions.
-    I&apos;m unavailable right now.
-    Please leave your name, phone number, and a brief message,
-    and I&apos;ll return your call as soon as possible.
-    Thank you.
-  </Say>
+  <Play>https://prosperity-crm.onrender.com/audio/business-voicemail.m4a</Play>
   <Record
     action="${escXml(saveUrl)}"
     method="POST"

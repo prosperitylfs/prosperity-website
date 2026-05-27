@@ -163,11 +163,11 @@ router.post('/voicemail', (req, res) => {
   res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna">
-    Thank you for calling Prosperity Life and Financial Solutions.
-    We are unable to take your call right now.
-    Please leave your name, phone number, and a brief message after the tone
-    and we will return your call within one business day.
-    Thank you, and have a great day.
+    Hello, you have reached Prosperity Life and Financial Solutions.
+    I am unable to answer the phone right now.
+    Please leave your name, phone number, and a brief message,
+    and I will return your call as soon as possible.
+    Thank you.
   </Say>
   <Record
     action="${escXml(saveUrl)}"

@@ -209,14 +209,41 @@ function renderCallLogs(logs) {
 
   const today = new Date().toDateString();
   el.innerHTML = logs.map(c => {
-    const isToday = c.started_at && new Date(c.started_at).toDateString() === today;
-    const badge   = callStatusBadge(c.status);
-    const todayPill = isToday ? '<span class="call-ind-today call-ind-pill">Called Today</span>' : '';
-    const vmBadge   = c.notes === 'voicemail_left'
-      ? '<span class="call-ind-voicemail call-ind-pill">Voicemail Left</span>'
-      : '';
+    const isInbound = c.direction === 'inbound';
+    const isToday   = c.started_at && new Date(c.started_at).toDateString() === today;
+    const dirIcon   = isInbound ? '📲' : '☎';
+    const dirLabel  = isInbound ? 'Inbound Call' : 'Outbound Call';
+    const badge     = callStatusBadge(c.status);
+    const todayPill = isToday ? '<span class="call-ind-today call-ind-pill">Today</span>' : '';
 
-    const canMarkVm = (c.status === 'no-answer' || c.status === 'completed' || c.status === 'in-progress')
+    // Outbound: agent left voicemail for lead
+    const vmLeftPill = c.notes === 'voicemail_left'
+      ? '<span class="call-ind-voicemail call-ind-pill">Voicemail Left</span>' : '';
+
+    // Phone row differs by direction
+    const phoneRow = isInbound
+      ? (c.from_number ? `<div class="call-detail-row">From: ${escHtml(formatPhone(c.from_number))}</div>` : '')
+      : (c.to_number   ? `<div class="call-detail-row">To: ${escHtml(formatPhone(c.to_number))}</div>`   : '');
+
+    // Duration shown for answered calls and voicemail recordings
+    const durRow = c.duration_sec
+      ? `<div class="call-detail-row">Duration: ${escHtml(formatDuration(c.duration_sec))}</div>` : '';
+
+    // Voicemail recording playback link (inbound voicemails)
+    const recRow = c.recording_url
+      ? `<div class="call-detail-row">
+           <a class="call-recording-link" href="${escHtml(c.recording_url)}" target="_blank" rel="noopener">
+             🎙 Play Voicemail
+           </a>
+         </div>` : '';
+
+    // Transcription (when enabled)
+    const transcRow = c.transcription
+      ? `<div class="call-detail-row call-transcription">📝 "${escHtml(c.transcription)}"</div>` : '';
+
+    // "Mark Voicemail Left" — only for outbound calls where we called the lead
+    const canMarkVm = !isInbound
+      && ['no-answer', 'completed', 'in-progress'].includes(c.status)
       && c.notes !== 'voicemail_left';
 
     return `
@@ -224,12 +251,11 @@ function renderCallLogs(logs) {
         <div class="timeline-dot"></div>
         <div class="timeline-body">
           <div class="timeline-meta">
-            ☎ <strong>Outbound Call</strong>
-            ${badge} ${todayPill} ${vmBadge}
+            ${dirIcon} <strong>${escHtml(dirLabel)}</strong>
+            ${badge} ${todayPill} ${vmLeftPill}
             <span style="float:right">${formatDate(c.started_at, true)}</span>
           </div>
-          ${c.to_number ? `<div class="call-detail-row">To: ${escHtml(formatPhone(c.to_number))}</div>` : ''}
-          ${c.duration_sec ? `<div class="call-detail-row">Duration: ${formatDuration(c.duration_sec)}</div>` : ''}
+          ${phoneRow}${durRow}${recRow}${transcRow}
           ${canMarkVm ? `<button class="call-mark-btn" onclick="markVoicemail(${c.id})">Mark Voicemail Left</button>` : ''}
         </div>
       </div>`;
@@ -238,15 +264,18 @@ function renderCallLogs(logs) {
 
 function callStatusBadge(status) {
   const map = {
-    'initiated':   ['badge-call-init',     'Initiated'],
-    'ringing':     ['badge-call-ringing',  'Ringing'],
-    'in-progress': ['badge-call-progress', 'In Progress'],
-    'completed':   ['badge-call-done',     'Completed'],
-    'no-answer':   ['badge-call-noanswer', 'No Answer'],
-    'busy':        ['badge-call-busy',     'Busy'],
-    'failed':      ['badge-call-failed',   'Failed'],
-    'canceled':    ['badge-call-failed',   'Canceled'],
-    'unknown':     ['badge-call-init',     'Unknown'],
+    'initiated':   ['badge-call-init',      'Initiated'],
+    'ringing':     ['badge-call-ringing',   'Ringing'],
+    'in-progress': ['badge-call-progress',  'In Progress'],
+    'completed':   ['badge-call-done',      'Completed'],
+    'answered':    ['badge-call-done',      'Answered'],
+    'no-answer':   ['badge-call-noanswer',  'No Answer'],
+    'busy':        ['badge-call-busy',      'Busy'],
+    'failed':      ['badge-call-failed',    'Failed'],
+    'canceled':    ['badge-call-failed',    'Canceled'],
+    'missed':      ['badge-call-missed',    'Missed'],
+    'voicemail':   ['badge-call-voicemail', 'Voicemail'],
+    'unknown':     ['badge-call-init',      'Unknown'],
   };
   const [cls, label] = map[status] || ['badge-call-init', status || '—'];
   return `<span class="call-status-badge ${cls}">${escHtml(label)}</span>`;

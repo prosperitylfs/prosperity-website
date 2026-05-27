@@ -220,9 +220,11 @@ function buildCard(c) {
   const phone    = c.phone ? formatPhone(c.phone) : null;
   const callHref = c.phone_e164 || (c.phone ? '+1' + c.phone.replace(/\D/g, '') : null);
 
-  const calledToday   = c.last_called_at && new Date(c.last_called_at).toDateString() === new Date().toDateString();
-  const missedToday   = calledToday && (c.last_call_status === 'no-answer' || c.last_call_status === 'busy');
-  const voicemailLeft = c.last_call_status === 'voicemail_left' && calledToday;
+  const calledToday    = c.last_called_at && new Date(c.last_called_at).toDateString() === new Date().toDateString();
+  // Missed: outbound no-answer/busy OR inbound missed
+  const missedToday    = calledToday && ['no-answer', 'busy', 'missed'].includes(c.last_call_status);
+  // Voicemail: we left one (outbound) OR they left one (inbound)
+  const voicemailToday = calledToday && ['voicemail_left', 'voicemail'].includes(c.last_call_status);
 
   const actionCall = phone
     ? `<button class="pc-action-btn pc-action-call" data-action="call" data-contact-id="${c.id}" data-phone="${escHtml(callHref || phone)}" title="Call ${escHtml(phone)}">☎ Call</button>`
@@ -255,9 +257,9 @@ function buildCard(c) {
         ${c.lead_type ? `<span class="tag tag-xs ${leadTypeClass(c.lead_type)}">${escHtml(c.lead_type)}</span>` : ''}
         <span class="pc-date">${formatDate(c.created_at)}</span>
       </div>
-      ${calledToday && !missedToday && !voicemailLeft ? '<div class="call-indicator call-ind-today">Called Today</div>' : ''}
-      ${missedToday ? '<div class="call-indicator call-ind-missed">Missed Call</div>' : ''}
-      ${voicemailLeft ? '<div class="call-indicator call-ind-voicemail">Voicemail Left</div>' : ''}
+      ${calledToday && !missedToday && !voicemailToday ? '<div class="call-indicator call-ind-today">Called Today</div>' : ''}
+      ${missedToday    ? '<div class="call-indicator call-ind-missed">Missed Call</div>'      : ''}
+      ${voicemailToday ? '<div class="call-indicator call-ind-voicemail">Voicemail</div>'     : ''}
       ${c.lead_source ? `<div class="pc-source">${escHtml(c.lead_source)}</div>` : ''}
       ${prodLine}
       <div class="pc-actions">

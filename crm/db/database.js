@@ -143,8 +143,9 @@ addCol('contacts', 'commission_estimate', 'REAL');
 // Click-to-call tracking
 addCol('contacts', 'last_called_at',    'TEXT');
 addCol('contacts', 'last_call_status',  'TEXT');
-// comm_calls enrichment for click-to-call
+// comm_calls enrichment for click-to-call and voicemail
 addCol('comm_calls', 'contact_name', 'TEXT');
 addCol('comm_calls', 'notes',        'TEXT');
+addCol('comm_calls', 'transcription','TEXT'); // voicemail transcription (future)
 
 module.exports = db;

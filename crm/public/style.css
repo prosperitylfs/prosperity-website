@@ -1215,13 +1215,15 @@ body {
   vertical-align: middle;
 }
 
-.badge-call-done     { background: #d1fae5; color: #065f46; }
-.badge-call-noanswer { background: #fef3c7; color: #92400e; }
-.badge-call-busy     { background: #fef3c7; color: #92400e; }
-.badge-call-failed   { background: #fee2e2; color: #991b1b; }
-.badge-call-progress { background: #dbeafe; color: #1e40af; }
-.badge-call-ringing  { background: #ede8f7; color: var(--purple-dark); }
-.badge-call-init     { background: var(--border); color: var(--text-muted); }
+.badge-call-done      { background: #d1fae5; color: #065f46; }
+.badge-call-noanswer  { background: #fef3c7; color: #92400e; }
+.badge-call-busy      { background: #fef3c7; color: #92400e; }
+.badge-call-failed    { background: #fee2e2; color: #991b1b; }
+.badge-call-missed    { background: #fee2e2; color: #991b1b; }
+.badge-call-voicemail { background: #ede8f7; color: var(--purple-dark); }
+.badge-call-progress  { background: #dbeafe; color: #1e40af; }
+.badge-call-ringing   { background: #ede8f7; color: var(--purple-dark); }
+.badge-call-init      { background: var(--border); color: var(--text-muted); }
 
 /* Visual call-status indicators on pipeline cards */
 .call-indicator {
@@ -1276,4 +1278,25 @@ body {
 .call-mark-btn:hover {
   background: var(--purple);
   color: #fff;
+}
+
+/* Voicemail recording playback link */
+.call-recording-link {
+  color: var(--purple);
+  text-decoration: none;
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+.call-recording-link:hover {
+  text-decoration: underline;
+  color: var(--purple-dark);
+}
+
+/* Voicemail transcription text */
+.call-transcription {
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: .8rem;
+  margin-top: .15rem;
 }

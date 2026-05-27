@@ -162,7 +162,7 @@ router.post('/voicemail', (req, res) => {
   // transcribeCallback is wired up so enabling transcription later requires only the env var.
   res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Play>https://prosperity-crm.onrender.com/audio/business-voicemail.m4a</Play>
+  <Play>https://prosperity-crm.onrender.com/audio/business-voicemail.mp3</Play>
   <Record
     action="${escXml(saveUrl)}"
     method="POST"

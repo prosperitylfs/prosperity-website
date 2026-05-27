@@ -228,12 +228,12 @@ function renderCallLogs(logs) {
     const durRow = c.duration_sec
       ? `<div class="call-detail-row">Duration: ${escHtml(formatDuration(c.duration_sec))}</div>` : '';
 
-    // Voicemail recording playback link (inbound voicemails)
+    // Voicemail audio player — fetched through the CRM proxy, no Twilio auth popup
     const recRow = c.recording_url
-      ? `<div class="call-detail-row">
-           <a class="call-recording-link" href="${escHtml(c.recording_url)}" target="_blank" rel="noopener">
+      ? `<div class="voicemail-player" id="vm-${c.id}">
+           <button class="call-recording-btn" onclick="loadVoicemail(${c.id})">
              🎙 Play Voicemail
-           </a>
+           </button>
          </div>` : '';
 
     // Transcription (when enabled)
@@ -296,6 +296,40 @@ async function markVoicemail(callId) {
     await loadCallLogs();
   } catch (err) {
     showError(`Could not update call: ${err.message}`);
+  }
+}
+
+// ─── Voicemail audio player ───────────────────────────────────────────────────
+
+async function loadVoicemail(callId) {
+  const player = document.getElementById(`vm-${callId}`);
+  const btn    = player ? player.querySelector('.call-recording-btn') : null;
+  if (!btn) return;
+
+  const origText = btn.innerHTML;
+  btn.disabled   = true;
+  btn.innerHTML  = '<span class="call-spinner"></span> Loading…';
+
+  try {
+    const resp = await fetch(`/api/calls/${callId}/recording`, {
+      headers: { 'x-api-key': CRM.apiKey },
+    });
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({ error: resp.statusText }));
+      throw new Error(body.error || `HTTP ${resp.status}`);
+    }
+
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+
+    player.innerHTML = `
+      <audio class="voicemail-audio" controls autoplay>
+        <source src="${url}" type="audio/mpeg">
+      </audio>`;
+  } catch (err) {
+    btn.disabled  = false;
+    btn.innerHTML = origText;
+    showError(`Could not load voicemail: ${err.message}`);
   }
 }
 

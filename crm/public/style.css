@@ -1280,17 +1280,40 @@ body {
   color: #fff;
 }
 
-/* Voicemail recording playback link */
-.call-recording-link {
-  color: var(--purple);
-  text-decoration: none;
-  font-size: .8rem;
-  font-weight: 600;
+/* Voicemail player — button + embedded audio element */
+.voicemail-player {
+  margin-top: .4rem;
 }
 
-.call-recording-link:hover {
-  text-decoration: underline;
-  color: var(--purple-dark);
+.call-recording-btn {
+  padding: .22rem .7rem;
+  background: none;
+  border: 1px solid var(--purple);
+  border-radius: 5px;
+  color: var(--purple);
+  font-family: inherit;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+
+.call-recording-btn:hover {
+  background: var(--purple);
+  color: #fff;
+}
+
+.call-recording-btn:disabled {
+  opacity: .65;
+  cursor: wait;
+}
+
+.voicemail-audio {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  height: 36px;
+  accent-color: var(--purple);
 }
 
 /* Voicemail transcription text */

@@ -79,6 +79,42 @@ router.get('/contact/:contact_id', (req, res) => {
   res.json(logs);
 });
 
+// ─── GET /api/calls/:id/recording ────────────────────────────────────────────
+// Proxies the Twilio recording through the CRM backend so the browser never
+// needs Twilio credentials. Twilio credentials stay server-side only.
+router.get('/:id/recording', async (req, res) => {
+  const call = db.prepare('SELECT recording_url FROM comm_calls WHERE id = ?').get(req.params.id);
+  if (!call || !call.recording_url) {
+    return res.status(404).json({ error: 'No recording found for this call' });
+  }
+
+  const { TWILIO_ACCOUNT_SID: sid, TWILIO_AUTH_TOKEN: token } = process.env;
+  if (!sid || !token) {
+    return res.status(503).json({ error: 'Twilio credentials not configured on server' });
+  }
+
+  try {
+    const upstream = await fetch(call.recording_url, {
+      headers: {
+        Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
+      },
+    });
+
+    if (!upstream.ok) {
+      return res.status(upstream.status).json({ error: `Twilio returned HTTP ${upstream.status}` });
+    }
+
+    const buffer = Buffer.from(await upstream.arrayBuffer());
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.end(buffer);
+  } catch (err) {
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── PATCH /api/calls/:id ─────────────────────────────────────────────────────
 // Used to mark voicemail left or add notes after a call.
 router.patch('/:id', (req, res) => {

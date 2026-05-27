@@ -9,8 +9,9 @@ const searchEl        = document.getElementById('search-input');
 const filterEl        = document.getElementById('filter-type');
 const filterStatusEl  = document.getElementById('filter-status');
 const filterSmsEl     = document.getElementById('filter-sms');
-const tableCard       = document.getElementById('table-card');
-const pipelineBoard   = document.getElementById('pipeline-board');
+const tableCard          = document.getElementById('table-card');
+const contactCardsList   = document.getElementById('contacts-cards-list');
+const pipelineBoard      = document.getElementById('pipeline-board');
 const btnViewList     = document.getElementById('btn-view-list');
 const btnViewPipeline = document.getElementById('btn-view-pipeline');
 
@@ -119,6 +120,7 @@ function setView(view) {
   btnViewList.classList.toggle('active', view === 'list');
   btnViewPipeline.classList.toggle('active', view === 'pipeline');
   tableCard.classList.toggle('hidden', view !== 'list');
+  if (contactCardsList) contactCardsList.classList.toggle('hidden', view !== 'list');
   pipelineBoard.classList.toggle('hidden', view !== 'pipeline');
   if (view === 'pipeline') emptyEl.classList.add('hidden');
 }
@@ -132,6 +134,7 @@ function renderContacts(contacts) {
 
   if (!contacts.length) {
     tbody.innerHTML = '';
+    if (contactCardsList) contactCardsList.innerHTML = '';
     emptyEl.classList.remove('hidden');
     countEl.textContent = '0 contacts';
     return;
@@ -162,6 +165,42 @@ function renderContacts(contacts) {
       </tr>
     `;
   }).join('');
+
+  if (contactCardsList) {
+    contactCardsList.innerHTML = contacts.map(c => buildMobileContactCard(c)).join('');
+  }
+}
+
+function buildMobileContactCard(c) {
+  const name     = [c.first_name, c.last_name].filter(Boolean).join(' ') || '—';
+  const initials = [c.first_name, c.last_name].filter(Boolean).map(n => n[0]).join('').toUpperCase() || '?';
+  const phone    = c.phone ? formatPhone(c.phone) : null;
+  const callHref = c.phone_e164 || (c.phone ? '+1' + c.phone.replace(/\D/g, '') : null);
+
+  const callBtn = phone
+    ? `<button class="mcc-call-btn" data-phone="${escHtml(callHref || phone)}" onclick="event.stopPropagation(); initiateCallById(this, ${c.id})" title="Call ${escHtml(phone)}">☎</button>`
+    : '';
+
+  return `
+    <div class="mobile-contact-card" onclick="location.href='/contact.html?id=${c.id}'">
+      <div class="mcc-top">
+        <div class="avatar">${escHtml(initials)}</div>
+        <div class="mcc-info">
+          <div class="mcc-name">${escHtml(name)}</div>
+          ${phone ? `<div class="mcc-phone">${escHtml(phone)}</div>` : ''}
+        </div>
+        <div class="mcc-btns">
+          ${callBtn}
+          <a class="mcc-view-btn" href="/contact.html?id=${c.id}" onclick="event.stopPropagation()">→</a>
+        </div>
+      </div>
+      <div class="mcc-footer">
+        ${tag(c.lead_type, leadTypeClass(c.lead_type))}
+        ${tag(c.lead_status || 'New Lead', leadStatusClass(c.lead_status || 'New Lead'))}
+        <span class="mcc-date">${formatDate(c.created_at)}</span>
+      </div>
+    </div>
+  `;
 }
 
 // ─── Pipeline view ─────────────────────────────────────────────────────────────

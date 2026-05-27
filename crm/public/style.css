@@ -21,12 +21,15 @@
   --shadow:       0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.04);
 }
 
+html { overflow-x: hidden; }
+
 body {
   font-family: 'Inter', sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
   line-height: 1.5;
+  overflow-x: hidden;
 }
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
@@ -1677,6 +1680,103 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ── Mobile contact cards (index list view on mobile) ────────────────────── */
+
+.contacts-cards-list {
+  display: none; /* shown only inside @media 768 */
+}
+
+.mobile-contact-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .875rem 1rem;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: box-shadow .12s;
+}
+
+.mobile-contact-card:active {
+  box-shadow: 0 1px 4px rgba(0,0,0,.12);
+}
+
+.mcc-top {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: .625rem;
+}
+
+.mcc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mcc-name {
+  font-weight: 600;
+  font-size: .9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mcc-phone {
+  font-size: .82rem;
+  color: var(--text-muted);
+  margin-top: .1rem;
+}
+
+.mcc-btns {
+  display: flex;
+  gap: .375rem;
+  flex-shrink: 0;
+}
+
+.mcc-call-btn,
+.mcc-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  font-size: .9rem;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+  font-family: inherit;
+}
+
+.mcc-call-btn {
+  background: #e6f9ef;
+  color: var(--green-dark);
+}
+
+.mcc-call-btn:active { background: #d1fae5; }
+
+.mcc-view-btn {
+  background: var(--purple-light);
+  color: var(--purple);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.mcc-view-btn:active { background: var(--purple); color: #fff; }
+
+.mcc-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .375rem;
+}
+
+.mcc-date {
+  font-size: .72rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 /* ── Mobile breakpoint ───────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
@@ -1706,8 +1806,9 @@ body {
 
   /* Main: full width (sidebar no longer in flow) */
   .main {
-    padding: 1rem;
+    padding: 1rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px));
     min-width: 0;
+    max-width: 100%;
   }
 
   /* Page header: stack on mobile */
@@ -1751,30 +1852,28 @@ body {
 
   .view-btn { padding: .6rem .875rem; }
 
-  /* Contacts table: hide less-critical columns */
-  .contacts-table th:nth-child(2),
-  .contacts-table td:nth-child(2),
-  .contacts-table th:nth-child(6),
-  .contacts-table td:nth-child(6),
-  .contacts-table th:nth-child(7),
-  .contacts-table td:nth-child(7) {
-    display: none;
-  }
+  /* Contacts table: hide entirely on mobile, show cards instead */
+  .table-card { display: none !important; }
 
-  .contacts-table tbody td { padding: .75rem .875rem; }
+  .contacts-cards-list:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
 
   /* Pipeline: horizontal snap scroll */
   .pipeline-board {
     height: auto;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x proximity;
+    scroll-snap-type: x mandatory;
     padding-bottom: 1.25rem;
-    gap: .75rem;
+    gap: .625rem;
   }
 
   .pipeline-col {
-    width: 260px;
+    width: 220px;
+    min-width: 220px;
     flex-shrink: 0;
     scroll-snap-align: start;
   }

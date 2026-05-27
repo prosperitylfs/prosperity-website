@@ -1861,24 +1861,43 @@ body {
     gap: .5rem;
   }
 
-  /* Pipeline: horizontal snap scroll */
+  /* Pipeline: horizontal snap scroll — no nested scroll conflict */
   .pipeline-board {
     height: auto;
     overflow-x: auto;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x mandatory;
+    scroll-padding-left: .5rem;
     padding-bottom: 1.25rem;
     gap: .625rem;
+    overscroll-behavior-x: contain;
   }
 
   .pipeline-col {
-    width: 220px;
-    min-width: 220px;
+    /* 82vw: fills most of screen while peeking at next column */
+    width: 82vw;
+    min-width: 230px;
+    max-width: 320px;
     flex-shrink: 0;
     scroll-snap-align: start;
+    scroll-snap-stop: always; /* one column per swipe */
   }
 
-  .pipeline-col-body { max-height: 72vh; }
+  /* Column body: vertical scroll only, contained */
+  .pipeline-col-body {
+    max-height: 65vh;
+    touch-action: pan-y;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Cards: allow vertical scroll when touched (drag fires only after horizontal threshold) */
+  .pipeline-card {
+    touch-action: pan-y;
+    cursor: default;
+  }
+  .pipeline-card:active { cursor: default; }
 
   /* Pipeline card actions: larger touch targets */
   .pc-action-btn {

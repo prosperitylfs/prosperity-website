@@ -421,14 +421,6 @@ function onPointerDown(e) {
   if (e.target.closest('.pc-action-btn')) return;
 
   const card = e.currentTarget;
-  const rect = card.getBoundingClientRect();
-
-  ghostEl = card.cloneNode(true);
-  ghostEl.className = 'pipeline-card drag-ghost';
-  ghostEl.style.width = rect.width + 'px';
-  ghostEl.style.left  = rect.left  + 'px';
-  ghostEl.style.top   = rect.top   + 'px';
-  document.body.appendChild(ghostEl);
 
   dragState = {
     card,
@@ -440,12 +432,13 @@ function onPointerDown(e) {
     moved:          false,
   };
 
-  card.classList.add('drag-source');
+  // Capture pointer so we keep receiving events even if finger drifts off card.
+  // Do NOT preventDefault here — the browser needs to evaluate touch-action:pan-y
+  // and will fire pointercancel if it claims a vertical scroll gesture.
   card.setPointerCapture(e.pointerId);
   card.addEventListener('pointermove',   onPointerMove);
   card.addEventListener('pointerup',     onPointerUp);
   card.addEventListener('pointercancel', onPointerCancel);
-  e.preventDefault();
 }
 
 function onPointerMove(e) {
@@ -453,8 +446,30 @@ function onPointerMove(e) {
   const dx = e.clientX - dragState.startX;
   const dy = e.clientY - dragState.startY;
 
-  if (!dragState.moved && Math.hypot(dx, dy) > 6) dragState.moved = true;
-  if (!dragState.moved) return;
+  if (!dragState.moved) {
+    if (Math.hypot(dx, dy) < 8) return;
+
+    // Primarily vertical → cancel drag so browser can scroll the column.
+    // (Browser also fires pointercancel for pan-y gestures, but this explicit
+    // check ensures we never flash the ghost on a near-vertical swipe.)
+    if (Math.abs(dy) > Math.abs(dx) * 1.2) {
+      cleanupDrag(dragState.card);
+      return;
+    }
+
+    // Primarily horizontal → commit to drag, create ghost now
+    const card = dragState.card;
+    const rect = card.getBoundingClientRect();
+    ghostEl = card.cloneNode(true);
+    ghostEl.className = 'pipeline-card drag-ghost';
+    ghostEl.style.width = rect.width + 'px';
+    ghostEl.style.left  = rect.left  + 'px';
+    ghostEl.style.top   = rect.top   + 'px';
+    document.body.appendChild(ghostEl);
+    card.classList.add('drag-source');
+    dragState.moved = true;
+    e.preventDefault(); // stop board from scrolling during drag
+  }
 
   ghostEl.style.transform = `translate(${dx}px, ${dy}px)`;
 

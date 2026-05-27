@@ -83,6 +83,7 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_contacts_email      ON contacts(email);
+  CREATE INDEX IF NOT EXISTS idx_contacts_phone_e164 ON contacts(phone_e164);
   CREATE INDEX IF NOT EXISTS idx_contacts_created    ON contacts(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_comms_contact       ON communications(contact_id);
   CREATE INDEX IF NOT EXISTS idx_notes_contact       ON contact_notes(contact_id);

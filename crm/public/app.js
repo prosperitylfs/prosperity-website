@@ -85,6 +85,7 @@ function formatPhone(raw) {
 function leadTypeClass(lt) {
   if (!lt) return 'tag-gray';
   const l = lt.toLowerCase();
+  if (l.includes('unknown'))  return 'tag-red';
   if (l.includes('guide'))    return 'tag-green';
   if (l.includes('retire'))   return 'tag-purple';
   if (l.includes('life'))     return 'tag-blue';

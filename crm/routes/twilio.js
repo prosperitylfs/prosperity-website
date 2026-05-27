@@ -65,8 +65,23 @@ router.post('/incoming', (req, res) => {
     return;
   }
 
-  // Match caller to a CRM contact if possible
-  const contact     = findContactByPhone(callerNumber);
+  // Match caller to a CRM contact; auto-create Unknown Caller record if not found
+  let contact = findContactByPhone(callerNumber);
+  if (!contact && callerNumber) {
+    const digits    = callerNumber.replace(/\D/g, '');
+    const ten       = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+    const dispPhone = ten.length === 10
+      ? `(${ten.slice(0,3)}) ${ten.slice(3,6)}-${ten.slice(6)}`
+      : callerNumber;
+    const e164Phone = ten.length === 10 ? `+1${ten}` : null;
+    const ins = db.prepare(`
+      INSERT INTO contacts
+        (first_name, last_name, phone, phone_e164, lead_type, lead_status, lead_source, updated_at)
+      VALUES (?, ?, ?, ?, 'Unknown Caller', 'New Lead', 'Inbound Call', ?)
+    `).run('Unknown Caller', dispPhone, dispPhone, e164Phone || callerNumber,
+           new Date().toISOString());
+    contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(ins.lastInsertRowid);
+  }
   const contactId   = contact ? contact.id : null;
   const contactName = contact
     ? [contact.first_name, contact.last_name].filter(Boolean).join(' ')

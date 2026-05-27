@@ -95,6 +95,18 @@ router.post('/', (req, res) => {
     // ── Upsert contact ────────────────────────────────────────────────────────
     let contact = email ? db.prepare('SELECT * FROM contacts WHERE email = ?').get(email) : null;
 
+    // Phone-based merge: if an Unknown Caller auto-contact exists for this number, upgrade it
+    if (!contact && phoneE164) {
+      contact = db.prepare(
+        "SELECT * FROM contacts WHERE phone_e164 = ? AND lead_type = 'Unknown Caller'"
+      ).get(phoneE164) || null;
+    }
+    if (!contact && phoneDisplay) {
+      contact = db.prepare(
+        "SELECT * FROM contacts WHERE (phone = ? OR alt_phone = ?) AND lead_type = 'Unknown Caller'"
+      ).get(phoneDisplay, phoneDisplay) || null;
+    }
+
     if (!contact) {
       const insert = db.prepare(`
         INSERT INTO contacts (first_name, last_name, email, phone, phone_e164, lead_type, lead_status, lead_source, sms_consent, updated_at)
@@ -113,6 +125,33 @@ router.post('/', (req, res) => {
         now,
       });
       contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
+    } else if (contact.lead_type === 'Unknown Caller') {
+      // Upgrade Unknown Caller → real contact: replace placeholder name, set email, update lead type
+      db.prepare(`
+        UPDATE contacts SET
+          first_name  = COALESCE(@first_name, first_name),
+          last_name   = COALESCE(@last_name,  last_name),
+          email       = COALESCE(@email,      email),
+          phone       = COALESCE(phone,       @phone),
+          phone_e164  = COALESCE(phone_e164,  @phone_e164),
+          lead_type   = @lead_type,
+          lead_source = COALESCE(lead_source, @lead_source),
+          sms_consent = MAX(sms_consent,      @sms_consent),
+          updated_at  = @now
+        WHERE id = @id
+      `).run({
+        first_name:  first_name || null,
+        last_name:   last_name  || null,
+        email:       email      || null,
+        phone:       phoneDisplay,
+        phone_e164:  phoneE164,
+        lead_type:   leadLabel,
+        lead_source: lead_source || null,
+        sms_consent: smsConsentVal,
+        now,
+        id: contact.id,
+      });
+      contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contact.id);
     } else {
       // Update missing fields only — never overwrite existing data
       // sms_consent is OR'd so it can only go from 0→1, never cleared by re-submission

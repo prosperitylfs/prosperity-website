@@ -66,8 +66,13 @@ app.use('/api/contacts', requireApiKey, require('./routes/contacts'));
 // Call management — protected
 app.use('/api/calls', requireApiKey, require('./routes/calls'));
 
-// Email / Gmail — protected
-app.use('/api/email', requireApiKey, require('./routes/email'));
+// Email / Gmail
+// /auth and /callback are browser redirects — no API key header is possible there.
+// All other sub-routes (/send, /status, /contact/:id) remain protected.
+app.use('/api/email', (req, res, next) => {
+  if (req.path === '/auth' || req.path === '/callback') return next();
+  requireApiKey(req, res, next);
+}, require('./routes/email'));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));

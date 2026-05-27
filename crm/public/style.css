@@ -230,6 +230,16 @@ body {
 }
 .btn-primary:hover { background: var(--purple-dark); }
 
+.btn-sm { padding: .28rem .65rem; font-size: .8rem; border-radius: 6px; }
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: .8rem;
+}
+.btn-outline:hover { background: var(--bg); color: var(--text); border-color: var(--text-muted); }
+
 /* ── Cards ───────────────────────────────────────────────────────────────── */
 
 .card {
@@ -2556,6 +2566,136 @@ body {
   white-space: nowrap;
 }
 
+/* ── Calendar page ───────────────────────────────────────────────────────── */
+
+.cal-contact-link {
+  font-weight: 600;
+  color: var(--purple);
+  text-decoration: none;
+}
+.cal-contact-link:hover { text-decoration: underline; }
+
+.cal-dt-cell { white-space: nowrap; font-size: .8rem; }
+
+.cal-status-select {
+  padding: .22rem .45rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: .8rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+}
+.cal-status-select:focus { border-color: var(--purple); outline: none; }
+
+.cal-cards { display: flex; flex-direction: column; gap: .75rem; }
+
+.cal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .875rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+
+.cal-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: .1rem;
+}
+
+.cal-card-type { font-size: .8rem; color: var(--text-muted); font-weight: 500; }
+.cal-card-dt   { font-size: .875rem; color: var(--text); font-weight: 500; }
+.cal-card-row  { font-size: .8rem; color: var(--text-muted); }
+
+.cal-card-notes {
+  font-size: .8rem;
+  color: var(--text);
+  background: var(--bg);
+  border-radius: 4px;
+  padding: .3rem .5rem;
+  margin-top: .1rem;
+}
+
+.cal-card-footer {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .4rem;
+  flex-wrap: wrap;
+}
+
+/* ── Appointment items (contact detail) ──────────────────────────────────── */
+
+.appt-item {
+  padding: .75rem 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+.appt-item:last-child { border-bottom: none; }
+
+.appt-item-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.appt-item-type  { font-weight: 600; font-size: .875rem; color: var(--text); }
+.appt-item-dt    { font-size: .8rem; color: var(--text-muted); }
+.appt-item-loc   { font-size: .8rem; color: var(--text-muted); }
+.appt-item-notes {
+  font-size: .8rem;
+  color: var(--text);
+  background: var(--bg);
+  border-radius: 4px;
+  padding: .25rem .5rem;
+}
+
+.appt-item-footer {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .2rem;
+  flex-wrap: wrap;
+}
+
+.appt-status-sel {
+  padding: .22rem .45rem !important;
+  font-size: .8rem !important;
+  min-height: 0 !important;
+}
+
+/* Inline add-appointment form */
+.appt-form {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .875rem;
+  margin: .75rem 0 .5rem;
+}
+
+.appt-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .65rem;
+}
+
+.appt-form-footer {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-top: .75rem;
+  flex-wrap: wrap;
+}
+
 /* ── Mobile breakpoint ───────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
@@ -2810,4 +2950,10 @@ body {
     font-weight: 700;
   }
   .form-data { padding: .5rem .625rem; }
+
+  /* Appointment form: single-column on mobile */
+  .appt-form-grid { grid-template-columns: 1fr; }
+
+  /* Calendar table: hide email column on mobile (use cards instead) */
+  .cal-col-email { display: none; }
 }

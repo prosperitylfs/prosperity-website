@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Calls &amp; Voicemail — Prosperity CRM</title>
+  <title>Calendar — Prosperity CRM</title>
 
   <!-- PWA + icons -->
   <link rel="manifest" href="/manifest.json">
@@ -29,8 +29,10 @@
   <!-- Mobile top bar -->
   <header class="mobile-topbar">
     <button class="hamburger-btn" id="hamburger-btn" aria-label="Open menu">☰</button>
-    <span class="mobile-topbar-title">Calls &amp; Voicemail</span>
-    <span style="width:36px"></span>
+    <span class="mobile-topbar-title">Calendar</span>
+    <a href="/calls.html" class="mobile-calls-btn" aria-label="Calls &amp; Voicemail">
+      📞<span class="nav-badge hidden" id="nav-badge-calls-mobile"></span>
+    </a>
   </header>
 
   <div class="layout">
@@ -47,11 +49,11 @@
       </div>
       <nav class="sidebar-nav">
         <a href="/" class="nav-link">Contacts</a>
-        <a href="/calls.html" class="nav-link active">
+        <a href="/calls.html" class="nav-link">
           Calls
           <span class="nav-badge hidden" id="nav-badge-calls"></span>
         </a>
-        <a href="/calendar.html" class="nav-link">Calendar</a>
+        <a href="/calendar.html" class="nav-link active">Calendar</a>
         <a href="/settings.html" class="nav-link">Settings</a>
       </nav>
       <div class="sidebar-footer">Prosperity Life &amp; Financial</div>
@@ -61,28 +63,47 @@
 
       <div class="page-header">
         <div>
-          <h1 class="page-title">Calls &amp; Voicemail</h1>
-          <p class="page-subtitle" id="calls-count">Loading…</p>
+          <h1 class="page-title">Calendar</h1>
+          <p class="page-subtitle" id="cal-count">Loading…</p>
         </div>
+        <p class="page-subtitle" style="font-size:.75rem;color:var(--text-muted);align-self:flex-end">All times in Central Time</p>
       </div>
 
-      <div class="calls-tabs" id="calls-tabs">
-        <button class="calls-tab active" data-filter="">All</button>
-        <button class="calls-tab" data-filter="missed">
-          Missed
-          <span class="tab-badge hidden" id="tab-badge-missed"></span>
-        </button>
-        <button class="calls-tab" data-filter="voicemail">
-          Voicemail
-          <span class="tab-badge hidden" id="tab-badge-voicemail"></span>
-        </button>
-        <button class="calls-tab" data-filter="unknown">Unknown</button>
+      <div class="calls-tabs" id="cal-tabs">
+        <button class="calls-tab active" data-view="upcoming">Upcoming</button>
+        <button class="calls-tab" data-view="past">Past</button>
+        <button class="calls-tab" data-view="">All</button>
       </div>
 
-      <div id="calls-error" class="error-banner hidden"></div>
+      <div id="cal-error" class="error-banner hidden"></div>
 
-      <div id="calls-container">
-        <div class="loading-row">Loading calls…</div>
+      <!-- Desktop table -->
+      <div class="table-card" id="cal-table-card">
+        <table class="contacts-table" id="cal-table">
+          <thead>
+            <tr>
+              <th>Contact</th>
+              <th>Phone</th>
+              <th class="cal-col-email">Email</th>
+              <th>Type</th>
+              <th>Date / Time (CT)</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cal-tbody">
+            <tr><td colspan="7" class="loading-row">Loading appointments…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile cards -->
+      <div id="cal-cards" class="cal-cards hidden"></div>
+
+      <!-- Empty state -->
+      <div id="cal-empty" class="empty-state hidden">
+        <div class="empty-icon">📅</div>
+        <p>No appointments found.<br>Add appointments from a contact's detail page.</p>
       </div>
 
     </main>
@@ -90,6 +111,6 @@
 
   <script src="config.js"></script>
   <script src="nav.js"></script>
-  <script src="calls-page.js"></script>
+  <script src="calendar.js"></script>
 </body>
 </html>

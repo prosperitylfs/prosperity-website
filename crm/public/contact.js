@@ -451,6 +451,138 @@ function renderNotes(notes) {
     </div>`).join('');
 }
 
+// ─── Appointments ─────────────────────────────────────────────────────────────
+
+const APPT_STATUSES = ['Scheduled', 'Completed', 'No-Show', 'Cancelled', 'Rescheduled'];
+
+function apptStatusTag(s) {
+  const cls = {
+    'Scheduled':   'tag-purple',
+    'Completed':   'tag-green',
+    'No-Show':     'tag-amber',
+    'Cancelled':   'tag-gray',
+    'Rescheduled': 'tag-blue',
+  };
+  return `<span class="tag tag-xs ${cls[s] || 'tag-gray'}">${escHtml(s)}</span>`;
+}
+
+function fmtApptDt(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-US', {
+    timeZone: 'America/Chicago',
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true,
+  });
+}
+
+async function loadAppointments() {
+  try {
+    const appts = await CRM.fetch(`/api/appointments/contact/${id}`);
+    renderAppointments(appts);
+  } catch {
+    // Don't block page load if appointments are unavailable
+  }
+}
+
+function renderAppointments(appts) {
+  const el = document.getElementById('appts-list');
+  if (!el) return;
+  if (!appts.length) {
+    el.innerHTML = '<p class="text-muted">No appointments yet.</p>';
+    return;
+  }
+  el.innerHTML = appts.map(a => {
+    const statusOpts = APPT_STATUSES.map(s =>
+      `<option value="${s}"${s === a.status ? ' selected' : ''}>${s}</option>`
+    ).join('');
+    return `
+      <div class="appt-item">
+        <div class="appt-item-header">
+          <span class="appt-item-type">${escHtml(a.appt_type)}</span>
+          ${apptStatusTag(a.status)}
+        </div>
+        <div class="appt-item-dt">📅 ${escHtml(fmtApptDt(a.appt_datetime))} CT</div>
+        ${a.location ? `<div class="appt-item-loc">📍 ${escHtml(a.location)}</div>` : ''}
+        ${a.notes    ? `<div class="appt-item-notes">${escHtml(a.notes)}</div>` : ''}
+        <div class="appt-item-footer">
+          <select class="crm-select appt-status-sel" onchange="updateApptStatus(${a.id}, this.value)">${statusOpts}</select>
+          <button class="btn-section-cancel" onclick="deleteAppt(${a.id})">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function saveAppointment() {
+  const typeEl  = document.getElementById('appt-type');
+  const dtEl    = document.getElementById('appt-datetime');
+  const locEl   = document.getElementById('appt-location');
+  const notesEl = document.getElementById('appt-notes');
+
+  const appt_type     = typeEl?.value;
+  const appt_datetime = dtEl?.value ? new Date(dtEl.value).toISOString() : null;
+  const location      = locEl?.value.trim()  || null;
+  const notes         = notesEl?.value.trim() || null;
+
+  if (!appt_type)     { alert('Please select an appointment type.'); return; }
+  if (!appt_datetime) { alert('Please select a date and time.');     return; }
+
+  const btn = document.getElementById('appt-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+  try {
+    await CRM.fetch('/api/appointments', {
+      method: 'POST',
+      body: JSON.stringify({ contact_id: parseInt(id), appt_type, appt_datetime, location, notes }),
+    });
+    if (typeEl)  typeEl.value  = '';
+    if (dtEl)    dtEl.value    = '';
+    if (locEl)   locEl.value   = '';
+    if (notesEl) notesEl.value = '';
+    toggleApptForm(false);
+    await loadAppointments();
+  } catch (e) {
+    alert(`Could not save appointment: ${e.message}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Appointment'; }
+  }
+}
+
+async function updateApptStatus(apptId, newStatus) {
+  try {
+    await CRM.fetch(`/api/appointments/${apptId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: newStatus }),
+    });
+    await loadAppointments();
+  } catch (e) {
+    showError(`Could not update appointment: ${e.message}`);
+  }
+}
+
+async function deleteAppt(apptId) {
+  if (!confirm('Delete this appointment?')) return;
+  try {
+    await CRM.fetch(`/api/appointments/${apptId}`, { method: 'DELETE' });
+    await loadAppointments();
+  } catch (e) {
+    showError(`Could not delete appointment: ${e.message}`);
+  }
+}
+
+function toggleApptForm(show) {
+  const form = document.getElementById('appt-form');
+  const btn  = document.getElementById('add-appt-btn');
+  if (!form) return;
+  if (show === undefined) show = form.classList.contains('hidden');
+  if (show) {
+    form.classList.remove('hidden');
+    if (btn) btn.textContent = '✕ Cancel';
+  } else {
+    form.classList.add('hidden');
+    if (btn) btn.textContent = '+ Add';
+  }
+}
+
 // ─── Communications ───────────────────────────────────────────────────────────
 
 function renderComms(comms) {
@@ -483,10 +615,10 @@ function renderComms(comms) {
       bodyHtml = `<div class="comm-body-text">${escHtml(c.body)}</div>`;
     }
 
-    const icon = { form: '📋', email: '✉️', sms: '💬', call: '📞' }[c.comm_type] || '📌';
-    const dir  = c.direction === 'inbound'
-      ? '<span class="badge badge-in">Inbound</span>'
-      : '<span class="badge badge-out">Outbound</span>';
+    const icon = { form: '📋', email: '✉️', sms: '💬', call: '📞', appointment: '📅' }[c.comm_type] || '📌';
+    const dir  = c.direction === 'inbound'  ? '<span class="badge badge-in">Inbound</span>'
+               : c.direction === 'outbound' ? '<span class="badge badge-out">Outbound</span>'
+               : '';
 
     return `
       <div class="timeline-item">
@@ -514,7 +646,7 @@ async function loadContact() {
     populateSections(contact);
     renderNotes(contact.notes || []);
     renderComms(contact.communications || []);
-    await Promise.all([loadCallLogs(), loadEmailHistory()]);
+    await Promise.all([loadCallLogs(), loadEmailHistory(), loadAppointments()]);
   } catch (err) {
     showError(`Could not load contact: ${err.message}`);
   }

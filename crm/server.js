@@ -66,6 +66,9 @@ app.use('/api/contacts', requireApiKey, require('./routes/contacts'));
 // Call management — protected
 app.use('/api/calls', requireApiKey, require('./routes/calls'));
 
+// Appointments — protected
+app.use('/api/appointments', requireApiKey, require('./routes/appointments'));
+
 // Email / Gmail
 // /auth and /callback are browser redirects — no API key header is possible there.
 // All other sub-routes (/send, /status, /contact/:id) remain protected.

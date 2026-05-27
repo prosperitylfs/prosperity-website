@@ -1,17 +1,19 @@
 // Prosperity CRM — Service Worker
 // Strategy: cache-first for static assets, network-only for API + config.js
 
-const CACHE = 'prosperity-crm-v4';
+const CACHE = 'prosperity-crm-v5';
 
 const PRECACHE = [
   '/',
   '/calls.html',
   '/contact.html',
+  '/calendar.html',
   '/settings.html',
   '/style.css',
   '/app.js',
   '/contact.js',
   '/calls-page.js',
+  '/calendar.js',
   '/nav.js',
   '/manifest.json',
   '/favicon.ico',

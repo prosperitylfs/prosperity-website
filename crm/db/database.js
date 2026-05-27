@@ -94,6 +94,20 @@ db.exec(`
     FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
   );
 
+  CREATE TABLE IF NOT EXISTS appointments (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    contact_id    INTEGER NOT NULL,
+    appt_type     TEXT NOT NULL DEFAULT 'Phone Call',
+    appt_datetime TEXT NOT NULL,
+    duration_min  INTEGER DEFAULT 60,
+    status        TEXT NOT NULL DEFAULT 'Scheduled',
+    location      TEXT,
+    notes         TEXT,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+  );
+
   CREATE INDEX IF NOT EXISTS idx_contacts_email      ON contacts(email);
   CREATE INDEX IF NOT EXISTS idx_contacts_phone_e164 ON contacts(phone_e164);
   CREATE INDEX IF NOT EXISTS idx_contacts_created    ON contacts(created_at DESC);
@@ -101,6 +115,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_notes_contact       ON contact_notes(contact_id);
   CREATE INDEX IF NOT EXISTS idx_calls_contact       ON comm_calls(contact_id);
   CREATE INDEX IF NOT EXISTS idx_emails_contact      ON emails(contact_id);
+  CREATE INDEX IF NOT EXISTS idx_appts_contact       ON appointments(contact_id);
+  CREATE INDEX IF NOT EXISTS idx_appts_datetime      ON appointments(appt_datetime);
 `);
 
 // ─── Migrations ───────────────────────────────────────────────────────────────

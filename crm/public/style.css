@@ -1595,6 +1595,249 @@ body {
   gap: .4rem;
 }
 
+/* ── Thread list (Calls page — grouped by conversation) ──────────────────── */
+
+.thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: .375rem;
+}
+
+.thread-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  transition: box-shadow .15s;
+}
+
+.thread-card:hover { box-shadow: var(--shadow); }
+
+.thread-card.has-unread {
+  border-left: 3px solid var(--purple);
+}
+
+/* Thread header — always visible, clickable to expand */
+.thread-header {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: .875rem 1rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background .1s;
+}
+
+.thread-header:hover { background: rgba(0,0,0,.018); }
+
+.thread-card.expanded .thread-header {
+  border-bottom: 1px solid var(--border);
+  background: rgba(78,44,148,.028);
+}
+
+/* Avatar */
+.thread-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--purple-light);
+  color: var(--purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: .8rem;
+  flex-shrink: 0;
+  letter-spacing: .02em;
+}
+
+.thread-card.has-unread .thread-avatar {
+  background: var(--purple);
+  color: #fff;
+}
+
+/* Thread body */
+.thread-body { flex: 1; min-width: 0; }
+
+.thread-top-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .5rem;
+}
+
+.thread-name {
+  font-weight: 500;
+  font-size: .9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-card.has-unread .thread-name { font-weight: 700; }
+
+.thread-name-link {
+  color: var(--purple);
+  text-decoration: none;
+  font-weight: inherit;
+}
+
+.thread-name-link:hover { text-decoration: underline; }
+
+.thread-name-text { color: var(--text); }
+
+.thread-time {
+  font-size: .73rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.thread-card.has-unread .thread-time {
+  color: var(--purple);
+  font-weight: 600;
+}
+
+.thread-sub-row {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin-top: .15rem;
+  flex-wrap: wrap;
+}
+
+.thread-phone {
+  font-size: .8rem;
+  color: var(--text-muted);
+}
+
+.thread-lead-type {
+  font-size: .68rem;
+  background: var(--purple-light);
+  color: var(--purple);
+  padding: .08rem .45rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+/* Stat pills row */
+.thread-pills {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  margin-top: .375rem;
+  flex-wrap: wrap;
+}
+
+.thread-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+  padding: .12rem .45rem;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.thread-pill-calls  { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+.thread-pill-vm     { background: #ede8f7; color: var(--purple-dark); }
+.thread-pill-missed { background: #fee2e2; color: #991b1b; }
+.thread-pill-unread { background: var(--purple); color: #fff; }
+
+/* Thread action buttons */
+.thread-actions {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin-top: .5rem;
+  flex-wrap: wrap;
+}
+
+.thread-callback-btn {
+  background: #e6f9ef;
+  color: var(--green-dark);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.thread-callback-btn:hover { background: #d1fae5; border-color: var(--green-dark); }
+
+/* Expand chevron */
+.thread-chevron {
+  font-size: .85rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: .3rem;
+  transition: transform .2s;
+  line-height: 1;
+}
+
+.thread-chevron.open { transform: rotate(180deg); }
+
+/* Expanded detail area */
+.thread-detail { background: #fbfafd; }
+
+/* Call log list inside expanded thread */
+.call-log-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.call-log-item {
+  padding: .75rem 1.25rem .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.call-log-item:last-child { border-bottom: none; }
+
+.call-log-item:hover { background: rgba(0,0,0,.012); }
+
+.call-log-item.log-unread {
+  background: rgba(78,44,148,.03);
+  border-left: 3px solid var(--purple);
+  padding-left: calc(1rem - 3px);
+}
+
+.call-log-header {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin-bottom: .3rem;
+}
+
+.call-log-dir {
+  font-size: .95rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.dir-in     { color: var(--green-dark); }
+.dir-out    { color: var(--blue); }
+.dir-missed { color: var(--red); }
+
+.call-log-time {
+  font-size: .76rem;
+  color: var(--text-muted);
+}
+
+.call-log-dur {
+  font-size: .76rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.call-log-notes,
+.call-transcription {
+  font-size: .82rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: .2rem;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    MOBILE / PWA — applied ≤ 768 px
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -1949,4 +2192,13 @@ body {
   .note-textarea { font-size: 16px; } /* prevents iOS zoom */
   .crm-input, .crm-select { font-size: 16px; }
   .search-input, .filter-select { font-size: 16px; }
+
+  /* Thread cards on mobile */
+  .thread-header { padding: .75rem; gap: .5rem; }
+  .thread-avatar { width: 36px; height: 36px; font-size: .75rem; }
+  .thread-name   { font-size: .875rem; }
+  .thread-pills  { gap: .25rem; }
+  .thread-pill   { font-size: .68rem; padding: .1rem .38rem; }
+  .call-log-item { padding: .625rem .75rem; }
+  .call-log-item.log-unread { padding-left: calc(.75rem - 3px); }
 }

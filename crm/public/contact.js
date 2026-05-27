@@ -24,10 +24,9 @@ function formatPhone(raw) {
 
 function formatDate(iso, includeTime = false) {
   if (!iso) return '—';
-  const d = new Date(iso);
-  const opts = { month: 'short', day: 'numeric', year: 'numeric' };
-  if (includeTime) { opts.hour = 'numeric'; opts.minute = '2-digit'; }
-  return d.toLocaleDateString('en-US', opts);
+  const opts = { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Chicago' };
+  if (includeTime) { opts.hour = 'numeric'; opts.minute = '2-digit'; opts.hour12 = true; }
+  return new Date(iso).toLocaleString('en-US', opts);
 }
 
 function formatCurrency(val) {

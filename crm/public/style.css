@@ -1591,3 +1591,244 @@ body {
   display: flex;
   gap: .4rem;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE / PWA — applied ≤ 768 px
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Mobile top bar (hidden on desktop) ──────────────────────────────────── */
+
+.mobile-topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 400;
+  background: var(--purple-dark);
+  padding: 0 1rem;
+  height: 56px;
+  align-items: center;
+  gap: .875rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  flex-shrink: 0;
+}
+
+.hamburger-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.85);
+  cursor: pointer;
+  padding: .5rem;
+  margin: -.5rem;
+  font-size: 1.35rem;
+  line-height: 1;
+  border-radius: 6px;
+  transition: color .15s, background .15s;
+}
+
+.hamburger-btn:hover {
+  color: #fff;
+  background: rgba(255,255,255,.1);
+}
+
+.mobile-topbar-title {
+  flex: 1;
+  color: #fff;
+  font-weight: 600;
+  font-size: .975rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-calls-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: rgba(255,255,255,.85);
+  text-decoration: none;
+  font-size: 1.1rem;
+  border-radius: 50%;
+  transition: background .15s;
+}
+
+.mobile-calls-btn:hover { background: rgba(255,255,255,.12); }
+
+.mobile-calls-btn .nav-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 16px;
+  height: 16px;
+  font-size: .58rem;
+}
+
+/* ── Sidebar overlay (blocks content when sidebar is open) ───────────────── */
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 350;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Mobile breakpoint ───────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+
+  /* Show mobile top bar */
+  .mobile-topbar { display: flex; }
+
+  /* Sidebar: off-canvas drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100%;
+    z-index: 380;
+    transform: translateX(-100%);
+    transition: transform .25s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .25s cubic-bezier(.4, 0, .2, 1);
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,.35);
+  }
+
+  .sidebar-overlay.visible { display: block; }
+
+  /* Main: full width (sidebar no longer in flow) */
+  .main {
+    padding: 1rem;
+    min-width: 0;
+  }
+
+  /* Page header: stack on mobile */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .625rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .page-title { font-size: 1.25rem; }
+
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+
+  .search-input {
+    width: 100%;
+    min-width: unset;
+    flex: 1 1 100%;
+  }
+
+  .filter-select { flex: 1 1 calc(50% - .25rem); min-width: 0; }
+
+  .view-toggle { order: -1; }
+
+  /* Touch targets: 44 × 44 minimum */
+  .btn,
+  .btn-primary,
+  .btn-call,
+  .view-btn,
+  .filter-select,
+  .search-input,
+  .calls-tab,
+  .calls-action-btn,
+  .pc-action-btn {
+    min-height: 44px;
+  }
+
+  .view-btn { padding: .6rem .875rem; }
+
+  /* Contacts table: hide less-critical columns */
+  .contacts-table th:nth-child(2),
+  .contacts-table td:nth-child(2),
+  .contacts-table th:nth-child(6),
+  .contacts-table td:nth-child(6),
+  .contacts-table th:nth-child(7),
+  .contacts-table td:nth-child(7) {
+    display: none;
+  }
+
+  .contacts-table tbody td { padding: .75rem .875rem; }
+
+  /* Pipeline: horizontal snap scroll */
+  .pipeline-board {
+    height: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding-bottom: 1.25rem;
+    gap: .75rem;
+  }
+
+  .pipeline-col {
+    width: 260px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+
+  .pipeline-col-body { max-height: 72vh; }
+
+  /* Pipeline card actions: larger touch targets */
+  .pc-action-btn {
+    padding: .45rem .55rem;
+    font-size: .77rem;
+  }
+
+  /* Calls page: scrollable tabs */
+  .calls-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: .25rem;
+    gap: .375rem;
+    scrollbar-width: none;
+  }
+  .calls-tabs::-webkit-scrollbar { display: none; }
+
+  .calls-tab {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: .5rem .875rem;
+  }
+
+  .call-row { padding: .875rem .75rem; }
+  .call-row.unread { padding-left: calc(.75rem - 3px); }
+
+  .calls-action-btn { padding: .4rem .6rem; }
+
+  /* Contact detail: single column (already ≤900 but reinforce) */
+  .detail-grid { grid-template-columns: 1fr; }
+
+  /* Status control in detail header */
+  .status-control { width: 100%; }
+
+  /* Quick note popover: pin to bottom on mobile */
+  .quick-note-popover {
+    left: .75rem !important;
+    right: .75rem !important;
+    bottom: .75rem;
+    top: auto !important;
+    width: auto !important;
+  }
+
+  /* Card: tighten padding */
+  .card { padding: 1rem; }
+
+  /* Note textarea */
+  .note-textarea { font-size: 16px; } /* prevents iOS zoom */
+  .crm-input, .crm-select { font-size: 16px; }
+  .search-input, .filter-select { font-size: 16px; }
+}

@@ -510,7 +510,8 @@ function adjustColCount(status, delta) {
 // ─── Click-to-call ─────────────────────────────────────────────────────────────
 
 async function initiateCall(btn, contactId, fallbackPhone) {
-  if (!window.CRM_TWILIO_ENABLED) {
+  // On mobile: native dialer is better UX (agent IS their phone)
+  if (window.innerWidth <= 768 || !window.CRM_TWILIO_ENABLED) {
     window.location.href = `tel:${fallbackPhone}`;
     return;
   }
@@ -535,7 +536,7 @@ async function initiateCall(btn, contactId, fallbackPhone) {
 
 // Used by the list-view phone button (inline onclick)
 async function initiateCallById(btn, contactId) {
-  if (!window.CRM_TWILIO_ENABLED) {
+  if (window.innerWidth <= 768 || !window.CRM_TWILIO_ENABLED) {
     window.location.href = `tel:${btn.dataset.phone}`;
     return;
   }

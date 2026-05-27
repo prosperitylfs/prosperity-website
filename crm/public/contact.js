@@ -162,9 +162,20 @@ function wireCallButton(contact) {
   const action = document.getElementById('call-action');
   const btn    = document.getElementById('detail-call-btn');
   if (!action || !btn || !contact.phone) return;
-  if (window.CRM_TWILIO_ENABLED) {
-    action.classList.remove('hidden');
+
+  const phone = contact.phone_e164 || (contact.phone ? '+1' + contact.phone.replace(/\D/g, '') : null);
+  if (!phone) return;
+
+  action.classList.remove('hidden');
+
+  if (window.innerWidth <= 768) {
+    // Mobile: tap-to-call via native dialer
+    btn.onclick = () => { window.location.href = `tel:${phone}`; };
+  } else if (window.CRM_TWILIO_ENABLED) {
+    // Desktop: Twilio bridge (calls agent first, then bridges to lead)
     btn.onclick = () => initiateDetailCall(btn);
+  } else {
+    action.classList.add('hidden');
   }
 }
 

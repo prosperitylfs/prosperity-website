@@ -14,6 +14,14 @@ const contactCardsList   = document.getElementById('contacts-cards-list');
 const pipelineBoard      = document.getElementById('pipeline-board');
 const btnViewList     = document.getElementById('btn-view-list');
 const btnViewPipeline = document.getElementById('btn-view-pipeline');
+const mobileFilterBtn = document.getElementById('mobile-filter-btn');
+const filterDrawerEl  = document.getElementById('filter-drawer');
+const filterDrawerOverlay = document.getElementById('filter-drawer-overlay');
+const fdSearch        = document.getElementById('fd-search');
+const fdType          = document.getElementById('fd-type');
+const fdStatus        = document.getElementById('fd-status');
+const fdSms           = document.getElementById('fd-sms');
+const fabEl           = document.getElementById('fab');
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 let debounceTimer;
@@ -636,14 +644,95 @@ async function loadContacts() {
   }
 }
 
+// ─── Filter drawer (mobile bottom sheet) ───────────────────────────────────────
+
+function openFilterDrawer() {
+  if (!filterDrawerEl) return;
+  if (fdSearch) fdSearch.value = searchEl.value;
+  if (fdType)   fdType.value   = filterEl.value;
+  if (fdStatus) fdStatus.value = filterStatusEl.value;
+  if (fdSms)    fdSms.value    = filterSmsEl.value;
+  filterDrawerEl.classList.add('drawer-open');
+  filterDrawerOverlay.classList.add('visible');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => fdSearch && fdSearch.focus(), 300);
+}
+
+function closeFilterDrawer() {
+  if (!filterDrawerEl) return;
+  filterDrawerEl.classList.remove('drawer-open');
+  filterDrawerOverlay.classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+function applyFilterDrawer() {
+  if (fdSearch) searchEl.value       = fdSearch.value;
+  if (fdType)   filterEl.value        = fdType.value;
+  if (fdStatus) filterStatusEl.value  = fdStatus.value;
+  if (fdSms)    filterSmsEl.value     = fdSms.value;
+  updateMobileFilterBadge();
+  closeFilterDrawer();
+  loadContacts();
+}
+
+function clearFilterDrawer() {
+  if (fdSearch) fdSearch.value = '';
+  if (fdType)   fdType.value   = '';
+  if (fdStatus) fdStatus.value = '';
+  if (fdSms)    fdSms.value    = '';
+  searchEl.value = '';
+  filterEl.value = '';
+  filterStatusEl.value = '';
+  filterSmsEl.value = '';
+  updateMobileFilterBadge();
+  closeFilterDrawer();
+  loadContacts();
+}
+
+function updateMobileFilterBadge() {
+  if (!mobileFilterBtn) return;
+  const activeFilters = [
+    filterEl.value,
+    filterStatusEl.value,
+    filterSmsEl.value,
+    searchEl.value.trim(),
+  ].filter(Boolean).length;
+  mobileFilterBtn.classList.toggle('has-filters', activeFilters > 0);
+  const badge = activeFilters > 0
+    ? `<span class="mobile-filter-badge">${activeFilters}</span>`
+    : '';
+  mobileFilterBtn.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M1 2.5h12M3 7h8M5 11.5h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    Filter ${badge}`;
+}
+
+// ─── FAB ───────────────────────────────────────────────────────────────────────
+
+function toggleFab() {
+  if (!fabEl) return;
+  fabEl.classList.toggle('fab-open');
+}
+
+function closeFab() {
+  if (fabEl) fabEl.classList.remove('fab-open');
+}
+
+document.addEventListener('click', e => {
+  if (fabEl && fabEl.classList.contains('fab-open') && !fabEl.contains(e.target)) {
+    closeFab();
+  }
+});
+
 // ─── Event listeners ───────────────────────────────────────────────────────────
 searchEl.addEventListener('input', () => {
   clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(loadContacts, 300);
+  debounceTimer = setTimeout(() => { loadContacts(); updateMobileFilterBadge(); }, 300);
 });
-filterEl.addEventListener('change', loadContacts);
-filterStatusEl.addEventListener('change', loadContacts);
-filterSmsEl.addEventListener('change', loadContacts);
+filterEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBadge(); });
+filterStatusEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBadge(); });
+filterSmsEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBadge(); });
 
 // ─── Init ──────────────────────────────────────────────────────────────────────
 setView(currentView);

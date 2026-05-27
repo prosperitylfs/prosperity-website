@@ -1838,6 +1838,272 @@ body {
   margin-top: .2rem;
 }
 
+/* ── Floating Action Button (mobile only — hidden on desktop via @media) ─── */
+
+.fab {
+  position: fixed;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  right: 1.25rem;
+  z-index: 300;
+  display: none;
+}
+
+.fab-main-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--purple);
+  color: #fff;
+  border: none;
+  font-size: 1.55rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(78,44,148,.45), 0 2px 4px rgba(0,0,0,.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fab-main-btn:active { transform: scale(.9); }
+
+.fab.fab-open .fab-main-btn {
+  background: var(--purple-dark);
+  transform: rotate(45deg);
+  box-shadow: 0 2px 8px rgba(0,0,0,.22);
+}
+
+.fab-speed-dial {
+  position: absolute;
+  bottom: calc(100% + .625rem);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  align-items: flex-end;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(.75rem);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.fab.fab-open .fab-speed-dial {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fab-dial-item {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.fab-dial-label {
+  background: rgba(58,31,112,.92);
+  color: #fff;
+  padding: .3rem .7rem;
+  border-radius: 8px;
+  font-size: .78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,.18);
+}
+
+.fab-dial-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .1s;
+}
+
+.fab-dial-btn:active { transform: scale(.88); }
+
+/* Mobile filter button — replaces inline selects in the header on mobile */
+.mobile-filter-btn {
+  display: none;
+  align-items: center;
+  gap: .4rem;
+  padding: .5rem .95rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+.mobile-filter-btn.has-filters {
+  background: var(--purple-light);
+  color: var(--purple);
+  border-color: var(--purple);
+  font-weight: 600;
+}
+
+.mobile-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--purple);
+  color: #fff;
+  font-size: .62rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ── Filter drawer — bottom sheet (mobile only) ───────────────────────────── */
+
+.filter-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.42);
+  z-index: 450;
+  display: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.filter-drawer-overlay.visible { display: block; }
+
+.filter-drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 460;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding: .75rem 1.25rem calc(2rem + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -6px 32px rgba(0,0,0,.16);
+  transform: translateY(100%);
+  transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+  max-height: 88vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-drawer.drawer-open { transform: translateY(0); }
+
+.filter-drawer-handle {
+  width: 40px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto .875rem;
+}
+
+.filter-drawer-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1.125rem;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-drawer-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+  margin-bottom: 1.25rem;
+}
+
+.filter-drawer-field label {
+  display: block;
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  margin-bottom: .375rem;
+}
+
+.filter-drawer-field select,
+.filter-drawer-field input[type="text"] {
+  width: 100%;
+  min-height: 48px;
+  padding: .6rem .875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6880' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .875rem center;
+  padding-right: 2.25rem;
+}
+
+.filter-drawer-field input[type="text"] {
+  background-image: none;
+  padding-right: .875rem;
+  cursor: text;
+}
+
+.filter-drawer-field select:focus,
+.filter-drawer-field input:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(78,44,148,.10);
+}
+
+.filter-drawer-footer {
+  display: flex;
+  gap: .625rem;
+}
+
+.filter-drawer-apply {
+  flex: 2;
+  justify-content: center;
+  min-height: 50px;
+  font-size: .95rem;
+  border-radius: var(--radius);
+}
+
+.filter-drawer-clear {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: .875rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 50px;
+  transition: background .12s, color .12s, border-color .12s;
+}
+
+.filter-drawer-clear:active {
+  background: #fee2e2;
+  color: var(--red);
+  border-color: var(--red);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    MOBILE / PWA — applied ≤ 768 px
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -2101,51 +2367,90 @@ body {
   .contacts-cards-list:not(.hidden) {
     display: flex;
     flex-direction: column;
-    gap: .5rem;
+    gap: .75rem;
   }
 
-  /* Pipeline: horizontal snap scroll — no nested scroll conflict */
+  /* Contact cards: more breathing room */
+  .mobile-contact-card {
+    padding: 1rem 1rem;
+    border-radius: 12px;
+  }
+
+  .mcc-call-btn,
+  .mcc-view-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    font-size: 1rem;
+  }
+
+  /* Show FAB and mobile filter button */
+  .fab { display: block; }
+  .mobile-filter-btn { display: flex; }
+
+  /* Hide inline filter selects — replaced by filter drawer on mobile */
+  .header-actions .filter-select { display: none; }
+
+  /* Pipeline: fixed viewport height so column headers stay sticky */
   .pipeline-board {
-    height: auto;
+    height: calc(100vh - 148px);
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x mandatory;
-    scroll-padding-left: .5rem;
-    padding-bottom: 1.25rem;
-    gap: .625rem;
+    scroll-padding-left: .75rem;
+    padding: 0 .75rem .75rem;
+    gap: .75rem;
     overscroll-behavior-x: contain;
   }
 
   .pipeline-col {
-    /* 82vw: fills most of screen while peeking at next column */
-    width: 82vw;
-    min-width: 230px;
-    max-width: 320px;
+    /* 86vw: fills screen, edge of next column peeks for discoverability */
+    width: 86vw;
+    min-width: 260px;
+    max-width: 360px;
+    height: 100%;
     flex-shrink: 0;
     scroll-snap-align: start;
-    scroll-snap-stop: always; /* one column per swipe */
+    scroll-snap-stop: always;
+    display: flex;
+    flex-direction: column;
   }
 
-  /* Column body: vertical scroll only, contained */
+  /* Column header: stays at top because body scrolls below it */
+  .pipeline-col-header {
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: .75rem .875rem;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  /* Column body: fills remaining height, smooth vertical scroll */
   .pipeline-col-body {
-    max-height: 65vh;
+    flex: 1;
+    max-height: none;
     touch-action: pan-y;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
+    padding: .625rem;
+    gap: .625rem;
   }
 
-  /* Cards: allow vertical scroll when touched (drag fires only after horizontal threshold) */
+  /* Cards: larger padding and tap target */
   .pipeline-card {
     touch-action: pan-y;
     cursor: default;
+    padding: .875rem;
   }
   .pipeline-card:active { cursor: default; }
 
   /* Pipeline card actions: larger touch targets */
   .pc-action-btn {
-    padding: .45rem .55rem;
-    font-size: .77rem;
+    padding: .5rem .55rem;
+    font-size: .78rem;
+    min-height: 38px;
   }
 
   /* Calls page: scrollable tabs */
@@ -2194,11 +2499,30 @@ body {
   .search-input, .filter-select { font-size: 16px; }
 
   /* Thread cards on mobile */
-  .thread-header { padding: .75rem; gap: .5rem; }
-  .thread-avatar { width: 36px; height: 36px; font-size: .75rem; }
-  .thread-name   { font-size: .875rem; }
-  .thread-pills  { gap: .25rem; }
-  .thread-pill   { font-size: .68rem; padding: .1rem .38rem; }
-  .call-log-item { padding: .625rem .75rem; }
-  .call-log-item.log-unread { padding-left: calc(.75rem - 3px); }
+  .thread-list   { gap: .5rem; }
+  .thread-card   { border-radius: 12px; }
+  .thread-header { padding: .875rem 1rem; gap: .625rem; }
+  .thread-avatar { width: 40px; height: 40px; font-size: .78rem; }
+  .thread-name   { font-size: .9rem; }
+  .thread-pills  { gap: .3rem; margin-top: .4rem; }
+  .thread-pill   { font-size: .7rem; padding: .12rem .45rem; }
+  .thread-actions { gap: .5rem; }
+  .thread-callback-btn { min-height: 38px; }
+  .calls-action-view   { min-height: 38px; padding: .4rem .7rem; }
+  .call-log-item { padding: .75rem 1rem; }
+  .call-log-item.log-unread { padding-left: calc(1rem - 3px); }
+
+  /* Contact info rows: stack label above value on mobile */
+  .info-row {
+    flex-direction: column;
+    gap: .1rem;
+  }
+  .info-label {
+    width: auto;
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 700;
+  }
+  .info-value { font-size: .9rem; }
 }

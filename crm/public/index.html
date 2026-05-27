@@ -73,6 +73,10 @@
             <button id="btn-view-pipeline" class="view-btn">Pipeline</button>
           </div>
           <input type="text" id="search-input" class="search-input" placeholder="Search name, email, phone…">
+          <button id="mobile-filter-btn" class="mobile-filter-btn" onclick="openFilterDrawer()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 2.5h12M3 7h8M5 11.5h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Filter
+          </button>
           <select id="filter-type" class="filter-select">
             <option value="">All lead types</option>
             <option value="Unknown Caller">Unknown Caller</option>
@@ -137,6 +141,81 @@
 
       <div id="pipeline-board" class="pipeline-board hidden"></div>
     </main>
+  </div>
+
+  <!-- Filter drawer — mobile bottom sheet -->
+  <div id="filter-drawer-overlay" class="filter-drawer-overlay" onclick="closeFilterDrawer()"></div>
+  <div id="filter-drawer" class="filter-drawer">
+    <div class="filter-drawer-handle"></div>
+    <div class="filter-drawer-title">Filter Contacts</div>
+    <div class="filter-drawer-fields">
+      <div class="filter-drawer-field">
+        <label for="fd-search">Search</label>
+        <input type="text" id="fd-search" placeholder="Name, email, or phone…">
+      </div>
+      <div class="filter-drawer-field">
+        <label for="fd-type">Lead Type</label>
+        <select id="fd-type">
+          <option value="">All lead types</option>
+          <option value="Unknown Caller">Unknown Caller</option>
+          <option value="Retirement Guide Lead">Retirement Guide Lead</option>
+          <option value="Retirement Lead">Retirement Lead</option>
+          <option value="Roth Conversion Lead">Roth Conversion Lead</option>
+          <option value="Life Insurance Lead">Life Insurance Lead</option>
+          <option value="Contact Form Lead">Contact Form Lead</option>
+          <option value="Existing Client">Existing Client</option>
+          <option value="Referral Partner">Referral Partner</option>
+        </select>
+      </div>
+      <div class="filter-drawer-field">
+        <label for="fd-status">Status</label>
+        <select id="fd-status">
+          <option value="">All statuses</option>
+          <option value="New Lead">New Lead</option>
+          <option value="Attempted Contact">Attempted Contact</option>
+          <option value="Contacted">Contacted</option>
+          <option value="Appointment Scheduled">Appointment Scheduled</option>
+          <option value="Appointment Completed">Appointment Completed</option>
+          <option value="Follow-Up Needed">Follow-Up Needed</option>
+          <option value="Application Submitted">Application Submitted</option>
+          <option value="Sold">Sold</option>
+          <option value="Long-Term Nurture">Long-Term Nurture</option>
+          <option value="Do Not Contact">Do Not Contact</option>
+          <option value="Dead Lead">Dead Lead</option>
+        </select>
+      </div>
+      <div class="filter-drawer-field">
+        <label for="fd-sms">SMS Consent</label>
+        <select id="fd-sms">
+          <option value="">All contacts</option>
+          <option value="1">Has SMS Consent</option>
+          <option value="0">No SMS Consent</option>
+        </select>
+      </div>
+    </div>
+    <div class="filter-drawer-footer">
+      <button class="btn btn-primary filter-drawer-apply" onclick="applyFilterDrawer()">Apply Filters</button>
+      <button class="filter-drawer-clear" onclick="clearFilterDrawer()">Clear All</button>
+    </div>
+  </div>
+
+  <!-- FAB — mobile floating action button -->
+  <div id="fab" class="fab">
+    <div class="fab-speed-dial" id="fab-speed-dial">
+      <div class="fab-dial-item">
+        <span class="fab-dial-label">Filter Contacts</span>
+        <button class="fab-dial-btn" style="background:var(--purple-light);color:var(--purple)"
+          onclick="openFilterDrawer(); closeFab()" aria-label="Open filter drawer">
+          <svg width="18" height="18" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 2.5h12M3 7h8M5 11.5h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="fab-dial-item">
+        <span class="fab-dial-label">Calls &amp; Voicemail</span>
+        <button class="fab-dial-btn" style="background:#e6f9ef;color:var(--green-dark)"
+          onclick="location.href='/calls.html'" aria-label="Go to calls page">☎</button>
+      </div>
+    </div>
+    <button class="fab-main-btn" id="fab-main-btn" onclick="toggleFab()" aria-label="Quick actions">+</button>
   </div>
 
   <script src="config.js"></script>

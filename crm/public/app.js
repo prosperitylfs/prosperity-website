@@ -564,22 +564,19 @@ function adjustColCount(status, delta) {
 // ─── Click-to-call ─────────────────────────────────────────────────────────────
 
 async function initiateCall(btn, contactId, fallbackPhone) {
-  // On mobile: native dialer is better UX (agent IS their phone)
-  if (window.innerWidth <= 768 || !window.CRM_TWILIO_ENABLED) {
-    window.location.href = `tel:${fallbackPhone}`;
-    return;
-  }
+  if (!window.CRM_TWILIO_ENABLED) return;
+
   const origHtml = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '<span class="call-spinner"></span> Calling…';
+  btn.innerHTML = '<span class="call-spinner"></span> Connecting…';
 
   try {
     await CRM.fetch('/api/calls/outbound', {
       method: 'POST',
       body: JSON.stringify({ contact_id: contactId }),
     });
-    btn.innerHTML = '✓ Your phone is ringing…';
-    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 6000);
+    btn.innerHTML = '✓ Your phone is ringing — answer to connect';
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 8000);
     loadContacts(); // refresh cards so "Called Today" badge appears
   } catch (err) {
     showError(`Call failed: ${err.message}`);
@@ -588,12 +585,10 @@ async function initiateCall(btn, contactId, fallbackPhone) {
   }
 }
 
-// Used by the list-view phone button (inline onclick)
+// Used by the list-view phone button (inline onclick) and mobile contact cards
 async function initiateCallById(btn, contactId) {
-  if (window.innerWidth <= 768 || !window.CRM_TWILIO_ENABLED) {
-    window.location.href = `tel:${btn.dataset.phone}`;
-    return;
-  }
+  if (!window.CRM_TWILIO_ENABLED) return;
+
   const origHtml = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = '<span class="call-spinner"></span>';
@@ -603,8 +598,8 @@ async function initiateCallById(btn, contactId) {
       method: 'POST',
       body: JSON.stringify({ contact_id: contactId }),
     });
-    btn.innerHTML = '✓ Ringing…';
-    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 6000);
+    btn.innerHTML = '✓';
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = origHtml; }, 8000);
   } catch (err) {
     showError(`Call failed: ${err.message}`);
     btn.disabled = false;

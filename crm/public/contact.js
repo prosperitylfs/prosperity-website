@@ -309,7 +309,7 @@ function renderCallLogs(logs) {
           <div class="timeline-meta">
             ${dirIcon} <strong>${escHtml(dirLabel)}</strong>
             ${badge} ${todayPill} ${vmLeftPill}
-            <span style="float:right">${formatDate(c.started_at, true)}</span>
+            <span class="timeline-meta-date">${formatDate(c.started_at, true)}</span>
           </div>
           ${phoneRow}${durRow}${recRow}${transcRow}
           ${canMarkVm ? `<button class="call-mark-btn" onclick="markVoicemail(${c.id})">Mark Voicemail Left</button>` : ''}
@@ -494,7 +494,7 @@ function renderComms(comms) {
         <div class="timeline-body">
           <div class="timeline-meta">
             ${icon} <strong>${escHtml(c.subject || c.comm_type)}</strong> ${dir}
-            <span style="float:right">${formatDate(c.created_at, true)}</span>
+            <span class="timeline-meta-date">${formatDate(c.created_at, true)}</span>
           </div>
           ${bodyHtml}
         </div>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calls &amp; Voicemail — Prosperity CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">P</div>
+        <div>
+          <div class="brand-name">Prosperity</div>
+          <div class="brand-sub">CRM</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/" class="nav-link">Contacts</a>
+        <a href="/calls.html" class="nav-link active">
+          Calls
+          <span class="nav-badge hidden" id="nav-badge-calls"></span>
+        </a>
+        <a href="/settings.html" class="nav-link">Settings</a>
+      </nav>
+      <div class="sidebar-footer">Prosperity Life &amp; Financial</div>
+    </aside>
+
+    <main class="main">
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Calls &amp; Voicemail</h1>
+          <p class="page-subtitle" id="calls-count">Loading…</p>
+        </div>
+      </div>
+
+      <div class="calls-tabs" id="calls-tabs">
+        <button class="calls-tab active" data-filter="">All Calls</button>
+        <button class="calls-tab" data-filter="inbound">Inbound</button>
+        <button class="calls-tab" data-filter="missed">
+          Missed
+          <span class="tab-badge hidden" id="tab-badge-missed"></span>
+        </button>
+        <button class="calls-tab" data-filter="voicemail">
+          Voicemail
+          <span class="tab-badge hidden" id="tab-badge-voicemail"></span>
+        </button>
+        <button class="calls-tab" data-filter="unknown">Unknown Callers</button>
+      </div>
+
+      <div id="calls-error" class="error-banner hidden"></div>
+
+      <div class="calls-list-card" id="calls-container">
+        <div class="loading-row">Loading calls…</div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="nav.js"></script>
+  <script src="calls-page.js"></script>
+</body>
+</html>

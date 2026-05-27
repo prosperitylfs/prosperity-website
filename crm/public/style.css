@@ -94,7 +94,9 @@ body {
 }
 
 .nav-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: .5rem .75rem;
   color: rgba(255,255,255,.7);
   text-decoration: none;
@@ -1322,4 +1324,270 @@ body {
   color: var(--text-muted);
   font-size: .8rem;
   margin-top: .15rem;
+}
+
+/* ── Sidebar nav notification badge ──────────────────────────────────────── */
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--red);
+  color: #fff;
+  font-size: .62rem;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Calls dashboard page ─────────────────────────────────────────────────── */
+
+.calls-tabs {
+  display: flex;
+  gap: .375rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.calls-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .45rem .95rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: .82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+
+.calls-tab:hover {
+  background: var(--purple-light);
+  color: var(--purple);
+  border-color: var(--purple);
+}
+
+.calls-tab.active {
+  background: var(--purple);
+  color: #fff;
+  border-color: var(--purple);
+  font-weight: 600;
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--red);
+  color: #fff;
+  font-size: .6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.calls-tab.active .tab-badge {
+  background: rgba(255,255,255,.35);
+}
+
+/* Call list wrapper */
+.calls-list-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.calls-empty {
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+
+/* Individual call row */
+.call-row {
+  padding: .875rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+
+.call-row:last-child { border-bottom: none; }
+
+.call-row:hover { background: rgba(0,0,0,.015); }
+
+.call-row.unread {
+  border-left: 3px solid var(--purple);
+  padding-left: calc(1.25rem - 3px);
+  background: rgba(78,44,148,.025);
+}
+
+.call-row.unread:hover { background: rgba(78,44,148,.045); }
+
+.call-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  margin-bottom: .35rem;
+  flex-wrap: wrap;
+}
+
+.call-row-meta {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+
+.call-dir-icon { font-size: .95rem; }
+
+.call-dir-label {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-muted);
+}
+
+.call-row-time {
+  font-size: .78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.call-row-contact {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: .5rem;
+}
+
+.call-contact-link {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--purple);
+  text-decoration: none;
+}
+
+.call-contact-link:hover { text-decoration: underline; }
+
+.call-contact-name {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.call-row-phone,
+.call-row-dur {
+  font-size: .8rem;
+  color: var(--text-muted);
+}
+
+.call-row-phone::before { content: '·'; margin-right: .5rem; }
+
+/* Action buttons row */
+.call-row-actions {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: .55rem;
+}
+
+.calls-action-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: .28rem .65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .1s, color .1s, border-color .1s;
+  white-space: nowrap;
+}
+
+.calls-action-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+  border-color: #c0bbd4;
+}
+
+.calls-action-view {
+  color: var(--purple);
+  border-color: rgba(78,44,148,.25);
+  background: var(--purple-light);
+}
+
+.calls-action-view:hover {
+  background: var(--purple);
+  color: #fff;
+  border-color: var(--purple);
+}
+
+.calls-action-save {
+  background: var(--purple);
+  color: #fff;
+  border-color: var(--purple);
+}
+
+.calls-action-save:hover {
+  background: var(--purple-dark);
+  border-color: var(--purple-dark);
+}
+
+.call-listened-mark {
+  font-size: .75rem;
+  color: var(--green-dark);
+  font-weight: 600;
+  padding: .28rem .4rem;
+}
+
+/* Inline note form */
+.call-note-form {
+  margin-top: .6rem;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+
+.call-note-textarea {
+  width: 100%;
+  padding: .45rem .65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: .82rem;
+  resize: vertical;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.call-note-textarea:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(78,44,148,.10);
+}
+
+.call-note-form-actions {
+  display: flex;
+  gap: .4rem;
 }

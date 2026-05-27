@@ -2,6 +2,47 @@ const express  = require('express');
 const router   = express.Router();
 const db       = require('../db/database');
 
+// ─── GET /api/calls/stats ────────────────────────────────────────────────────
+// Badge counts: unread voicemails + unreviewed missed inbound calls.
+router.get('/stats', (req, res) => {
+  const unread_voicemails = db.prepare(
+    "SELECT COUNT(*) AS n FROM comm_calls WHERE status = 'voicemail' AND listened_at IS NULL"
+  ).get().n;
+  const missed_calls = db.prepare(
+    "SELECT COUNT(*) AS n FROM comm_calls WHERE direction = 'inbound' AND status IN ('missed','no-answer','busy','canceled') AND listened_at IS NULL"
+  ).get().n;
+  res.json({ unread_voicemails, missed_calls });
+});
+
+// ─── GET /api/calls ───────────────────────────────────────────────────────────
+// Paginated call log across all contacts, with optional filter.
+// filter: inbound | missed | voicemail | unknown
+router.get('/', (req, res) => {
+  const { filter, limit = 200, offset = 0 } = req.query;
+
+  const filters = {
+    inbound:  "c.direction = 'inbound'",
+    missed:   "c.direction = 'inbound' AND c.status IN ('missed','no-answer','busy','canceled')",
+    voicemail: "c.status = 'voicemail'",
+    unknown:  "(ct.lead_type = 'Unknown Caller' OR (c.direction = 'inbound' AND c.contact_id IS NULL))",
+  };
+
+  const where = filters[filter] ? `WHERE ${filters[filter]}` : '';
+
+  const rows = db.prepare(`
+    SELECT c.*,
+      ct.first_name, ct.last_name, ct.email,
+      ct.lead_type AS contact_lead_type
+    FROM comm_calls c
+    LEFT JOIN contacts ct ON ct.id = c.contact_id
+    ${where}
+    ORDER BY c.started_at DESC
+    LIMIT ? OFFSET ?
+  `).all(Number(limit), Number(offset));
+
+  res.json(rows);
+});
+
 // ─── POST /api/calls/outbound ─────────────────────────────────────────────────
 // Initiates click-to-call: Twilio calls the agent first, then bridges to lead.
 // Future extension point: swap this for Twilio Client SDK token flow to support
@@ -121,7 +162,7 @@ router.patch('/:id', (req, res) => {
   const call = db.prepare('SELECT id, contact_id FROM comm_calls WHERE id = ?').get(req.params.id);
   if (!call) return res.status(404).json({ error: 'Not found' });
 
-  const allowed = ['notes', 'status'];
+  const allowed = ['notes', 'status', 'listened_at'];
   const updates = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];

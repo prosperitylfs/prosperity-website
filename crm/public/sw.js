@@ -1,20 +1,26 @@
 // Prosperity CRM — Service Worker
 // Strategy: cache-first for static assets, network-only for API + config.js
 
-const CACHE = 'prosperity-crm-v1';
+const CACHE = 'prosperity-crm-v4';
 
 const PRECACHE = [
   '/',
   '/calls.html',
   '/contact.html',
+  '/settings.html',
   '/style.css',
   '/app.js',
   '/contact.js',
   '/calls-page.js',
   '/nav.js',
   '/manifest.json',
+  '/favicon.ico',
+  '/icons/favicon.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/icons/icon-maskable-192.png',
+  '/icons/icon-maskable-512.png',
+  '/icons/apple-touch-icon.png',
 ];
 
 // ── Install: pre-cache shell ──────────────────────────────────────────────────

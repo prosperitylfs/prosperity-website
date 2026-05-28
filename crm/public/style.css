@@ -3033,3 +3033,27 @@ body {
   /* Calendar table: hide email column on mobile (use cards instead) */
   .cal-col-email { display: none; }
 }
+
+/* ── Toast notification ──────────────────────────────────────────────────── */
+.crm-toast {
+  position: fixed;
+  bottom: 1.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--purple-dark);
+  color: #fff;
+  padding: .6rem 1.25rem;
+  border-radius: 8px;
+  font-size: .875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 9999;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(58,31,112,.35);
+  opacity: 1;
+  transition: opacity .25s ease;
+}
+.crm-toast.crm-toast-hidden {
+  opacity: 0;
+  pointer-events: none;
+}

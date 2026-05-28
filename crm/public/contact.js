@@ -752,4 +752,64 @@ document.getElementById('add-note-btn').addEventListener('click', async () => {
   }
 });
 
+// ─── Toast notification ───────────────────────────────────────────────────────
+
+function showToast(msg, duration = 2500) {
+  let el = document.getElementById('crm-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'crm-toast';
+    el.className = 'crm-toast crm-toast-hidden';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.remove('crm-toast-hidden');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.add('crm-toast-hidden'), duration);
+}
+
+// ─── Refresh handler ──────────────────────────────────────────────────────────
+
+async function refreshContact() {
+  console.log('Refresh clicked');
+
+  const mBtn = document.getElementById('mobile-refresh-btn');
+  const dBtn = document.getElementById('desktop-refresh-btn');
+
+  const mOrig = mBtn ? mBtn.innerHTML   : '';
+  const dOrig = dBtn ? dBtn.textContent : '';
+  if (mBtn) { mBtn.disabled = true; mBtn.innerHTML   = '↻'; }
+  if (dBtn) { dBtn.disabled = true; dBtn.textContent = '↻ Refreshing…'; }
+
+  console.log('Reloading contact data...');
+
+  try {
+    if (!id) return;
+    const contact = await CRM.fetch(`/api/contacts/${id}`);
+    renderInfo(contact);
+    wireCallButton(contact);
+    wireEmailButton(contact);
+    populateSections(contact);
+    renderNotes(contact.notes || []);
+    await Promise.all([loadCallLogs(), loadEmailHistory(), loadAppointments(), loadActivity()]);
+    showToast('CRM refreshed ✓');
+  } catch (err) {
+    console.error('Refresh failed:', err);
+    showError(`Refresh failed: ${err.message}`);
+  } finally {
+    if (mBtn) { mBtn.disabled = false; mBtn.innerHTML   = mOrig; }
+    if (dBtn) { dBtn.disabled = false; dBtn.textContent = dOrig; }
+  }
+}
+
+// Wire refresh buttons via addEventListener — works in all browsers and installed PWA.
+// Inline onclick attributes are unreliable when scripts load asynchronously or in
+// strict PWA shells; programmatic wiring runs immediately after the DOM is ready.
+(function wireRefreshButtons() {
+  const mBtn = document.getElementById('mobile-refresh-btn');
+  const dBtn = document.getElementById('desktop-refresh-btn');
+  if (mBtn) mBtn.addEventListener('click', refreshContact);
+  if (dBtn) dBtn.addEventListener('click', refreshContact);
+})();
+
 loadContact();

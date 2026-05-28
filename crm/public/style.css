@@ -395,14 +395,9 @@ body {
 .meta-date { font-size: .8rem; color: var(--text-muted); }
 
 .detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .detail-grid { grid-template-columns: 1fr; }
 }
 
 .info-grid { display: flex; flex-direction: column; gap: .5rem; }

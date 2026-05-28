@@ -101,313 +101,277 @@
 
       <div class="detail-grid">
 
-        <!-- ── Left column ─────────────────────────────────────────── -->
-        <div>
-
-          <!-- Contact Info (read-only) -->
-          <div class="card">
-            <h2 class="card-title">Contact Info</h2>
-            <div id="contact-info" class="info-grid"></div>
-          </div>
-
-          <!-- Retirement Information -->
-          <div class="card crm-card">
-            <h2 class="crm-card-title">Retirement Information</h2>
-            <div class="crm-grid">
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-retirement_account_type">Retirement Account Type</label>
-                <select id="f-retirement_account_type" class="crm-select">
-                  <option value="">— Select —</option>
-                  <option>401(k)</option>
-                  <option>Traditional IRA</option>
-                  <option>Roth IRA</option>
-                  <option>403(b)</option>
-                  <option>457(b)</option>
-                  <option>TSP</option>
-                  <option>Pension</option>
-                  <option>Other</option>
-                </select>
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-current_institution">Current Institution</label>
-                <input id="f-current_institution" type="text" class="crm-input" placeholder="e.g. Fidelity, Vanguard">
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-estimated_rollover_amount">Estimated Rollover Amount</label>
-                <input id="f-estimated_rollover_amount" type="text" class="crm-input" placeholder="$0">
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-retirement_timeline">Retirement Timeline</label>
-                <select id="f-retirement_timeline" class="crm-select">
-                  <option value="">— Select —</option>
-                  <option>Already Retired</option>
-                  <option>Within 1 Year</option>
-                  <option>1-3 Years</option>
-                  <option>3-5 Years</option>
-                  <option>5-10 Years</option>
-                  <option>10+ Years</option>
-                </select>
-              </div>
-
-              <div class="crm-field crm-field-full">
-                <label class="crm-label">Additional Details</label>
-                <div class="crm-checks">
-                  <label class="crm-check-label">
-                    <input id="f-has_current_advisor" type="checkbox">
-                    <span>Current Advisor</span>
-                  </label>
-                  <label class="crm-check-label">
-                    <input id="f-interested_in_roth_conversion" type="checkbox">
-                    <span>Interested in Roth Conversion</span>
-                  </label>
-                </div>
-              </div>
-
-            </div>
-            <div class="crm-footer">
-              <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'retirement')">Save Changes</button>
-              <span class="crm-saved hidden" id="saved-retirement">Saved!</span>
-            </div>
-          </div>
-
-          <!-- Insurance Information -->
-          <div class="card crm-card">
-            <h2 class="crm-card-title">Insurance Information</h2>
-            <div class="crm-grid">
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-insurance_company">Insurance Company</label>
-                <input id="f-insurance_company" type="text" class="crm-input" placeholder="e.g. Mutual of Omaha">
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-policy_type">Policy Type</label>
-                <select id="f-policy_type" class="crm-select">
-                  <option value="">— Select —</option>
-                  <option>Term Life</option>
-                  <option>Whole Life</option>
-                  <option>Universal Life</option>
-                  <option>Indexed Universal Life (IUL)</option>
-                  <option>Final Expense</option>
-                  <option>Mortgage Protection</option>
-                  <option>Other</option>
-                </select>
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-face_amount">Face Amount</label>
-                <input id="f-face_amount" type="text" class="crm-input" placeholder="$0">
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-monthly_premium">Monthly Premium</label>
-                <input id="f-monthly_premium" type="text" class="crm-input" placeholder="$0">
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-annual_premium">Annual Premium</label>
-                <input id="f-annual_premium" type="text" class="crm-input" placeholder="$0">
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-policy_status">Policy Status</label>
-                <select id="f-policy_status" class="crm-select">
-                  <option value="">— Select —</option>
-                  <option>Applied</option>
-                  <option>Pending Underwriting</option>
-                  <option>Issued / In-Force</option>
-                  <option>Lapsed</option>
-                  <option>Cancelled</option>
-                </select>
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-application_date">Application Date</label>
-                <input id="f-application_date" type="date" class="crm-input">
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-policy_issue_date">Policy Issue Date</label>
-                <input id="f-policy_issue_date" type="date" class="crm-input">
-              </div>
-
-            </div>
-            <div class="crm-footer">
-              <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'life')">Save Changes</button>
-              <span class="crm-saved hidden" id="saved-life">Saved!</span>
-            </div>
-          </div>
-
-          <!-- Annuity Information -->
-          <div class="card crm-card">
-            <h2 class="crm-card-title">Annuity Information</h2>
-            <div class="crm-grid">
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-annuity_carrier">Annuity Carrier</label>
-                <input id="f-annuity_carrier" type="text" class="crm-input" placeholder="e.g. Athene, Allianz">
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-annuity_type">Annuity Type</label>
-                <select id="f-annuity_type" class="crm-select">
-                  <option value="">— Select —</option>
-                  <option>Fixed Annuity</option>
-                  <option>Fixed Indexed Annuity (FIA)</option>
-                  <option>Multi-Year Guaranteed (MYGA)</option>
-                  <option>Variable Annuity</option>
-                  <option>SPIA</option>
-                  <option>QLAC</option>
-                </select>
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-annuity_premium">Premium Amount</label>
-                <input id="f-annuity_premium" type="text" class="crm-input" placeholder="$0">
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-estimated_income">Estimated Income</label>
-                <input id="f-estimated_income" type="text" class="crm-input" placeholder="$0 / yr">
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-surrender_period">Surrender Period</label>
-                <input id="f-surrender_period" type="text" class="crm-input" placeholder="e.g. 7 years">
-              </div>
-
-              <div class="crm-field crm-field-check-solo">
-                <label class="crm-label">Options</label>
-                <label class="crm-check-label" style="margin-top:.3rem">
-                  <input id="f-income_rider" type="checkbox">
-                  <span>Income Rider Attached</span>
-                </label>
-              </div>
-
-            </div>
-            <div class="crm-footer">
-              <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'annuity')">Save Changes</button>
-              <span class="crm-saved hidden" id="saved-annuity">Saved!</span>
-            </div>
-          </div>
-
-          <!-- Follow-Up Information -->
-          <div class="card crm-card">
-            <h2 class="crm-card-title">Follow-Up Information</h2>
-            <div class="crm-grid">
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-next_follow_up_date">Next Follow-Up Date</label>
-                <input id="f-next_follow_up_date" type="date" class="crm-input">
-              </div>
-
-              <div class="crm-field">
-                <label class="crm-label" for="f-last_contact_date">Last Contact Date</label>
-                <input id="f-last_contact_date" type="date" class="crm-input">
-              </div>
-
-              <div class="crm-field crm-field-full">
-                <label class="crm-label" for="f-commission_estimate">Commission Estimate</label>
-                <input id="f-commission_estimate" type="text" class="crm-input" placeholder="$0">
-              </div>
-
-            </div>
-            <div class="crm-footer">
-              <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'followup')">Save Changes</button>
-              <span class="crm-saved hidden" id="saved-followup">Saved!</span>
-            </div>
-          </div>
-
-          <!-- Recent Calls -->
-          <div class="card" id="recent-calls-card">
-            <h2 class="card-title">Recent Calls</h2>
-            <div id="calls-list" class="timeline"></div>
-          </div>
-
-          <!-- Add Note -->
-          <div class="card">
-            <h2 class="card-title">Add Note</h2>
-            <textarea id="new-note-body" class="note-textarea" placeholder="Type a note…" rows="3"></textarea>
-            <button id="add-note-btn" class="btn btn-primary">Save Note</button>
-          </div>
-
-          <!-- Notes -->
-          <div class="card">
-            <h2 class="card-title">Notes</h2>
-            <div id="notes-list" class="timeline"></div>
-          </div>
-
+        <!-- desktop col 1, mobile row 1 -->
+        <div class="card card-contact-info">
+          <h2 class="card-title">Contact Info</h2>
+          <div id="contact-info" class="info-grid"></div>
         </div>
 
-        <!-- ── Right column ────────────────────────────────────────── -->
-        <div>
-          <div class="card">
-            <h2 class="card-title">Activity &amp; Form Submissions</h2>
-            <div id="comms-list" class="timeline"></div>
+        <!-- desktop col 1, mobile row 2 -->
+        <div class="card card-appointments" id="appointments-card">
+          <div class="card-section-header">
+            <h2 class="card-title" style="margin-bottom:0">Appointments</h2>
+            <button id="add-appt-btn" class="btn btn-primary btn-sm" onclick="toggleApptForm()">+ Add</button>
           </div>
-
-          <!-- Appointments -->
-          <div class="card" id="appointments-card">
-            <div class="card-section-header">
-              <h2 class="card-title" style="margin-bottom:0">Appointments</h2>
-              <button id="add-appt-btn" class="btn btn-primary btn-sm" onclick="toggleApptForm()">+ Add</button>
-            </div>
-
-            <!-- Inline add form (hidden by default) -->
-            <div id="appt-form" class="appt-form hidden">
-              <div class="appt-form-grid">
-                <div class="crm-field">
-                  <label class="crm-label" for="appt-type">Appointment Type</label>
-                  <select id="appt-type" class="crm-select">
-                    <option value="">— Select —</option>
-                    <option>Phone Call</option>
-                    <option>Video Call</option>
-                    <option>In-Person Meeting</option>
-                    <option>Strategy Session</option>
-                    <option>Plan Review</option>
-                    <option>Application Meeting</option>
-                    <option>Follow-Up Call</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div class="crm-field">
-                  <label class="crm-label" for="appt-datetime">Date &amp; Time (CT)</label>
-                  <input id="appt-datetime" type="datetime-local" class="crm-input">
-                </div>
-                <div class="crm-field crm-field-full">
-                  <label class="crm-label" for="appt-location">Location / Link (optional)</label>
-                  <input id="appt-location" type="text" class="crm-input" placeholder="e.g. Zoom link or office address">
-                </div>
-                <div class="crm-field crm-field-full">
-                  <label class="crm-label" for="appt-notes">Notes (optional)</label>
-                  <textarea id="appt-notes" class="crm-input" rows="2" placeholder="Any notes about this appointment…"></textarea>
-                </div>
+          <div id="appt-form" class="appt-form hidden">
+            <div class="appt-form-grid">
+              <div class="crm-field">
+                <label class="crm-label" for="appt-type">Appointment Type</label>
+                <select id="appt-type" class="crm-select">
+                  <option value="">— Select —</option>
+                  <option>Phone Call</option>
+                  <option>Video Call</option>
+                  <option>In-Person Meeting</option>
+                  <option>Strategy Session</option>
+                  <option>Plan Review</option>
+                  <option>Application Meeting</option>
+                  <option>Follow-Up Call</option>
+                  <option>Other</option>
+                </select>
               </div>
-              <div class="appt-form-footer">
-                <button id="appt-save-btn" class="btn btn-primary" onclick="saveAppointment()">Save Appointment</button>
-                <button class="btn-section-cancel" onclick="toggleApptForm(false)">Cancel</button>
+              <div class="crm-field">
+                <label class="crm-label" for="appt-datetime">Date &amp; Time (CT)</label>
+                <input id="appt-datetime" type="datetime-local" class="crm-input">
+              </div>
+              <div class="crm-field crm-field-full">
+                <label class="crm-label" for="appt-location">Location / Link (optional)</label>
+                <input id="appt-location" type="text" class="crm-input" placeholder="e.g. Zoom link or office address">
+              </div>
+              <div class="crm-field crm-field-full">
+                <label class="crm-label" for="appt-notes">Notes (optional)</label>
+                <textarea id="appt-notes" class="crm-input" rows="2" placeholder="Any notes about this appointment…"></textarea>
               </div>
             </div>
-
-            <div id="appts-list">
-              <p class="text-muted">No appointments yet.</p>
+            <div class="appt-form-footer">
+              <button id="appt-save-btn" class="btn btn-primary" onclick="saveAppointment()">Save Appointment</button>
+              <button class="btn-section-cancel" onclick="toggleApptForm(false)">Cancel</button>
             </div>
           </div>
+          <div id="appts-list">
+            <p class="text-muted">No appointments yet.</p>
+          </div>
+        </div>
 
-          <!-- Email History -->
-          <div class="card" id="email-history-card">
-            <div class="card-section-header">
-              <h2 class="card-title" style="margin-bottom:0">Email History</h2>
-              <button id="compose-email-btn" class="btn-email hidden" title="Send email">✉ Compose</button>
+        <!-- desktop col 1, mobile row 3 -->
+        <div class="card crm-card card-followup">
+          <h2 class="crm-card-title">Follow-Up Information</h2>
+          <div class="crm-grid">
+            <div class="crm-field">
+              <label class="crm-label" for="f-next_follow_up_date">Next Follow-Up Date</label>
+              <input id="f-next_follow_up_date" type="date" class="crm-input">
             </div>
-            <div id="email-history-list">
-              <p class="text-muted">No emails sent yet.</p>
+            <div class="crm-field">
+              <label class="crm-label" for="f-last_contact_date">Last Contact Date</label>
+              <input id="f-last_contact_date" type="date" class="crm-input">
+            </div>
+            <div class="crm-field crm-field-full">
+              <label class="crm-label" for="f-commission_estimate">Commission Estimate</label>
+              <input id="f-commission_estimate" type="text" class="crm-input" placeholder="$0">
             </div>
           </div>
+          <div class="crm-footer">
+            <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'followup')">Save Changes</button>
+            <span class="crm-saved hidden" id="saved-followup">Saved!</span>
+          </div>
+        </div>
+
+        <!-- desktop col 1, mobile row 4 -->
+        <div class="card card-recent-calls" id="recent-calls-card">
+          <h2 class="card-title">Recent Calls</h2>
+          <div id="calls-list" class="timeline"></div>
+        </div>
+
+        <!-- desktop col 1, mobile row 5 -->
+        <div class="card card-email-history" id="email-history-card">
+          <div class="card-section-header">
+            <h2 class="card-title" style="margin-bottom:0">Email History</h2>
+            <button id="compose-email-btn" class="btn-email hidden" title="Send email">✉ Compose</button>
+          </div>
+          <div id="email-history-list">
+            <p class="text-muted">No emails sent yet.</p>
+          </div>
+        </div>
+
+        <!-- desktop col 2, mobile row 6 -->
+        <div class="card card-retirement crm-card">
+          <h2 class="crm-card-title">Retirement Information</h2>
+          <div class="crm-grid">
+            <div class="crm-field">
+              <label class="crm-label" for="f-retirement_account_type">Retirement Account Type</label>
+              <select id="f-retirement_account_type" class="crm-select">
+                <option value="">— Select —</option>
+                <option>401(k)</option>
+                <option>Traditional IRA</option>
+                <option>Roth IRA</option>
+                <option>403(b)</option>
+                <option>457(b)</option>
+                <option>TSP</option>
+                <option>Pension</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-current_institution">Current Institution</label>
+              <input id="f-current_institution" type="text" class="crm-input" placeholder="e.g. Fidelity, Vanguard">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-estimated_rollover_amount">Estimated Rollover Amount</label>
+              <input id="f-estimated_rollover_amount" type="text" class="crm-input" placeholder="$0">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-retirement_timeline">Retirement Timeline</label>
+              <select id="f-retirement_timeline" class="crm-select">
+                <option value="">— Select —</option>
+                <option>Already Retired</option>
+                <option>Within 1 Year</option>
+                <option>1-3 Years</option>
+                <option>3-5 Years</option>
+                <option>5-10 Years</option>
+                <option>10+ Years</option>
+              </select>
+            </div>
+            <div class="crm-field crm-field-full">
+              <label class="crm-label">Additional Details</label>
+              <div class="crm-checks">
+                <label class="crm-check-label">
+                  <input id="f-has_current_advisor" type="checkbox">
+                  <span>Current Advisor</span>
+                </label>
+                <label class="crm-check-label">
+                  <input id="f-interested_in_roth_conversion" type="checkbox">
+                  <span>Interested in Roth Conversion</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="crm-footer">
+            <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'retirement')">Save Changes</button>
+            <span class="crm-saved hidden" id="saved-retirement">Saved!</span>
+          </div>
+        </div>
+
+        <!-- desktop col 2, mobile row 7 -->
+        <div class="card card-insurance crm-card">
+          <h2 class="crm-card-title">Insurance Information</h2>
+          <div class="crm-grid">
+            <div class="crm-field">
+              <label class="crm-label" for="f-insurance_company">Insurance Company</label>
+              <input id="f-insurance_company" type="text" class="crm-input" placeholder="e.g. Mutual of Omaha">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-policy_type">Policy Type</label>
+              <select id="f-policy_type" class="crm-select">
+                <option value="">— Select —</option>
+                <option>Term Life</option>
+                <option>Whole Life</option>
+                <option>Universal Life</option>
+                <option>Indexed Universal Life (IUL)</option>
+                <option>Final Expense</option>
+                <option>Mortgage Protection</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-face_amount">Face Amount</label>
+              <input id="f-face_amount" type="text" class="crm-input" placeholder="$0">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-monthly_premium">Monthly Premium</label>
+              <input id="f-monthly_premium" type="text" class="crm-input" placeholder="$0">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-annual_premium">Annual Premium</label>
+              <input id="f-annual_premium" type="text" class="crm-input" placeholder="$0">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-policy_status">Policy Status</label>
+              <select id="f-policy_status" class="crm-select">
+                <option value="">— Select —</option>
+                <option>Applied</option>
+                <option>Pending Underwriting</option>
+                <option>Issued / In-Force</option>
+                <option>Lapsed</option>
+                <option>Cancelled</option>
+              </select>
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-application_date">Application Date</label>
+              <input id="f-application_date" type="date" class="crm-input">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-policy_issue_date">Policy Issue Date</label>
+              <input id="f-policy_issue_date" type="date" class="crm-input">
+            </div>
+          </div>
+          <div class="crm-footer">
+            <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'life')">Save Changes</button>
+            <span class="crm-saved hidden" id="saved-life">Saved!</span>
+          </div>
+        </div>
+
+        <!-- desktop col 2, mobile row 8 -->
+        <div class="card card-annuity crm-card">
+          <h2 class="crm-card-title">Annuity Information</h2>
+          <div class="crm-grid">
+            <div class="crm-field">
+              <label class="crm-label" for="f-annuity_carrier">Annuity Carrier</label>
+              <input id="f-annuity_carrier" type="text" class="crm-input" placeholder="e.g. Athene, Allianz">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-annuity_type">Annuity Type</label>
+              <select id="f-annuity_type" class="crm-select">
+                <option value="">— Select —</option>
+                <option>Fixed Annuity</option>
+                <option>Fixed Indexed Annuity (FIA)</option>
+                <option>Multi-Year Guaranteed (MYGA)</option>
+                <option>Variable Annuity</option>
+                <option>SPIA</option>
+                <option>QLAC</option>
+              </select>
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-annuity_premium">Premium Amount</label>
+              <input id="f-annuity_premium" type="text" class="crm-input" placeholder="$0">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-estimated_income">Estimated Income</label>
+              <input id="f-estimated_income" type="text" class="crm-input" placeholder="$0 / yr">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-surrender_period">Surrender Period</label>
+              <input id="f-surrender_period" type="text" class="crm-input" placeholder="e.g. 7 years">
+            </div>
+            <div class="crm-field crm-field-check-solo">
+              <label class="crm-label">Options</label>
+              <label class="crm-check-label" style="margin-top:.3rem">
+                <input id="f-income_rider" type="checkbox">
+                <span>Income Rider Attached</span>
+              </label>
+            </div>
+          </div>
+          <div class="crm-footer">
+            <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'annuity')">Save Changes</button>
+            <span class="crm-saved hidden" id="saved-annuity">Saved!</span>
+          </div>
+        </div>
+
+        <!-- desktop col 2, mobile row 9 -->
+        <div class="card card-activity">
+          <h2 class="card-title">Activity &amp; Form Submissions</h2>
+          <div id="comms-list" class="timeline"></div>
+        </div>
+
+        <!-- desktop col 2, mobile row 10 -->
+        <div class="card card-add-note">
+          <h2 class="card-title">Add Note</h2>
+          <textarea id="new-note-body" class="note-textarea" placeholder="Type a note…" rows="3"></textarea>
+          <button id="add-note-btn" class="btn btn-primary">Save Note</button>
+        </div>
+
+        <!-- desktop col 2, mobile row 11 -->
+        <div class="card card-notes">
+          <h2 class="card-title">Notes</h2>
+          <div id="notes-list" class="timeline"></div>
         </div>
 
       </div><!-- /detail-grid -->

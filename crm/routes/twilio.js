@@ -14,20 +14,45 @@ const db      = require('../db/database');
 const SMS_BODY =
   'Hi, this is Loretta with Prosperity Life & Financial Solutions. Sorry I missed your call. How can I help?';
 
+// Returns TwiML greeting for the voicemail prompt.
+// Set VOICEMAIL_GREETING_URL env var to use a hosted MP3; defaults to <Say>.
+function greetingTwiml() {
+  const url = process.env.VOICEMAIL_GREETING_URL;
+  if (url) return `<Play>${escXml(url)}</Play>`;
+  return `<Say voice="Polly.Joanna">Hi, you've reached Loretta at Prosperity Life and Financial Solutions. I'm unavailable right now. Please leave your name, number, and a brief message after the beep and I'll call you back as soon as possible. Thank you.</Say>`;
+}
+
 async function sendMissedCallSms(callId) {
   const call = db.prepare('SELECT * FROM comm_calls WHERE id = ?').get(callId);
-  if (!call || call.auto_sms_sent) return;
+  if (!call) {
+    console.warn(`[twilio/sms] call #${callId}: record not found — skipping`);
+    return;
+  }
+  if (call.auto_sms_sent) {
+    console.log(`[twilio/sms] call #${callId}: SMS already sent — skipping duplicate`);
+    return;
+  }
 
   const toNumber   = call.from_number;
   const fromNumber = process.env.TWILIO_FROM_NUMBER;
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken  = process.env.TWILIO_AUTH_TOKEN;
 
-  if (!toNumber || !fromNumber || !accountSid || !authToken) {
-    console.warn(`[twilio/sms] call #${callId}: missing phone or Twilio credentials — skipping auto-reply`);
+  if (!toNumber) {
+    console.warn(`[twilio/sms] call #${callId}: from_number is blank — cannot send SMS`);
+    return;
+  }
+  if (!fromNumber || !accountSid || !authToken) {
+    console.warn(
+      `[twilio/sms] call #${callId}: env vars missing — ` +
+      `TWILIO_FROM_NUMBER=${fromNumber ? 'set' : 'MISSING'} ` +
+      `TWILIO_ACCOUNT_SID=${accountSid ? 'set' : 'MISSING'} ` +
+      `TWILIO_AUTH_TOKEN=${authToken ? 'set' : 'MISSING'}`
+    );
     return;
   }
 
+  console.log(`[twilio/sms] call #${callId}: sending auto-reply to ${toNumber} from ${fromNumber}`);
   const client = require('twilio')(accountSid, authToken);
   await client.messages.create({ body: SMS_BODY, from: fromNumber, to: toNumber });
 
@@ -40,7 +65,7 @@ async function sendMissedCallSms(callId) {
     `).run(call.contact_id, SMS_BODY);
   }
 
-  console.log(`[twilio/sms] Auto-reply sent to ${toNumber} for call #${callId}`);
+  console.log(`[twilio/sms] call #${callId}: auto-reply SMS delivered to ${toNumber}`);
 }
 
 function escXml(str) {
@@ -54,10 +79,8 @@ function escXml(str) {
 // Match an inbound caller's E.164 number to a CRM contact.
 function findContactByPhone(fromE164) {
   if (!fromE164) return null;
-  // Direct E.164 match on the indexed phone_e164 column
   let c = db.prepare('SELECT * FROM contacts WHERE phone_e164 = ?').get(fromE164);
   if (c) return c;
-  // Normalise to 10 digits and match the stored "(XXX) XXX-XXXX" format
   const digits = fromE164.replace(/\D/g, '');
   const ten    = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
   if (ten.length !== 10) return null;
@@ -72,23 +95,29 @@ function findContactByPhone(fromE164) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── POST /api/twilio/incoming ────────────────────────────────────────────────
-// Twilio Voice Webhook — set this URL in your Twilio Phone Number configuration:
-//   https://<your-render-domain>/api/twilio/incoming
+// Twilio Voice Webhook — set this URL in your Twilio Phone Number configuration.
 //
 // Flow: incoming call → ring agent's personal phone for 20 s →
-//       if answered: bridge; if not: play voicemail greeting + record.
+//   if answered → bridge (DialCallStatus=completed in /voicemail)
+//   if not answered → play Twilio voicemail greeting + record (/voicemail-save)
+//   if caller hung up before agent answered → SMS sent immediately (canceled branch)
 //
-// The agent sees the Twilio business number as caller ID so they know
-// it is a business call. The actual caller number is stored in the CRM.
+// IMPORTANT: Twilio reports DialCallStatus='completed' even when the agent's
+// PERSONAL PHONE VOICEMAIL answers (not a human). We cannot distinguish this
+// from a real answer using DialCallStatus alone. The /call-ended StatusCallback
+// (registered via REST API below) fires after the whole call ends and sends SMS
+// if no Twilio recording was saved — this covers the personal-voicemail case.
 router.post('/incoming', (req, res) => {
-  const callerNumber = req.body.From  || '';
+  const callerNumber = req.body.From    || '';
   const callSid      = req.body.CallSid || '';
-  const agentPhone   = process.env.AGENT_PHONE_NUMBER  || '';
-  const twilioNumber = process.env.TWILIO_FROM_NUMBER  || '';
+  const agentPhone   = process.env.AGENT_PHONE_NUMBER || '';
+  const twilioNumber = process.env.TWILIO_FROM_NUMBER || '';
   const publicUrl    = (process.env.CRM_PUBLIC_URL || '').replace(/\/$/, '');
 
+  console.log(`[twilio/incoming] CallSid=${callSid} From=${callerNumber || '(unknown)'} agentPhone=${agentPhone || 'NOT SET'}`);
+
   if (!agentPhone || !twilioNumber) {
-    // Misconfigured — play a generic message and hang up
+    console.error('[twilio/incoming] AGENT_PHONE_NUMBER or TWILIO_FROM_NUMBER not set — cannot route call');
     res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna">Thank you for calling. Please try again later.</Say>
@@ -97,7 +126,6 @@ router.post('/incoming', (req, res) => {
     return;
   }
 
-  // Match caller to a CRM contact; auto-create Unknown Caller record if not found
   let contact = findContactByPhone(callerNumber);
   if (!contact && callerNumber) {
     const digits    = callerNumber.replace(/\D/g, '');
@@ -113,14 +141,17 @@ router.post('/incoming', (req, res) => {
     `).run('Unknown Caller', dispPhone, dispPhone, e164Phone || callerNumber,
            new Date().toISOString());
     contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(ins.lastInsertRowid);
+    console.log(`[twilio/incoming] Created new contact id=${contact.id} phone=${dispPhone}`);
+  } else if (contact) {
+    console.log(`[twilio/incoming] Matched contact id=${contact.id} name="${contact.first_name} ${contact.last_name}"`);
   }
-  const contactId   = contact ? contact.id : null;
+
+  const contactId   = contact ? contact.id   : null;
   const contactName = contact
     ? [contact.first_name, contact.last_name].filter(Boolean).join(' ')
     : 'Unknown Caller';
   const now = new Date().toISOString();
 
-  // Insert inbound call log
   const result = db.prepare(`
     INSERT INTO comm_calls
       (contact_id, contact_name, direction, from_number, to_number,
@@ -129,7 +160,8 @@ router.post('/incoming', (req, res) => {
   `).run(contactId, contactName, callerNumber, agentPhone, callSid, now);
   const callId = result.lastInsertRowid;
 
-  // Stamp the contact card so the pipeline shows "Called Today"
+  console.log(`[twilio/incoming] call_id=${callId} contact_id=${contactId || 'none'} contact="${contactName}" ringing agent`);
+
   if (contactId) {
     db.prepare(
       'UPDATE contacts SET last_called_at = ?, last_call_status = ? WHERE id = ?'
@@ -137,8 +169,24 @@ router.post('/incoming', (req, res) => {
   }
 
   const voicemailUrl = `${publicUrl}/api/twilio/voicemail?call_id=${callId}`;
+  const callEndedUrl = `${publicUrl}/api/twilio/call-ended?call_id=${callId}`;
 
-  // Ring the agent. callerId = Twilio number so agent knows it's a business call.
+  // Register a StatusCallback on the PARENT call (the caller's leg).
+  // Fires when the entire call ends — used to send missed-call SMS if no recording
+  // was saved (catches the agent's personal-voicemail intercept case).
+  // Fire-and-forget: do not block the TwiML response.
+  const acctSid   = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (acctSid && authToken && callSid) {
+    require('twilio')(acctSid, authToken)
+      .calls(callSid)
+      .update({ statusCallback: callEndedUrl, statusCallbackMethod: 'POST' })
+      .then(() => console.log(`[twilio/incoming] call_id=${callId}: StatusCallback registered → ${callEndedUrl}`))
+      .catch(err  => console.warn(`[twilio/incoming] call_id=${callId}: StatusCallback registration failed: ${err.message}`));
+  } else {
+    console.warn(`[twilio/incoming] call_id=${callId}: cannot register StatusCallback — TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN not set`);
+  }
+
   res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Dial callerId="${escXml(twilioNumber)}"
@@ -151,16 +199,24 @@ router.post('/incoming', (req, res) => {
 });
 
 // ─── POST /api/twilio/voicemail ───────────────────────────────────────────────
-// Dial action — Twilio posts here when the Dial verb finishes (agent answered,
-// timed-out, or caller hung up before agent answered).
+// Dial action — Twilio posts here when the <Dial> verb finishes.
+//
+// DialCallStatus values for the agent's phone leg:
+//   completed — agent answered (OR agent's personal voicemail answered — indistinguishable
+//               without AMD). /call-ended will handle SMS for the voicemail intercept case.
+//   canceled  — caller hung up before agent answered. Send SMS immediately.
+//   no-answer/busy/failed — agent unavailable. Play Twilio voicemail + record.
 router.post('/voicemail', (req, res) => {
-  const { DialCallStatus } = req.body;
+  const { DialCallStatus, DialCallDuration } = req.body;
   const callId    = req.query.call_id;
   const publicUrl = (process.env.CRM_PUBLIC_URL || '').replace(/\/$/, '');
   const now       = new Date().toISOString();
 
-  // ── Agent answered ──────────────────────────────────────────────────────────
+  console.log(`[twilio/voicemail] call_id=${callId} DialCallStatus=${DialCallStatus} DialCallDuration=${DialCallDuration || '0'}s`);
+
+  // ── Agent answered (or agent's personal voicemail intercepted) ──────────────
   if (DialCallStatus === 'completed') {
+    console.log(`[twilio/voicemail] call_id=${callId}: marking answered — if agent's personal voicemail intercepted, /call-ended will send SMS`);
     db.prepare(
       "UPDATE comm_calls SET status = 'answered', answered_at = ?, ended_at = ? WHERE id = ?"
     ).run(now, now, callId);
@@ -177,6 +233,7 @@ router.post('/voicemail', (req, res) => {
 
   // ── Caller hung up before agent answered ────────────────────────────────────
   if (DialCallStatus === 'canceled') {
+    console.log(`[twilio/voicemail] call_id=${callId}: caller hung up before agent answered — marking missed, queuing SMS`);
     db.prepare(
       "UPDATE comm_calls SET status = 'missed', ended_at = ? WHERE id = ?"
     ).run(now, callId);
@@ -187,7 +244,6 @@ router.post('/voicemail', (req, res) => {
         .run('missed', call.contact_id);
     }
 
-    // Caller hung up before voicemail prompt — send auto-reply SMS
     sendMissedCallSms(callId).catch(err =>
       console.error(`[twilio/sms] canceled-branch error for call #${callId}:`, err.message)
     );
@@ -196,7 +252,8 @@ router.post('/voicemail', (req, res) => {
     return;
   }
 
-  // ── Agent did not answer (no-answer / busy / failed) → voicemail ───────────
+  // ── Agent did not answer (no-answer / busy / failed) → Twilio voicemail ─────
+  console.log(`[twilio/voicemail] call_id=${callId}: DialCallStatus=${DialCallStatus} → agent unavailable, starting voicemail recording`);
   db.prepare(
     "UPDATE comm_calls SET status = 'missed', ended_at = ? WHERE id = ?"
   ).run(now, callId);
@@ -208,13 +265,11 @@ router.post('/voicemail', (req, res) => {
   }
 
   const saveUrl = `${publicUrl}/api/twilio/voicemail-save?call_id=${callId}`;
+  console.log(`[twilio/voicemail] call_id=${callId}: playing greeting, recording to ${saveUrl}`);
 
-  // Play professional greeting then record.
-  // transcribe="false" until TRANSCRIPTION_ENABLED env var is set (Twilio charges per minute).
-  // transcribeCallback is wired up so enabling transcription later requires only the env var.
   res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Play>https://prosperity-crm.onrender.com/audio/business-voicemail.mp3</Play>
+  ${greetingTwiml()}
   <Record
     action="${escXml(saveUrl)}"
     method="POST"
@@ -230,56 +285,134 @@ router.post('/voicemail', (req, res) => {
 });
 
 // ─── POST /api/twilio/voicemail-save ─────────────────────────────────────────
-// Record action — Twilio posts here when the recording finishes.
-// Saves the recording URL, logs a note on the contact.
+// Record action — Twilio posts here when the <Record> verb ends.
+// RecordingUrl + RecordingDuration > 0 = real voicemail left, no SMS.
+// RecordingUrl absent or duration = 0 = caller hung up before/during recording, send SMS.
 router.post('/voicemail-save', (req, res) => {
-  const { RecordingUrl, RecordingDuration } = req.body;
+  const { RecordingUrl, RecordingDuration, RecordingSid } = req.body;
   const callId   = req.query.call_id;
   const now      = new Date().toISOString();
   const duration = RecordingDuration ? parseInt(RecordingDuration, 10) : null;
-  // Twilio serves the recording as .mp3 when the format is appended
   const recUrl   = RecordingUrl ? `${RecordingUrl}.mp3` : null;
 
+  console.log(
+    `[twilio/voicemail-save] call_id=${callId} ` +
+    `RecordingSid=${RecordingSid || 'none'} ` +
+    `RecordingUrl=${RecordingUrl || 'none'} ` +
+    `duration=${duration ?? 'null'}s`
+  );
+
+  // A real voicemail requires both a URL and a non-zero duration.
+  const hasRealVoicemail = !!(recUrl && duration && duration > 0);
+  const status = hasRealVoicemail ? 'voicemail' : 'missed';
+
+  console.log(`[twilio/voicemail-save] call_id=${callId}: hasRealVoicemail=${hasRealVoicemail} → status=${status}`);
+
   db.prepare(
-    "UPDATE comm_calls SET status = 'voicemail', recording_url = ?, duration_sec = ?, ended_at = ? WHERE id = ?"
-  ).run(recUrl, duration, now, callId);
+    `UPDATE comm_calls SET status = ?, recording_url = ?, recording_sid = ?, duration_sec = ?, ended_at = ? WHERE id = ?`
+  ).run(status, recUrl, RecordingSid || null, duration, now, callId);
 
   const call = db.prepare(
     'SELECT contact_id, from_number, contact_name FROM comm_calls WHERE id = ?'
   ).get(callId);
 
-  if (call) {
-    if (call.contact_id) {
-      db.prepare('UPDATE contacts SET last_call_status = ? WHERE id = ?')
-        .run('voicemail', call.contact_id);
-    }
-    if (call.contact_id && recUrl) {
-      const durStr  = duration ? `${duration}s` : 'unknown length';
-      const from    = call.from_number || 'unknown number';
+  if (call?.contact_id) {
+    db.prepare('UPDATE contacts SET last_call_status = ? WHERE id = ?')
+      .run(status, call.contact_id);
+
+    if (hasRealVoicemail) {
       db.prepare(
         'INSERT INTO contact_notes (contact_id, body) VALUES (?, ?)'
       ).run(
         call.contact_id,
-        `📞 Voicemail received (${durStr}) from ${from}. Recording saved to call log.`
+        `📞 Voicemail received (${duration}s) from ${call.from_number || 'unknown'}. Recording saved to call log.`
       );
     }
   }
 
-  // If caller stayed on line but left no real voicemail, send auto-reply SMS.
-  // duration = 0 or null means nothing was recorded.
-  if (!duration) {
+  if (hasRealVoicemail) {
+    console.log(`[twilio/voicemail-save] call_id=${callId}: voicemail saved (${duration}s, ${RecordingSid}) — SMS suppressed`);
+  } else {
+    console.log(`[twilio/voicemail-save] call_id=${callId}: no usable recording (RecordingUrl=${RecordingUrl || 'null'} duration=${duration ?? 'null'}) — queuing missed-call SMS`);
     sendMissedCallSms(callId).catch(err =>
-      console.error(`[twilio/sms] voicemail-save (no message) error for call #${callId}:`, err.message)
+      console.error(`[twilio/sms] voicemail-save error for call #${callId}:`, err.message)
     );
   }
 
   res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>');
 });
 
+// ─── POST /api/twilio/call-ended ──────────────────────────────────────────────
+// Parent call StatusCallback — registered dynamically from /incoming via REST API.
+// Fires on every parent call status change; we only act on CallStatus=completed.
+//
+// Purpose: catch missed-call SMS cases that slip through the webhook-based branches:
+//   - Agent's personal voicemail intercepts call (DialCallStatus=completed, no Twilio recording)
+//   - Caller hangs up during voicemail greeting (before <Record> fires /voicemail-save)
+//
+// Decision: if no recording_url AND auto_sms_sent=0 → send SMS.
+// The auto_sms_sent flag prevents duplicates when SMS was already sent in /voicemail.
+router.post('/call-ended', (req, res) => {
+  const { CallSid, CallStatus, CallDuration } = req.body;
+  const callId = req.query.call_id;
+
+  console.log(
+    `[twilio/call-ended] call_id=${callId} ` +
+    `CallSid=${CallSid || 'none'} ` +
+    `CallStatus=${CallStatus} ` +
+    `CallDuration=${CallDuration || '0'}s`
+  );
+
+  // StatusCallback fires for multiple events; only act on final completion.
+  if (CallStatus !== 'completed') {
+    res.sendStatus(204);
+    return;
+  }
+
+  if (!callId) {
+    console.warn('[twilio/call-ended] missing call_id query param — cannot process');
+    res.sendStatus(204);
+    return;
+  }
+
+  const call = db.prepare('SELECT * FROM comm_calls WHERE id = ?').get(callId);
+  if (!call) {
+    console.warn(`[twilio/call-ended] call_id=${callId}: no comm_call record found`);
+    res.sendStatus(204);
+    return;
+  }
+
+  console.log(
+    `[twilio/call-ended] call_id=${callId}: ` +
+    `db_status=${call.status} ` +
+    `recording_url=${call.recording_url ? 'SET' : 'null'} ` +
+    `recording_sid=${call.recording_sid || 'null'} ` +
+    `auto_sms_sent=${call.auto_sms_sent}`
+  );
+
+  if (call.recording_url) {
+    console.log(`[twilio/call-ended] call_id=${callId}: voicemail recording exists — SMS suppressed`);
+    res.sendStatus(204);
+    return;
+  }
+
+  if (call.auto_sms_sent) {
+    console.log(`[twilio/call-ended] call_id=${callId}: SMS already sent (auto_sms_sent=1) — no duplicate`);
+    res.sendStatus(204);
+    return;
+  }
+
+  console.log(`[twilio/call-ended] call_id=${callId}: no recording and no prior SMS → sending missed-call auto-reply`);
+  sendMissedCallSms(callId).catch(err =>
+    console.error(`[twilio/sms] call-ended error for call #${callId}:`, err.message)
+  );
+
+  res.sendStatus(204);
+});
+
 // ─── POST /api/twilio/transcription ──────────────────────────────────────────
-// Transcription callback — placeholder for when transcription is enabled.
+// Transcription callback — fires when transcription is enabled on <Record>.
 // To activate: set transcribe="true" in the <Record> verb above and deploy.
-// Twilio will call this endpoint asynchronously with TranscriptionText.
 router.post('/transcription', (req, res) => {
   const { TranscriptionText, TranscriptionStatus } = req.body;
   const callId = req.query.call_id;
@@ -307,8 +440,6 @@ router.post('/transcription', (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── POST /api/twilio/twiml ───────────────────────────────────────────────────
-// Called by Twilio when the agent answers their phone (outbound bridge flow).
-// Returns TwiML that dials the lead and bridges both legs.
 router.post('/twiml', (req, res) => {
   const { call_id, to, name } = req.query;
   const fromNumber = process.env.TWILIO_FROM_NUMBER || '';
@@ -335,7 +466,6 @@ router.post('/twiml', (req, res) => {
 });
 
 // ─── POST /api/twilio/dial-result/:call_id ────────────────────────────────────
-// Twilio posts here when the outbound <Dial> verb completes (lead leg outcome).
 router.post('/dial-result/:call_id', (req, res) => {
   const { DialCallStatus, DialCallDuration } = req.body;
   const callId = req.params.call_id;
@@ -365,8 +495,6 @@ router.post('/dial-result/:call_id', (req, res) => {
 });
 
 // ─── POST /api/twilio/status/:call_id ────────────────────────────────────────
-// Twilio status callback for the outbound parent (agent) leg.
-// Tracks ringing → catches agent no-answer/busy before <Dial> fires.
 router.post('/status/:call_id', (req, res) => {
   const { CallStatus } = req.body;
   const callId = req.params.call_id;

@@ -179,6 +179,7 @@ addCol('comm_calls', 'notes',          'TEXT');
 addCol('comm_calls', 'transcription',  'TEXT');
 addCol('comm_calls', 'listened_at',    'TEXT'); // marks voicemail/missed as reviewed
 addCol('comm_calls', 'auto_sms_sent',  'INTEGER DEFAULT 0');
+addCol('comm_calls', 'recording_sid',  'TEXT');  // Twilio RecordingSid for deduplication
 // Cal.com integration
 addCol('appointments', 'cal_booking_uid', 'TEXT');
 try {

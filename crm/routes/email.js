@@ -170,13 +170,54 @@ router.post('/send', async (req, res) => {
 });
 
 // ─── GET /api/email/contact/:id ───────────────────────────────────────────────
+// Merges two sources:
+//   1. emails table — current records written by /api/email/send
+//   2. communications table comm_type='email' — legacy records from earlier sends
+// Deduplicates by gmail_message_id so emails that appear in both tables show once.
 
 router.get('/contact/:id', (req, res) => {
   try {
-    const rows = db.prepare(
-      `SELECT * FROM emails WHERE contact_id = ? ORDER BY sent_at DESC LIMIT 50`
-    ).all(req.params.id);
-    res.json(rows);
+    const cid = req.params.id;
+
+    // Primary source: emails table (has to_email, sent_at, gmail_message_id)
+    const fromEmails = db.prepare(
+      `SELECT id, contact_id, to_email, subject, body, status,
+              gmail_message_id, sent_at
+       FROM emails
+       WHERE contact_id = ?
+       ORDER BY sent_at DESC
+       LIMIT 100`
+    ).all(cid);
+
+    // Legacy source: communications rows with comm_type='email'
+    // Map column names to match emails table shape so renderEmailHistory handles both.
+    const fromComms = db.prepare(
+      `SELECT id, contact_id,
+              NULL              AS to_email,
+              subject,          body,         status,
+              external_id       AS gmail_message_id,
+              created_at        AS sent_at,
+              direction
+       FROM communications
+       WHERE contact_id = ? AND comm_type = 'email'
+       ORDER BY created_at DESC
+       LIMIT 100`
+    ).all(cid);
+
+    // Deduplicate: if a comms record shares gmail_message_id with an emails record, skip it
+    const seenGmailIds = new Set(fromEmails.map(e => e.gmail_message_id).filter(Boolean));
+    const legacyOnly = fromComms.filter(c =>
+      !c.gmail_message_id || !seenGmailIds.has(c.gmail_message_id)
+    );
+
+    // Merge and sort newest-first
+    const merged = [...fromEmails, ...legacyOnly]
+      .sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at))
+      .slice(0, 100);
+
+    console.log(`[email/contact/${cid}] ${fromEmails.length} from emails table + ${legacyOnly.length} legacy from communications = ${merged.length} total`);
+
+    res.json(merged);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

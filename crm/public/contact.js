@@ -217,8 +217,7 @@ function renderEmailHistory(emails) {
     <div class="email-log-item">
       <div class="email-log-subject">✉ ${escHtml(e.subject || '(No subject)')}</div>
       <div class="email-log-meta">
-        To: ${escHtml(e.to_email)}
-        &nbsp;·&nbsp; ${formatDate(e.sent_at, true)}
+        ${e.to_email ? `To: ${escHtml(e.to_email)} &nbsp;·&nbsp; ` : ''}${formatDate(e.sent_at, true)}
         &nbsp;·&nbsp; <span class="tag tag-green" style="font-size:.68rem;padding:.1rem .45rem">Sent</span>
       </div>
       ${e.body ? `<div class="email-log-preview">${escHtml(e.body.slice(0, 160))}${e.body.length > 160 ? '…' : ''}</div>` : ''}

@@ -71,22 +71,18 @@ async function sendMissedCallSms(callId) {
   console.log(`[twilio/sms] attempting send  sms_id=${smsId} to=${toNumber} from=${fromNumber}`);
 
   try {
-    const client  = require('twilio')(accountSid, authToken);
-    const message = await client.messages.create({ body: SMS_BODY, from: fromNumber, to: toNumber });
+    const client    = require('twilio')(accountSid, authToken);
+    const publicUrl = (process.env.CRM_PUBLIC_URL || '').replace(/\/$/, '');
+    const msgParams = { body: SMS_BODY, from: fromNumber, to: toNumber };
+    if (publicUrl) msgParams.statusCallback = `${publicUrl}/api/twilio/sms/status`;
+
+    const message = await client.messages.create(msgParams);
 
     console.log(`[twilio/sms] sent sid=${message.sid}  status=${message.status}`);
 
     db.prepare('UPDATE sms_messages SET twilio_sid = ?, status = ? WHERE id = ?')
       .run(message.sid, message.status || 'sent', smsId);
     db.prepare('UPDATE comm_calls SET auto_sms_sent = 1 WHERE id = ?').run(callId);
-
-    // Write to activity feed
-    if (call.contact_id) {
-      db.prepare(`
-        INSERT INTO communications (contact_id, comm_type, direction, subject, body, status)
-        VALUES (?, 'sms', 'outbound', 'Missed-call auto-reply', ?, 'sent')
-      `).run(call.contact_id, SMS_BODY);
-    }
   } catch (err) {
     console.error(`[twilio/sms] failed=${err.message}  code=${err.code || 'none'}`);
     if (err.status)   console.error(`[twilio/sms] failed http=${err.status}`);
@@ -483,8 +479,24 @@ router.post('/call-ended', (req, res) => {
 //   Messaging → Phone Numbers → Active Numbers → your number → "A MESSAGE COMES IN"
 //   URL: https://prosperity-crm.onrender.com/api/twilio/sms/inbound
 //   HTTP: POST
+//
+// NOTE: if you previously used this URL as a status callback too, Twilio may
+// POST delivery receipts here (MessageStatus present, Body absent). Those are
+// deflected below to the status-update path so they cannot create duplicate rows.
 router.post('/sms/inbound', (req, res) => {
-  const { From, To, Body, MessageSid, NumMedia } = req.body;
+  const { From, To, Body, MessageSid, MessageStatus } = req.body;
+
+  // Delivery receipts arrive with MessageStatus instead of a real Body.
+  // Route them to the status-update logic so they UPDATE the existing row.
+  if (MessageStatus && !Body) {
+    console.log(`[twilio/sms/inbound] deflecting delivery receipt → MessageSid=${MessageSid} status=${MessageStatus}`);
+    if (MessageSid && MessageStatus) {
+      db.prepare('UPDATE sms_messages SET status = ? WHERE twilio_sid = ?')
+        .run(MessageStatus.toLowerCase(), MessageSid);
+    }
+    res.sendStatus(204);
+    return;
+  }
 
   console.log(`[twilio/sms/inbound] MessageSid=${MessageSid} From=${From} To=${To} body="${(Body || '').slice(0, 60)}"`);
 
@@ -512,25 +524,39 @@ router.post('/sms/inbound', (req, res) => {
 
   const contactId = contact ? contact.id : null;
 
-  // Save to sms_messages (INSERT OR IGNORE deduplicates by twilio_sid)
+  // sms_messages is the sole authoritative store for SMS history.
+  // INSERT OR IGNORE deduplicates by the unique index on twilio_sid.
   db.prepare(`
     INSERT OR IGNORE INTO sms_messages
       (contact_id, direction, from_number, to_number, body, status, twilio_sid)
     VALUES (?, 'inbound', ?, ?, ?, 'received', ?)
   `).run(contactId, From || null, To || null, Body || '', MessageSid || null);
 
-  // Write to activity feed
-  if (contactId) {
-    db.prepare(`
-      INSERT INTO communications (contact_id, comm_type, direction, subject, body, status)
-      VALUES (?, 'sms', 'inbound', 'Inbound SMS', ?, 'received')
-    `).run(contactId, Body || '');
-  }
-
   console.log(`[twilio/sms/inbound] Saved — contact_id=${contactId} MessageSid=${MessageSid}`);
 
   // Respond with empty TwiML (no auto-reply to inbound SMS)
   res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+});
+
+// ─── POST /api/twilio/sms/status ─────────────────────────────────────────────
+// Twilio delivery-status callback for outbound SMS.
+// Configured automatically via statusCallback in messages.create().
+// Always UPDATEs the existing sms_messages row — never inserts a new row.
+router.post('/sms/status', (req, res) => {
+  const { MessageSid, MessageStatus, ErrorCode } = req.body;
+  if (!MessageSid || !MessageStatus) { res.sendStatus(204); return; }
+
+  const status = MessageStatus.toLowerCase();
+  const result = db.prepare('UPDATE sms_messages SET status = ? WHERE twilio_sid = ?')
+    .run(status, MessageSid);
+
+  if (result.changes) {
+    console.log(`[twilio/sms/status] ${MessageSid} → ${status}${ErrorCode ? '  error=' + ErrorCode : ''}`);
+  } else {
+    console.warn(`[twilio/sms/status] no sms_messages row found for sid=${MessageSid}`);
+  }
+
+  res.sendStatus(204);
 });
 
 // ─── POST /api/twilio/transcription ──────────────────────────────────────────

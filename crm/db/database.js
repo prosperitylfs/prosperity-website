@@ -214,6 +214,30 @@ try {
   if (!e.message.includes('already exists')) throw e;
 }
 
+// One-time cleanup: remove communications rows with comm_type='sms' that were
+// created as double-writes alongside sms_messages rows. These caused every SMS
+// to appear twice in the SMS History card. Safe to run on every boot — the DELETE
+// is a no-op once the duplicate rows are gone.
+try {
+  const del = db.prepare(`
+    DELETE FROM communications
+    WHERE comm_type = 'sms'
+      AND id IN (
+        SELECT c.id FROM communications c
+        WHERE c.comm_type = 'sms'
+          AND EXISTS (
+            SELECT 1 FROM sms_messages s
+            WHERE s.contact_id = c.contact_id
+          )
+      )
+  `).run();
+  if (del.changes > 0) {
+    console.log(`[db/migration] removed ${del.changes} duplicate communications.sms row(s)`);
+  }
+} catch (e) {
+  console.warn('[db/migration] sms cleanup skipped:', e.message);
+}
+
 // Gmail inbox sync — inbound email fields
 addCol('emails', 'from_email', 'TEXT');
 addCol('emails', 'thread_id',  'TEXT');

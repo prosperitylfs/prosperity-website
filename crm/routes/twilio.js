@@ -11,6 +11,38 @@ const db      = require('../db/database');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const SMS_BODY =
+  'Hi, this is Loretta with Prosperity Life & Financial Solutions. Sorry I missed your call. How can I help?';
+
+async function sendMissedCallSms(callId) {
+  const call = db.prepare('SELECT * FROM comm_calls WHERE id = ?').get(callId);
+  if (!call || call.auto_sms_sent) return;
+
+  const toNumber   = call.from_number;
+  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken  = process.env.TWILIO_AUTH_TOKEN;
+
+  if (!toNumber || !fromNumber || !accountSid || !authToken) {
+    console.warn(`[twilio/sms] call #${callId}: missing phone or Twilio credentials — skipping auto-reply`);
+    return;
+  }
+
+  const client = require('twilio')(accountSid, authToken);
+  await client.messages.create({ body: SMS_BODY, from: fromNumber, to: toNumber });
+
+  db.prepare('UPDATE comm_calls SET auto_sms_sent = 1 WHERE id = ?').run(callId);
+
+  if (call.contact_id) {
+    db.prepare(`
+      INSERT INTO communications (contact_id, comm_type, direction, subject, body, status)
+      VALUES (?, 'sms', 'outbound', 'Missed-call auto-reply', ?, 'sent')
+    `).run(call.contact_id, SMS_BODY);
+  }
+
+  console.log(`[twilio/sms] Auto-reply sent to ${toNumber} for call #${callId}`);
+}
+
 function escXml(str) {
   return String(str ?? '')
     .replace(/&/g, '&amp;')
@@ -155,6 +187,11 @@ router.post('/voicemail', (req, res) => {
         .run('missed', call.contact_id);
     }
 
+    // Caller hung up before voicemail prompt — send auto-reply SMS
+    sendMissedCallSms(callId).catch(err =>
+      console.error(`[twilio/sms] canceled-branch error for call #${callId}:`, err.message)
+    );
+
     res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
     return;
   }
@@ -226,6 +263,14 @@ router.post('/voicemail-save', (req, res) => {
         `📞 Voicemail received (${durStr}) from ${from}. Recording saved to call log.`
       );
     }
+  }
+
+  // If caller stayed on line but left no real voicemail, send auto-reply SMS.
+  // duration = 0 or null means nothing was recorded.
+  if (!duration) {
+    sendMissedCallSms(callId).catch(err =>
+      console.error(`[twilio/sms] voicemail-save (no message) error for call #${callId}:`, err.message)
+    );
   }
 
   res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>');

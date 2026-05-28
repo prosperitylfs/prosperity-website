@@ -174,10 +174,11 @@ addCol('contacts', 'commission_estimate', 'REAL');
 addCol('contacts', 'last_called_at',    'TEXT');
 addCol('contacts', 'last_call_status',  'TEXT');
 // comm_calls enrichment for click-to-call and voicemail
-addCol('comm_calls', 'contact_name', 'TEXT');
-addCol('comm_calls', 'notes',        'TEXT');
-addCol('comm_calls', 'transcription','TEXT');
-addCol('comm_calls', 'listened_at',  'TEXT'); // marks voicemail/missed as reviewed
+addCol('comm_calls', 'contact_name',   'TEXT');
+addCol('comm_calls', 'notes',          'TEXT');
+addCol('comm_calls', 'transcription',  'TEXT');
+addCol('comm_calls', 'listened_at',    'TEXT'); // marks voicemail/missed as reviewed
+addCol('comm_calls', 'auto_sms_sent',  'INTEGER DEFAULT 0');
 // Cal.com integration
 addCol('appointments', 'cal_booking_uid', 'TEXT');
 try {

@@ -191,7 +191,10 @@
         <div class="card card-email-history" id="email-history-card">
           <div class="card-section-header">
             <h2 class="card-title" style="margin-bottom:0">Email History</h2>
-            <button id="compose-email-btn" class="btn-email hidden" title="Send email">✉ Compose</button>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <button id="sync-email-btn" class="btn-sync-email hidden" title="Sync replies from this contact">↻ Sync Replies</button>
+              <button id="compose-email-btn" class="btn-email hidden" title="Send email">✉ Compose</button>
+            </div>
           </div>
           <div id="email-history-list">
             <p class="text-muted">No emails sent yet.</p>

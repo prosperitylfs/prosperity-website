@@ -5,7 +5,10 @@ const router       = express.Router();
 const db           = require('../db/database');
 const { google }   = require('googleapis');
 
-const SCOPES    = ['https://www.googleapis.com/auth/gmail.send'];
+const SCOPES    = [
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/gmail.readonly',
+];
 const FROM_NAME = process.env.GMAIL_FROM_NAME || 'Loretta Stewart';
 const FROM_ADDR = process.env.GMAIL_FROM      || 'loretta@prosperitylfs.com';
 
@@ -146,16 +149,18 @@ router.post('/send', async (req, res) => {
       requestBody: { raw: Buffer.from(raw).toString('base64url') },
     });
 
-    const gmailId = result.data.id;
-    const preview = body.length > 400 ? body.slice(0, 397) + '…' : body;
+    const gmailId  = result.data.id;
+    const threadId = result.data.threadId || null;
+    const preview  = body.length > 400 ? body.slice(0, 397) + '…' : body;
 
     if (contact_id) {
       db.prepare(`
-        INSERT INTO emails (contact_id, to_email, subject, body, status, gmail_message_id)
-        VALUES (?, ?, ?, ?, 'sent', ?)
-      `).run(contact_id, to_email, subject, preview, gmailId);
+        INSERT OR IGNORE INTO emails
+          (contact_id, to_email, subject, body, status, gmail_message_id, thread_id, direction)
+        VALUES (?, ?, ?, ?, 'sent', ?, ?, 'outbound')
+      `).run(contact_id, to_email, subject, preview, gmailId, threadId);
 
-      // Also land in the communications timeline
+      // Also land in the communications timeline (activity feed excludes comm_type='email')
       db.prepare(`
         INSERT INTO communications (contact_id, comm_type, direction, subject, body, status, external_id)
         VALUES (?, 'email', 'outbound', ?, ?, 'sent', ?)
@@ -179,10 +184,10 @@ router.get('/contact/:id', (req, res) => {
   try {
     const cid = req.params.id;
 
-    // Primary source: emails table (has to_email, sent_at, gmail_message_id)
+    // Primary source: emails table (includes new from_email, thread_id, direction columns)
     const fromEmails = db.prepare(
-      `SELECT id, contact_id, to_email, subject, body, status,
-              gmail_message_id, sent_at
+      `SELECT id, contact_id, to_email, from_email, subject, body, status,
+              gmail_message_id, thread_id, direction, sent_at
        FROM emails
        WHERE contact_id = ?
        ORDER BY sent_at DESC
@@ -193,11 +198,13 @@ router.get('/contact/:id', (req, res) => {
     // Map column names to match emails table shape so renderEmailHistory handles both.
     const fromComms = db.prepare(
       `SELECT id, contact_id,
-              NULL              AS to_email,
-              subject,          body,         status,
-              external_id       AS gmail_message_id,
-              created_at        AS sent_at,
-              direction
+              NULL        AS to_email,
+              NULL        AS from_email,
+              subject,    body,  status,
+              external_id AS gmail_message_id,
+              NULL        AS thread_id,
+              direction,
+              created_at  AS sent_at
        FROM communications
        WHERE contact_id = ? AND comm_type = 'email'
        ORDER BY created_at DESC
@@ -223,7 +230,114 @@ router.get('/contact/:id', (req, res) => {
   }
 });
 
+// ─── POST /api/email/sync ─────────────────────────────────────────────────────
+// Fetches recent inbound messages from Gmail for a specific contact and saves
+// any new replies to the emails table (direction='inbound').
+// Requires GMAIL_REFRESH_TOKEN to have been issued with gmail.readonly scope.
+// If the existing token lacks that scope, returns reauth_required:true.
+
+router.post('/sync', async (req, res) => {
+  const { contact_id } = req.body;
+  if (!contact_id) return res.status(400).json({ error: 'contact_id required' });
+
+  const contact = db.prepare('SELECT id, email FROM contacts WHERE id = ?').get(contact_id);
+  if (!contact)       return res.status(404).json({ error: 'Contact not found' });
+  if (!contact.email) return res.status(400).json({ error: 'Contact has no email address' });
+
+  try {
+    const auth  = authedClient();
+    const gmail = google.gmail({ version: 'v1', auth });
+
+    // Search inbox for messages sent by this contact
+    const listRes = await gmail.users.messages.list({
+      userId:     'me',
+      q:          `from:${contact.email}`,
+      maxResults: 50,
+    });
+
+    const msgList = listRes.data.messages || [];
+    let imported = 0;
+    let skipped  = 0;
+
+    for (const { id: msgId } of msgList) {
+      // Skip already-imported messages (UNIQUE index on gmail_message_id)
+      const exists = db.prepare('SELECT id FROM emails WHERE gmail_message_id = ?').get(msgId);
+      if (exists) { skipped++; continue; }
+
+      const msgRes = await gmail.users.messages.get({ userId: 'me', id: msgId, format: 'full' });
+      const msg    = msgRes.data;
+      const hdrs   = msg.payload.headers || [];
+      const hdr    = (name) => hdrs.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+
+      const fromEmail = hdr('From');
+      const toEmail   = hdr('To');
+      const subject   = hdr('Subject');
+      const threadId  = msg.threadId || null;
+
+      let receivedAt;
+      try { receivedAt = new Date(hdr('Date')).toISOString(); } catch { /* fall through */ }
+      if (!receivedAt || receivedAt === 'Invalid Date') {
+        receivedAt = new Date(parseInt(msg.internalDate, 10)).toISOString();
+      }
+
+      const bodyText = extractGmailBody(msg.payload);
+      const preview  = bodyText.slice(0, 500).trim();
+
+      db.prepare(`
+        INSERT OR IGNORE INTO emails
+          (contact_id, from_email, to_email, subject, body, status,
+           gmail_message_id, thread_id, direction, sent_at)
+        VALUES (?, ?, ?, ?, ?, 'received', ?, ?, 'inbound', ?)
+      `).run(contact.id, fromEmail, toEmail, subject, preview, msgId, threadId, receivedAt);
+
+      imported++;
+    }
+
+    console.log(`[email/sync] contact #${contact_id} (${contact.email}): ${imported} imported, ${skipped} already existed`);
+    res.json({ ok: true, imported, skipped, total: msgList.length });
+
+  } catch (err) {
+    // Google returns 403 when the token was issued without gmail.readonly scope
+    if (err.code === 403 || err.message?.toLowerCase().includes('insufficient')) {
+      return res.status(403).json({
+        error: 'Gmail inbox access not authorized. Visit /api/email/auth to re-authorize with inbox read permission.',
+        reauth_required: true,
+      });
+    }
+    console.error('[email/sync] error:', err.message);
+    res.status(500).json({ error: err.message || 'Sync failed' });
+  }
+});
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+
+// Recursively extract plain-text body from a Gmail MIME payload tree.
+function extractGmailBody(payload) {
+  if (!payload) return '';
+  if (payload.body?.data) {
+    return Buffer.from(payload.body.data, 'base64url').toString('utf-8');
+  }
+  if (payload.parts) {
+    // Prefer text/plain; fall back to text/html (stripped)
+    for (const part of payload.parts) {
+      if (part.mimeType === 'text/plain' && part.body?.data) {
+        return Buffer.from(part.body.data, 'base64url').toString('utf-8');
+      }
+    }
+    for (const part of payload.parts) {
+      if (part.mimeType === 'text/html' && part.body?.data) {
+        return Buffer.from(part.body.data, 'base64url').toString('utf-8')
+          .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      }
+    }
+    // Recurse into nested multipart (multipart/alternative, multipart/mixed, etc.)
+    for (const part of payload.parts) {
+      const text = extractGmailBody(part);
+      if (text) return text;
+    }
+  }
+  return '';
+}
 
 function escHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');

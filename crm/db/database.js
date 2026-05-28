@@ -188,4 +188,17 @@ try {
   if (!e.message.includes('already exists')) throw e;
 }
 
+// Gmail inbox sync — inbound email fields
+addCol('emails', 'from_email', 'TEXT');
+addCol('emails', 'thread_id',  'TEXT');
+addCol('emails', 'direction',  "TEXT NOT NULL DEFAULT 'outbound'");
+// Unique index enables INSERT OR IGNORE deduplication by Gmail message ID
+try {
+  db.prepare(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_emails_gmail_msg_id ON emails(gmail_message_id) WHERE gmail_message_id IS NOT NULL'
+  ).run();
+} catch (e) {
+  if (!e.message.includes('already exists')) throw e;
+}
+
 module.exports = db;

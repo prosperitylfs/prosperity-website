@@ -2065,12 +2065,33 @@ body {
   box-shadow: 0 2px 8px rgba(78,44,148,.25);
 }
 
+/* Sync Replies button — secondary action alongside Compose in Email History */
+.btn-sync-email {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .25rem .65rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: .78rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.btn-sync-email:hover  { color: var(--purple); border-color: var(--purple); background: var(--purple-xlight); }
+.btn-sync-email:disabled { opacity: .6; cursor: not-allowed; }
+
 /* Email history timeline — contact detail page */
 .email-log-item {
   padding: .6rem 0;
   border-bottom: 1px solid var(--border);
 }
 .email-log-item:last-child { border-bottom: none; }
+.email-log-item-inbound { background: #f0f7ff; margin: 0 -.75rem; padding: .6rem .75rem; border-radius: 6px; }
 
 .email-log-subject {
   font-weight: 600;

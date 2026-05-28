@@ -193,6 +193,47 @@ function wireEmailButton(contact) {
     composeBtn.onclick = () => openEmailModal(parseInt(id), contact.email,
       'Prosperity Life & Financial Solutions Follow-Up');
   }
+
+  // "Sync Replies" button in Email History card
+  const syncBtn = document.getElementById('sync-email-btn');
+  if (syncBtn) {
+    syncBtn.classList.remove('hidden');
+    syncBtn.onclick = () => syncEmailHistory(syncBtn);
+  }
+}
+
+// ─── Gmail inbox sync ─────────────────────────────────────────────────────────
+
+async function syncEmailHistory(btn) {
+  const origHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '↻ Syncing…'; }
+
+  try {
+    const result = await CRM.fetch('/api/email/sync', {
+      method: 'POST',
+      body: JSON.stringify({ contact_id: parseInt(id) }),
+    });
+
+    if (result.reauth_required) {
+      showError('Gmail needs re-authorization for inbox sync. Go to Settings → Gmail and click Re-Authorize.');
+      if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+      return;
+    }
+
+    const msg = result.imported > 0
+      ? `✓ ${result.imported} new repl${result.imported === 1 ? 'y' : 'ies'}`
+      : '✓ Up to date';
+    if (btn) btn.innerHTML = msg;
+
+    await loadEmailHistory();
+
+    setTimeout(() => {
+      if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+    }, 3000);
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+    showError(`Sync failed: ${err.message}`);
+  }
 }
 
 // ─── Email history ─────────────────────────────────────────────────────────────
@@ -210,18 +251,27 @@ function renderEmailHistory(emails) {
   const el = document.getElementById('email-history-list');
   if (!el) return;
   if (!emails || !emails.length) {
-    el.innerHTML = '<p class="text-muted">No emails sent yet.</p>';
+    el.innerHTML = '<p class="text-muted">No emails yet.</p>';
     return;
   }
-  el.innerHTML = emails.map(e => `
-    <div class="email-log-item">
-      <div class="email-log-subject">✉ ${escHtml(e.subject || '(No subject)')}</div>
-      <div class="email-log-meta">
-        ${e.to_email ? `To: ${escHtml(e.to_email)} &nbsp;·&nbsp; ` : ''}${formatDate(e.sent_at, true)}
-        &nbsp;·&nbsp; <span class="tag tag-green" style="font-size:.68rem;padding:.1rem .45rem">Sent</span>
-      </div>
-      ${e.body ? `<div class="email-log-preview">${escHtml(e.body.slice(0, 160))}${e.body.length > 160 ? '…' : ''}</div>` : ''}
-    </div>`).join('');
+  el.innerHTML = emails.map(e => {
+    const inbound = e.direction === 'inbound';
+    const icon    = inbound ? '📩' : '✉';
+    const tag     = inbound
+      ? '<span class="tag tag-blue"  style="font-size:.68rem;padding:.1rem .45rem">Received</span>'
+      : '<span class="tag tag-green" style="font-size:.68rem;padding:.1rem .45rem">Sent</span>';
+    const addrLine = inbound
+      ? (e.from_email ? `From: ${escHtml(e.from_email)} &nbsp;·&nbsp; ` : '')
+      : (e.to_email   ? `To: ${escHtml(e.to_email)} &nbsp;·&nbsp; `     : '');
+    return `
+      <div class="email-log-item${inbound ? ' email-log-item-inbound' : ''}">
+        <div class="email-log-subject">${icon} ${escHtml(e.subject || '(No subject)')}</div>
+        <div class="email-log-meta">
+          ${addrLine}${formatDate(e.sent_at, true)} &nbsp;·&nbsp; ${tag}
+        </div>
+        ${e.body ? `<div class="email-log-preview">${escHtml(e.body.slice(0, 160))}${e.body.length > 160 ? '…' : ''}</div>` : ''}
+      </div>`;
+  }).join('');
 }
 
 async function initiateDetailCall(btn) {

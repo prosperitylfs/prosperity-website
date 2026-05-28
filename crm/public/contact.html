@@ -194,6 +194,16 @@
           <div id="sms-history-list">
             <p class="text-muted">No SMS messages yet.</p>
           </div>
+          <div class="sms-compose-area hidden" id="sms-compose-area">
+            <textarea id="sms-compose-body" class="sms-compose-textarea"
+              placeholder="Type a message… (Ctrl+Enter to send)"
+              rows="2" maxlength="1600"></textarea>
+            <div class="sms-compose-footer">
+              <span class="sms-char-count" id="sms-char-count">0 / 160</span>
+              <button id="sms-send-btn" class="btn btn-primary btn-sm">Send SMS</button>
+            </div>
+            <div id="sms-send-error" class="sms-send-error hidden"></div>
+          </div>
         </div>
 
         <!-- desktop col 1, mobile row 6 -->

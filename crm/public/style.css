@@ -2139,6 +2139,54 @@ body {
   word-break: break-word;
 }
 
+/* SMS compose area */
+.sms-compose-area {
+  margin-top: 1rem;
+  padding-top: .85rem;
+  border-top: 1px solid var(--border);
+}
+.sms-compose-textarea {
+  width: 100%;
+  padding: .55rem .7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: .875rem;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 58px;
+  box-sizing: border-box;
+  background: var(--white);
+  color: var(--text);
+}
+.sms-compose-textarea:focus {
+  outline: none;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(78,44,148,.12);
+}
+.sms-compose-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: .45rem;
+  gap: .5rem;
+}
+.sms-char-count {
+  font-size: .78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.sms-send-error {
+  margin-top: .45rem;
+  padding: .4rem .65rem;
+  background: #fff0f0;
+  color: #c0392b;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  font-size: .82rem;
+  word-break: break-word;
+}
+
 /* Mobile overrides for email modal */
 @media (max-width: 768px) {
   .email-modal-overlay {

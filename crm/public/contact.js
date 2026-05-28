@@ -183,6 +183,48 @@ function wireCallButton(contact) {
   btn.onclick = () => initiateDetailCall(btn);
 }
 
+// ─── SMS compose area ─────────────────────────────────────────────────────────
+
+function wireSmsCompose(contact) {
+  const area = document.getElementById('sms-compose-area');
+  if (!area) return;
+  // Show only when Twilio is enabled and the contact has a phone number
+  if (window.CRM_TWILIO_ENABLED && (contact.phone || contact.phone_e164)) {
+    area.classList.remove('hidden');
+  } else {
+    area.classList.add('hidden');
+  }
+}
+
+async function sendManualSms() {
+  const textarea = document.getElementById('sms-compose-body');
+  const btn      = document.getElementById('sms-send-btn');
+  const errEl    = document.getElementById('sms-send-error');
+  const counter  = document.getElementById('sms-char-count');
+  const message  = textarea?.value.trim();
+
+  if (!message) { textarea?.focus(); return; }
+  if (errEl) errEl.classList.add('hidden');
+  if (btn)   { btn.disabled = true; btn.textContent = 'Sending…'; }
+
+  try {
+    await CRM.fetch('/api/sms/send', {
+      method: 'POST',
+      body: JSON.stringify({ contact_id: parseInt(id), message }),
+    });
+    if (textarea) textarea.value = '';
+    if (counter)  counter.textContent = '0 / 160';
+  } catch (err) {
+    if (errEl) {
+      errEl.textContent = err.message;
+      errEl.classList.remove('hidden');
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send SMS'; }
+    await loadSmsHistory();
+  }
+}
+
 // ─── Send email (detail page) ──────────────────────────────────────────────────
 
 function wireEmailButton(contact) {
@@ -761,6 +803,7 @@ async function loadContact() {
     renderInfo(contact);
     wireCallButton(contact);
     wireEmailButton(contact);
+    wireSmsCompose(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
     await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity()]);
@@ -866,6 +909,7 @@ async function refreshContact() {
     renderInfo(contact);
     wireCallButton(contact);
     wireEmailButton(contact);
+    wireSmsCompose(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
     await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity()]);
@@ -887,6 +931,30 @@ async function refreshContact() {
   const dBtn = document.getElementById('desktop-refresh-btn');
   if (mBtn) mBtn.addEventListener('click', refreshContact);
   if (dBtn) dBtn.addEventListener('click', refreshContact);
+})();
+
+// ─── SMS compose button + character counter ───────────────────────────────────
+
+(function wireSmsButton() {
+  const btn      = document.getElementById('sms-send-btn');
+  const textarea = document.getElementById('sms-compose-body');
+  const counter  = document.getElementById('sms-char-count');
+
+  if (btn) btn.addEventListener('click', sendManualSms);
+
+  if (textarea && counter) {
+    textarea.addEventListener('input', () => {
+      const len  = textarea.value.length;
+      const segs = len <= 160 ? 1 : Math.ceil(len / 153);
+      counter.textContent = segs === 1 ? `${len} / 160` : `${len} chars (${segs} segments)`;
+    });
+    textarea.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        btn?.click();
+      }
+    });
+  }
 })();
 
 loadContact();

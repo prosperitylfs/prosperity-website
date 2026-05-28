@@ -25,11 +25,11 @@ function greetingTwiml() {
 async function sendMissedCallSms(callId) {
   const call = db.prepare('SELECT * FROM comm_calls WHERE id = ?').get(callId);
   if (!call) {
-    console.warn(`[twilio/sms] call #${callId}: record not found — skipping`);
+    console.warn(`[twilio/sms] call #${callId}: comm_call record not found — skipping`);
     return;
   }
   if (call.auto_sms_sent) {
-    console.log(`[twilio/sms] call #${callId}: SMS already sent — skipping duplicate`);
+    console.log(`[twilio/sms] call #${callId}: auto_sms_sent=1 — skipping duplicate`);
     return;
   }
 
@@ -38,34 +38,63 @@ async function sendMissedCallSms(callId) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken  = process.env.TWILIO_AUTH_TOKEN;
 
+  // Log decision point with env var status so Render logs show exactly what's missing
+  console.log(
+    `[twilio/sms] call #${callId}: SMS decision — ` +
+    `to=${toNumber || 'MISSING'} ` +
+    `TWILIO_FROM_NUMBER=${fromNumber ? fromNumber : 'NOT SET'} ` +
+    `TWILIO_ACCOUNT_SID=${accountSid ? '[set]' : 'NOT SET'} ` +
+    `TWILIO_AUTH_TOKEN=${authToken ? '[set]' : 'NOT SET'}`
+  );
+
   if (!toNumber) {
-    console.warn(`[twilio/sms] call #${callId}: from_number is blank — cannot send SMS`);
+    console.error(`[twilio/sms] call #${callId}: from_number is blank — cannot send SMS`);
     return;
   }
   if (!fromNumber || !accountSid || !authToken) {
-    console.warn(
-      `[twilio/sms] call #${callId}: env vars missing — ` +
-      `TWILIO_FROM_NUMBER=${fromNumber ? 'set' : 'MISSING'} ` +
-      `TWILIO_ACCOUNT_SID=${accountSid ? 'set' : 'MISSING'} ` +
-      `TWILIO_AUTH_TOKEN=${authToken ? 'set' : 'MISSING'}`
+    console.error(
+      `[twilio/sms] call #${callId}: ABORTING — required env vars not set. ` +
+      `Set TWILIO_FROM_NUMBER, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN on Render.`
     );
     return;
   }
 
-  console.log(`[twilio/sms] call #${callId}: sending auto-reply to ${toNumber} from ${fromNumber}`);
-  const client = require('twilio')(accountSid, authToken);
-  await client.messages.create({ body: SMS_BODY, from: fromNumber, to: toNumber });
+  // Pre-insert with status=queued so it appears in SMS History even if Twilio fails
+  const smsInsert = db.prepare(`
+    INSERT INTO sms_messages
+      (contact_id, direction, from_number, to_number, body, status, call_id)
+    VALUES (?, 'outbound', ?, ?, ?, 'queued', ?)
+  `).run(call.contact_id || null, fromNumber, toNumber, SMS_BODY, callId);
+  const smsId = smsInsert.lastInsertRowid;
 
-  db.prepare('UPDATE comm_calls SET auto_sms_sent = 1 WHERE id = ?').run(callId);
+  console.log(`[twilio/sms] call #${callId}: attempting Twilio send — sms_id=${smsId} to=${toNumber} from=${fromNumber}`);
 
-  if (call.contact_id) {
-    db.prepare(`
-      INSERT INTO communications (contact_id, comm_type, direction, subject, body, status)
-      VALUES (?, 'sms', 'outbound', 'Missed-call auto-reply', ?, 'sent')
-    `).run(call.contact_id, SMS_BODY);
+  try {
+    const client  = require('twilio')(accountSid, authToken);
+    const message = await client.messages.create({ body: SMS_BODY, from: fromNumber, to: toNumber });
+
+    console.log(`[twilio/sms] call #${callId}: SUCCESS — MessageSid=${message.sid} status=${message.status}`);
+
+    db.prepare('UPDATE sms_messages SET twilio_sid = ?, status = ? WHERE id = ?')
+      .run(message.sid, message.status || 'sent', smsId);
+    db.prepare('UPDATE comm_calls SET auto_sms_sent = 1 WHERE id = ?').run(callId);
+
+    // Write to activity feed
+    if (call.contact_id) {
+      db.prepare(`
+        INSERT INTO communications (contact_id, comm_type, direction, subject, body, status)
+        VALUES (?, 'sms', 'outbound', 'Missed-call auto-reply', ?, 'sent')
+      `).run(call.contact_id, SMS_BODY);
+    }
+  } catch (err) {
+    // Log the full Twilio error so it's visible in Render logs
+    console.error(`[twilio/sms] call #${callId}: Twilio send FAILED`);
+    console.error(`[twilio/sms]   Error message : ${err.message}`);
+    if (err.code)     console.error(`[twilio/sms]   Error code    : ${err.code}`);
+    if (err.status)   console.error(`[twilio/sms]   HTTP status   : ${err.status}`);
+    if (err.moreInfo) console.error(`[twilio/sms]   More info     : ${err.moreInfo}`);
+    db.prepare('UPDATE sms_messages SET status = ? WHERE id = ?').run('failed', smsId);
   }
-
-  console.log(`[twilio/sms] call #${callId}: auto-reply SMS delivered to ${toNumber}`);
 }
 
 function escXml(str) {
@@ -408,6 +437,61 @@ router.post('/call-ended', (req, res) => {
   );
 
   res.sendStatus(204);
+});
+
+// ─── POST /api/twilio/sms/inbound ────────────────────────────────────────────
+// Twilio Messaging webhook — configure this URL in Twilio console:
+//   Messaging → Phone Numbers → Active Numbers → your number → "A MESSAGE COMES IN"
+//   URL: https://prosperity-crm.onrender.com/api/twilio/sms/inbound
+//   HTTP: POST
+router.post('/sms/inbound', (req, res) => {
+  const { From, To, Body, MessageSid, NumMedia } = req.body;
+
+  console.log(`[twilio/sms/inbound] MessageSid=${MessageSid} From=${From} To=${To} body="${(Body || '').slice(0, 60)}"`);
+
+  // Find or create contact by From number
+  let contact = findContactByPhone(From);
+  if (!contact && From) {
+    const digits    = From.replace(/\D/g, '');
+    const ten       = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+    const dispPhone = ten.length === 10
+      ? `(${ten.slice(0,3)}) ${ten.slice(3,6)}-${ten.slice(6)}`
+      : From;
+    const e164Phone = ten.length === 10 ? `+1${ten}` : null;
+    const ins = db.prepare(`
+      INSERT INTO contacts
+        (first_name, last_name, phone, phone_e164, lead_type, lead_status, lead_source, updated_at)
+      VALUES (?, ?, ?, ?, 'Unknown Caller', 'New Lead', 'Inbound SMS', ?)
+    `).run('Unknown', dispPhone, dispPhone, e164Phone || From, new Date().toISOString());
+    contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(ins.lastInsertRowid);
+    console.log(`[twilio/sms/inbound] Created new contact id=${contact.id} for ${From}`);
+  } else if (contact) {
+    console.log(`[twilio/sms/inbound] Matched contact id=${contact.id} name="${contact.first_name} ${contact.last_name}"`);
+  } else {
+    console.warn('[twilio/sms/inbound] No From number — cannot match contact');
+  }
+
+  const contactId = contact ? contact.id : null;
+
+  // Save to sms_messages (INSERT OR IGNORE deduplicates by twilio_sid)
+  db.prepare(`
+    INSERT OR IGNORE INTO sms_messages
+      (contact_id, direction, from_number, to_number, body, status, twilio_sid)
+    VALUES (?, 'inbound', ?, ?, ?, 'received', ?)
+  `).run(contactId, From || null, To || null, Body || '', MessageSid || null);
+
+  // Write to activity feed
+  if (contactId) {
+    db.prepare(`
+      INSERT INTO communications (contact_id, comm_type, direction, subject, body, status)
+      VALUES (?, 'sms', 'inbound', 'Inbound SMS', ?, 'received')
+    `).run(contactId, Body || '');
+  }
+
+  console.log(`[twilio/sms/inbound] Saved — contact_id=${contactId} MessageSid=${MessageSid}`);
+
+  // Respond with empty TwiML (no auto-reply to inbound SMS)
+  res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
 });
 
 // ─── POST /api/twilio/transcription ──────────────────────────────────────────

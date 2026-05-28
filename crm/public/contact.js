@@ -236,6 +236,46 @@ async function syncEmailHistory(btn) {
   }
 }
 
+// ─── SMS history ──────────────────────────────────────────────────────────────
+
+async function loadSmsHistory() {
+  try {
+    const messages = await CRM.fetch(`/api/sms/contact/${id}`);
+    renderSmsHistory(messages);
+  } catch {
+    // SMS feature may not be active yet
+  }
+}
+
+function renderSmsHistory(messages) {
+  const el = document.getElementById('sms-history-list');
+  if (!el) return;
+  if (!messages || !messages.length) {
+    el.innerHTML = '<p class="text-muted">No SMS messages yet.</p>';
+    return;
+  }
+  el.innerHTML = messages.map(m => {
+    const inbound  = m.direction === 'inbound';
+    const icon     = inbound ? '📨' : '💬';
+    const dirTag   = inbound
+      ? '<span class="tag tag-blue"  style="font-size:.68rem;padding:.1rem .45rem">Received</span>'
+      : '<span class="tag tag-green" style="font-size:.68rem;padding:.1rem .45rem">Sent</span>';
+    const statusBadge = (m.status && !['sent','received','queued'].includes(m.status))
+      ? `<span class="tag tag-gray" style="font-size:.68rem;padding:.1rem .45rem">${escHtml(m.status)}</span>`
+      : '';
+    const addrLine = inbound
+      ? (m.from_number ? `From: ${escHtml(m.from_number)} &nbsp;·&nbsp; ` : '')
+      : (m.to_number   ? `To: ${escHtml(m.to_number)}   &nbsp;·&nbsp; ` : '');
+    return `
+      <div class="sms-log-item${inbound ? ' sms-log-item-inbound' : ''}">
+        <div class="sms-log-meta">
+          ${icon} ${addrLine}${formatDate(m.sent_at, true)} &nbsp;·&nbsp; ${dirTag} ${statusBadge}
+        </div>
+        ${m.body ? `<div class="sms-log-body">${escHtml(m.body)}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
 // ─── Email history ─────────────────────────────────────────────────────────────
 
 async function loadEmailHistory() {
@@ -713,7 +753,7 @@ async function loadContact() {
     wireEmailButton(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
-    await Promise.all([loadCallLogs(), loadEmailHistory(), loadAppointments(), loadActivity()]);
+    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity()]);
   } catch (err) {
     showError(`Could not load contact: ${err.message}`);
   }
@@ -818,7 +858,7 @@ async function refreshContact() {
     wireEmailButton(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
-    await Promise.all([loadCallLogs(), loadEmailHistory(), loadAppointments(), loadActivity()]);
+    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity()]);
     showToast('CRM refreshed ✓');
   } catch (err) {
     console.error('Refresh failed:', err);

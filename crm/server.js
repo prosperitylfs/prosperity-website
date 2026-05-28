@@ -76,6 +76,9 @@ app.use('/api/calls', requireApiKey, require('./routes/calls'));
 // Appointments — protected
 app.use('/api/appointments', requireApiKey, require('./routes/appointments'));
 
+// SMS history — protected
+app.use('/api/sms', requireApiKey, require('./routes/sms'));
+
 // Email / Gmail
 // /auth and /callback are browser redirects — no API key header is possible there.
 // All other sub-routes (/send, /status, /contact/:id) remain protected.

@@ -94,6 +94,20 @@ db.exec(`
     FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
   );
 
+  CREATE TABLE IF NOT EXISTS sms_messages (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    contact_id  INTEGER,
+    direction   TEXT NOT NULL DEFAULT 'outbound',
+    from_number TEXT,
+    to_number   TEXT,
+    body        TEXT,
+    status      TEXT DEFAULT 'queued',
+    twilio_sid  TEXT,
+    call_id     INTEGER,
+    sent_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS appointments (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     contact_id    INTEGER NOT NULL,
@@ -108,6 +122,7 @@ db.exec(`
     FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
   );
 
+  CREATE INDEX IF NOT EXISTS idx_sms_contact         ON sms_messages(contact_id);
   CREATE INDEX IF NOT EXISTS idx_contacts_email      ON contacts(email);
   CREATE INDEX IF NOT EXISTS idx_contacts_phone_e164 ON contacts(phone_e164);
   CREATE INDEX IF NOT EXISTS idx_contacts_created    ON contacts(created_at DESC);
@@ -185,6 +200,15 @@ addCol('appointments', 'cal_booking_uid', 'TEXT');
 try {
   db.prepare(
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_appts_cal_uid ON appointments(cal_booking_uid) WHERE cal_booking_uid IS NOT NULL'
+  ).run();
+} catch (e) {
+  if (!e.message.includes('already exists')) throw e;
+}
+
+// sms_messages — unique index on twilio_sid for INSERT OR IGNORE deduplication
+try {
+  db.prepare(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_sms_twilio_sid ON sms_messages(twilio_sid) WHERE twilio_sid IS NOT NULL'
   ).run();
 } catch (e) {
   if (!e.message.includes('already exists')) throw e;

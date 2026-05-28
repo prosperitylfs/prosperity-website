@@ -2113,6 +2113,32 @@ body {
   word-break: break-word;
 }
 
+/* SMS History — contact detail page */
+.sms-log-item {
+  padding: .6rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: .875rem;
+}
+.sms-log-item:last-child { border-bottom: none; }
+.sms-log-item-inbound {
+  background: #f0f7ff;
+  margin: 0 -.75rem;
+  padding: .6rem .75rem;
+  border-radius: 6px;
+}
+.sms-log-meta {
+  font-size: .78rem;
+  color: var(--text-muted);
+  margin-bottom: .2rem;
+}
+.sms-log-body {
+  color: var(--text);
+  font-size: .875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* Mobile overrides for email modal */
 @media (max-width: 768px) {
   .email-modal-overlay {

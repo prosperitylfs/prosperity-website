@@ -128,6 +128,14 @@ function findContactByPhone(fromE164) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Request logger — fires for every request that reaches /api/twilio/*
+// ═══════════════════════════════════════════════════════════════════════════════
+router.use((req, res, next) => {
+  console.log(`[twilio] route hit: ${req.method} ${req.path}`);
+  next();
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // INBOUND CALL HANDLERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -152,6 +160,7 @@ router.post('/incoming', (req, res) => {
   const publicUrl    = (process.env.CRM_PUBLIC_URL || '').replace(/\/$/, '');
 
   console.log(`[twilio/incoming] CallSid=${callSid} From=${callerNumber || '(unknown)'} agentPhone=${agentPhone || 'NOT SET'}`);
+  console.log(`[twilio/incoming] CRM_PUBLIC_URL = '${process.env.CRM_PUBLIC_URL || 'NOT SET — voicemail/call-ended callbacks will be broken'}'`);
 
   if (!agentPhone || !twilioNumber) {
     console.error('[twilio/incoming] AGENT_PHONE_NUMBER or TWILIO_FROM_NUMBER not set — cannot route call');
@@ -618,5 +627,7 @@ router.post('/status/:call_id', (req, res) => {
 
   res.sendStatus(204);
 });
+
+console.log('[twilio] routes loaded');
 
 module.exports = router;

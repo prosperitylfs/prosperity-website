@@ -50,6 +50,31 @@ router.get('/', (req, res) => {
   res.json(contacts);
 });
 
+// GET /api/contacts/:id/activity — dedicated activity feed (never returns emails)
+// Uses a whitelist of allowed comm_types so email records cannot leak through.
+router.get('/:id/activity', (req, res) => {
+  const contact = db.prepare('SELECT id FROM contacts WHERE id = ?').get(req.params.id);
+  if (!contact) return res.status(404).json({ error: 'Not found' });
+
+  const ALLOWED_TYPES = ['form', 'appointment', 'sms', 'call'];
+
+  const activity = db.prepare(`
+    SELECT * FROM communications
+    WHERE contact_id = ?
+      AND comm_type IN ('form', 'appointment', 'sms', 'call')
+    ORDER BY created_at DESC
+  `).all(contact.id);
+
+  const emailCount = db.prepare(
+    "SELECT COUNT(*) AS n FROM communications WHERE contact_id = ? AND comm_type = 'email'"
+  ).get(contact.id).n;
+
+  console.log(`[activity] contact #${contact.id}: returning ${activity.length} record(s), excluded ${emailCount} email record(s)`);
+
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(activity);
+});
+
 // GET /api/contacts/:id — single contact with notes + comms
 router.get('/:id', (req, res) => {
   const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(req.params.id);

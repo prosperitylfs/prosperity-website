@@ -644,6 +644,17 @@ function renderComms(comms) {
 
 // ─── Load contact ─────────────────────────────────────────────────────────────
 
+// Dedicated activity loader — calls /activity endpoint which whitelists comm_types
+// and never returns email records regardless of what the browser has cached.
+async function loadActivity() {
+  try {
+    const activity = await CRM.fetch(`/api/contacts/${id}/activity`);
+    renderComms(activity);
+  } catch (err) {
+    console.error('[Activity] failed to load:', err.message);
+  }
+}
+
 async function loadContact() {
   if (!id) return;
   try {
@@ -653,8 +664,7 @@ async function loadContact() {
     wireEmailButton(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
-    renderComms(contact.communications || []);
-    await Promise.all([loadCallLogs(), loadEmailHistory(), loadAppointments()]);
+    await Promise.all([loadCallLogs(), loadEmailHistory(), loadAppointments(), loadActivity()]);
   } catch (err) {
     showError(`Could not load contact: ${err.message}`);
   }

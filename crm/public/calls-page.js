@@ -42,11 +42,15 @@ function formatRelativeDate(iso) {
 
 function formatFullDate(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('en-US', {
-    timeZone: 'America/Chicago',
-    month: 'short', day: 'numeric',
-    hour: 'numeric', minute: '2-digit', hour12: true,
-  });
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  const tz       = 'America/Chicago';
+  const todayStr = new Date().toLocaleDateString('en-US', { timeZone: tz });
+  const isToday  = d.toLocaleDateString('en-US', { timeZone: tz }) === todayStr;
+  const timeStr  = d.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
+  return isToday
+    ? `Today, ${timeStr}`
+    : d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz });
 }
 
 function formatDuration(sec) {

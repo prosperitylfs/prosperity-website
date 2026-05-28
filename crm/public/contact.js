@@ -24,9 +24,20 @@ function formatPhone(raw) {
 
 function formatDate(iso, includeTime = false) {
   if (!iso) return '—';
-  const opts = { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Chicago' };
-  if (includeTime) { opts.hour = 'numeric'; opts.minute = '2-digit'; opts.hour12 = true; }
-  return new Date(iso).toLocaleString('en-US', opts);
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  const tz       = 'America/Chicago';
+  const todayStr = new Date().toLocaleDateString('en-US', { timeZone: tz });
+  const isToday  = d.toLocaleDateString('en-US', { timeZone: tz }) === todayStr;
+  if (!includeTime) {
+    return isToday
+      ? 'Today'
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: tz });
+  }
+  const timeStr = d.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
+  return isToday
+    ? `Today, ${timeStr}`
+    : d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz });
 }
 
 function formatCurrency(val) {
@@ -560,12 +571,7 @@ function apptStatusTag(s) {
 }
 
 function fmtApptDt(iso) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleString('en-US', {
-    timeZone: 'America/Chicago',
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit', hour12: true,
-  });
+  return formatDate(iso, true);
 }
 
 async function loadAppointments() {

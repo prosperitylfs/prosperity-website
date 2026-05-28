@@ -43,12 +43,11 @@ async function sendMissedCallSms(callId) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken  = process.env.TWILIO_AUTH_TOKEN;
 
-  // Log each credential separately so Render shows exactly what is and isn't set
-  console.log(`[twilio/sms] call #${callId} — missed-call SMS check`);
-  console.log(`[twilio/sms] to   = ${toNumber  || 'MISSING (no caller number on call record)'}`);
-  console.log(`[twilio/sms] from = ${fromNumber || 'NOT SET — add TWILIO_FROM_NUMBER to Render env'}`);
-  console.log(`[twilio/sms] env SID set?   ${accountSid ? 'YES' : 'NO — add TWILIO_ACCOUNT_SID to Render env'}`);
-  console.log(`[twilio/sms] env TOKEN set? ${authToken  ? 'YES' : 'NO — add TWILIO_AUTH_TOKEN to Render env'}`);
+  console.log(`[twilio/sms] trigger fired  call_id=${callId}`);
+  console.log(`[twilio/sms]   to   = ${toNumber  || 'MISSING — no caller number on record'}`);
+  console.log(`[twilio/sms]   from = ${fromNumber || 'NOT SET — add TWILIO_FROM_NUMBER to Render env'}`);
+  console.log(`[twilio/sms]   SID  = ${accountSid ? 'set' : 'NOT SET — add TWILIO_ACCOUNT_SID to Render env'}`);
+  console.log(`[twilio/sms]   AUTH = ${authToken  ? 'set' : 'NOT SET — add TWILIO_AUTH_TOKEN to Render env'}`);
 
   if (!toNumber) {
     console.error(`[twilio/sms] ABORT — caller number is blank, cannot send SMS`);
@@ -59,8 +58,9 @@ async function sendMissedCallSms(callId) {
     return;
   }
 
-  // Pre-insert with status=queued — appears in SMS History immediately,
-  // updated to sent/failed once we hear back from Twilio.
+  // Pre-insert with status=queued so the row appears in SMS History immediately,
+  // before the Twilio API call. Updated to sent/failed on the result.
+  console.log(`[twilio/sms] inserting queued sms  contact_id=${call.contact_id || 'none'} to=${toNumber}`);
   const smsInsert = db.prepare(`
     INSERT INTO sms_messages
       (contact_id, direction, from_number, to_number, body, status, call_id)
@@ -68,14 +68,13 @@ async function sendMissedCallSms(callId) {
   `).run(call.contact_id || null, fromNumber, toNumber, SMS_BODY, callId);
   const smsId = smsInsert.lastInsertRowid;
 
-  console.log(`[twilio/sms] attempt send — sms_id=${smsId} to=${toNumber} from=${fromNumber}`);
+  console.log(`[twilio/sms] attempting send  sms_id=${smsId} to=${toNumber} from=${fromNumber}`);
 
   try {
     const client  = require('twilio')(accountSid, authToken);
     const message = await client.messages.create({ body: SMS_BODY, from: fromNumber, to: toNumber });
 
-    console.log(`[twilio/sms] sent SID    = ${message.sid}`);
-    console.log(`[twilio/sms] sent status = ${message.status}`);
+    console.log(`[twilio/sms] sent sid=${message.sid}  status=${message.status}`);
 
     db.prepare('UPDATE sms_messages SET twilio_sid = ?, status = ? WHERE id = ?')
       .run(message.sid, message.status || 'sent', smsId);
@@ -89,11 +88,9 @@ async function sendMissedCallSms(callId) {
       `).run(call.contact_id, SMS_BODY);
     }
   } catch (err) {
-    console.error(`[twilio/sms] FAILED — Twilio rejected the request`);
-    console.error(`[twilio/sms] failed code    = ${err.code    || 'none'}`);
-    console.error(`[twilio/sms] failed message = ${err.message}`);
-    if (err.status)   console.error(`[twilio/sms] failed http    = ${err.status}`);
-    if (err.moreInfo) console.error(`[twilio/sms] failed info    = ${err.moreInfo}`);
+    console.error(`[twilio/sms] failed=${err.message}  code=${err.code || 'none'}`);
+    if (err.status)   console.error(`[twilio/sms] failed http=${err.status}`);
+    if (err.moreInfo) console.error(`[twilio/sms] failed info=${err.moreInfo}`);
     // Save failure to SMS History with full error detail in body
     const errDetail = [
       err.message,
@@ -262,17 +259,34 @@ router.post('/voicemail', (req, res) => {
 
   // ── Agent answered (or agent's personal voicemail intercepted) ──────────────
   if (DialCallStatus === 'completed') {
-    console.log(`[twilio/voicemail] call_id=${callId}: marking answered — if agent's personal voicemail intercepted, /call-ended will send SMS`);
-    db.prepare(
-      "UPDATE comm_calls SET status = 'answered', answered_at = ?, ended_at = ? WHERE id = ?"
-    ).run(now, now, callId);
-
-    const call = db.prepare('SELECT contact_id FROM comm_calls WHERE id = ?').get(callId);
-    if (call?.contact_id) {
-      db.prepare('UPDATE contacts SET last_call_status = ? WHERE id = ?')
-        .run('answered', call.contact_id);
+    const dur = parseInt(DialCallDuration || '0', 10);
+    // A real conversation will be > 45 s. A personal-voicemail intercept typically
+    // ends in < 45 s (greeting + caller decides not to leave a message).
+    // We cannot use AMD, so duration is the only available signal here.
+    if (dur > 45) {
+      console.log(`[twilio/voicemail] call_id=${callId}: completed ${dur}s → real answer, marking answered, no SMS`);
+      db.prepare(
+        "UPDATE comm_calls SET status = 'answered', answered_at = ?, ended_at = ? WHERE id = ?"
+      ).run(now, now, callId);
+      const call = db.prepare('SELECT contact_id FROM comm_calls WHERE id = ?').get(callId);
+      if (call?.contact_id) {
+        db.prepare('UPDATE contacts SET last_call_status = ? WHERE id = ?')
+          .run('answered', call.contact_id);
+      }
+    } else {
+      console.log(`[twilio/voicemail] call_id=${callId}: completed ${dur}s → likely personal voicemail intercept, marking missed, sending SMS`);
+      db.prepare(
+        "UPDATE comm_calls SET status = 'missed', ended_at = ? WHERE id = ?"
+      ).run(now, callId);
+      const call = db.prepare('SELECT contact_id FROM comm_calls WHERE id = ?').get(callId);
+      if (call?.contact_id) {
+        db.prepare('UPDATE contacts SET last_call_status = ? WHERE id = ?')
+          .run('missed', call.contact_id);
+      }
+      sendMissedCallSms(callId).catch(err =>
+        console.error(`[twilio/sms] completed-branch error call_id=${callId}:`, err.message)
+      );
     }
-
     res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
     return;
   }
@@ -299,7 +313,7 @@ router.post('/voicemail', (req, res) => {
   }
 
   // ── Agent did not answer (no-answer / busy / failed) → Twilio voicemail ─────
-  console.log(`[twilio/voicemail] call_id=${callId}: DialCallStatus=${DialCallStatus} → agent unavailable, starting voicemail recording`);
+  console.log(`[twilio/voicemail] call_id=${callId}: DialCallStatus=${DialCallStatus} → agent unavailable, marking missed`);
   db.prepare(
     "UPDATE comm_calls SET status = 'missed', ended_at = ? WHERE id = ?"
   ).run(now, callId);
@@ -309,6 +323,14 @@ router.post('/voicemail', (req, res) => {
     db.prepare('UPDATE contacts SET last_call_status = ? WHERE id = ?')
       .run('missed', call.contact_id);
   }
+
+  // Fire SMS immediately — do NOT wait for /voicemail-save.
+  // If the caller disconnects while the greeting TwiML (<Play>/<Say>) is running,
+  // Twilio stops executing and never invokes the <Record> action URL.
+  // /voicemail-save would never fire, so relying on it as the SMS trigger is unreliable.
+  sendMissedCallSms(callId).catch(err =>
+    console.error(`[twilio/sms] no-answer-branch error call_id=${callId}:`, err.message)
+  );
 
   const saveUrl = `${publicUrl}/api/twilio/voicemail-save?call_id=${callId}`;
   console.log(`[twilio/voicemail] call_id=${callId}: playing greeting, recording to ${saveUrl}`);

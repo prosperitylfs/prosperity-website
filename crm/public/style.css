@@ -2515,6 +2515,29 @@ body {
   .detail-refresh-btn { display: none; }
 }
 
+/* Delete contact button — secondary danger style */
+.btn-delete-contact {
+  background: none;
+  border: 1px solid #fca5a5;
+  color: var(--red);
+  cursor: pointer;
+  padding: .2rem .55rem;
+  border-radius: var(--radius);
+  font-size: .8rem;
+  font-weight: 500;
+  line-height: 1.5;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.btn-delete-contact:hover {
+  background: #fef2f2;
+  border-color: var(--red);
+  color: #c53030;
+}
+.btn-delete-contact:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
 /* ── Sidebar overlay (blocks content when sidebar is open) ───────────────── */
 
 .sidebar-overlay {

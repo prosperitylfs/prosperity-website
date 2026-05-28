@@ -768,6 +768,33 @@ function showToast(msg, duration = 2500) {
   el._timer = setTimeout(() => el.classList.add('crm-toast-hidden'), duration);
 }
 
+// ─── Delete contact ───────────────────────────────────────────────────────────
+
+async function deleteContact() {
+  const name = document.getElementById('contact-name').textContent.trim();
+  const confirmed = confirm(
+    `Are you sure you want to delete ${name || 'this contact'}? This cannot be undone.`
+  );
+  if (!confirmed) return;
+
+  const btn = document.getElementById('delete-contact-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+
+  try {
+    await CRM.fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+    window.location.href = '/';
+  } catch (err) {
+    console.error('[deleteContact] failed:', err);
+    showError(`Could not delete contact: ${err.message}`);
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 Delete'; }
+  }
+}
+
+(function wireDeleteButton() {
+  const btn = document.getElementById('delete-contact-btn');
+  if (btn) btn.addEventListener('click', deleteContact);
+})();
+
 // ─── Refresh handler ──────────────────────────────────────────────────────────
 
 async function refreshContact() {

@@ -150,12 +150,25 @@ router.patch('/:id', (req, res) => {
   res.json(db.prepare('SELECT * FROM contacts WHERE id = ?').get(contact.id));
 });
 
-// DELETE /api/contacts/:id
+// DELETE /api/contacts/:id — deletes contact and all associated records
 router.delete('/:id', (req, res) => {
-  const contact = db.prepare('SELECT id FROM contacts WHERE id = ?').get(req.params.id);
+  const contact = db.prepare('SELECT id, first_name, last_name FROM contacts WHERE id = ?').get(req.params.id);
   if (!contact) return res.status(404).json({ error: 'Not found' });
-  db.prepare('DELETE FROM contacts WHERE id = ?').run(contact.id);
-  res.json({ ok: true });
+
+  try {
+    // Tables with ON DELETE SET NULL must be cleaned up explicitly first
+    db.prepare('DELETE FROM emails     WHERE contact_id = ?').run(contact.id);
+    db.prepare('DELETE FROM comm_calls WHERE contact_id = ?').run(contact.id);
+    // Deleting the contact cascades to: communications, contact_notes, appointments
+    db.prepare('DELETE FROM contacts WHERE id = ?').run(contact.id);
+
+    const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ') || `#${contact.id}`;
+    console.log(`[contacts] Deleted contact "${name}" (id=${contact.id}) and all associated records`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(`[contacts] Delete failed for id=${contact.id}:`, err.message);
+    res.status(500).json({ error: err.message || 'Delete failed' });
+  }
 });
 
 // POST /api/contacts/:id/notes — add a note

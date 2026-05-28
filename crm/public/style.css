@@ -254,7 +254,7 @@ body {
 .card-title {
   font-size: .875rem;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--purple);
   text-transform: uppercase;
   letter-spacing: .07em;
   margin-bottom: 1rem;
@@ -1039,12 +1039,12 @@ body {
 /* ── CRM editable section cards ──────────────────────────────────────────── */
 
 .crm-card-title {
-  font-size: .78rem;
+  font-size: .875rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .07em;
   color: var(--purple);
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
   padding-bottom: .65rem;
   border-bottom: 2px solid var(--purple-light);
 }
@@ -2432,6 +2432,54 @@ body {
   min-width: 16px;
   height: 16px;
   font-size: .58rem;
+}
+
+/* Refresh / generic icon button in mobile topbar */
+.mobile-topbar-icon-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.85);
+  cursor: pointer;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  border-radius: 50%;
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.mobile-topbar-icon-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
+
+/* Desktop refresh button (in page header, hidden on mobile) */
+.page-header-nav {
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+  margin-bottom: .25rem;
+}
+.detail-refresh-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: .2rem .55rem;
+  border-radius: 6px;
+  font-size: .8rem;
+  font-weight: 500;
+  line-height: 1.5;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.detail-refresh-btn:hover {
+  color: var(--purple);
+  border-color: var(--purple);
+  background: var(--purple-xlight);
+}
+@media (max-width: 768px) {
+  /* Hide desktop refresh on mobile — the topbar button covers it */
+  .detail-refresh-btn { display: none; }
 }
 
 /* ── Sidebar overlay (blocks content when sidebar is open) ───────────────── */

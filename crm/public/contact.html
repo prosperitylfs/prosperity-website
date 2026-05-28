@@ -30,6 +30,7 @@
   <header class="mobile-topbar">
     <button class="hamburger-btn" id="hamburger-btn" aria-label="Open menu">☰</button>
     <span class="mobile-topbar-title">Contact Detail</span>
+    <button class="mobile-topbar-icon-btn" onclick="loadContact()" aria-label="Refresh">↻</button>
     <a href="/calls.html" class="mobile-calls-btn" aria-label="Calls &amp; Voicemail">
       📞<span class="nav-badge hidden" id="nav-badge-calls-mobile"></span>
     </a>
@@ -64,7 +65,10 @@
       <!-- Page header -->
       <div class="page-header">
         <div>
-          <a href="/" class="back-link">← Back to Contacts</a>
+          <div class="page-header-nav">
+            <a href="/" class="back-link">← Back to Contacts</a>
+            <button class="detail-refresh-btn" onclick="loadContact()" title="Refresh contact data">↻ Refresh</button>
+          </div>
           <h1 class="page-title" id="contact-name">Loading…</h1>
           <div id="contact-meta" class="contact-meta"></div>
         </div>
@@ -192,9 +196,24 @@
           </div>
         </div>
 
-        <!-- desktop col 2, mobile row 6 -->
+        <div class="card card-activity">
+          <h2 class="card-title">Activity &amp; Form Submissions</h2>
+          <div id="comms-list" class="timeline"></div>
+        </div>
+
+        <div class="card card-add-note">
+          <h2 class="card-title">Add Note</h2>
+          <textarea id="new-note-body" class="note-textarea" placeholder="Type a note…" rows="3"></textarea>
+          <button id="add-note-btn" class="btn btn-primary">Save Note</button>
+        </div>
+
+        <div class="card card-notes">
+          <h2 class="card-title">Notes</h2>
+          <div id="notes-list" class="timeline"></div>
+        </div>
+
         <div class="card card-retirement crm-card">
-          <h2 class="crm-card-title">Retirement Information</h2>
+          <h2 class="card-title">Retirement Information</h2>
           <div class="crm-grid">
             <div class="crm-field">
               <label class="crm-label" for="f-retirement_account_type">Retirement Account Type</label>
@@ -250,9 +269,8 @@
           </div>
         </div>
 
-        <!-- desktop col 2, mobile row 7 -->
         <div class="card card-insurance crm-card">
-          <h2 class="crm-card-title">Insurance Information</h2>
+          <h2 class="card-title">Insurance Information</h2>
           <div class="crm-grid">
             <div class="crm-field">
               <label class="crm-label" for="f-insurance_company">Insurance Company</label>
@@ -309,9 +327,8 @@
           </div>
         </div>
 
-        <!-- desktop col 2, mobile row 8 -->
         <div class="card card-annuity crm-card">
-          <h2 class="crm-card-title">Annuity Information</h2>
+          <h2 class="card-title">Annuity Information</h2>
           <div class="crm-grid">
             <div class="crm-field">
               <label class="crm-label" for="f-annuity_carrier">Annuity Carrier</label>
@@ -353,25 +370,6 @@
             <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'annuity')">Save Changes</button>
             <span class="crm-saved hidden" id="saved-annuity">Saved!</span>
           </div>
-        </div>
-
-        <!-- desktop col 2, mobile row 9 -->
-        <div class="card card-activity">
-          <h2 class="card-title">Activity &amp; Form Submissions</h2>
-          <div id="comms-list" class="timeline"></div>
-        </div>
-
-        <!-- desktop col 2, mobile row 10 -->
-        <div class="card card-add-note">
-          <h2 class="card-title">Add Note</h2>
-          <textarea id="new-note-body" class="note-textarea" placeholder="Type a note…" rows="3"></textarea>
-          <button id="add-note-btn" class="btn btn-primary">Save Note</button>
-        </div>
-
-        <!-- desktop col 2, mobile row 11 -->
-        <div class="card card-notes">
-          <h2 class="card-title">Notes</h2>
-          <div id="notes-list" class="timeline"></div>
         </div>
 
       </div><!-- /detail-grid -->

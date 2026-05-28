@@ -587,11 +587,19 @@ function toggleApptForm(show) {
 
 function renderComms(comms) {
   const el = document.getElementById('comms-list');
-  if (!comms.length) {
+
+  // Backend already excludes comm_type='email' from this array.
+  // This client-side guard is a secondary safety net for any cached API responses.
+  const filtered = comms.filter(c =>
+    (c.comm_type || '').toLowerCase().trim() !== 'email' &&
+    !(c.email_to || c.email_from)
+  );
+
+  if (!filtered.length) {
     el.innerHTML = '<p class="text-muted">No activity yet.</p>';
     return;
   }
-  el.innerHTML = comms.map(c => {
+  el.innerHTML = filtered.map(c => {
     let bodyHtml = '';
     if (c.comm_type === 'form' && c.body) {
       try {

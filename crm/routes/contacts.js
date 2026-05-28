@@ -59,9 +59,20 @@ router.get('/:id', (req, res) => {
     'SELECT * FROM contact_notes WHERE contact_id = ? ORDER BY created_at DESC'
   ).all(contact.id);
 
+  // Exclude email comm_type — emails are served separately via /api/email/contact/:id
+  // and displayed in their own Email History section. Including them here would
+  // cause every sent email to appear twice on the contact detail page.
   const communications = db.prepare(
-    'SELECT * FROM communications WHERE contact_id = ? ORDER BY created_at DESC'
+    "SELECT * FROM communications WHERE contact_id = ? AND comm_type != 'email' ORDER BY created_at DESC"
   ).all(contact.id);
+
+  // Temporary: log how many email records were excluded so it's visible in server logs
+  const emailExcluded = db.prepare(
+    "SELECT COUNT(*) AS n FROM communications WHERE contact_id = ? AND comm_type = 'email'"
+  ).get(contact.id).n;
+  if (emailExcluded > 0) {
+    console.log(`[contacts/:id] contact #${contact.id}: excluded ${emailExcluded} email record(s) from activity feed`);
+  }
 
   // Exclude the legacy contacts.notes TEXT column so it never collides with
   // the contact_notes array. Old records may have "[object Object]" stored there.

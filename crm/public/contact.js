@@ -479,8 +479,8 @@ async function loadAppointments() {
   try {
     const appts = await CRM.fetch(`/api/appointments/contact/${id}`);
     renderAppointments(appts);
-  } catch {
-    // Don't block page load if appointments are unavailable
+  } catch (e) {
+    console.error('loadAppointments failed:', e);
   }
 }
 

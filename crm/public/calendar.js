@@ -1,7 +1,7 @@
 // Calendar page — appointments list with status management
 
 let calAppts   = [];
-let calView    = 'upcoming';
+let calView    = '';          // default: show all appointments
 
 const calTbody    = document.getElementById('cal-tbody');
 const calCards    = document.getElementById('cal-cards');

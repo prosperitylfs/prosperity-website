@@ -1,7 +1,8 @@
-// Prosperity CRM — Service Worker
-// Strategy: cache-first for static assets, network-only for API + config.js
+// Prosperity CRM — Service Worker v6
+// Strategy: network-first for same-origin assets (always fresh JS/HTML),
+//           cache fallback for offline; network-only for live API + config.js
 
-const CACHE = 'prosperity-crm-v5';
+const CACHE = 'prosperity-crm-v6';
 
 const PRECACHE = [
   '/',
@@ -14,6 +15,7 @@ const PRECACHE = [
   '/contact.js',
   '/calls-page.js',
   '/calendar.js',
+  '/email-modal.js',
   '/nav.js',
   '/manifest.json',
   '/favicon.ico',
@@ -52,20 +54,20 @@ self.addEventListener('fetch', e => {
 
   const url = new URL(request.url);
 
-  // Network-only: live API data and the dynamic config endpoint
+  // Network-only: live API data and the dynamic config endpoint.
+  // These must never be served from cache.
   if (url.pathname.startsWith('/api/') || url.pathname === '/config.js') {
     e.respondWith(fetch(request));
     return;
   }
 
-  // Cross-origin (Google Fonts etc.): network with cache fallback
+  // Cross-origin (Google Fonts, etc.): cache-first with network fallback.
   if (url.origin !== self.location.origin) {
     e.respondWith(
       caches.match(request).then(cached =>
         cached || fetch(request).then(res => {
           if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE).then(c => c.put(request, clone));
+            caches.open(CACHE).then(c => c.put(request, res.clone()));
           }
           return res;
         }).catch(() => cached)
@@ -74,17 +76,17 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Cache-first for all other same-origin requests
+  // Same-origin assets (HTML, JS, CSS, icons): network-first.
+  // Always fetches from the network so deployed updates are visible immediately.
+  // Falls back to cache only when the network is unavailable (offline).
   e.respondWith(
-    caches.match(request).then(cached => {
-      const networkFetch = fetch(request).then(res => {
+    fetch(request)
+      .then(res => {
         if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(request, clone));
+          caches.open(CACHE).then(c => c.put(request, res.clone()));
         }
         return res;
-      });
-      return cached || networkFetch;
-    })
+      })
+      .catch(() => caches.match(request))
   );
 });

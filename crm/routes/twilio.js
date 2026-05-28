@@ -18,7 +18,12 @@ const SMS_BODY =
 // Set VOICEMAIL_GREETING_URL env var to use a hosted MP3; defaults to <Say>.
 function greetingTwiml() {
   const url = process.env.VOICEMAIL_GREETING_URL;
-  if (url) return `<Play>${escXml(url)}</Play>`;
+  console.log(`[twilio/voicemail] greeting url = ${url || '(not set — VOICEMAIL_GREETING_URL env var missing)'}`);
+  if (url) {
+    console.log('[twilio/voicemail] using custom MP3 greeting');
+    return `<Play>${escXml(url)}</Play>`;
+  }
+  console.log('[twilio/voicemail] using fallback Say greeting');
   return `<Say voice="Polly.Joanna">Hi, you've reached Loretta at Prosperity Life and Financial Solutions. I'm unavailable right now. Please leave your name, number, and a brief message after the beep and I'll call you back as soon as possible. Thank you.</Say>`;
 }
 
@@ -38,28 +43,24 @@ async function sendMissedCallSms(callId) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken  = process.env.TWILIO_AUTH_TOKEN;
 
-  // Log decision point with env var status so Render logs show exactly what's missing
-  console.log(
-    `[twilio/sms] call #${callId}: SMS decision — ` +
-    `to=${toNumber || 'MISSING'} ` +
-    `TWILIO_FROM_NUMBER=${fromNumber ? fromNumber : 'NOT SET'} ` +
-    `TWILIO_ACCOUNT_SID=${accountSid ? '[set]' : 'NOT SET'} ` +
-    `TWILIO_AUTH_TOKEN=${authToken ? '[set]' : 'NOT SET'}`
-  );
+  // Log each credential separately so Render shows exactly what is and isn't set
+  console.log(`[twilio/sms] call #${callId} — missed-call SMS check`);
+  console.log(`[twilio/sms] to   = ${toNumber  || 'MISSING (no caller number on call record)'}`);
+  console.log(`[twilio/sms] from = ${fromNumber || 'NOT SET — add TWILIO_FROM_NUMBER to Render env'}`);
+  console.log(`[twilio/sms] env SID set?   ${accountSid ? 'YES' : 'NO — add TWILIO_ACCOUNT_SID to Render env'}`);
+  console.log(`[twilio/sms] env TOKEN set? ${authToken  ? 'YES' : 'NO — add TWILIO_AUTH_TOKEN to Render env'}`);
 
   if (!toNumber) {
-    console.error(`[twilio/sms] call #${callId}: from_number is blank — cannot send SMS`);
+    console.error(`[twilio/sms] ABORT — caller number is blank, cannot send SMS`);
     return;
   }
   if (!fromNumber || !accountSid || !authToken) {
-    console.error(
-      `[twilio/sms] call #${callId}: ABORTING — required env vars not set. ` +
-      `Set TWILIO_FROM_NUMBER, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN on Render.`
-    );
+    console.error(`[twilio/sms] ABORT — one or more required env vars are missing (see above)`);
     return;
   }
 
-  // Pre-insert with status=queued so it appears in SMS History even if Twilio fails
+  // Pre-insert with status=queued — appears in SMS History immediately,
+  // updated to sent/failed once we hear back from Twilio.
   const smsInsert = db.prepare(`
     INSERT INTO sms_messages
       (contact_id, direction, from_number, to_number, body, status, call_id)
@@ -67,13 +68,14 @@ async function sendMissedCallSms(callId) {
   `).run(call.contact_id || null, fromNumber, toNumber, SMS_BODY, callId);
   const smsId = smsInsert.lastInsertRowid;
 
-  console.log(`[twilio/sms] call #${callId}: attempting Twilio send — sms_id=${smsId} to=${toNumber} from=${fromNumber}`);
+  console.log(`[twilio/sms] attempt send — sms_id=${smsId} to=${toNumber} from=${fromNumber}`);
 
   try {
     const client  = require('twilio')(accountSid, authToken);
     const message = await client.messages.create({ body: SMS_BODY, from: fromNumber, to: toNumber });
 
-    console.log(`[twilio/sms] call #${callId}: SUCCESS — MessageSid=${message.sid} status=${message.status}`);
+    console.log(`[twilio/sms] sent SID    = ${message.sid}`);
+    console.log(`[twilio/sms] sent status = ${message.status}`);
 
     db.prepare('UPDATE sms_messages SET twilio_sid = ?, status = ? WHERE id = ?')
       .run(message.sid, message.status || 'sent', smsId);
@@ -87,13 +89,19 @@ async function sendMissedCallSms(callId) {
       `).run(call.contact_id, SMS_BODY);
     }
   } catch (err) {
-    // Log the full Twilio error so it's visible in Render logs
-    console.error(`[twilio/sms] call #${callId}: Twilio send FAILED`);
-    console.error(`[twilio/sms]   Error message : ${err.message}`);
-    if (err.code)     console.error(`[twilio/sms]   Error code    : ${err.code}`);
-    if (err.status)   console.error(`[twilio/sms]   HTTP status   : ${err.status}`);
-    if (err.moreInfo) console.error(`[twilio/sms]   More info     : ${err.moreInfo}`);
-    db.prepare('UPDATE sms_messages SET status = ? WHERE id = ?').run('failed', smsId);
+    console.error(`[twilio/sms] FAILED — Twilio rejected the request`);
+    console.error(`[twilio/sms] failed code    = ${err.code    || 'none'}`);
+    console.error(`[twilio/sms] failed message = ${err.message}`);
+    if (err.status)   console.error(`[twilio/sms] failed http    = ${err.status}`);
+    if (err.moreInfo) console.error(`[twilio/sms] failed info    = ${err.moreInfo}`);
+    // Save failure to SMS History with full error detail in body
+    const errDetail = [
+      err.message,
+      err.code    ? `Code: ${err.code}`        : null,
+      err.moreInfo ? `Info: ${err.moreInfo}`   : null,
+    ].filter(Boolean).join(' | ');
+    db.prepare('UPDATE sms_messages SET status = ?, body = ? WHERE id = ?')
+      .run('failed', `[FAILED] ${errDetail}\n\nOriginal message: ${SMS_BODY}`, smsId);
   }
 }
 

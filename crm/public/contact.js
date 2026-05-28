@@ -260,9 +260,13 @@ function renderSmsHistory(messages) {
     const dirTag   = inbound
       ? '<span class="tag tag-blue"  style="font-size:.68rem;padding:.1rem .45rem">Received</span>'
       : '<span class="tag tag-green" style="font-size:.68rem;padding:.1rem .45rem">Sent</span>';
-    const statusBadge = (m.status && !['sent','received','queued'].includes(m.status))
-      ? `<span class="tag tag-gray" style="font-size:.68rem;padding:.1rem .45rem">${escHtml(m.status)}</span>`
-      : '';
+    const statusBadge = m.status === 'failed'
+      ? '<span class="tag tag-red"   style="font-size:.68rem;padding:.1rem .45rem">Failed</span>'
+      : m.status === 'queued'
+        ? '<span class="tag tag-amber" style="font-size:.68rem;padding:.1rem .45rem">Queued</span>'
+        : (m.status && !['sent','received'].includes(m.status))
+          ? `<span class="tag tag-gray" style="font-size:.68rem;padding:.1rem .45rem">${escHtml(m.status)}</span>`
+          : '';
     const addrLine = inbound
       ? (m.from_number ? `From: ${escHtml(m.from_number)} &nbsp;·&nbsp; ` : '')
       : (m.to_number   ? `To: ${escHtml(m.to_number)}   &nbsp;·&nbsp; ` : '');

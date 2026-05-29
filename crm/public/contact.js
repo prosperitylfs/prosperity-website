@@ -1134,6 +1134,73 @@ async function loadActivity() {
   }
 }
 
+// ─── Activity Timeline ────────────────────────────────────────────────────────
+
+function formatTimestamp(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const tz = 'America/Chicago';
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+  const dStr = d.toLocaleDateString('en-CA', { timeZone: tz });
+  const nd = new Date(); nd.setDate(nd.getDate() - 1);
+  const yesterdayStr = nd.toLocaleDateString('en-CA', { timeZone: tz });
+  const timeStr = d.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
+  if (dStr === todayStr) return `Today at ${timeStr}`;
+  if (dStr === yesterdayStr) return `Yesterday at ${timeStr}`;
+  const [y, mo, dy] = dStr.split('-').map(Number);
+  const label = new Date(y, mo - 1, dy).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${label} at ${timeStr}`;
+}
+
+const TL_META = {
+  call:           { icon: '📞', cls: 'tl-call' },
+  voicemail:      { icon: '🎙', cls: 'tl-voicemail' },
+  sms:            { icon: '💬', cls: 'tl-sms' },
+  email:          { icon: '✉',  cls: 'tl-email' },
+  note:           { icon: '📝', cls: 'tl-note' },
+  task:           { icon: '☐',  cls: 'tl-task' },
+  task_completed: { icon: '✔',  cls: 'tl-task-done' },
+  appointment:    { icon: '📅', cls: 'tl-appointment' },
+  form:           { icon: '📋', cls: 'tl-form' },
+};
+
+function renderTimeline(items) {
+  const feed = document.getElementById('timeline-feed');
+  if (!feed) return;
+  if (!items || !items.length) {
+    feed.innerHTML = '<p class="text-muted tl-empty">No activity recorded yet.</p>';
+    return;
+  }
+  feed.innerHTML = items.map(item => {
+    const meta = TL_META[item.type] || { icon: '•', cls: 'tl-other' };
+    const dirCls = item.direction === 'inbound' ? 'tl-inbound'
+                 : item.direction === 'outbound' ? 'tl-outbound' : 'tl-internal';
+    const desc = item.description
+      ? `<div class="tl-desc">${escHtml(item.description)}</div>` : '';
+    return `<div class="tl-item ${meta.cls} ${dirCls}">
+  <div class="tl-dot-wrap"><div class="tl-dot">${meta.icon}</div><div class="tl-line"></div></div>
+  <div class="tl-content">
+    <div class="tl-header">
+      <span class="tl-title">${escHtml(item.title)}</span>
+      <span class="tl-time">${escHtml(formatTimestamp(item.timestamp))}</span>
+    </div>${desc}
+  </div>
+</div>`;
+  }).join('');
+}
+
+async function loadTimeline() {
+  try {
+    const items = await CRM.fetch(`/api/contacts/${id}/timeline`);
+    renderTimeline(items);
+  } catch (err) {
+    console.error('[Timeline] failed to load:', err.message);
+    const feed = document.getElementById('timeline-feed');
+    if (feed) feed.innerHTML = '<p class="text-muted tl-empty">Could not load activity.</p>';
+  }
+}
+
 async function loadContact() {
   if (!id) return;
   try {
@@ -1145,7 +1212,7 @@ async function loadContact() {
     wireSmsCompose(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
-    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity(), loadTasks()]);
+    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity(), loadTasks(), loadTimeline()]);
   } catch (err) {
     showError(`Could not load contact: ${err.message}`);
   }
@@ -1252,7 +1319,7 @@ async function refreshContact() {
     wireSmsCompose(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
-    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity(), loadTasks()]);
+    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity(), loadTasks(), loadTimeline()]);
     showToast('CRM refreshed ✓');
   } catch (err) {
     console.error('Refresh failed:', err);

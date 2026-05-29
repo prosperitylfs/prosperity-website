@@ -3579,3 +3579,70 @@ body {
   opacity: 0;
   pointer-events: none;
 }
+
+/* ── Activity Timeline ─────────────────────────────────────────────────────── */
+
+.tl-feed { display: flex; flex-direction: column; gap: 0; }
+.tl-empty { padding: .5rem 0; }
+
+.tl-item {
+  display: flex;
+  gap: .75rem;
+  align-items: flex-start;
+  padding: .5rem 0;
+}
+.tl-item:last-child .tl-line { visibility: hidden; }
+
+.tl-dot-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 2rem;
+}
+.tl-dot {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .85rem;
+  flex-shrink: 0;
+  background: var(--purple-xlight, #ede8f7);
+  color: var(--purple);
+}
+.tl-line {
+  width: 2px;
+  flex: 1;
+  min-height: .625rem;
+  background: #e5e7eb;
+  margin-top: .2rem;
+}
+
+.tl-content { flex: 1; min-width: 0; padding-top: .3rem; }
+.tl-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.tl-title { font-size: .875rem; font-weight: 600; color: var(--text, #151414); }
+.tl-time  { font-size: .75rem; color: #6b7280; white-space: nowrap; flex-shrink: 0; }
+.tl-desc  { font-size: .8rem; color: #4b5563; margin-top: .2rem; word-break: break-word; line-height: 1.4; }
+
+/* dot color variants by type + direction */
+.tl-call.tl-inbound    .tl-dot { background: #dbeafe; color: #1d4ed8; }
+.tl-call.tl-outbound   .tl-dot { background: var(--purple-xlight); color: var(--purple); }
+.tl-voicemail.tl-inbound  .tl-dot { background: #fef3c7; color: #d97706; }
+.tl-voicemail.tl-outbound .tl-dot { background: #fef3c7; color: #d97706; }
+.tl-sms.tl-inbound     .tl-dot { background: #d1fae5; color: #059669; }
+.tl-sms.tl-outbound    .tl-dot { background: #ccfbf1; color: #0f766e; }
+.tl-email.tl-inbound   .tl-dot { background: #e0f2fe; color: #0369a1; }
+.tl-email.tl-outbound  .tl-dot { background: var(--purple-xlight); color: var(--purple); }
+.tl-note               .tl-dot { background: #f3f4f6; color: #6b7280; }
+.tl-task               .tl-dot { background: #e0e7ff; color: #4338ca; font-size: 1rem; }
+.tl-task-done          .tl-dot { background: #d1fae5; color: #059669; }
+.tl-appointment        .tl-dot { background: #ffedd5; color: #c2410c; }
+.tl-form               .tl-dot { background: #e0f2fe; color: #0369a1; }

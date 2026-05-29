@@ -1,8 +1,8 @@
-// Prosperity CRM — Service Worker v14
+// Prosperity CRM — Service Worker v15
 // Strategy: network-first for same-origin assets (always fresh JS/HTML),
 //           cache fallback for offline; network-only for live API + config.js
 
-const CACHE = 'prosperity-crm-v25';
+const CACHE = 'prosperity-crm-v26';
 
 const PRECACHE = [
   '/',

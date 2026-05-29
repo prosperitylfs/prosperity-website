@@ -66,12 +66,29 @@ router.get('/', (req, res) => {
       GROUP BY contact_id
     `).all(today, today, tomorrow, tomorrow, ...ids);
     const taskMap = Object.fromEntries(taskRows.map(r => [r.contact_id, r]));
+
+    // Next pending task per contact (earliest due date, then earliest time)
+    const nextRows = db.prepare(`
+      SELECT contact_id, task_type, due_date, due_time
+      FROM follow_up_tasks
+      WHERE status = 'Pending' AND contact_id IN (${holders})
+      ORDER BY due_date ASC, COALESCE(due_time, '23:59') ASC
+    `).all(...ids);
+    const nextMap = {};
+    for (const r of nextRows) {
+      if (!nextMap[r.contact_id]) nextMap[r.contact_id] = r;
+    }
+
     for (const c of contacts) {
       const t = taskMap[c.id] || {};
       c.tasks_overdue  = t.tasks_overdue  || 0;
       c.tasks_today    = t.tasks_today    || 0;
       c.tasks_tomorrow = t.tasks_tomorrow || 0;
       c.tasks_upcoming = t.tasks_upcoming || 0;
+      const n = nextMap[c.id];
+      c.next_task_type = n ? n.task_type : null;
+      c.next_task_date = n ? n.due_date  : null;
+      c.next_task_time = n ? n.due_time  : null;
     }
   }
 

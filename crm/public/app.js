@@ -85,6 +85,55 @@ function tag(text, className = '') {
   return `<span class="tag ${className}">${escHtml(text)}</span>`;
 }
 
+// ─── Next-task formatting helpers ──────────────────────────────────────────────
+
+function fmt12h(t24) {
+  if (!t24) return '';
+  const [h, m] = t24.split(':').map(Number);
+  const p  = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return m === 0 ? `${h12} ${p}` : `${h12}:${String(m).padStart(2, '0')} ${p}`;
+}
+
+function fmtTaskDue(date, time) {
+  if (!date) return '—';
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const nd = new Date(); nd.setDate(nd.getDate() + 1);
+  const tomorrow = nd.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const ts = time ? ' ' + fmt12h(time) : '';
+  if (date < today) {
+    const days = Math.round((new Date(today) - new Date(date)) / 86400000);
+    return `Overdue ${days}d`;
+  }
+  if (date === today)    return `Today${ts}`;
+  if (date === tomorrow) return `Tomorrow${ts}`;
+  const [y, mo, dy] = date.split('-').map(Number);
+  const label = new Date(y, mo - 1, dy).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return ts ? `${label}${ts}` : label;
+}
+
+function nextTaskCls(date) {
+  if (!date) return 'next-task-none';
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const nd = new Date(); nd.setDate(nd.getDate() + 1);
+  const tomorrow = nd.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  if (date < today)    return 'next-task-overdue';
+  if (date === today)  return 'next-task-today';
+  if (date === tomorrow) return 'next-task-tomorrow';
+  return 'next-task-future';
+}
+
+function taskSortKey(c) {
+  if (!c.next_task_date) return 4;
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const nd = new Date(); nd.setDate(nd.getDate() + 1);
+  const tomorrow = nd.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  if (c.next_task_date < today)    return 0;
+  if (c.next_task_date === today)  return 1;
+  if (c.next_task_date === tomorrow) return 2;
+  return 3;
+}
+
 function formatPhone(raw) {
   if (!raw) return raw;
   const digits = String(raw).replace(/\D/g, '');
@@ -153,9 +202,20 @@ function renderContacts(contacts) {
   emptyEl.classList.add('hidden');
   countEl.textContent = `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`;
 
-  tbody.innerHTML = contacts.map(c => {
+  // Sort by task urgency (overdue → today → tomorrow → future → no task),
+  // preserving existing created_at order within each tier.
+  const sorted = [...contacts].sort((a, b) => taskSortKey(a) - taskSortKey(b));
+
+  tbody.innerHTML = sorted.map(c => {
     const name     = [c.first_name, c.last_name].filter(Boolean).join(' ') || '—';
     const initials = [c.first_name, c.last_name].filter(Boolean).map(n => n[0]).join('').toUpperCase() || '?';
+    const ntCls    = nextTaskCls(c.next_task_date);
+    const ntType   = c.next_task_type
+      ? `<span class="next-task-pill ${ntCls}">${escHtml(c.next_task_type)}</span>`
+      : `<span class="next-task-pill next-task-none">No Task</span>`;
+    const ntDue    = c.next_task_date
+      ? `<span class="next-task-pill ${ntCls}">${escHtml(fmtTaskDue(c.next_task_date, c.next_task_time))}</span>`
+      : `<span class="next-task-pill next-task-none">—</span>`;
     return `
       <tr class="contact-row" onclick="location.href='/contact.html?id=${c.id}'" style="cursor:pointer">
         <td>
@@ -175,6 +235,8 @@ function renderContacts(contacts) {
           ${!c.tasks_overdue && c.tasks_today ? `<span class="task-badge task-badge-today">📅${c.tasks_today}</span>` : ''}
           ${!c.tasks_overdue && !c.tasks_today && c.tasks_tomorrow ? `<span class="task-badge task-badge-tomorrow">📅${c.tasks_tomorrow}</span>` : ''}
         </td>
+        <td class="next-task-col">${ntType}</td>
+        <td class="next-task-col">${ntDue}</td>
         <td class="text-muted text-small">${c.lead_source ? escHtml(c.lead_source) : '—'}</td>
         <td class="text-muted text-small">${formatDate(c.created_at)}</td>
       </tr>
@@ -222,6 +284,10 @@ function buildMobileContactCard(c) {
         ${!c.tasks_overdue && !c.tasks_today && c.tasks_tomorrow ? `<span class="task-badge task-badge-tomorrow">📅${c.tasks_tomorrow}</span>` : ''}
         <span class="mcc-date">${formatDate(c.created_at)}</span>
       </div>
+      ${c.next_task_type ? `<div class="mcc-next-task">
+        <span class="next-task-pill ${nextTaskCls(c.next_task_date)}">${escHtml(c.next_task_type)}</span>
+        <span class="next-task-pill ${nextTaskCls(c.next_task_date)}">${escHtml(fmtTaskDue(c.next_task_date, c.next_task_time))}</span>
+      </div>` : ''}
     </div>
   `;
 }
@@ -242,8 +308,9 @@ function renderPipeline(contacts) {
     'Dead Lead':             'Long-Term Nurture',
   };
 
+  const sorted = [...contacts].sort((a, b) => taskSortKey(a) - taskSortKey(b));
   const grouped = Object.fromEntries(PIPELINE_STATUSES.map(s => [s, []]));
-  for (const c of contacts) {
+  for (const c of sorted) {
     const s = c.lead_status || 'New Lead';
     const bucket = grouped[s] ? s : (fallback[s] || 'New Lead');
     grouped[bucket].push(c);

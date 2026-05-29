@@ -1233,13 +1233,12 @@ body {
 /* Call status badges in the Recent Calls timeline */
 .call-status-badge {
   display: inline-block;
-  padding: .15rem .5rem;
+  padding: .15rem .55rem;
   border-radius: 4px;
   font-size: .72rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .04em;
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 .badge-call-done      { background: #d1fae5; color: #065f46; }
@@ -1275,8 +1274,6 @@ body {
   border-radius: 4px;
   font-size: .72rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .04em;
   vertical-align: middle;
 }
 
@@ -1305,6 +1302,83 @@ body {
 .call-mark-btn:hover {
   background: var(--purple);
   color: #fff;
+}
+
+/* ── Recent Calls entries (contact detail page) ─────────────────────────── */
+.call-entry {
+  padding: .6rem .5rem .6rem .8rem;
+  border-left: 3px solid var(--border);
+  border-radius: 0 4px 4px 0;
+  margin-bottom: .5rem;
+  background: var(--white);
+}
+
+.call-entry:last-child { margin-bottom: 0; }
+
+.call-entry[data-dir="inbound"]  { border-left-color: var(--green); }
+.call-entry[data-dir="outbound"] { border-left-color: var(--purple); }
+.call-entry[data-dir="missed"]   { border-left-color: var(--red); }
+.call-entry[data-dir="voicemail"]{ border-left-color: var(--purple); }
+
+.call-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  margin-bottom: .25rem;
+}
+
+.call-entry-left {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.call-dir-arrow {
+  font-weight: 800;
+  font-size: 1rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.call-entry-dir-label {
+  font-size: .76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.call-entry-ts {
+  font-size: .74rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.call-entry-actions {
+  margin-top: .4rem;
+}
+
+/* Small voicemail icon shown beside the badge when a recording is present */
+.vm-icon {
+  font-size: .82rem;
+  line-height: 1;
+  opacity: .75;
+  flex-shrink: 0;
+}
+
+/* Duration pill inside call entries */
+.call-duration-pill {
+  display: inline-block;
+  padding: .05rem .4rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 /* Voicemail player — button + embedded audio element */
@@ -1341,6 +1415,82 @@ body {
   max-width: 300px;
   height: 36px;
   accent-color: var(--purple);
+}
+
+/* Voicemail inline error state */
+.vm-error {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .35rem;
+  font-size: .78rem;
+  color: var(--red, #c0392b);
+}
+
+.vm-retry-btn {
+  padding: .15rem .5rem;
+  background: none;
+  border: 1px solid var(--red, #c0392b);
+  border-radius: 4px;
+  color: var(--red, #c0392b);
+  font-family: inherit;
+  font-size: .75rem;
+  cursor: pointer;
+}
+
+.vm-retry-btn:hover {
+  background: var(--red, #c0392b);
+  color: #fff;
+}
+
+/* Voicemail with no recording on file */
+.vm-no-recording {
+  margin-top: .35rem;
+  font-size: .78rem;
+  color: var(--text-muted, #888);
+  font-style: italic;
+}
+
+/* Voicemail Left By Agent — timestamped section with undo */
+.vm-left-section {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .3rem;
+  margin-top: .4rem;
+  padding: .3rem .55rem;
+  background: #ede8f7;
+  border-radius: 5px;
+  font-size: .78rem;
+}
+
+.vm-left-label {
+  font-weight: 600;
+  color: var(--purple-dark);
+}
+
+.vm-left-ts {
+  color: var(--purple-dark);
+  opacity: .75;
+}
+
+.vm-left-undo-btn {
+  margin-left: auto;
+  padding: .1rem .45rem;
+  background: none;
+  border: 1px solid var(--purple);
+  border-radius: 4px;
+  color: var(--purple);
+  font-family: inherit;
+  font-size: .72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+
+.vm-left-undo-btn:hover {
+  background: var(--purple);
+  color: #fff;
 }
 
 /* Voicemail transcription text */
@@ -1827,14 +1977,14 @@ body {
   display: flex;
   align-items: center;
   gap: .4rem;
-  flex-wrap: wrap;
   margin-bottom: .3rem;
 }
 
 .call-log-dir {
   font-size: .95rem;
-  font-weight: 700;
+  font-weight: 800;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .dir-in     { color: var(--green-dark); }
@@ -1842,14 +1992,22 @@ body {
 .dir-missed { color: var(--red); }
 
 .call-log-time {
-  font-size: .76rem;
+  font-size: .75rem;
   color: var(--text-muted);
+  margin-left: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .call-log-dur {
-  font-size: .76rem;
+  font-size: .73rem;
   color: var(--text-muted);
-  margin-left: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: .03rem .38rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .call-log-notes,

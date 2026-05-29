@@ -70,9 +70,9 @@ function callStatusBadge(status) {
     'busy':           ['badge-call-busy',      'Busy'],
     'failed':         ['badge-call-failed',    'Failed'],
     'canceled':       ['badge-call-failed',    'Canceled'],
-    'missed':         ['badge-call-missed',    'Missed'],
-    'voicemail':      ['badge-call-voicemail', 'Voicemail'],
-    'voicemail_left': ['badge-call-voicemail', 'VM Left'],
+    'missed':         ['badge-call-missed',    'Missed Call'],
+    'voicemail':      ['badge-call-voicemail', 'Voicemail Received'],
+    'voicemail_left': ['badge-call-voicemail', 'VM Left by Agent'],
   };
   const [cls, label] = map[status] || ['badge-call-init', status || '—'];
   return `<span class="call-status-badge ${cls}">${escHtml(label)}</span>`;
@@ -247,24 +247,45 @@ function renderThreadCard(t) {
 }
 
 function renderCallLogItem(call) {
-  const isInbound = call.direction === 'inbound';
-  const isMissed  = isInbound && ['missed','no-answer','busy','canceled'].includes(call.status);
-  const isVm      = call.status === 'voicemail';
-  const isUnread  = !call.listened_at && (isVm || isMissed);
-  const dur       = call.duration_sec ? formatDuration(call.duration_sec) : '';
+  const isInbound   = call.direction === 'inbound';
+  const hasVmStatus = call.status === 'voicemail';
+  const isVm        = hasVmStatus && !!call.recording_url;
+  const isMissed    = isInbound && ['missed','no-answer','busy','canceled'].includes(call.status);
+  const isUnread    = !call.listened_at && (hasVmStatus || isMissed);
+  const dur         = call.duration_sec ? formatDuration(call.duration_sec) : '';
+
+  // Voicemail status without a recording → show as missed call
+  const effectiveStatus = (hasVmStatus && !call.recording_url) ? 'missed' : call.status;
 
   const dirClass = isInbound ? (isMissed ? 'dir-missed' : 'dir-in') : 'dir-out';
   const dirIcon  = isInbound ? '↙' : '↗';
+  const vmIcon   = isVm ? '<span class="vm-icon" title="Has recording">🎙</span>' : '';
 
-  const vmPlayer = call.recording_url
+  // Play button only when a real recording exists
+  const vmPlayer = isVm
     ? `<div class="voicemail-player" id="vm-${call.id}">
          <button class="calls-action-btn" onclick="loadVoicemail(${call.id})">🎙 Play Voicemail</button>
-       </div>` : '';
+       </div>`
+    : (hasVmStatus ? `<div class="vm-no-recording">No recording available</div>` : '');
 
   const transcription = call.transcription
     ? `<div class="call-transcription">📝 "${escHtml(call.transcription)}"</div>` : '';
 
-  const savedNotes = call.notes
+  // Show VM-left section instead of printing raw "voicemail_left" note text
+  const vmLeftSection = call.notes === 'voicemail_left'
+    ? `<div class="vm-left-section">
+         <span class="vm-icon">🎙</span>
+         <span class="vm-left-label">Voicemail Left By Agent</span>
+         <span class="vm-left-ts">·&nbsp;${
+           call.voicemail_left_at
+             ? formatFullDate(call.voicemail_left_at)
+             : 'Time not recorded'
+         }</span>
+         <button class="vm-left-undo-btn" onclick="unmarkVoicemail(${call.id})">Undo</button>
+       </div>` : '';
+
+  // Only show raw notes when it isn't the reserved 'voicemail_left' sentinel
+  const savedNotes = (call.notes && call.notes !== 'voicemail_left')
     ? `<div class="call-log-notes">📋 ${escHtml(call.notes)}</div>` : '';
 
   const markReadBtn = isUnread
@@ -274,11 +295,12 @@ function renderCallLogItem(call) {
     <div class="call-log-item${isUnread ? ' log-unread' : ''}" id="call-row-${call.id}">
       <div class="call-log-header">
         <span class="call-log-dir ${dirClass}">${dirIcon}</span>
-        ${callStatusBadge(call.status)}
+        ${callStatusBadge(effectiveStatus)}
+        ${vmIcon}
         <span class="call-log-time">${formatFullDate(call.started_at)}</span>
         ${dur ? `<span class="call-log-dur">${escHtml(dur)}</span>` : ''}
       </div>
-      ${vmPlayer}${transcription}${savedNotes}
+      ${vmPlayer}${transcription}${vmLeftSection}${savedNotes}
       <div class="call-row-actions" style="margin-top:.35rem">
         ${markReadBtn}
         <button class="calls-action-btn" onclick="toggleNoteForm(${call.id})">+ Note</button>
@@ -367,6 +389,22 @@ async function markListened(callId) {
   }
 }
 
+async function unmarkVoicemail(callId) {
+  try {
+    await CRM.fetch(`/api/calls/${callId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notes: null }),
+    });
+    await loadCalls();
+  } catch (err) {
+    const errEl = document.getElementById('calls-error');
+    if (errEl) {
+      errEl.textContent = `Could not remove voicemail mark: ${err.message}`;
+      errEl.classList.remove('hidden');
+    }
+  }
+}
+
 async function loadVoicemail(callId) {
   const player = document.getElementById(`vm-${callId}`);
   const btn    = player?.querySelector('.calls-action-btn');
@@ -374,7 +412,7 @@ async function loadVoicemail(callId) {
 
   const origText = btn.innerHTML;
   btn.disabled  = true;
-  btn.innerHTML = '<span class="call-spinner"></span> Loading…';
+  btn.innerHTML = '<span class="call-spinner"></span> Loading voicemail…';
 
   try {
     const resp = await fetch(`/api/calls/${callId}/recording`, {
@@ -391,10 +429,11 @@ async function loadVoicemail(callId) {
         <source src="${url}" type="audio/mpeg">
       </audio>`;
   } catch (err) {
-    btn.disabled  = false;
-    btn.innerHTML = origText;
-    const errEl = document.getElementById('calls-error');
-    if (errEl) { errEl.textContent = `Could not load voicemail: ${err.message}`; errEl.classList.remove('hidden'); }
+    player.innerHTML = `
+      <div class="vm-error">
+        Unable to load voicemail
+        <button class="vm-retry-btn" onclick="loadVoicemail(${callId})">Retry</button>
+      </div>`;
   }
 }
 

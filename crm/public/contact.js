@@ -409,75 +409,93 @@ function renderCallLogs(logs) {
     return;
   }
 
-  const today = new Date().toDateString();
   el.innerHTML = logs.map(c => {
-    const isInbound = c.direction === 'inbound';
-    const isToday   = c.started_at && new Date(c.started_at).toDateString() === today;
-    const dirIcon   = isInbound ? '📲' : '☎';
-    const dirLabel  = isInbound ? 'Inbound Call' : 'Outbound Call';
-    const badge     = callStatusBadge(c.status);
-    const todayPill = isToday ? '<span class="call-ind-today call-ind-pill">Today</span>' : '';
+    const isInbound  = c.direction === 'inbound';
+    const hasVmStatus = c.status === 'voicemail';
+    const isVm       = hasVmStatus && !!c.recording_url;
+    const isMissed   = isInbound && ['missed','no-answer','busy','canceled'].includes(c.status);
 
-    // Outbound: agent left voicemail for lead
-    const vmLeftPill = c.notes === 'voicemail_left'
-      ? '<span class="call-ind-voicemail call-ind-pill">Voicemail Left</span>' : '';
+    // Voicemail status without a recording → treat as missed for badge purposes
+    const effectiveStatus = (hasVmStatus && !c.recording_url) ? 'missed' : c.status;
 
-    // Phone row differs by direction
-    const phoneRow = isInbound
-      ? (c.from_number ? `<div class="call-detail-row">From: ${escHtml(formatPhone(c.from_number))}</div>` : '')
-      : (c.to_number   ? `<div class="call-detail-row">To: ${escHtml(formatPhone(c.to_number))}</div>`   : '');
+    // Left-border colour encodes call type at a glance
+    const entryDir = isMissed ? 'missed'
+      : hasVmStatus           ? 'voicemail'
+      : isInbound             ? 'inbound'
+      :                         'outbound';
 
-    // Duration shown for answered calls and voicemail recordings
-    const durRow = c.duration_sec
-      ? `<div class="call-detail-row">Duration: ${escHtml(formatDuration(c.duration_sec))}</div>` : '';
+    const dirArrowCls = isInbound ? (isMissed ? 'dir-missed' : 'dir-in') : 'dir-out';
+    const dirLabel    = isInbound ? 'Inbound' : 'Outbound';
 
-    // Voicemail audio player — fetched through the CRM proxy, no Twilio auth popup
-    const recRow = c.recording_url
-      ? `<div class="voicemail-player" id="vm-${c.id}">
-           <button class="call-recording-btn" onclick="loadVoicemail(${c.id})">
-             🎙 Play Voicemail
-           </button>
+    const badge  = callStatusBadge(effectiveStatus);
+    const vmIcon = isVm ? '<span class="vm-icon" title="Has recording">🎙</span>' : '';
+
+    // VM-left section: timestamped row shown below call details when agent has marked it
+    const vmLeftSection = c.notes === 'voicemail_left'
+      ? `<div class="vm-left-section">
+           <span class="vm-icon">🎙</span>
+           <span class="vm-left-label">Voicemail Left By Agent</span>
+           <span class="vm-left-ts">·&nbsp;${
+             c.voicemail_left_at
+               ? formatDate(c.voicemail_left_at, true)
+               : 'Time not recorded'
+           }</span>
+           <button class="vm-left-undo-btn" onclick="unmarkVoicemail(${c.id})">Undo</button>
          </div>` : '';
 
-    // Transcription (when enabled)
+    const phoneRow = isInbound
+      ? (c.from_number ? `<div class="call-detail-row">From: ${escHtml(formatPhone(c.from_number))}</div>` : '')
+      : (c.to_number   ? `<div class="call-detail-row">To: ${escHtml(formatPhone(c.to_number))}</div>` : '');
+
+    const durRow = c.duration_sec
+      ? `<div class="call-detail-row">Duration: <span class="call-duration-pill">${escHtml(formatDuration(c.duration_sec))}</span></div>` : '';
+
+    // Play button only when a real recording exists
+    const recRow = isVm
+      ? `<div class="voicemail-player" id="vm-${c.id}">
+           <button class="call-recording-btn" onclick="loadVoicemail(${c.id})">🎙 Play Voicemail</button>
+         </div>`
+      : (hasVmStatus ? `<div class="vm-no-recording">No recording available</div>` : '');
+
     const transcRow = c.transcription
       ? `<div class="call-detail-row call-transcription">📝 "${escHtml(c.transcription)}"</div>` : '';
 
-    // "Mark Voicemail Left" — only for outbound calls where we called the lead
+    // "Mark Voicemail Left" button — outbound calls only
     const canMarkVm = !isInbound
       && ['no-answer', 'completed', 'in-progress'].includes(c.status)
       && c.notes !== 'voicemail_left';
 
     return `
-      <div class="timeline-item">
-        <div class="timeline-dot"></div>
-        <div class="timeline-body">
-          <div class="timeline-meta">
-            ${dirIcon} <strong>${escHtml(dirLabel)}</strong>
-            ${badge} ${todayPill} ${vmLeftPill}
-            <span class="timeline-meta-date">${formatDate(c.started_at, true)}</span>
+      <div class="call-entry" data-dir="${entryDir}">
+        <div class="call-entry-header">
+          <div class="call-entry-left">
+            <span class="call-dir-arrow ${dirArrowCls}">${isInbound ? '↙' : '↗'}</span>
+            <span class="call-entry-dir-label">${dirLabel}</span>
+            ${badge}${vmIcon}
           </div>
-          ${phoneRow}${durRow}${recRow}${transcRow}
-          ${canMarkVm ? `<button class="call-mark-btn" onclick="markVoicemail(${c.id})">Mark Voicemail Left</button>` : ''}
+          <span class="call-entry-ts">${formatDate(c.started_at, true)}</span>
         </div>
+        ${phoneRow}${durRow}${recRow}${transcRow}${vmLeftSection}
+        ${canMarkVm ? `<div class="call-entry-actions"><button class="call-mark-btn" onclick="markVoicemail(${c.id})">Mark Voicemail Left</button></div>` : ''}
       </div>`;
   }).join('');
 }
 
 function callStatusBadge(status) {
   const map = {
-    'initiated':   ['badge-call-init',      'Initiated'],
-    'ringing':     ['badge-call-ringing',   'Ringing'],
-    'in-progress': ['badge-call-progress',  'In Progress'],
-    'completed':   ['badge-call-done',      'Completed'],
-    'answered':    ['badge-call-done',      'Answered'],
-    'no-answer':   ['badge-call-noanswer',  'No Answer'],
-    'busy':        ['badge-call-busy',      'Busy'],
-    'failed':      ['badge-call-failed',    'Failed'],
-    'canceled':    ['badge-call-failed',    'Canceled'],
-    'missed':      ['badge-call-missed',    'Missed'],
-    'voicemail':   ['badge-call-voicemail', 'Voicemail'],
-    'unknown':     ['badge-call-init',      'Unknown'],
+    'initiated':      ['badge-call-init',      'Initiated'],
+    'ringing':        ['badge-call-ringing',   'Ringing'],
+    'in-progress':    ['badge-call-progress',  'In Progress'],
+    'completed':      ['badge-call-done',      'Completed'],
+    'answered':       ['badge-call-done',      'Answered'],
+    'no-answer':      ['badge-call-noanswer',  'No Answer'],
+    'busy':           ['badge-call-busy',      'Busy'],
+    'failed':         ['badge-call-failed',    'Failed'],
+    'canceled':       ['badge-call-failed',    'Canceled'],
+    'missed':         ['badge-call-missed',    'Missed Call'],
+    'voicemail':      ['badge-call-voicemail', 'Voicemail Received'],
+    'voicemail_left': ['badge-call-voicemail', 'Voicemail Left'],
+    'unknown':        ['badge-call-init',      'Unknown'],
   };
   const [cls, label] = map[status] || ['badge-call-init', status || '—'];
   return `<span class="call-status-badge ${cls}">${escHtml(label)}</span>`;
@@ -496,9 +514,23 @@ async function markVoicemail(callId) {
       method: 'PATCH',
       body: JSON.stringify({ notes: 'voicemail_left' }),
     });
+    showToast('Voicemail marked successfully');
     await loadCallLogs();
   } catch (err) {
     showError(`Could not update call: ${err.message}`);
+  }
+}
+
+async function unmarkVoicemail(callId) {
+  try {
+    await CRM.fetch(`/api/calls/${callId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notes: null }),
+    });
+    showToast('Voicemail mark removed');
+    await loadCallLogs();
+  } catch (err) {
+    showError(`Could not remove voicemail mark: ${err.message}`);
   }
 }
 
@@ -511,7 +543,7 @@ async function loadVoicemail(callId) {
 
   const origText = btn.innerHTML;
   btn.disabled   = true;
-  btn.innerHTML  = '<span class="call-spinner"></span> Loading…';
+  btn.innerHTML  = '<span class="call-spinner"></span> Loading voicemail…';
 
   try {
     const resp = await fetch(`/api/calls/${callId}/recording`, {
@@ -530,9 +562,11 @@ async function loadVoicemail(callId) {
         <source src="${url}" type="audio/mpeg">
       </audio>`;
   } catch (err) {
-    btn.disabled  = false;
-    btn.innerHTML = origText;
-    showError(`Could not load voicemail: ${err.message}`);
+    player.innerHTML = `
+      <div class="vm-error">
+        Unable to load voicemail
+        <button class="vm-retry-btn" onclick="loadVoicemail(${callId})">Retry</button>
+      </div>`;
   }
 }
 

@@ -124,8 +124,12 @@ router.get('/contact/:contact_id', (req, res) => {
 // Proxies the Twilio recording through the CRM backend so the browser never
 // needs Twilio credentials. Twilio credentials stay server-side only.
 router.get('/:id/recording', async (req, res) => {
-  const call = db.prepare('SELECT recording_url FROM comm_calls WHERE id = ?').get(req.params.id);
+  const callId = req.params.id;
+  console.log(`[calls/recording] playback requested call_id=${callId}`);
+
+  const call = db.prepare('SELECT recording_url FROM comm_calls WHERE id = ?').get(callId);
   if (!call || !call.recording_url) {
+    console.warn(`[calls/recording] no recording found call_id=${callId}`);
     return res.status(404).json({ error: 'No recording found for this call' });
   }
 
@@ -142,22 +146,25 @@ router.get('/:id/recording', async (req, res) => {
     });
 
     if (!upstream.ok) {
+      console.error(`[calls/recording] Twilio returned HTTP ${upstream.status} call_id=${callId}`);
       return res.status(upstream.status).json({ error: `Twilio returned HTTP ${upstream.status}` });
     }
 
     const buffer = Buffer.from(await upstream.arrayBuffer());
+    console.log(`[calls/recording] playback served call_id=${callId} bytes=${buffer.length}`);
 
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Content-Length', buffer.length);
     res.setHeader('Cache-Control', 'private, no-store');
     res.end(buffer);
   } catch (err) {
+    console.error(`[calls/recording] playback failed call_id=${callId}: ${err.message}`);
     if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 });
 
 // ─── PATCH /api/calls/:id ─────────────────────────────────────────────────────
-// Used to mark voicemail left or add notes after a call.
+// Used to mark/unmark voicemail left, add notes, or mark listened.
 router.patch('/:id', (req, res) => {
   const call = db.prepare('SELECT id, contact_id FROM comm_calls WHERE id = ?').get(req.params.id);
   if (!call) return res.status(404).json({ error: 'Not found' });
@@ -169,14 +176,31 @@ router.patch('/:id', (req, res) => {
   }
   if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nothing to update' });
 
+  const now = new Date().toISOString();
+  const markingVm   = req.body.notes === 'voicemail_left';
+  const clearingNotes = 'notes' in req.body && !req.body.notes;
+
+  if (markingVm) {
+    updates.voicemail_left_at = now;
+    updates.voicemail_left_by = 'agent';
+    console.log(`[calls/voicemail] marked  call_id=${call.id} contact_id=${call.contact_id || 'none'} by=agent at=${now}`);
+  } else if (clearingNotes) {
+    updates.voicemail_left_at = null;
+    updates.voicemail_left_by = null;
+    console.log(`[calls/voicemail] cleared  call_id=${call.id} contact_id=${call.contact_id || 'none'} at=${now}`);
+  }
+
   const clauses = Object.keys(updates).map(k => `${k} = @${k}`).join(', ');
   updates.id = call.id;
   db.prepare(`UPDATE comm_calls SET ${clauses} WHERE id = @id`).run(updates);
 
-  // If agent marks voicemail, mirror that to the contact for pipeline card indicator
-  if (req.body.notes === 'voicemail_left') {
+  // Mirror voicemail status to contact for pipeline card indicator
+  if (markingVm && call.contact_id) {
     db.prepare('UPDATE contacts SET last_call_status = ? WHERE id = ?')
       .run('voicemail_left', call.contact_id);
+  } else if (clearingNotes && call.contact_id) {
+    db.prepare("UPDATE contacts SET last_call_status = 'completed' WHERE id = ? AND last_call_status = 'voicemail_left'")
+      .run(call.contact_id);
   }
 
   res.json(db.prepare('SELECT * FROM comm_calls WHERE id = ?').get(call.id));

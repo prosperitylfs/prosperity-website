@@ -1155,12 +1155,13 @@ function formatTimestamp(iso) {
 
 const TL_META = {
   call:           { icon: '📞', cls: 'tl-call' },
+  missed_call:    { icon: '📵', cls: 'tl-missed' },
   voicemail:      { icon: '🎙', cls: 'tl-voicemail' },
   sms:            { icon: '💬', cls: 'tl-sms' },
   email:          { icon: '✉',  cls: 'tl-email' },
   note:           { icon: '📝', cls: 'tl-note' },
-  task:           { icon: '☐',  cls: 'tl-task' },
-  task_completed: { icon: '✔',  cls: 'tl-task-done' },
+  task:           { icon: '📌', cls: 'tl-task' },
+  task_completed: { icon: '✅', cls: 'tl-task-done' },
   appointment:    { icon: '📅', cls: 'tl-appointment' },
   form:           { icon: '📋', cls: 'tl-form' },
 };
@@ -1173,15 +1174,19 @@ function renderTimeline(items) {
     return;
   }
   feed.innerHTML = items.map(item => {
-    const meta = TL_META[item.type] || { icon: '•', cls: 'tl-other' };
-    const dirCls = item.direction === 'inbound' ? 'tl-inbound'
-                 : item.direction === 'outbound' ? 'tl-outbound' : 'tl-internal';
+    const meta = TL_META[item.type] || { icon: '•', cls: 'tl-note' };
+    // Only calls, SMS, and email carry meaningful inbound/outbound color distinction.
+    // All other types use their own fixed color via CSS class.
+    const useDirCls = ['call', 'sms', 'email'].includes(item.type);
+    const dirCls = useDirCls
+      ? (item.direction === 'inbound' ? 'tl-inbound' : 'tl-outbound')
+      : '';
     const desc = item.description
       ? `<div class="tl-desc">${escHtml(item.description)}</div>` : '';
     return `<div class="tl-item ${meta.cls} ${dirCls}">
-  <div class="tl-dot-wrap"><div class="tl-dot">${meta.icon}</div><div class="tl-line"></div></div>
-  <div class="tl-content">
-    <div class="tl-header">
+  <div class="tl-icon">${meta.icon}</div>
+  <div class="tl-body">
+    <div class="tl-row1">
       <span class="tl-title">${escHtml(item.title)}</span>
       <span class="tl-time">${escHtml(formatTimestamp(item.timestamp))}</span>
     </div>${desc}

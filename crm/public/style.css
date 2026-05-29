@@ -3610,67 +3610,82 @@ body {
 
 /* ── Activity Timeline ─────────────────────────────────────────────────────── */
 
-.tl-feed { display: flex; flex-direction: column; gap: 0; }
+.tl-feed  { display: flex; flex-direction: column; gap: .375rem; }
 .tl-empty { padding: .5rem 0; }
 
+/* Base card row */
 .tl-item {
   display: flex;
-  gap: .75rem;
   align-items: flex-start;
-  padding: .5rem 0;
-}
-.tl-item:last-child .tl-line { visibility: hidden; }
-
-.tl-dot-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex-shrink: 0;
-  width: 2rem;
-}
-.tl-dot {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: .85rem;
-  flex-shrink: 0;
-  background: var(--purple-xlight, #ede8f7);
-  color: var(--purple);
-}
-.tl-line {
-  width: 2px;
-  flex: 1;
-  min-height: .625rem;
-  background: #e5e7eb;
-  margin-top: .2rem;
+  gap: .625rem;
+  padding: .6rem .75rem;
+  border-radius: 8px;
+  border-left: 3px solid #e5e7eb;
+  background: #f9fafb;
 }
 
-.tl-content { flex: 1; min-width: 0; padding-top: .3rem; }
-.tl-header {
+.tl-icon {
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  width: 1.4rem;
+  text-align: center;
+  margin-top: .05rem;
+}
+
+.tl-body { flex: 1; min-width: 0; }
+
+.tl-row1 {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: .5rem;
   flex-wrap: wrap;
 }
+
 .tl-title { font-size: .875rem; font-weight: 600; color: var(--text, #151414); }
 .tl-time  { font-size: .75rem; color: #6b7280; white-space: nowrap; flex-shrink: 0; }
-.tl-desc  { font-size: .8rem; color: #4b5563; margin-top: .2rem; word-break: break-word; line-height: 1.4; }
+.tl-desc  { font-size: .8125rem; color: #4b5563; margin-top: .15rem; word-break: break-word; line-height: 1.45; }
 
-/* dot color variants by type + direction */
-.tl-call.tl-inbound    .tl-dot { background: #dbeafe; color: #1d4ed8; }
-.tl-call.tl-outbound   .tl-dot { background: var(--purple-xlight); color: var(--purple); }
-.tl-voicemail.tl-inbound  .tl-dot { background: #fef3c7; color: #d97706; }
-.tl-voicemail.tl-outbound .tl-dot { background: #fef3c7; color: #d97706; }
-.tl-sms.tl-inbound     .tl-dot { background: #d1fae5; color: #059669; }
-.tl-sms.tl-outbound    .tl-dot { background: #ccfbf1; color: #0f766e; }
-.tl-email.tl-inbound   .tl-dot { background: #e0f2fe; color: #0369a1; }
-.tl-email.tl-outbound  .tl-dot { background: var(--purple-xlight); color: var(--purple); }
-.tl-note               .tl-dot { background: #f3f4f6; color: #6b7280; }
-.tl-task               .tl-dot { background: #e0e7ff; color: #4338ca; font-size: 1rem; }
-.tl-task-done          .tl-dot { background: #d1fae5; color: #059669; }
-.tl-appointment        .tl-dot { background: #ffedd5; color: #c2410c; }
-.tl-form               .tl-dot { background: #e0f2fe; color: #0369a1; }
+/* ── Color variants ────────────────────────────────────────────────────────── */
+
+/* Inbound calls / SMS / email — blue */
+.tl-call.tl-inbound,
+.tl-sms.tl-inbound,
+.tl-email.tl-inbound  { border-left-color: #3b82f6; background: #eff6ff; }
+.tl-call.tl-inbound   .tl-title,
+.tl-sms.tl-inbound    .tl-title,
+.tl-email.tl-inbound  .tl-title { color: #1d4ed8; }
+
+/* Outbound calls / SMS / email — purple */
+.tl-call.tl-outbound,
+.tl-sms.tl-outbound,
+.tl-email.tl-outbound { border-left-color: var(--purple, #4e2c94); background: #faf5ff; }
+.tl-call.tl-outbound  .tl-title,
+.tl-sms.tl-outbound   .tl-title,
+.tl-email.tl-outbound .tl-title { color: var(--purple, #4e2c94); }
+
+/* Missed / failed — red */
+.tl-missed            { border-left-color: #ef4444; background: #fef2f2; }
+.tl-missed            .tl-title { color: #dc2626; }
+
+/* Voicemail — amber */
+.tl-voicemail         { border-left-color: #f59e0b; background: #fffbeb; }
+.tl-voicemail         .tl-title { color: #d97706; }
+
+/* Task completed — green */
+.tl-task-done         { border-left-color: #22c55e; background: #f0fdf4; }
+.tl-task-done         .tl-title { color: #15803d; }
+
+/* Task scheduled — indigo */
+.tl-task              { border-left-color: #6366f1; background: #eef2ff; }
+.tl-task              .tl-title { color: #4338ca; }
+
+/* Appointments — orange */
+.tl-appointment       { border-left-color: #f97316; background: #fff7ed; }
+.tl-appointment       .tl-title { color: #c2410c; }
+
+/* Notes + form submissions — gray */
+.tl-note,
+.tl-form              { border-left-color: #d1d5db; background: #f9fafb; }
+.tl-note              .tl-title,
+.tl-form              .tl-title { color: #374151; }

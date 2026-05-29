@@ -129,23 +129,25 @@ router.get('/:id/timeline', (req, res) => {
   const items = db.prepare(`
     SELECT 'call_' || c.id AS id,
       CASE
-        WHEN c.direction = 'inbound' AND c.status = 'voicemail' THEN 'voicemail'
-        WHEN c.direction = 'outbound' AND c.notes = 'voicemail_left' THEN 'voicemail'
+        WHEN c.direction = 'inbound'  AND c.status = 'voicemail' THEN 'voicemail'
+        WHEN c.direction = 'outbound' AND c.notes  = 'voicemail_left' THEN 'voicemail'
+        WHEN c.status IN ('missed', 'no-answer', 'busy', 'canceled', 'failed') THEN 'missed_call'
         ELSE 'call'
       END AS type,
       c.direction,
       CASE
-        WHEN c.direction = 'inbound' AND c.status = 'voicemail' THEN 'Voicemail Received'
-        WHEN c.direction = 'outbound' AND c.notes = 'voicemail_left' THEN 'Left Voicemail'
-        WHEN c.direction = 'inbound' THEN 'Inbound Call'
+        WHEN c.direction = 'inbound'  AND c.status = 'voicemail' THEN 'Voicemail Received'
+        WHEN c.direction = 'outbound' AND c.notes  = 'voicemail_left' THEN 'Left Voicemail'
+        WHEN c.status IN ('missed', 'no-answer', 'busy', 'canceled', 'failed') THEN 'Missed Call'
+        WHEN c.direction = 'inbound'  THEN 'Incoming Call'
         WHEN c.direction = 'outbound' THEN 'Outbound Call'
         ELSE 'Call'
       END AS title,
       CASE
-        WHEN c.duration_sec IS NOT NULL AND c.duration_sec >= 60 THEN (c.duration_sec/60 || 'm ' || (c.duration_sec%60) || 's')
-        WHEN c.duration_sec IS NOT NULL AND c.duration_sec > 0  THEN (c.duration_sec || 's')
-        WHEN c.direction = 'inbound' AND c.status = 'voicemail' AND c.transcription IS NOT NULL AND c.transcription != '' THEN substr(c.transcription, 1, 120)
-        WHEN c.status IS NOT NULL AND c.status != 'completed' AND c.status != 'voicemail' THEN c.status
+        WHEN c.duration_sec IS NOT NULL AND c.duration_sec >= 60 THEN ('Duration: ' || (c.duration_sec/60) || 'm ' || (c.duration_sec%60) || 's')
+        WHEN c.duration_sec IS NOT NULL AND c.duration_sec > 0   THEN ('Duration: ' || c.duration_sec || ' sec')
+        WHEN c.direction = 'inbound' AND c.status = 'voicemail'
+             AND c.transcription IS NOT NULL AND c.transcription != '' THEN substr(c.transcription, 1, 120)
         ELSE NULL
       END AS description,
       COALESCE(c.started_at, c.created_at) AS timestamp,
@@ -154,16 +156,18 @@ router.get('/:id/timeline', (req, res) => {
 
     UNION ALL
     SELECT 'sms_' || s.id, 'sms', s.direction,
-      CASE s.direction WHEN 'inbound' THEN 'Inbound Text' ELSE 'Outbound Text' END,
-      substr(s.body, 1, 120),
+      CASE s.direction WHEN 'inbound' THEN 'SMS Received' ELSE 'SMS Sent' END,
+      CASE WHEN s.body IS NOT NULL AND s.body != ''
+           THEN ('"' || substr(s.body, 1, 120) || '"') ELSE NULL END,
       COALESCE(s.sent_at, s.created_at), s.status, 'sms_messages', s.id
     FROM sms_messages s WHERE s.contact_id = ?
 
     UNION ALL
     SELECT 'email_' || e.id, 'email',
       COALESCE(e.direction, 'outbound'),
-      CASE COALESCE(e.direction, 'outbound') WHEN 'inbound' THEN 'Inbound Email' ELSE 'Outbound Email' END,
-      e.subject,
+      CASE COALESCE(e.direction, 'outbound') WHEN 'inbound' THEN 'Email Received' ELSE 'Email Sent' END,
+      CASE WHEN e.subject IS NOT NULL AND e.subject != ''
+           THEN ('Subject: ' || e.subject) ELSE NULL END,
       COALESCE(e.sent_at, e.created_at), e.status, 'emails', e.id
     FROM emails e WHERE e.contact_id = ?
 
@@ -175,14 +179,14 @@ router.get('/:id/timeline', (req, res) => {
 
     UNION ALL
     SELECT 'task_' || t.id, 'task', 'internal',
-      'Task Scheduled: ' || t.task_type,
+      t.task_type || ' Task Scheduled',
       CASE WHEN t.notes IS NOT NULL AND t.notes != '' THEN t.notes ELSE NULL END,
       t.created_at, t.status, 'follow_up_tasks', t.id
     FROM follow_up_tasks t WHERE t.contact_id = ?
 
     UNION ALL
     SELECT 'taskdone_' || t.id, 'task_completed', 'internal',
-      'Task Completed: ' || t.task_type,
+      t.task_type || ' Task Completed',
       CASE WHEN t.notes IS NOT NULL AND t.notes != '' THEN t.notes ELSE NULL END,
       t.completed_at, 'Completed', 'follow_up_tasks', t.id
     FROM follow_up_tasks t WHERE t.contact_id = ? AND t.completed_at IS NOT NULL
@@ -191,9 +195,9 @@ router.get('/:id/timeline', (req, res) => {
     SELECT 'appt_' || c.id, 'appointment', 'outbound',
       CASE
         WHEN c.body LIKE 'Booked%' OR c.body LIKE 'Scheduled%' THEN 'Appointment Booked'
-        WHEN c.body LIKE 'Completed%' THEN 'Appointment Completed'
+        WHEN c.body LIKE 'Completed%'                           THEN 'Appointment Completed'
         WHEN c.body LIKE 'Cancelled%' OR c.body LIKE 'Canceled%' THEN 'Appointment Cancelled'
-        WHEN c.body LIKE 'Rescheduled%' THEN 'Appointment Rescheduled'
+        WHEN c.body LIKE 'Rescheduled%'                         THEN 'Appointment Rescheduled'
         ELSE 'Appointment Update'
       END,
       c.body, c.created_at, NULL, 'communications', c.id
@@ -201,7 +205,7 @@ router.get('/:id/timeline', (req, res) => {
 
     UNION ALL
     SELECT 'form_' || c.id, 'form', 'inbound', 'Form Submitted',
-      c.body, c.created_at, NULL, 'communications', c.id
+      substr(c.body, 1, 120), c.created_at, NULL, 'communications', c.id
     FROM communications c WHERE c.contact_id = ? AND c.comm_type = 'form'
 
     ORDER BY timestamp DESC LIMIT 200

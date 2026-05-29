@@ -768,6 +768,29 @@ filterEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBa
 filterStatusEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBadge(); });
 filterSmsEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBadge(); });
 
+// ─── Task stats (dashboard summary bar) ───────────────────────────────────────
+
+async function loadTaskStats() {
+  try {
+    const stats = await CRM.fetch('/api/tasks/stats');
+    const bar = document.getElementById('task-stat-bar');
+    if (!bar) return;
+    const chips = [];
+    if (stats.overdue)  chips.push(`<span class="task-stat-chip task-stat-overdue">⚠ ${stats.overdue} Overdue</span>`);
+    if (stats.dueToday) chips.push(`<span class="task-stat-chip task-stat-today">⏰ ${stats.dueToday} Due Today</span>`);
+    if (stats.upcoming) chips.push(`<span class="task-stat-chip task-stat-upcoming">📋 ${stats.upcoming} Upcoming</span>`);
+    if (chips.length) {
+      bar.innerHTML = chips.join('');
+      bar.classList.remove('hidden');
+    } else {
+      bar.classList.add('hidden');
+    }
+  } catch {
+    // tasks feature may not be active yet
+  }
+}
+
 // ─── Init ──────────────────────────────────────────────────────────────────────
 setView(currentView);
 loadContacts();
+loadTaskStats();

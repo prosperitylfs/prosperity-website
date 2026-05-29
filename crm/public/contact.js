@@ -758,6 +758,231 @@ function toggleApptForm(show) {
   }
 }
 
+// ─── Follow-Up Tasks ──────────────────────────────────────────────────────────
+
+async function loadTasks() {
+  try {
+    const tasks = await CRM.fetch(`/api/tasks/contact/${id}`);
+    renderTasks(tasks);
+  } catch (e) {
+    console.error('loadTasks failed:', e);
+  }
+}
+
+function taskTypeIcon(type) {
+  const icons = {
+    'Call':          '📞',
+    'Email':         '✉',
+    'Text':          '💬',
+    'Send Document': '📄',
+    'Follow-Up':     '🔄',
+    'Other':         '📌',
+  };
+  return icons[type] || '📌';
+}
+
+function taskPriorityBadge(priority) {
+  const map = {
+    'High':   ['task-priority-high',   'High'],
+    'Medium': ['task-priority-medium', 'Medium'],
+    'Low':    ['task-priority-low',    'Low'],
+  };
+  const [cls, label] = map[priority] || ['task-priority-medium', priority || 'Medium'];
+  return `<span class="task-priority-badge ${cls}">${escHtml(label)}</span>`;
+}
+
+function taskAgeLabel(dueDate) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  if (dueDate < today) {
+    const diff = Math.round((new Date(today) - new Date(dueDate)) / 86400000);
+    return `<span class="task-age task-age-overdue">${diff === 1 ? '1 day overdue' : `${diff} days overdue`}</span>`;
+  }
+  if (dueDate === today) {
+    return `<span class="task-age task-age-today">Due Today</span>`;
+  }
+  const diff = Math.round((new Date(dueDate) - new Date(today)) / 86400000);
+  return `<span class="task-age task-age-upcoming">${diff === 1 ? 'Due tomorrow' : `Due in ${diff} days`}</span>`;
+}
+
+function formatTaskDueDate(dueDate, dueTime) {
+  if (!dueDate) return '—';
+  const [y, m, d] = dueDate.split('-').map(Number);
+  const fmt = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return dueTime ? `${fmt} at ${dueTime}` : fmt;
+}
+
+function renderTasks(tasks) {
+  const pendingEl   = document.getElementById('tasks-pending');
+  const completedEl = document.getElementById('tasks-completed');
+  const toggleEl    = document.getElementById('tasks-completed-toggle');
+  if (!pendingEl) return;
+
+  const pending   = tasks.filter(t => t.status === 'Pending');
+  const completed = tasks.filter(t => t.status !== 'Pending');
+
+  if (!pending.length && !completed.length) {
+    pendingEl.innerHTML = '<p class="text-muted">No tasks yet.</p>';
+    if (toggleEl)    toggleEl.classList.add('hidden');
+    return;
+  }
+
+  pendingEl.innerHTML = pending.length
+    ? pending.map(t => renderTaskCard(t)).join('')
+    : '<p class="text-muted" style="margin:.5rem 0">No pending tasks.</p>';
+
+  if (completed.length) {
+    if (toggleEl) toggleEl.classList.remove('hidden');
+    const labelEl = document.getElementById('tasks-completed-toggle-label');
+    if (labelEl) labelEl.textContent = `Show Completed (${completed.length})`;
+    if (completedEl) completedEl.innerHTML = completed.map(t => renderTaskCard(t)).join('');
+  } else {
+    if (toggleEl) toggleEl.classList.add('hidden');
+    if (completedEl) { completedEl.innerHTML = ''; completedEl.classList.add('hidden'); }
+  }
+}
+
+function renderTaskCard(t) {
+  const isDone      = t.status === 'Completed';
+  const isCancelled = t.status === 'Cancelled';
+  const today       = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const isOverdue   = !isDone && !isCancelled && t.due_date < today;
+  const isDueToday  = !isDone && !isCancelled && t.due_date === today;
+
+  let cardCls = 'task-card';
+  if (isDone)           cardCls += ' task-card-done';
+  else if (isCancelled) cardCls += ' task-card-cancelled';
+  else if (isOverdue)   cardCls += ' task-card-overdue';
+  else if (isDueToday)  cardCls += ' task-card-today';
+
+  const ageLabel     = (!isDone && !isCancelled) ? taskAgeLabel(t.due_date) : '';
+  const completedLine = isDone && t.completed_at
+    ? `<div class="task-completed-ts">Completed ${formatDate(t.completed_at, true)}</div>` : '';
+
+  const actions = isDone || isCancelled
+    ? `<button class="task-action-btn task-action-delete" onclick="deleteTask(${t.id})">Delete</button>`
+    : `<button class="task-action-btn task-action-complete" onclick="completeTask(${t.id})">Mark Done</button>
+       <button class="task-action-btn task-action-cancel"  onclick="cancelTask(${t.id})">Cancel</button>
+       <button class="task-action-btn task-action-delete"  onclick="deleteTask(${t.id})">Delete</button>`;
+
+  return `
+    <div class="${cardCls}" data-id="${t.id}">
+      <div class="task-card-header">
+        <div class="task-card-left">
+          <span class="task-type-icon">${taskTypeIcon(t.task_type)}</span>
+          <span class="task-type-label">${escHtml(t.task_type)}</span>
+          ${taskPriorityBadge(t.priority)}
+        </div>
+        <div class="task-card-right">
+          <span class="task-due-date">${escHtml(formatTaskDueDate(t.due_date, t.due_time))}</span>
+          ${ageLabel}
+        </div>
+      </div>
+      ${t.notes ? `<div class="task-notes">${escHtml(t.notes)}</div>` : ''}
+      ${completedLine}
+      <div class="task-card-actions">${actions}</div>
+    </div>`;
+}
+
+async function saveTask() {
+  const typeEl     = document.getElementById('task-type');
+  const priorityEl = document.getElementById('task-priority');
+  const dateEl     = document.getElementById('task-due-date');
+  const timeEl     = document.getElementById('task-due-time');
+  const notesEl    = document.getElementById('task-notes');
+
+  const task_type = typeEl?.value;
+  const priority  = priorityEl?.value || 'Medium';
+  const due_date  = dateEl?.value;
+  const due_time  = timeEl?.value || null;
+  const notes     = notesEl?.value.trim() || null;
+
+  if (!task_type) { alert('Please select a task type.'); return; }
+  if (!due_date)  { alert('Please select a due date.');  return; }
+
+  const btn = document.getElementById('task-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+  try {
+    await CRM.fetch('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify({ contact_id: parseInt(id), task_type, due_date, due_time, notes, priority }),
+    });
+    if (typeEl)     typeEl.value     = '';
+    if (priorityEl) priorityEl.value = 'Medium';
+    if (dateEl)     dateEl.value     = '';
+    if (timeEl)     timeEl.value     = '';
+    if (notesEl)    notesEl.value    = '';
+    toggleTaskForm(false);
+    await loadTasks();
+    showToast('Task saved');
+  } catch (e) {
+    alert(`Could not save task: ${e.message}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Task'; }
+  }
+}
+
+async function completeTask(taskId) {
+  try {
+    await CRM.fetch(`/api/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'Completed' }),
+    });
+    showToast('Task marked as done ✓');
+    await loadTasks();
+  } catch (e) {
+    showError(`Could not complete task: ${e.message}`);
+  }
+}
+
+async function cancelTask(taskId) {
+  try {
+    await CRM.fetch(`/api/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'Cancelled' }),
+    });
+    await loadTasks();
+  } catch (e) {
+    showError(`Could not cancel task: ${e.message}`);
+  }
+}
+
+async function deleteTask(taskId) {
+  if (!confirm('Delete this task?')) return;
+  try {
+    await CRM.fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+    await loadTasks();
+  } catch (e) {
+    showError(`Could not delete task: ${e.message}`);
+  }
+}
+
+function toggleTaskForm(show) {
+  const form = document.getElementById('task-form');
+  const btn  = document.getElementById('add-task-btn');
+  if (!form) return;
+  if (show === undefined) show = form.classList.contains('hidden');
+  if (show) {
+    form.classList.remove('hidden');
+    if (btn) btn.textContent = '✕ Cancel';
+  } else {
+    form.classList.add('hidden');
+    if (btn) btn.textContent = '+ Add Task';
+  }
+}
+
+function toggleCompletedTasks() {
+  const el    = document.getElementById('tasks-completed');
+  const label = document.getElementById('tasks-completed-toggle-label');
+  if (!el) return;
+  const isHidden = el.classList.contains('hidden');
+  el.classList.toggle('hidden', !isHidden);
+  if (label) {
+    const count = el.querySelectorAll('.task-card').length;
+    label.textContent = isHidden ? `Hide Completed (${count})` : `Show Completed (${count})`;
+  }
+}
+
 // ─── Communications ───────────────────────────────────────────────────────────
 
 function renderComms(comms) {
@@ -840,7 +1065,7 @@ async function loadContact() {
     wireSmsCompose(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
-    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity()]);
+    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity(), loadTasks()]);
   } catch (err) {
     showError(`Could not load contact: ${err.message}`);
   }
@@ -946,7 +1171,7 @@ async function refreshContact() {
     wireSmsCompose(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
-    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity()]);
+    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity(), loadTasks()]);
     showToast('CRM refreshed ✓');
   } catch (err) {
     console.error('Refresh failed:', err);

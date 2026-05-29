@@ -134,6 +134,27 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_appts_datetime      ON appointments(appt_datetime);
 `);
 
+// ─── Follow-up tasks table ────────────────────────────────────────────────────
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS follow_up_tasks (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    contact_id   INTEGER NOT NULL,
+    task_type    TEXT NOT NULL DEFAULT 'Call',
+    due_date     TEXT NOT NULL,
+    due_time     TEXT,
+    notes        TEXT,
+    priority     TEXT NOT NULL DEFAULT 'Medium',
+    status       TEXT NOT NULL DEFAULT 'Pending',
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_tasks_contact  ON follow_up_tasks(contact_id);
+  CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON follow_up_tasks(due_date);
+  CREATE INDEX IF NOT EXISTS idx_tasks_status   ON follow_up_tasks(status);
+`);
+
 // ─── Migrations ───────────────────────────────────────────────────────────────
 // Add columns to existing tables without dropping data. Safe to run on every boot.
 function addCol(table, col, def) {

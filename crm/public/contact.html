@@ -114,6 +114,61 @@
           <div id="contact-info" class="info-grid"></div>
         </div>
 
+        <!-- ── Follow-Up Tasks ─────────────────────────────────────────── -->
+        <div class="card card-tasks" id="tasks-card">
+          <div class="card-section-header">
+            <h2 class="card-title" style="margin-bottom:0">Follow-Up Tasks</h2>
+            <button id="add-task-btn" class="btn btn-primary btn-sm" onclick="toggleTaskForm()">+ Add Task</button>
+          </div>
+          <div id="task-form" class="task-form hidden">
+            <div class="task-form-grid">
+              <div class="crm-field">
+                <label class="crm-label" for="task-type">Task Type</label>
+                <select id="task-type" class="crm-select">
+                  <option value="">— Select —</option>
+                  <option>Call</option>
+                  <option>Email</option>
+                  <option>Text</option>
+                  <option>Send Document</option>
+                  <option>Follow-Up</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="crm-field">
+                <label class="crm-label" for="task-priority">Priority</label>
+                <select id="task-priority" class="crm-select">
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
+              <div class="crm-field">
+                <label class="crm-label" for="task-due-date">Due Date</label>
+                <input id="task-due-date" type="date" class="crm-input">
+              </div>
+              <div class="crm-field">
+                <label class="crm-label" for="task-due-time">Due Time (optional)</label>
+                <input id="task-due-time" type="time" class="crm-input">
+              </div>
+              <div class="crm-field crm-field-full">
+                <label class="crm-label" for="task-notes">Notes (optional)</label>
+                <textarea id="task-notes" class="crm-input" rows="2" placeholder="Details about this task…"></textarea>
+              </div>
+            </div>
+            <div class="task-form-footer">
+              <button id="task-save-btn" class="btn btn-primary" onclick="saveTask()">Save Task</button>
+              <button class="btn-section-cancel" onclick="toggleTaskForm(false)">Cancel</button>
+            </div>
+          </div>
+          <div id="tasks-pending" class="tasks-section"><p class="text-muted">No tasks yet.</p></div>
+          <div id="tasks-completed-toggle" class="tasks-completed-toggle hidden">
+            <button class="tasks-toggle-btn" onclick="toggleCompletedTasks()">
+              <span id="tasks-completed-toggle-label">Show Completed</span>
+            </button>
+          </div>
+          <div id="tasks-completed" class="hidden"></div>
+        </div>
+
         <!-- desktop col 1, mobile row 2 -->
         <div class="card card-appointments" id="appointments-card">
           <div class="card-section-header">

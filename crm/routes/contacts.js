@@ -47,6 +47,34 @@ router.get('/', (req, res) => {
   params.push(Number(limit), Number(offset));
 
   const contacts = db.prepare(sql).all(...params);
+
+  // Attach pending task badge counts for list/pipeline display
+  if (contacts.length) {
+    const today   = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+    const nd = new Date(); nd.setDate(nd.getDate() + 1);
+    const tomorrow = nd.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+    const ids     = contacts.map(c => c.id);
+    const holders = ids.map(() => '?').join(',');
+    const taskRows = db.prepare(`
+      SELECT contact_id,
+        SUM(CASE WHEN due_date < ?  THEN 1 ELSE 0 END) AS tasks_overdue,
+        SUM(CASE WHEN due_date = ?  THEN 1 ELSE 0 END) AS tasks_today,
+        SUM(CASE WHEN due_date = ?  THEN 1 ELSE 0 END) AS tasks_tomorrow,
+        SUM(CASE WHEN due_date > ?  THEN 1 ELSE 0 END) AS tasks_upcoming
+      FROM follow_up_tasks
+      WHERE status = 'Pending' AND contact_id IN (${holders})
+      GROUP BY contact_id
+    `).all(today, today, tomorrow, tomorrow, ...ids);
+    const taskMap = Object.fromEntries(taskRows.map(r => [r.contact_id, r]));
+    for (const c of contacts) {
+      const t = taskMap[c.id] || {};
+      c.tasks_overdue  = t.tasks_overdue  || 0;
+      c.tasks_today    = t.tasks_today    || 0;
+      c.tasks_tomorrow = t.tasks_tomorrow || 0;
+      c.tasks_upcoming = t.tasks_upcoming || 0;
+    }
+  }
+
   res.json(contacts);
 });
 

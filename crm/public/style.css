@@ -3430,6 +3430,132 @@ body {
 .task-stat-today    { background: #fef3c7; color: #92400e; }
 .task-stat-upcoming { background: var(--purple-light); color: var(--purple-dark); }
 
+/* ── Dashboard stats grid ────────────────────────────────────────────────── */
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+.dash-stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .75rem .5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .2rem;
+  border-top: 3px solid var(--border);
+  min-width: 0;
+}
+.dash-stat-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+.dash-stat-label {
+  font-size: .7rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  line-height: 1.3;
+  text-align: center;
+}
+.ds-zero .dash-stat-val { color: var(--text-muted); }
+.ds-zero               { opacity: .65; }
+
+.ds-overdue  { border-top-color: var(--red);    }
+.ds-overdue  .dash-stat-val { color: var(--red); }
+.ds-today    { border-top-color: var(--amber);   }
+.ds-today    .dash-stat-val { color: var(--amber); }
+.ds-tomorrow { border-top-color: #6366f1; }
+.ds-tomorrow .dash-stat-val { color: #6366f1; }
+.ds-upcoming { border-top-color: var(--purple);  }
+.ds-upcoming .dash-stat-val { color: var(--purple); }
+.ds-appts    { border-top-color: var(--blue);    }
+.ds-appts    .dash-stat-val { color: var(--blue); }
+.ds-leads    { border-top-color: var(--green);   }
+.ds-leads    .dash-stat-val { color: var(--green-dark); }
+.ds-sms      { border-top-color: var(--green);   }
+.ds-email    { border-top-color: #9333ea; }
+
+/* ── Task due-date label (unified date+age display) ──────────────────────── */
+
+.task-due-label {
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.task-due-overdue  { color: var(--red);   font-weight: 600; }
+.task-due-today    { color: var(--amber); font-weight: 600; }
+.task-due-tomorrow { color: #6366f1;      font-weight: 500; }
+
+/* ── task-card-tomorrow border ───────────────────────────────────────────── */
+.task-card-tomorrow { border-left-color: #6366f1; }
+
+/* ── Task cancelled timestamp ────────────────────────────────────────────── */
+.task-cancelled-ts { color: var(--text-muted); font-style: italic; }
+
+/* ── Task quick-action buttons ───────────────────────────────────────────── */
+
+.task-qa-buttons {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin: .5rem 0 .2rem;
+}
+.task-qa-btn {
+  font-size: .78rem;
+  font-weight: 600;
+  padding: .3rem .7rem;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  white-space: nowrap;
+}
+.task-qa-call  { color: var(--purple);    border-color: var(--purple);    }
+.task-qa-call:hover  { background: var(--purple-light); }
+.task-qa-sms   { color: var(--green-dark); border-color: var(--green);    }
+.task-qa-sms:hover   { background: #d1fae5; }
+.task-qa-email { color: var(--blue);       border-color: var(--blue);     }
+.task-qa-email:hover { background: #eff6ff; }
+.task-qa-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ── Task badges (list & mobile contact cards) ───────────────────────────── */
+
+.task-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .15rem;
+  font-size: .65rem;
+  font-weight: 700;
+  padding: .1rem .35rem;
+  border-radius: 10px;
+  vertical-align: middle;
+  margin-left: .25rem;
+}
+.task-badge-overdue  { background: #fee2e2; color: #b91c1c; }
+.task-badge-today    { background: #fef3c7; color: #92400e; }
+.task-badge-tomorrow { background: #ede9fe; color: #4f46e5; }
+
+/* ── Task indicators on pipeline cards ───────────────────────────────────── */
+
+.task-ind-overdue  { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+.task-ind-today    { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.task-ind-tomorrow { background: #ede9fe; color: #4f46e5; border-color: #c4b5fd; }
+.task-ind-upcoming { background: var(--purple-light); color: var(--purple-dark); border-color: #c4b5fd; }
+
+/* ── task-stat-bar tomorrow chip ─────────────────────────────────────────── */
+.task-stat-tomorrow { background: #ede9fe; color: #4f46e5; }
+
 /* ── Toast notification ──────────────────────────────────────────────────── */
 .crm-toast {
   position: fixed;

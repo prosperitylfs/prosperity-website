@@ -4,11 +4,15 @@ const db      = require('../db/database');
 
 // ─── GET /api/tasks/stats ────────────────────────────────────────────────────
 router.get('/stats', (req, res) => {
-  const today    = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-  const overdue  = db.prepare("SELECT COUNT(*) AS n FROM follow_up_tasks WHERE status = 'Pending' AND due_date < ?").get(today).n;
-  const dueToday = db.prepare("SELECT COUNT(*) AS n FROM follow_up_tasks WHERE status = 'Pending' AND due_date = ?").get(today).n;
-  const upcoming = db.prepare("SELECT COUNT(*) AS n FROM follow_up_tasks WHERE status = 'Pending' AND due_date > ?").get(today).n;
-  res.json({ overdue, dueToday, upcoming });
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const nd = new Date(); nd.setDate(nd.getDate() + 1);
+  const tomorrow = nd.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+
+  const overdue    = db.prepare("SELECT COUNT(*) AS n FROM follow_up_tasks WHERE status='Pending' AND due_date < ?").get(today).n;
+  const dueToday   = db.prepare("SELECT COUNT(*) AS n FROM follow_up_tasks WHERE status='Pending' AND due_date = ?").get(today).n;
+  const dueTomorrow = db.prepare("SELECT COUNT(*) AS n FROM follow_up_tasks WHERE status='Pending' AND due_date = ?").get(tomorrow).n;
+  const upcoming   = db.prepare("SELECT COUNT(*) AS n FROM follow_up_tasks WHERE status='Pending' AND due_date > ?").get(tomorrow).n;
+  res.json({ overdue, dueToday, dueTomorrow, upcoming });
 });
 
 // ─── GET /api/tasks/contact/:contact_id ─────────────────────────────────────

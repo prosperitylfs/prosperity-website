@@ -791,24 +791,30 @@ function taskPriorityBadge(priority) {
   return `<span class="task-priority-badge ${cls}">${escHtml(label)}</span>`;
 }
 
-function taskAgeLabel(dueDate) {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-  if (dueDate < today) {
-    const diff = Math.round((new Date(today) - new Date(dueDate)) / 86400000);
-    return `<span class="task-age task-age-overdue">${diff === 1 ? '1 day overdue' : `${diff} days overdue`}</span>`;
-  }
-  if (dueDate === today) {
-    return `<span class="task-age task-age-today">Due Today</span>`;
-  }
-  const diff = Math.round((new Date(dueDate) - new Date(today)) / 86400000);
-  return `<span class="task-age task-age-upcoming">${diff === 1 ? 'Due tomorrow' : `Due in ${diff} days`}</span>`;
+function fmt12h(t24) {
+  if (!t24) return '';
+  const [h, m] = t24.split(':').map(Number);
+  const p = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return m === 0 ? `${h12} ${p}` : `${h12}:${String(m).padStart(2, '0')} ${p}`;
 }
 
-function formatTaskDueDate(dueDate, dueTime) {
-  if (!dueDate) return '—';
+function formatTaskDue(dueDate, dueTime) {
+  if (!dueDate) return '';
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const nd = new Date(); nd.setDate(nd.getDate() + 1);
+  const tomorrow = nd.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const timeStr = dueTime ? ` at ${fmt12h(dueTime)}` : '';
+  if (dueDate < today) {
+    const diff = Math.round((new Date(today) - new Date(dueDate)) / 86400000);
+    return `⚠ ${diff === 1 ? '1 day overdue' : `${diff} days overdue`}`;
+  }
+  if (dueDate === today)    return `Due Today${timeStr}`;
+  if (dueDate === tomorrow) return `Due Tomorrow${timeStr}`;
+  const diff = Math.round((new Date(dueDate) - new Date(today)) / 86400000);
   const [y, m, d] = dueDate.split('-').map(Number);
-  const fmt = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  return dueTime ? `${fmt} at ${dueTime}` : fmt;
+  const short = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return diff <= 7 ? `Due in ${diff} days — ${short}${timeStr}` : `${short}, ${y}${timeStr}`;
 }
 
 function renderTasks(tasks) {
@@ -833,7 +839,7 @@ function renderTasks(tasks) {
   if (completed.length) {
     if (toggleEl) toggleEl.classList.remove('hidden');
     const labelEl = document.getElementById('tasks-completed-toggle-label');
-    if (labelEl) labelEl.textContent = `Show Completed (${completed.length})`;
+    if (labelEl) labelEl.textContent = `Completed Follow-Ups (${completed.length})`;
     if (completedEl) completedEl.innerHTML = completed.map(t => renderTaskCard(t)).join('');
   } else {
     if (toggleEl) toggleEl.classList.add('hidden');
@@ -844,19 +850,31 @@ function renderTasks(tasks) {
 function renderTaskCard(t) {
   const isDone      = t.status === 'Completed';
   const isCancelled = t.status === 'Cancelled';
-  const today       = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const today    = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const nd = new Date(); nd.setDate(nd.getDate() + 1);
+  const tomorrow = nd.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
   const isOverdue   = !isDone && !isCancelled && t.due_date < today;
   const isDueToday  = !isDone && !isCancelled && t.due_date === today;
+  const isDueTomorrow = !isDone && !isCancelled && t.due_date === tomorrow;
 
   let cardCls = 'task-card';
-  if (isDone)           cardCls += ' task-card-done';
-  else if (isCancelled) cardCls += ' task-card-cancelled';
-  else if (isOverdue)   cardCls += ' task-card-overdue';
-  else if (isDueToday)  cardCls += ' task-card-today';
+  if (isDone)             cardCls += ' task-card-done';
+  else if (isCancelled)   cardCls += ' task-card-cancelled';
+  else if (isOverdue)     cardCls += ' task-card-overdue';
+  else if (isDueToday)    cardCls += ' task-card-today';
+  else if (isDueTomorrow) cardCls += ' task-card-tomorrow';
 
-  const ageLabel     = (!isDone && !isCancelled) ? taskAgeLabel(t.due_date) : '';
-  const completedLine = isDone && t.completed_at
-    ? `<div class="task-completed-ts">Completed ${formatDate(t.completed_at, true)}</div>` : '';
+  const dueStr = formatTaskDue(t.due_date, t.due_time);
+  const dueLabelCls = isOverdue ? 'task-due-label task-due-overdue'
+    : isDueToday    ? 'task-due-label task-due-today'
+    : isDueTomorrow ? 'task-due-label task-due-tomorrow'
+    : 'task-due-label';
+
+  const completedLine = isDone
+    ? `<div class="task-completed-ts">✓ Completed ${t.completed_at ? formatDate(t.completed_at, true) : ''}</div>` : '';
+  const cancelledLine = isCancelled ? `<div class="task-completed-ts task-cancelled-ts">Cancelled</div>` : '';
+
+  const quickActions = (!isDone && !isCancelled) ? taskQuickActionButtons(t) : '';
 
   const actions = isDone || isCancelled
     ? `<button class="task-action-btn task-action-delete" onclick="deleteTask(${t.id})">Delete</button>`
@@ -872,15 +890,76 @@ function renderTaskCard(t) {
           <span class="task-type-label">${escHtml(t.task_type)}</span>
           ${taskPriorityBadge(t.priority)}
         </div>
-        <div class="task-card-right">
-          <span class="task-due-date">${escHtml(formatTaskDueDate(t.due_date, t.due_time))}</span>
-          ${ageLabel}
-        </div>
+        ${dueStr ? `<span class="${dueLabelCls}">📅 ${escHtml(dueStr)}</span>` : ''}
       </div>
       ${t.notes ? `<div class="task-notes">${escHtml(t.notes)}</div>` : ''}
-      ${completedLine}
+      ${completedLine}${cancelledLine}
+      ${quickActions}
       <div class="task-card-actions">${actions}</div>
     </div>`;
+}
+
+function taskQuickActionButtons(t) {
+  const c = window._currentContact;
+  if (!c) return '';
+  const hasTwilio = !!window.CRM_TWILIO_ENABLED;
+  const hasPhone  = !!(c.phone || c.phone_e164);
+  const callBtn   = hasTwilio && hasPhone
+    ? `<button class="task-qa-btn task-qa-call"  onclick="taskQuickCall(${t.id},event)">☎ Call</button>` : '';
+  const smsBtn    = hasTwilio && !!c.sms_consent && hasPhone
+    ? `<button class="task-qa-btn task-qa-sms"   onclick="taskQuickSms(${t.id},event)">💬 SMS</button>` : '';
+  const emailBtn  = c.email
+    ? `<button class="task-qa-btn task-qa-email" onclick="taskQuickEmail(${t.id},event)">✉ Email</button>` : '';
+  const order = { 'Call': [callBtn, emailBtn, smsBtn], 'Email': [emailBtn, callBtn, smsBtn], 'Text': [smsBtn, callBtn, emailBtn] };
+  const btns = (order[t.task_type] || [callBtn, emailBtn, smsBtn]).filter(Boolean).join('');
+  return btns ? `<div class="task-qa-buttons">${btns}</div>` : '';
+}
+
+async function taskQuickCall(taskId, event) {
+  if (event) event.stopPropagation();
+  const btn = document.querySelector(`.task-card[data-id="${taskId}"] .task-qa-call`);
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Calling…'; }
+  try {
+    await CRM.fetch('/api/calls/outbound', { method: 'POST', body: JSON.stringify({ contact_id: parseInt(id) }) });
+    if (btn) btn.innerHTML = '✓ Ringing';
+    await loadCallLogs();
+    setTimeout(() => askMarkTaskComplete(taskId), 600);
+    setTimeout(() => { if (btn) { btn.disabled = false; btn.innerHTML = orig; } }, 6000);
+  } catch (err) {
+    showError(`Call failed: ${err.message}`);
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+  }
+}
+
+function taskQuickSms(taskId, event) {
+  if (event) event.stopPropagation();
+  const area = document.getElementById('sms-compose-area');
+  if (area) { area.scrollIntoView({ behavior: 'smooth' }); }
+  setTimeout(() => {
+    const ta = document.getElementById('sms-compose-body');
+    if (ta) ta.focus();
+  }, 350);
+  setTimeout(() => askMarkTaskComplete(taskId), 400);
+}
+
+function taskQuickEmail(taskId, event) {
+  if (event) event.stopPropagation();
+  const c = window._currentContact;
+  if (!c || !c.email) return;
+  if (window.CRM_GMAIL_ENABLED && typeof openEmailModal === 'function') {
+    openEmailModal(parseInt(id), c.email, 'Prosperity Life & Financial Solutions Follow-Up');
+  } else {
+    window.open(
+      `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(c.email)}&su=${encodeURIComponent('Prosperity Life & Financial Solutions Follow-Up')}`,
+      '_blank', 'noopener'
+    );
+  }
+  setTimeout(() => askMarkTaskComplete(taskId), 400);
+}
+
+function askMarkTaskComplete(taskId) {
+  if (confirm('Mark this task complete?')) completeTask(taskId);
 }
 
 async function saveTask() {
@@ -979,7 +1058,7 @@ function toggleCompletedTasks() {
   el.classList.toggle('hidden', !isHidden);
   if (label) {
     const count = el.querySelectorAll('.task-card').length;
-    label.textContent = isHidden ? `Hide Completed (${count})` : `Show Completed (${count})`;
+    label.textContent = isHidden ? `Hide Completed Follow-Ups (${count})` : `Completed Follow-Ups (${count})`;
   }
 }
 
@@ -1059,6 +1138,7 @@ async function loadContact() {
   if (!id) return;
   try {
     const contact = await CRM.fetch(`/api/contacts/${id}`);
+    window._currentContact = contact;
     renderInfo(contact);
     wireCallButton(contact);
     wireEmailButton(contact);
@@ -1165,6 +1245,7 @@ async function refreshContact() {
   try {
     if (!id) return;
     const contact = await CRM.fetch(`/api/contacts/${id}`);
+    window._currentContact = contact;
     renderInfo(contact);
     wireCallButton(contact);
     wireEmailButton(contact);

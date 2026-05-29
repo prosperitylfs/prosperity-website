@@ -169,7 +169,12 @@ function renderContacts(contacts) {
             ? `<button class="phone-call-btn" data-phone="${escHtml(c.phone_e164 || c.phone)}" onclick="event.stopPropagation(); initiateCallById(this, ${c.id})" title="Call ${escHtml(formatPhone(c.phone))}">☎ ${escHtml(formatPhone(c.phone))}</button>`
             : '—'}</td>
         <td>${tag(c.lead_type, leadTypeClass(c.lead_type))}</td>
-        <td>${tag(c.lead_status || 'New Lead', leadStatusClass(c.lead_status || 'New Lead'))}</td>
+        <td>
+          ${tag(c.lead_status || 'New Lead', leadStatusClass(c.lead_status || 'New Lead'))}
+          ${c.tasks_overdue  ? `<span class="task-badge task-badge-overdue">⚠${c.tasks_overdue}</span>` : ''}
+          ${!c.tasks_overdue && c.tasks_today ? `<span class="task-badge task-badge-today">📅${c.tasks_today}</span>` : ''}
+          ${!c.tasks_overdue && !c.tasks_today && c.tasks_tomorrow ? `<span class="task-badge task-badge-tomorrow">📅${c.tasks_tomorrow}</span>` : ''}
+        </td>
         <td class="text-muted text-small">${c.lead_source ? escHtml(c.lead_source) : '—'}</td>
         <td class="text-muted text-small">${formatDate(c.created_at)}</td>
       </tr>
@@ -212,6 +217,9 @@ function buildMobileContactCard(c) {
       <div class="mcc-footer">
         ${tag(c.lead_type, leadTypeClass(c.lead_type))}
         ${tag(c.lead_status || 'New Lead', leadStatusClass(c.lead_status || 'New Lead'))}
+        ${c.tasks_overdue  ? `<span class="task-badge task-badge-overdue">⚠${c.tasks_overdue}</span>` : ''}
+        ${!c.tasks_overdue && c.tasks_today ? `<span class="task-badge task-badge-today">📅${c.tasks_today}</span>` : ''}
+        ${!c.tasks_overdue && !c.tasks_today && c.tasks_tomorrow ? `<span class="task-badge task-badge-tomorrow">📅${c.tasks_tomorrow}</span>` : ''}
         <span class="mcc-date">${formatDate(c.created_at)}</span>
       </div>
     </div>
@@ -318,6 +326,10 @@ function buildCard(c) {
       ${calledToday && !missedToday && !voicemailToday ? '<div class="call-indicator call-ind-today">Called Today</div>' : ''}
       ${missedToday    ? '<div class="call-indicator call-ind-missed">Missed Call</div>'      : ''}
       ${voicemailToday ? '<div class="call-indicator call-ind-voicemail">Voicemail</div>'     : ''}
+      ${c.tasks_overdue  ? `<div class="call-indicator task-ind-overdue">⚠ ${c.tasks_overdue} overdue task${c.tasks_overdue > 1 ? 's' : ''}</div>` : ''}
+      ${!c.tasks_overdue && c.tasks_today    ? `<div class="call-indicator task-ind-today">📅 ${c.tasks_today} task${c.tasks_today > 1 ? 's' : ''} today</div>` : ''}
+      ${!c.tasks_overdue && !c.tasks_today && c.tasks_tomorrow ? `<div class="call-indicator task-ind-tomorrow">📅 ${c.tasks_tomorrow} due tomorrow</div>` : ''}
+      ${!c.tasks_overdue && !c.tasks_today && !c.tasks_tomorrow && c.tasks_upcoming ? `<div class="call-indicator task-ind-upcoming">📋 ${c.tasks_upcoming} upcoming</div>` : ''}
       ${c.lead_source ? `<div class="pc-source">${escHtml(c.lead_source)}</div>` : ''}
       ${prodLine}
       <div class="pc-actions">
@@ -768,26 +780,54 @@ filterEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBa
 filterStatusEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBadge(); });
 filterSmsEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBadge(); });
 
-// ─── Task stats (dashboard summary bar) ───────────────────────────────────────
+// ─── Dashboard stats ──────────────────────────────────────────────────────────
 
 async function loadTaskStats() {
   try {
-    const stats = await CRM.fetch('/api/tasks/stats');
+    const s = await CRM.fetch('/api/stats');
+
+    // Compact chip bar (header area)
     const bar = document.getElementById('task-stat-bar');
-    if (!bar) return;
-    const chips = [];
-    if (stats.overdue)  chips.push(`<span class="task-stat-chip task-stat-overdue">⚠ ${stats.overdue} Overdue</span>`);
-    if (stats.dueToday) chips.push(`<span class="task-stat-chip task-stat-today">⏰ ${stats.dueToday} Due Today</span>`);
-    if (stats.upcoming) chips.push(`<span class="task-stat-chip task-stat-upcoming">📋 ${stats.upcoming} Upcoming</span>`);
-    if (chips.length) {
+    if (bar) {
+      const chips = [];
+      if (s.tasks.overdue)   chips.push(`<span class="task-stat-chip task-stat-overdue">⚠ ${s.tasks.overdue} Overdue</span>`);
+      if (s.tasks.today)     chips.push(`<span class="task-stat-chip task-stat-today">⏰ ${s.tasks.today} Due Today</span>`);
+      if (s.tasks.tomorrow)  chips.push(`<span class="task-stat-chip task-stat-tomorrow">📅 ${s.tasks.tomorrow} Due Tomorrow</span>`);
+      if (s.tasks.upcoming)  chips.push(`<span class="task-stat-chip task-stat-upcoming">📋 ${s.tasks.upcoming} Upcoming</span>`);
       bar.innerHTML = chips.join('');
-      bar.classList.remove('hidden');
-    } else {
-      bar.classList.add('hidden');
+      bar.classList.toggle('hidden', !chips.length);
     }
+
+    renderDashboardStats(s);
   } catch {
-    // tasks feature may not be active yet
+    // stats endpoint may not be active yet
   }
+}
+
+function renderDashboardStats(s) {
+  const grid = document.getElementById('dashboard-stats');
+  if (!grid) return;
+
+  const cards = [
+    { val: s.tasks.overdue,   label: 'Overdue Tasks',   cls: 'ds-overdue',  alwaysShow: false },
+    { val: s.tasks.today,     label: 'Due Today',       cls: 'ds-today',    alwaysShow: true  },
+    { val: s.tasks.tomorrow,  label: 'Due Tomorrow',    cls: 'ds-tomorrow', alwaysShow: true  },
+    { val: s.tasks.upcoming,  label: 'Upcoming Tasks',  cls: 'ds-upcoming', alwaysShow: true  },
+    { val: s.apptsToday,      label: 'Appts Today',     cls: 'ds-appts',    alwaysShow: true  },
+    { val: s.newLeads,        label: 'New Leads',       cls: 'ds-leads',    alwaysShow: true  },
+    { val: s.inboundSms,      label: 'Inbound SMS',     cls: 'ds-sms',      alwaysShow: false },
+    { val: s.inboundEmail,    label: 'Inbound Emails',  cls: 'ds-email',    alwaysShow: false },
+  ];
+
+  const visible = cards.filter(c => c.alwaysShow || c.val > 0);
+  if (!visible.length) { grid.classList.add('hidden'); return; }
+
+  grid.innerHTML = visible.map(c => `
+    <div class="dash-stat-card ${c.cls}${c.val === 0 ? ' ds-zero' : ''}">
+      <span class="dash-stat-val">${c.val}</span>
+      <span class="dash-stat-label">${escHtml(c.label)}</span>
+    </div>`).join('');
+  grid.classList.remove('hidden');
 }
 
 // ─── Init ──────────────────────────────────────────────────────────────────────

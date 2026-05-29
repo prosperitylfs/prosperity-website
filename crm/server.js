@@ -79,6 +79,9 @@ app.use('/api/appointments', requireApiKey, require('./routes/appointments'));
 // Follow-up tasks — protected
 app.use('/api/tasks', requireApiKey, require('./routes/tasks'));
 
+// Dashboard summary stats — protected
+app.use('/api/stats', requireApiKey, require('./routes/stats'));
+
 // SMS history — protected
 app.use('/api/sms', requireApiKey, require('./routes/sms'));
 

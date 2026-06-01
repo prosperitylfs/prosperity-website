@@ -3004,6 +3004,35 @@ body {
   min-height: 0 !important;
 }
 
+.appt-section-header {
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  padding: .875rem 0 .25rem;
+  border-top: 1px solid var(--border);
+  margin-top: .375rem;
+}
+
+.appt-item.appt-past { opacity: .85; }
+
+.appt-item.appt-needs-outcome {
+  border-left: 3px solid #f59e0b;
+  background: #fffbeb;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding-left: .625rem;
+}
+
+.appt-outcome-prompt {
+  font-size: .78rem;
+  color: #92400e;
+  font-style: italic;
+}
+
+.cal-row-needs-outcome { background: #fffbeb; }
+.cal-card-needs-outcome { border-left: 3px solid #f59e0b; background: #fffbeb; }
+
 /* Inline add-appointment form */
 .appt-form {
   background: var(--bg);

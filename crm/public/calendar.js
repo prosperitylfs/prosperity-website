@@ -43,6 +43,14 @@ function statusSelect(apptId, current) {
   return `<select class="cal-status-select" onchange="updateStatus(${apptId}, this.value)">${opts}</select>`;
 }
 
+function isPastAppt(iso) {
+  return !!iso && iso < new Date().toISOString();
+}
+
+function needsOutcomeTag() {
+  return '<span class="tag tag-xs tag-amber" title="This appointment is past but has no recorded outcome">Needs Outcome</span>';
+}
+
 function showError(msg) {
   calError.textContent = msg;
   calError.classList.remove('hidden');
@@ -65,14 +73,15 @@ function renderTable(appts) {
   calTableCard.classList.remove('hidden');
   calTbody.innerHTML = appts.map(a => {
     const name = [a.first_name, a.last_name].filter(Boolean).join(' ') || 'Unknown';
+    const showNeedsOutcome = isPastAppt(a.appt_datetime) && (a.status === 'Scheduled' || a.status === 'Rescheduled');
     return `
-      <tr>
+      <tr${showNeedsOutcome ? ' class="cal-row-needs-outcome"' : ''}>
         <td><a href="/contact.html?id=${a.contact_id}" class="cal-contact-link">${escHtml(name)}</a></td>
         <td>${escHtml(a.phone || '—')}</td>
         <td class="cal-col-email">${escHtml(a.email || '—')}</td>
         <td>${escHtml(a.appt_type)}</td>
         <td class="cal-dt-cell">${escHtml(fmtCT(a.appt_datetime))}</td>
-        <td>${statusSelect(a.id, a.status)}</td>
+        <td>${statusSelect(a.id, a.status)} ${showNeedsOutcome ? needsOutcomeTag() : ''}</td>
         <td><a href="/contact.html?id=${a.contact_id}" class="btn btn-sm btn-outline">View</a></td>
       </tr>`;
   }).join('');
@@ -83,11 +92,13 @@ function renderCards(appts) {
   calCards.classList.remove('hidden');
   calCards.innerHTML = appts.map(a => {
     const name = [a.first_name, a.last_name].filter(Boolean).join(' ') || 'Unknown';
+    const showNeedsOutcome = isPastAppt(a.appt_datetime) && (a.status === 'Scheduled' || a.status === 'Rescheduled');
     return `
-      <div class="cal-card">
+      <div class="cal-card${showNeedsOutcome ? ' cal-card-needs-outcome' : ''}">
         <div class="cal-card-header">
           <a href="/contact.html?id=${a.contact_id}" class="cal-contact-link">${escHtml(name)}</a>
           ${statusTag(a.status)}
+          ${showNeedsOutcome ? needsOutcomeTag() : ''}
         </div>
         <div class="cal-card-type">${escHtml(a.appt_type)}</div>
         <div class="cal-card-dt">📅 ${escHtml(fmtCT(a.appt_datetime))}</div>

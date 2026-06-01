@@ -659,6 +659,32 @@ async function loadAppointments() {
   }
 }
 
+function renderApptItem(a, isPast) {
+  const needsOutcome = isPast && (a.status === 'Scheduled' || a.status === 'Rescheduled');
+  const statusOpts = APPT_STATUSES.map(s =>
+    `<option value="${s}"${s === a.status ? ' selected' : ''}>${s}</option>`
+  ).join('');
+  let cls = 'appt-item';
+  if (isPast) cls += ' appt-past';
+  if (needsOutcome) cls += ' appt-needs-outcome';
+  return `
+    <div class="${cls}">
+      <div class="appt-item-header">
+        <span class="appt-item-type">${escHtml(a.appt_type)}</span>
+        ${apptStatusTag(a.status)}
+        ${needsOutcome ? '<span class="tag tag-xs tag-amber">Needs Outcome</span>' : ''}
+      </div>
+      <div class="appt-item-dt">📅 ${escHtml(fmtApptDt(a.appt_datetime))} CT</div>
+      ${a.location ? `<div class="appt-item-loc">📍 ${escHtml(a.location)}</div>` : ''}
+      ${a.notes    ? `<div class="appt-item-notes">${escHtml(a.notes)}</div>` : ''}
+      ${needsOutcome ? '<div class="appt-outcome-prompt">What was the outcome? Update the status below.</div>' : ''}
+      <div class="appt-item-footer">
+        <select class="crm-select appt-status-sel" onchange="updateApptStatus(${a.id}, this.value)">${statusOpts}</select>
+        <button class="btn-section-cancel" onclick="deleteAppt(${a.id})">Delete</button>
+      </div>
+    </div>`;
+}
+
 function renderAppointments(appts) {
   const el = document.getElementById('appts-list');
   if (!el) return;
@@ -666,25 +692,18 @@ function renderAppointments(appts) {
     el.innerHTML = '<p class="text-muted">No appointments yet.</p>';
     return;
   }
-  el.innerHTML = appts.map(a => {
-    const statusOpts = APPT_STATUSES.map(s =>
-      `<option value="${s}"${s === a.status ? ' selected' : ''}>${s}</option>`
-    ).join('');
-    return `
-      <div class="appt-item">
-        <div class="appt-item-header">
-          <span class="appt-item-type">${escHtml(a.appt_type)}</span>
-          ${apptStatusTag(a.status)}
-        </div>
-        <div class="appt-item-dt">📅 ${escHtml(fmtApptDt(a.appt_datetime))} CT</div>
-        ${a.location ? `<div class="appt-item-loc">📍 ${escHtml(a.location)}</div>` : ''}
-        ${a.notes    ? `<div class="appt-item-notes">${escHtml(a.notes)}</div>` : ''}
-        <div class="appt-item-footer">
-          <select class="crm-select appt-status-sel" onchange="updateApptStatus(${a.id}, this.value)">${statusOpts}</select>
-          <button class="btn-section-cancel" onclick="deleteAppt(${a.id})">Delete</button>
-        </div>
-      </div>`;
-  }).join('');
+  const nowIso   = new Date().toISOString();
+  const upcoming = appts.filter(a => a.appt_datetime >= nowIso)
+                        .sort((a, b) => a.appt_datetime.localeCompare(b.appt_datetime));
+  const past     = appts.filter(a => a.appt_datetime < nowIso)
+                        .sort((a, b) => b.appt_datetime.localeCompare(a.appt_datetime));
+  let html = '';
+  if (upcoming.length) html += upcoming.map(a => renderApptItem(a, false)).join('');
+  if (past.length) {
+    html += `<div class="appt-section-header">Past Appointments</div>`;
+    html += past.map(a => renderApptItem(a, true)).join('');
+  }
+  el.innerHTML = html || '<p class="text-muted">No appointments yet.</p>';
 }
 
 async function saveAppointment() {

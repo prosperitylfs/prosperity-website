@@ -200,11 +200,12 @@ router.get('/:id/timeline', (req, res) => {
       UNION ALL
       SELECT 'appt_' || c.id, 'appointment', 'outbound',
         CASE
-          WHEN c.body LIKE 'Booked%' OR c.body LIKE 'Scheduled%' THEN 'Appointment Booked'
-          WHEN c.body LIKE 'Completed%'                           THEN 'Appointment Completed'
-          WHEN c.body LIKE 'Cancelled%' OR c.body LIKE 'Canceled%' THEN 'Appointment Cancelled'
-          WHEN c.body LIKE 'Rescheduled%'                         THEN 'Appointment Rescheduled'
-          ELSE 'Appointment Update'
+          WHEN c.subject LIKE '%Scheduled%' OR c.subject LIKE '%Booked%' THEN 'Appointment Booked'
+          WHEN c.subject LIKE '%Completed%'                               THEN 'Appointment Completed'
+          WHEN c.subject LIKE '%Cancelled%' OR c.subject LIKE '%Canceled%' THEN 'Appointment Cancelled'
+          WHEN c.subject LIKE '%Rescheduled%'                             THEN 'Appointment Rescheduled'
+          WHEN c.subject LIKE '%No-Show%' OR c.subject LIKE '%No Show%'   THEN 'Appointment No-Show'
+          ELSE 'Appointment'
         END,
         c.body, c.created_at, NULL, 'communications', c.id
       FROM communications c WHERE c.contact_id = ? AND c.comm_type = 'appointment'

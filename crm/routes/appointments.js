@@ -2,6 +2,14 @@ const express = require('express');
 const router  = express.Router();
 const db      = require('../db/database');
 
+const APPT_STATUS_TO_LEAD = {
+  'Scheduled':   'Appointment Scheduled',
+  'Completed':   'Appointment Completed',
+  'No-Show':     'No Show',
+  'Cancelled':   'Cancelled',
+  'Rescheduled': 'Appointment Rescheduled',
+};
+
 function fmtCT(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleString('en-US', {
@@ -84,6 +92,12 @@ router.patch('/:id', (req, res) => {
     ).run(appt.contact_id,
           `Appointment ${updates.status}`,
           `${appt.appt_type} — ${fmtCT(updates.appt_datetime || appt.appt_datetime)}`);
+
+    const newLeadStatus = APPT_STATUS_TO_LEAD[updates.status];
+    if (newLeadStatus) {
+      db.prepare('UPDATE contacts SET lead_status = ?, updated_at = ? WHERE id = ?')
+        .run(newLeadStatus, new Date().toISOString(), appt.contact_id);
+    }
   }
 
   res.json(db.prepare('SELECT * FROM appointments WHERE id = ?').get(appt.id));

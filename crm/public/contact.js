@@ -704,6 +704,13 @@ function renderAppointments(appts) {
     html += past.map(a => renderApptItem(a, true)).join('');
   }
   el.innerHTML = html || '<p class="text-muted">No appointments yet.</p>';
+
+  // Auto-update lead status to "Needs Outcome" when a past appointment has no outcome recorded
+  const hasUnresolved = past.some(a => a.status === 'Scheduled' || a.status === 'Rescheduled');
+  const currentStatus = window._currentContact?.lead_status;
+  if (hasUnresolved && (currentStatus === 'Appointment Scheduled' || currentStatus === 'Appointment Rescheduled')) {
+    autoSetNeedsOutcome();
+  }
 }
 
 async function saveAppointment() {
@@ -748,8 +755,29 @@ async function updateApptStatus(apptId, newStatus) {
       body: JSON.stringify({ status: newStatus }),
     });
     await loadAppointments();
+    // Server updated the contact's lead_status — refresh the dropdown
+    const refreshed = await CRM.fetch(`/api/contacts/${id}`);
+    if (refreshed.lead_status) {
+      const statusEl = document.getElementById('lead-status-select');
+      if (statusEl) statusEl.value = refreshed.lead_status;
+      if (window._currentContact) window._currentContact.lead_status = refreshed.lead_status;
+    }
   } catch (e) {
     showError(`Could not update appointment: ${e.message}`);
+  }
+}
+
+async function autoSetNeedsOutcome() {
+  try {
+    await CRM.fetch(`/api/contacts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ lead_status: 'Needs Outcome' }),
+    });
+    if (window._currentContact) window._currentContact.lead_status = 'Needs Outcome';
+    const statusEl = document.getElementById('lead-status-select');
+    if (statusEl) statusEl.value = 'Needs Outcome';
+  } catch (e) {
+    console.error('[autoSetNeedsOutcome] failed:', e);
   }
 }
 

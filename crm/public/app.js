@@ -162,8 +162,12 @@ function leadStatusClass(ls) {
   if (l === 'attempted contact')       return 'tag-amber';
   if (l === 'contacted')               return 'tag-purple';
   if (l === 'appointment scheduled')   return 'tag-teal';
+  if (l === 'appointment rescheduled') return 'tag-blue';
+  if (l === 'needs outcome')           return 'tag-amber';
   if (l === 'appointment completed')   return 'tag-green';
   if (l === 'follow-up needed')        return 'tag-amber';
+  if (l === 'no show')                 return 'tag-red';
+  if (l === 'cancelled')               return 'tag-gray';
   if (l === 'application submitted')   return 'tag-indigo';
   if (l === 'sold')                    return 'tag-green';
   if (l === 'long-term nurture')       return 'tag-purple';
@@ -302,10 +306,14 @@ function renderPipeline(contacts) {
   // Attempted Contact → Contacted; Application Submitted → Follow-Up Needed;
   // Do Not Contact / Dead Lead → Long-Term Nurture (shown in pipeline but no dedicated col).
   const fallback = {
-    'Attempted Contact':     'Contacted',
-    'Application Submitted': 'Follow-Up Needed',
-    'Do Not Contact':        'Long-Term Nurture',
-    'Dead Lead':             'Long-Term Nurture',
+    'Attempted Contact':      'Contacted',
+    'Application Submitted':  'Follow-Up Needed',
+    'Do Not Contact':         'Long-Term Nurture',
+    'Dead Lead':              'Long-Term Nurture',
+    'Appointment Rescheduled':'Appointment Scheduled',
+    'Needs Outcome':          'Appointment Scheduled',
+    'No Show':                'Follow-Up Needed',
+    'Cancelled':              'Long-Term Nurture',
   };
 
   const sorted = [...contacts].sort((a, b) => taskSortKey(a) - taskSortKey(b));

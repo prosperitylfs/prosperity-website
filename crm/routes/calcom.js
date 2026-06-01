@@ -135,6 +135,17 @@ function handleCreatedOrRescheduled(event, payload) {
   const now      = new Date().toISOString();
   const leadType = inferLeadType(apptType);
 
+  // BOOKING_RESCHEDULED sets "Appointment Rescheduled"; BOOKING_CREATED sets "Appointment Scheduled"
+  const targetLeadStatus = event === 'BOOKING_RESCHEDULED'
+    ? 'Appointment Rescheduled'
+    : 'Appointment Scheduled';
+  // Statuses eligible for automatic upgrade on a new/rescheduled booking
+  const upgradeStatuses = [
+    'New Lead', 'Attempted Contact', 'Contacted',
+    'Follow-Up Needed', 'Long-Term Nurture',
+    'Appointment Scheduled', 'Appointment Rescheduled', 'Needs Outcome',
+  ];
+
   if (!contact) {
     const r = db.prepare(`
       INSERT INTO contacts
@@ -148,17 +159,15 @@ function handleCreatedOrRescheduled(event, payload) {
       phone:       phoneDisplay,
       phone_e164:  phoneE164,
       lead_type:   leadType,
-      lead_status: 'Appointment Scheduled',
+      lead_status: targetLeadStatus,
       lead_source: 'Cal.com',
       now,
     });
     contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(r.lastInsertRowid);
     console.log(`Cal.com: created new contact #${contact.id} — ${fullName}`);
   } else {
-    const upgradeStatuses = ['New Lead', 'Attempted Contact', 'Contacted',
-                             'Follow-Up Needed', 'Long-Term Nurture'];
     const newStatus = upgradeStatuses.includes(contact.lead_status)
-      ? 'Appointment Scheduled'
+      ? targetLeadStatus
       : contact.lead_status;
     db.prepare(`
       UPDATE contacts SET
@@ -278,8 +287,12 @@ function handleCancelled(payload) {
     return;
   }
 
+  const now = new Date().toISOString();
   db.prepare('UPDATE appointments SET status = ?, updated_at = ? WHERE id = ?')
-    .run('Cancelled', new Date().toISOString(), appt.id);
+    .run('Cancelled', now, appt.id);
+
+  db.prepare('UPDATE contacts SET lead_status = ?, updated_at = ? WHERE id = ?')
+    .run('Cancelled', now, appt.contact_id);
 
   const body = [
     `${appt.appt_type} — ${fmtCT(appt.appt_datetime)}`,

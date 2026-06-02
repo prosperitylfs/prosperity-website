@@ -63,11 +63,12 @@ router.post('/', (req, res) => {
         finalStatus, location || null, notes || null);
 
   db.prepare(
-    `INSERT INTO communications (contact_id, comm_type, direction, subject, body)
-     VALUES (?, 'appointment', 'internal', ?, ?)`
+    `INSERT INTO communications (contact_id, comm_type, direction, subject, body, appointment_id)
+     VALUES (?, 'appointment', 'internal', ?, ?, ?)`
   ).run(Number(contact_id),
         `Appointment ${finalStatus}`,
-        `${appt_type} — ${fmtCT(appt_datetime)}`);
+        `${appt_type} — ${fmtCT(appt_datetime)}`,
+        r.lastInsertRowid);
 
   res.status(201).json(db.prepare('SELECT * FROM appointments WHERE id = ?').get(r.lastInsertRowid));
 });
@@ -86,12 +87,31 @@ router.patch('/:id', (req, res) => {
   db.prepare(`UPDATE appointments SET ${set} WHERE id = @id`).run(updates);
 
   if (updates.status && updates.status !== appt.status) {
-    db.prepare(
-      `INSERT INTO communications (contact_id, comm_type, direction, subject, body)
-       VALUES (?, 'appointment', 'internal', ?, ?)`
-    ).run(appt.contact_id,
-          `Appointment ${updates.status}`,
-          `${appt.appt_type} — ${fmtCT(updates.appt_datetime || appt.appt_datetime)}`);
+    // Remove any previous outcome record for this appointment — an appointment has
+    // exactly one outcome at a time. Only the current status record should appear
+    // in the timeline. The original booking record (Scheduled/Booked) is preserved
+    // because its subject is not in this list.
+    db.prepare(`
+      DELETE FROM communications
+      WHERE appointment_id = ?
+        AND subject IN (
+          'Appointment Completed',
+          'Appointment No-Show',
+          'Appointment Cancelled',
+          'Appointment Rescheduled'
+        )
+    `).run(appt.id);
+
+    // Insert new outcome record (skip for reset-to-Scheduled — booking record already exists)
+    if (updates.status !== 'Scheduled') {
+      db.prepare(
+        `INSERT INTO communications (contact_id, comm_type, direction, subject, body, appointment_id)
+         VALUES (?, 'appointment', 'internal', ?, ?, ?)`
+      ).run(appt.contact_id,
+            `Appointment ${updates.status}`,
+            `${appt.appt_type} — ${fmtCT(updates.appt_datetime || appt.appt_datetime)}`,
+            appt.id);
+    }
 
     const newLeadStatus = APPT_STATUS_TO_LEAD[updates.status];
     if (newLeadStatus) {

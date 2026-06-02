@@ -643,7 +643,7 @@ function apptStatusTag(s) {
     'Cancelled':   'tag-gray',
     'Rescheduled': 'tag-blue',
   };
-  return `<span class="tag tag-xs ${cls[s] || 'tag-gray'}">${escHtml(s)}</span>`;
+  return `<span class="tag tag-xs appt-status-tag ${cls[s] || 'tag-gray'}">${escHtml(s)}</span>`;
 }
 
 function fmtApptDt(iso) {
@@ -668,7 +668,7 @@ function renderApptItem(a, isPast) {
   if (isPast) cls += ' appt-past';
   if (needsOutcome) cls += ' appt-needs-outcome';
   return `
-    <div class="${cls}">
+    <div class="${cls}" data-appt-id="${a.id}">
       <div class="appt-item-header">
         <span class="appt-item-type">${escHtml(a.appt_type)}</span>
         ${apptStatusTag(a.status)}
@@ -749,6 +749,22 @@ async function saveAppointment() {
 }
 
 async function updateApptStatus(apptId, newStatus) {
+  // Immediate optimistic update — swap badge and remove needs-outcome styling
+  // before the round-trip so the UI feels instant.
+  const card = document.querySelector(`.appt-item[data-appt-id="${apptId}"]`);
+  if (card) {
+    const oldBadge = card.querySelector('.appt-status-tag');
+    if (oldBadge) oldBadge.outerHTML = apptStatusTag(newStatus);
+    const isResolved = ['Completed', 'No-Show', 'Cancelled'].includes(newStatus);
+    if (isResolved) {
+      card.classList.remove('appt-needs-outcome');
+      const needsBadge = card.querySelector('.tag-amber');
+      if (needsBadge) needsBadge.remove();
+      const prompt = card.querySelector('.appt-outcome-prompt');
+      if (prompt) prompt.remove();
+    }
+  }
+
   try {
     await CRM.fetch(`/api/appointments/${apptId}`, {
       method: 'PATCH',
@@ -764,6 +780,7 @@ async function updateApptStatus(apptId, newStatus) {
     }
   } catch (e) {
     showError(`Could not update appointment: ${e.message}`);
+    await loadAppointments(); // revert optimistic update on error
   }
 }
 

@@ -266,9 +266,9 @@ function handleCreatedOrRescheduled(event, payload) {
     ].filter(Boolean).join('\n');
 
     db.prepare(`
-      INSERT INTO communications (contact_id, comm_type, direction, subject, body)
-      VALUES (?, 'appointment', 'inbound', ?, ?)
-    `).run(contact.id, subject, body);
+      INSERT INTO communications (contact_id, comm_type, direction, subject, body, appointment_id)
+      VALUES (?, 'appointment', 'inbound', ?, ?, ?)
+    `).run(contact.id, subject, body, apptId);
   }
 }
 
@@ -294,15 +294,27 @@ function handleCancelled(payload) {
   db.prepare('UPDATE contacts SET lead_status = ?, updated_at = ? WHERE id = ?')
     .run('Cancelled', now, appt.contact_id);
 
+  // Replace any previous outcome record with the cancellation event
+  db.prepare(`
+    DELETE FROM communications
+    WHERE appointment_id = ?
+      AND subject IN (
+        'Appointment Completed',
+        'Appointment No-Show',
+        'Appointment Cancelled',
+        'Appointment Rescheduled'
+      )
+  `).run(appt.id);
+
   const body = [
     `${appt.appt_type} — ${fmtCT(appt.appt_datetime)}`,
     payload.cancellationReason ? `Reason: ${payload.cancellationReason}` : null,
   ].filter(Boolean).join('\n');
 
   db.prepare(`
-    INSERT INTO communications (contact_id, comm_type, direction, subject, body)
-    VALUES (?, 'appointment', 'inbound', 'Appointment Cancelled (Cal.com)', ?)
-  `).run(appt.contact_id, body);
+    INSERT INTO communications (contact_id, comm_type, direction, subject, body, appointment_id)
+    VALUES (?, 'appointment', 'inbound', 'Appointment Cancelled (Cal.com)', ?, ?)
+  `).run(appt.contact_id, body, appt.id);
 
   console.log(`Cal.com: cancelled appointment #${appt.id}`);
 }

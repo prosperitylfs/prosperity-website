@@ -220,6 +220,11 @@ addCol('comm_calls', 'voicemail_left_at', 'TEXT');  // ISO timestamp set when ag
 addCol('comm_calls', 'voicemail_left_by', 'TEXT');  // who marked it — always 'agent' for now
 // Cal.com integration
 addCol('appointments', 'cal_booking_uid', 'TEXT');
+// Link communications rows back to their appointment for deduplication
+addCol('communications', 'appointment_id', 'INTEGER');
+try {
+  db.prepare('CREATE INDEX IF NOT EXISTS idx_comms_appt_id ON communications(appointment_id)').run();
+} catch (e) { if (!e.message.includes('already exists')) throw e; }
 try {
   db.prepare(
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_appts_cal_uid ON appointments(cal_booking_uid) WHERE cal_booking_uid IS NOT NULL'

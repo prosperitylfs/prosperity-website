@@ -32,15 +32,21 @@ let wasDragged   = false;
 let ghostEl      = null;
 let notePopover  = null;
 
-// ─── Visible pipeline columns (7 main stages) ──────────────────────────────────
-// Remaining statuses (Attempted Contact, Application Submitted, Do Not Contact,
-// Dead Lead) stay available in the status dropdown but don't appear as columns.
+// ─── Visible pipeline columns ──────────────────────────────────────────────────
+// Remaining statuses (Retirement Lead, Attempted Contact, Policy Issued, Annuity
+// Submitted, Annuity Funded, Do Not Contact, Dead Lead, Lost Sale, Needs Outcome,
+// Appointment Rescheduled, No Show, Cancelled) stay available in the status
+// dropdown but fall into the nearest column via the fallback map below.
 const PIPELINE_STATUSES = [
   'New Lead',
   'Contacted',
   'Appointment Scheduled',
   'Appointment Completed',
   'Follow-Up Needed',
+  'Illustration Sent',
+  'Application Submitted',
+  'Underwriting',
+  'Client',
   'Sold',
   'Long-Term Nurture',
 ];
@@ -51,6 +57,10 @@ const STATUS_HEADER_CLASS = {
   'Appointment Scheduled': 'col-header-teal',
   'Appointment Completed': 'col-header-green',
   'Follow-Up Needed':      'col-header-orange',
+  'Illustration Sent':     'col-header-amber',
+  'Application Submitted': 'col-header-indigo',
+  'Underwriting':          'col-header-indigo',
+  'Client':                'col-header-green-dark',
   'Sold':                  'col-header-green-dark',
   'Long-Term Nurture':     'col-header-purple',
 };
@@ -159,6 +169,7 @@ function leadStatusClass(ls) {
   if (!ls) return 'tag-gray';
   const l = ls.toLowerCase();
   if (l === 'new lead')                return 'tag-blue';
+  if (l === 'retirement lead')         return 'tag-blue';
   if (l === 'attempted contact')       return 'tag-amber';
   if (l === 'contacted')               return 'tag-purple';
   if (l === 'appointment scheduled')   return 'tag-teal';
@@ -166,10 +177,17 @@ function leadStatusClass(ls) {
   if (l === 'needs outcome')           return 'tag-amber';
   if (l === 'appointment completed')   return 'tag-green';
   if (l === 'follow-up needed')        return 'tag-amber';
+  if (l === 'illustration sent')       return 'tag-purple';
+  if (l === 'application submitted')   return 'tag-indigo';
+  if (l === 'underwriting')            return 'tag-indigo';
+  if (l === 'policy issued')           return 'tag-green';
+  if (l === 'annuity submitted')       return 'tag-indigo';
+  if (l === 'annuity funded')          return 'tag-green';
+  if (l === 'client')                  return 'tag-green';
   if (l === 'no show')                 return 'tag-red';
   if (l === 'cancelled')               return 'tag-gray';
-  if (l === 'application submitted')   return 'tag-indigo';
   if (l === 'sold')                    return 'tag-green';
+  if (l === 'lost sale')               return 'tag-gray';
   if (l === 'long-term nurture')       return 'tag-purple';
   if (l === 'do not contact')          return 'tag-red';
   if (l === 'dead lead')               return 'tag-gray';
@@ -303,17 +321,19 @@ function renderPipeline(contacts) {
   countEl.textContent = `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`;
 
   // Contacts whose status is not a visible column fall into the nearest visible one.
-  // Attempted Contact → Contacted; Application Submitted → Follow-Up Needed;
-  // Do Not Contact / Dead Lead → Long-Term Nurture (shown in pipeline but no dedicated col).
   const fallback = {
+    'Retirement Lead':        'New Lead',
     'Attempted Contact':      'Contacted',
-    'Application Submitted':  'Follow-Up Needed',
-    'Do Not Contact':         'Long-Term Nurture',
-    'Dead Lead':              'Long-Term Nurture',
     'Appointment Rescheduled':'Appointment Scheduled',
     'Needs Outcome':          'Appointment Scheduled',
     'No Show':                'Follow-Up Needed',
     'Cancelled':              'Long-Term Nurture',
+    'Policy Issued':          'Client',
+    'Annuity Submitted':      'Application Submitted',
+    'Annuity Funded':         'Client',
+    'Lost Sale':              'Long-Term Nurture',
+    'Do Not Contact':         'Long-Term Nurture',
+    'Dead Lead':              'Long-Term Nurture',
   };
 
   const sorted = [...contacts].sort((a, b) => taskSortKey(a) - taskSortKey(b));

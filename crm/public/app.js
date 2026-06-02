@@ -170,6 +170,7 @@ function leadStatusClass(ls) {
   const l = ls.toLowerCase();
   if (l === 'new lead')                return 'tag-blue';
   if (l === 'retirement lead')         return 'tag-blue';
+  if (l === 'life insurance lead')     return 'tag-blue';
   if (l === 'attempted contact')       return 'tag-amber';
   if (l === 'contacted')               return 'tag-purple';
   if (l === 'appointment scheduled')   return 'tag-teal';
@@ -323,6 +324,7 @@ function renderPipeline(contacts) {
   // Contacts whose status is not a visible column fall into the nearest visible one.
   const fallback = {
     'Retirement Lead':        'New Lead',
+    'Life Insurance Lead':    'New Lead',
     'Attempted Contact':      'Contacted',
     'Appointment Rescheduled':'Appointment Scheduled',
     'Needs Outcome':          'Appointment Scheduled',

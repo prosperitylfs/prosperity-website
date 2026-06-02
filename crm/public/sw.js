@@ -2,7 +2,7 @@
 // Strategy: network-first for same-origin assets (always fresh JS/HTML),
 //           cache fallback for offline; network-only for live API + config.js
 
-const CACHE = 'prosperity-crm-v36';
+const CACHE = 'prosperity-crm-v37';
 
 const PRECACHE = [
   '/',

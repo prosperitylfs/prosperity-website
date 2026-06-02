@@ -963,44 +963,74 @@ function renderDashboardStats(s) {
   const grid = document.getElementById('dashboard-stats');
   if (!grid) return;
 
-  // filter: { param, value } — null means display-only card
+  // filter: { param, value } — null means display-only (non-clickable) card
   const cards = [
-    { val: s.tasks.overdue,   label: 'Overdue Tasks',   cls: 'ds-overdue',  alwaysShow: false, filter: { param: 'task_due', value: 'overdue' } },
-    { val: s.tasks.today,     label: 'Due Today',       cls: 'ds-today',    alwaysShow: true,  filter: { param: 'task_due', value: 'today' } },
-    { val: s.tasks.tomorrow,  label: 'Due Tomorrow',    cls: 'ds-tomorrow', alwaysShow: true,  filter: { param: 'task_due', value: 'tomorrow' } },
-    { val: s.tasks.upcoming,  label: 'Upcoming Tasks',  cls: 'ds-upcoming', alwaysShow: true,  filter: { param: 'task_due', value: 'upcoming' } },
-    { val: s.apptsToday,      label: 'Appts Today',     cls: 'ds-appts',    alwaysShow: true,  filter: { param: 'appt_today', value: '1' } },
-    { val: s.newLeads,        label: 'New Leads',       cls: 'ds-leads',    alwaysShow: true,  filter: { param: 'lead_status', value: 'New Lead' } },
-    { val: s.inboundSms,      label: 'Inbound SMS',     cls: 'ds-sms',      alwaysShow: false, filter: { param: 'has_inbound_sms', value: '1' } },
-    { val: s.inboundEmail,    label: 'Inbound Emails',  cls: 'ds-email',    alwaysShow: false, filter: null },
+    { val: s.tasks.overdue,  label: 'Overdue Tasks',  cls: 'ds-overdue',  alwaysShow: false, filter: { param: 'task_due',        value: 'overdue'   } },
+    { val: s.tasks.today,    label: 'Due Today',      cls: 'ds-today',    alwaysShow: true,  filter: { param: 'task_due',        value: 'today'     } },
+    { val: s.tasks.tomorrow, label: 'Due Tomorrow',   cls: 'ds-tomorrow', alwaysShow: true,  filter: { param: 'task_due',        value: 'tomorrow'  } },
+    { val: s.tasks.upcoming, label: 'Upcoming Tasks', cls: 'ds-upcoming', alwaysShow: true,  filter: { param: 'task_due',        value: 'upcoming'  } },
+    { val: s.apptsToday,     label: 'Appts Today',    cls: 'ds-appts',    alwaysShow: true,  filter: { param: 'appt_today',      value: '1'         } },
+    { val: s.newLeads,       label: 'New Leads',      cls: 'ds-leads',    alwaysShow: true,  filter: { param: 'lead_status',     value: 'New Lead'  } },
+    { val: s.inboundSms,     label: 'Inbound SMS',    cls: 'ds-sms',      alwaysShow: false, filter: { param: 'has_inbound_sms', value: '1'         } },
+    { val: s.inboundEmail,   label: 'Inbound Emails', cls: 'ds-email',    alwaysShow: false, filter: null },
   ];
 
   const visible = cards.filter(c => c.alwaysShow || c.val > 0);
   if (!visible.length) { grid.classList.add('hidden'); return; }
 
+  // Use data-* attributes for filter info — avoids quote-nesting bugs with inline onclick.
   grid.innerHTML = visible.map(c => {
     const clickable = !!c.filter;
     const isActive  = activeDashFilter
       && c.filter
-      && activeDashFilter.param  === c.filter.param
-      && activeDashFilter.value  === c.filter.value;
+      && activeDashFilter.param === c.filter.param
+      && activeDashFilter.value === c.filter.value;
     const cls = [
       'dash-stat-card',
       c.cls,
-      c.val === 0 ? 'ds-zero' : '',
-      clickable   ? 'ds-clickable' : '',
-      isActive    ? 'dash-stat-card--active' : '',
+      c.val === 0  ? 'ds-zero'              : '',
+      clickable    ? 'ds-clickable'          : '',
+      isActive     ? 'dash-stat-card--active': '',
     ].filter(Boolean).join(' ');
-    const onclick = clickable
-      ? `setDashFilter({param:'${c.filter.param}',value:${JSON.stringify(c.filter.value)},label:'${c.label}'})`
+    const data = clickable
+      ? ` data-filter-param="${escHtml(c.filter.param)}" data-filter-value="${escHtml(c.filter.value)}" data-filter-label="${escHtml(c.label)}"`
       : '';
-    return `<div class="${cls}"${clickable ? ` role="button" tabindex="0" onclick="${onclick}"` : ''}>
+    return `<div class="${cls}"${clickable ? ' role="button" tabindex="0"' : ''}${data}>
       <span class="dash-stat-val">${c.val}</span>
       <span class="dash-stat-label">${escHtml(c.label)}</span>
     </div>`;
   }).join('');
   grid.classList.remove('hidden');
 }
+
+// Delegated click handler for dashboard stat cards — wired once at init.
+// Reads filter info from data-* attributes set by renderDashboardStats.
+(function wireDashCardClicks() {
+  const grid = document.getElementById('dashboard-stats');
+  if (!grid) return;
+  grid.addEventListener('click', e => {
+    const card = e.target.closest('.ds-clickable');
+    if (!card) return;
+    const param = card.dataset.filterParam;
+    const value = card.dataset.filterValue;
+    const label = card.dataset.filterLabel;
+    console.log('[dashboard filter clicked]', label, { param, value });
+    // Toggle off if clicking the already-active card
+    if (activeDashFilter && activeDashFilter.param === param && activeDashFilter.value === value) {
+      clearDashFilter();
+      return;
+    }
+    // Mark active immediately in the DOM (no need to wait for re-render)
+    grid.querySelectorAll('.dash-stat-card--active').forEach(el => el.classList.remove('dash-stat-card--active'));
+    card.classList.add('dash-stat-card--active');
+    setDashFilter({ param, value, label });
+  });
+  grid.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const card = e.target.closest('.ds-clickable');
+    if (card) { e.preventDefault(); card.click(); }
+  });
+})();
 
 // ─── Init ──────────────────────────────────────────────────────────────────────
 setView(currentView);

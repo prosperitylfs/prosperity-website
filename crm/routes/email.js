@@ -4,6 +4,7 @@ const express      = require('express');
 const router       = express.Router();
 const db           = require('../db/database');
 const { google }   = require('googleapis');
+const { createAutoTask } = require('../lib/autoTasks');
 
 const SCOPES    = [
   'https://www.googleapis.com/auth/gmail.send',
@@ -294,6 +295,18 @@ router.post('/sync', async (req, res) => {
     }
 
     console.log(`[email/sync] contact #${contact_id} (${contact.email}): ${imported} imported, ${skipped} already existed`);
+
+    // Auto follow-up task: remind to reply to inbound email(s).
+    // One task per sync batch regardless of how many messages were imported.
+    // Skips if an open "New inbound email" Email task already exists.
+    if (imported > 0) {
+      createAutoTask(
+        contact.id, 'Email', 30,
+        'New inbound email received. Reply to this lead.',
+        'New inbound email'
+      );
+    }
+
     res.json({ ok: true, imported, skipped, total: msgList.length });
 
   } catch (err) {

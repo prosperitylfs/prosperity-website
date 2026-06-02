@@ -8,6 +8,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db/database');
+const { createAutoTask } = require('../lib/autoTasks');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,6 +84,16 @@ async function sendMissedCallSms(callId) {
     db.prepare('UPDATE sms_messages SET twilio_sid = ?, status = ? WHERE id = ?')
       .run(message.sid, message.status || 'sent', smsId);
     db.prepare('UPDATE comm_calls SET auto_sms_sent = 1 WHERE id = ?').run(callId);
+
+    // Auto follow-up task: remind to call the lead back after the auto-text.
+    // Skips if an open "Missed call auto-text" Call task already exists.
+    if (call.contact_id) {
+      createAutoTask(
+        call.contact_id, 'Call', 30,
+        'Missed call auto-text sent. Call this lead back.',
+        'Missed call auto-text'
+      );
+    }
   } catch (err) {
     console.error(`[twilio/sms] failed=${err.message}  code=${err.code || 'none'}`);
     if (err.status)   console.error(`[twilio/sms] failed http=${err.status}`);
@@ -577,13 +588,23 @@ router.post('/sms/inbound', (req, res) => {
 
   // sms_messages is the sole authoritative store for SMS history.
   // INSERT OR IGNORE deduplicates by the unique index on twilio_sid.
-  db.prepare(`
+  const smsInsertResult = db.prepare(`
     INSERT OR IGNORE INTO sms_messages
       (contact_id, direction, from_number, to_number, body, status, twilio_sid)
     VALUES (?, 'inbound', ?, ?, ?, 'received', ?)
   `).run(contactId, From || null, To || null, Body || '', MessageSid || null);
 
   console.log(`[twilio/sms/inbound] Saved — contact_id=${contactId} MessageSid=${MessageSid}`);
+
+  // Auto follow-up task: remind to reply. Only fires for genuinely new messages
+  // (changes=0 means it was a duplicate twilio_sid — no task needed).
+  if (smsInsertResult.changes > 0 && contactId) {
+    createAutoTask(
+      contactId, 'SMS', 15,
+      'New inbound SMS received. Reply to this lead.',
+      'New inbound SMS'
+    );
+  }
 
   // Respond with empty TwiML (no auto-reply to inbound SMS)
   res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');

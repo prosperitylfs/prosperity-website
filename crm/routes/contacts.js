@@ -14,7 +14,8 @@ function normalizePhone(raw) {
 
 // GET /api/contacts — list all, newest first
 router.get('/', (req, res) => {
-  const { q, lead_type, lead_status, sms_consent, appointment_booked, limit = 200, offset = 0 } = req.query;
+  const { q, lead_type, lead_status, sms_consent, appointment_booked,
+          task_due, appt_today, has_inbound_sms, limit = 200, offset = 0 } = req.query;
 
   let sql = 'SELECT * FROM contacts';
   const params = [];
@@ -40,6 +41,32 @@ router.get('/', (req, res) => {
   if (appointment_booked !== undefined && appointment_booked !== '') {
     conditions.push('appointment_booked = ?');
     params.push(Number(appointment_booked));
+  }
+  if (task_due) {
+    const today    = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+    const nd = new Date(); nd.setDate(nd.getDate() + 1);
+    const tomorrow = nd.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+    if (task_due === 'overdue') {
+      conditions.push(`EXISTS (SELECT 1 FROM follow_up_tasks WHERE contact_id = contacts.id AND status = 'Pending' AND due_date < ?)`);
+      params.push(today);
+    } else if (task_due === 'today') {
+      conditions.push(`EXISTS (SELECT 1 FROM follow_up_tasks WHERE contact_id = contacts.id AND status = 'Pending' AND due_date = ?)`);
+      params.push(today);
+    } else if (task_due === 'tomorrow') {
+      conditions.push(`EXISTS (SELECT 1 FROM follow_up_tasks WHERE contact_id = contacts.id AND status = 'Pending' AND due_date = ?)`);
+      params.push(tomorrow);
+    } else if (task_due === 'upcoming') {
+      conditions.push(`EXISTS (SELECT 1 FROM follow_up_tasks WHERE contact_id = contacts.id AND status = 'Pending' AND due_date > ?)`);
+      params.push(tomorrow);
+    }
+  }
+  if (appt_today === '1') {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+    conditions.push(`EXISTS (SELECT 1 FROM appointments WHERE contact_id = contacts.id AND status = 'Scheduled' AND substr(appt_datetime,1,10) = ?)`);
+    params.push(today);
+  }
+  if (has_inbound_sms === '1') {
+    conditions.push(`EXISTS (SELECT 1 FROM sms_messages WHERE contact_id = contacts.id AND direction = 'inbound' AND sent_at > datetime('now','-30 days'))`);
   }
 
   if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');

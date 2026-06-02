@@ -3513,6 +3513,40 @@ body {
 .ds-sms      { border-top-color: var(--green);   }
 .ds-email    { border-top-color: #9333ea; }
 
+.ds-clickable { cursor: pointer; transition: transform .1s, box-shadow .1s; }
+.ds-clickable:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+.ds-clickable:active { transform: translateY(0); }
+.dash-stat-card--active {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(78,44,148,.18);
+}
+.dash-stat-card--active.ds-overdue  { box-shadow: 0 0 0 3px rgba(220,38,38,.18); }
+.dash-stat-card--active.ds-today    { box-shadow: 0 0 0 3px rgba(217,119,6,.18); }
+.dash-stat-card--active.ds-tomorrow { box-shadow: 0 0 0 3px rgba(99,102,241,.18); }
+.dash-stat-card--active.ds-leads    { box-shadow: 0 0 0 3px rgba(56,191,114,.18); }
+.dash-stat-card--active.ds-sms      { box-shadow: 0 0 0 3px rgba(56,191,114,.18); }
+
+.dash-filter-banner {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .85rem;
+  color: var(--text-muted);
+  margin-bottom: .75rem;
+}
+.dash-filter-clear {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: .15rem .55rem;
+  font-size: .78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.dash-filter-clear:hover { background: var(--surface-hover); color: var(--text); }
+
 /* ── Task due-date label (unified date+age display) ──────────────────────── */
 
 .task-due-label {

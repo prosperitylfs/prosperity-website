@@ -25,12 +25,13 @@ const fabEl           = document.getElementById('fab');
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 let debounceTimer;
-let allContacts  = [];
-let currentView  = localStorage.getItem('crm-view') || 'list';
-let dragState    = null;
-let wasDragged   = false;
-let ghostEl      = null;
-let notePopover  = null;
+let allContacts      = [];
+let currentView      = localStorage.getItem('crm-view') || 'list';
+let dragState        = null;
+let wasDragged       = false;
+let ghostEl          = null;
+let notePopover      = null;
+let activeDashFilter = null; // { param, value, label } | null
 
 // ─── Visible pipeline columns ──────────────────────────────────────────────────
 // Remaining statuses (Retirement Lead, Attempted Contact, Policy Issued, Annuity
@@ -747,17 +748,64 @@ async function initiateCallById(btn, contactId) {
   }
 }
 
+// ─── Dashboard filter helpers ──────────────────────────────────────────────────
+
+function setDashFilter(filter) {
+  activeDashFilter = filter;
+  // Clear the regular filter controls when a dash filter is active
+  if (filter) {
+    searchEl.value       = '';
+    filterEl.value       = '';
+    filterStatusEl.value = '';
+    filterSmsEl.value    = '';
+    updateMobileFilterBadge();
+  }
+  renderDashFilterBanner();
+  if (filter) setView('list');
+  loadContacts();
+}
+
+function clearDashFilter() {
+  activeDashFilter = null;
+  renderDashFilterBanner();
+  // Re-highlight the previously active card to none
+  document.querySelectorAll('.dash-stat-card--active').forEach(el => el.classList.remove('dash-stat-card--active'));
+  loadContacts();
+}
+
+function renderDashFilterBanner() {
+  let banner = document.getElementById('dash-filter-banner');
+  if (activeDashFilter) {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'dash-filter-banner';
+      banner.className = 'dash-filter-banner';
+      const grid = document.getElementById('dashboard-stats');
+      grid.insertAdjacentElement('afterend', banner);
+    }
+    banner.innerHTML = `Filtered by: <strong>${escHtml(activeDashFilter.label)}</strong>
+      <button class="dash-filter-clear" onclick="clearDashFilter()">× Clear</button>`;
+  } else if (banner) {
+    banner.remove();
+  }
+}
+
 // ─── Load contacts ─────────────────────────────────────────────────────────────
 async function loadContacts() {
   const params = new URLSearchParams();
-  const q  = searchEl.value.trim();
-  const lt = filterEl.value;
-  const ls = filterStatusEl.value;
-  const sm = filterSmsEl.value;
-  if (q)        params.set('q', q);
-  if (lt)       params.set('lead_type', lt);
-  if (ls)       params.set('lead_status', ls);
-  if (sm !== '') params.set('sms_consent', sm);
+
+  if (activeDashFilter) {
+    params.set(activeDashFilter.param, activeDashFilter.value);
+  } else {
+    const q  = searchEl.value.trim();
+    const lt = filterEl.value;
+    const ls = filterStatusEl.value;
+    const sm = filterSmsEl.value;
+    if (q)         params.set('q', q);
+    if (lt)        params.set('lead_type', lt);
+    if (ls)        params.set('lead_status', ls);
+    if (sm !== '') params.set('sms_consent', sm);
+  }
 
   try {
     const contacts = await CRM.fetch('/api/contacts?' + params.toString());
@@ -869,13 +917,23 @@ document.addEventListener('click', e => {
 });
 
 // ─── Event listeners ───────────────────────────────────────────────────────────
+
+function cancelDashFilter() {
+  if (activeDashFilter) {
+    activeDashFilter = null;
+    renderDashFilterBanner();
+    document.querySelectorAll('.dash-stat-card--active').forEach(el => el.classList.remove('dash-stat-card--active'));
+  }
+}
+
 searchEl.addEventListener('input', () => {
+  cancelDashFilter();
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => { loadContacts(); updateMobileFilterBadge(); }, 300);
 });
-filterEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBadge(); });
-filterStatusEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBadge(); });
-filterSmsEl.addEventListener('change', () => { loadContacts(); updateMobileFilterBadge(); });
+filterEl.addEventListener('change', () => { cancelDashFilter(); loadContacts(); updateMobileFilterBadge(); });
+filterStatusEl.addEventListener('change', () => { cancelDashFilter(); loadContacts(); updateMobileFilterBadge(); });
+filterSmsEl.addEventListener('change', () => { cancelDashFilter(); loadContacts(); updateMobileFilterBadge(); });
 
 // ─── Dashboard stats ──────────────────────────────────────────────────────────
 
@@ -905,25 +963,42 @@ function renderDashboardStats(s) {
   const grid = document.getElementById('dashboard-stats');
   if (!grid) return;
 
+  // filter: { param, value } — null means display-only card
   const cards = [
-    { val: s.tasks.overdue,   label: 'Overdue Tasks',   cls: 'ds-overdue',  alwaysShow: false },
-    { val: s.tasks.today,     label: 'Due Today',       cls: 'ds-today',    alwaysShow: true  },
-    { val: s.tasks.tomorrow,  label: 'Due Tomorrow',    cls: 'ds-tomorrow', alwaysShow: true  },
-    { val: s.tasks.upcoming,  label: 'Upcoming Tasks',  cls: 'ds-upcoming', alwaysShow: true  },
-    { val: s.apptsToday,      label: 'Appts Today',     cls: 'ds-appts',    alwaysShow: true  },
-    { val: s.newLeads,        label: 'New Leads',       cls: 'ds-leads',    alwaysShow: true  },
-    { val: s.inboundSms,      label: 'Inbound SMS',     cls: 'ds-sms',      alwaysShow: false },
-    { val: s.inboundEmail,    label: 'Inbound Emails',  cls: 'ds-email',    alwaysShow: false },
+    { val: s.tasks.overdue,   label: 'Overdue Tasks',   cls: 'ds-overdue',  alwaysShow: false, filter: { param: 'task_due', value: 'overdue' } },
+    { val: s.tasks.today,     label: 'Due Today',       cls: 'ds-today',    alwaysShow: true,  filter: { param: 'task_due', value: 'today' } },
+    { val: s.tasks.tomorrow,  label: 'Due Tomorrow',    cls: 'ds-tomorrow', alwaysShow: true,  filter: { param: 'task_due', value: 'tomorrow' } },
+    { val: s.tasks.upcoming,  label: 'Upcoming Tasks',  cls: 'ds-upcoming', alwaysShow: true,  filter: { param: 'task_due', value: 'upcoming' } },
+    { val: s.apptsToday,      label: 'Appts Today',     cls: 'ds-appts',    alwaysShow: true,  filter: { param: 'appt_today', value: '1' } },
+    { val: s.newLeads,        label: 'New Leads',       cls: 'ds-leads',    alwaysShow: true,  filter: { param: 'lead_status', value: 'New Lead' } },
+    { val: s.inboundSms,      label: 'Inbound SMS',     cls: 'ds-sms',      alwaysShow: false, filter: { param: 'has_inbound_sms', value: '1' } },
+    { val: s.inboundEmail,    label: 'Inbound Emails',  cls: 'ds-email',    alwaysShow: false, filter: null },
   ];
 
   const visible = cards.filter(c => c.alwaysShow || c.val > 0);
   if (!visible.length) { grid.classList.add('hidden'); return; }
 
-  grid.innerHTML = visible.map(c => `
-    <div class="dash-stat-card ${c.cls}${c.val === 0 ? ' ds-zero' : ''}">
+  grid.innerHTML = visible.map(c => {
+    const clickable = !!c.filter;
+    const isActive  = activeDashFilter
+      && c.filter
+      && activeDashFilter.param  === c.filter.param
+      && activeDashFilter.value  === c.filter.value;
+    const cls = [
+      'dash-stat-card',
+      c.cls,
+      c.val === 0 ? 'ds-zero' : '',
+      clickable   ? 'ds-clickable' : '',
+      isActive    ? 'dash-stat-card--active' : '',
+    ].filter(Boolean).join(' ');
+    const onclick = clickable
+      ? `setDashFilter({param:'${c.filter.param}',value:${JSON.stringify(c.filter.value)},label:'${c.label}'})`
+      : '';
+    return `<div class="${cls}"${clickable ? ` role="button" tabindex="0" onclick="${onclick}"` : ''}>
       <span class="dash-stat-val">${c.val}</span>
       <span class="dash-stat-label">${escHtml(c.label)}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   grid.classList.remove('hidden');
 }
 

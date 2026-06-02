@@ -21,9 +21,17 @@ function formatPhone(raw) {
   return `(${ten.slice(0,3)}) ${ten.slice(3,6)}-${ten.slice(6)}`;
 }
 
+// SQLite CURRENT_TIMESTAMP → 'YYYY-MM-DD HH:MM:SS' (no Z). Browsers parse
+// that as local time, not UTC. Force UTC by appending Z when T is absent.
+function parseTS(iso) {
+  if (!iso) return new Date(NaN);
+  const s = iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z';
+  return new Date(s);
+}
+
 function formatRelativeDate(iso) {
   if (!iso) return '—';
-  const d   = new Date(iso);
+  const d   = parseTS(iso);
   const now = new Date();
   const tz  = 'America/Chicago';
   const toDate = dt => dt.toLocaleDateString('en-US', { timeZone: tz });
@@ -42,7 +50,7 @@ function formatRelativeDate(iso) {
 
 function formatFullDate(iso) {
   if (!iso) return '—';
-  const d = new Date(iso);
+  const d = parseTS(iso);
   if (isNaN(d.getTime())) return '—';
   const tz       = 'America/Chicago';
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: tz });

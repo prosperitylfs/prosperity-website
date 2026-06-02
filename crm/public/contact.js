@@ -22,9 +22,18 @@ function formatPhone(raw) {
   return `(${ten.slice(0,3)}) ${ten.slice(3,6)}-${ten.slice(6)}`;
 }
 
+// SQLite CURRENT_TIMESTAMP stores 'YYYY-MM-DD HH:MM:SS' without a timezone
+// marker. new Date() treats that as LOCAL time in most browsers, causing a
+// 5-hour UTC→CDT offset error. Append 'Z' to force UTC parsing.
+function parseTS(iso) {
+  if (!iso) return new Date(NaN);
+  const s = iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z';
+  return new Date(s);
+}
+
 function formatDate(iso, includeTime = false) {
   if (!iso) return '—';
-  const d = new Date(iso);
+  const d = parseTS(iso);
   if (isNaN(d.getTime())) return '—';
   const tz       = 'America/Chicago';
   const todayStr = new Date().toLocaleDateString('en-US', { timeZone: tz });
@@ -1213,7 +1222,7 @@ async function loadActivity() {
 
 function formatTimestamp(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
+  const d = parseTS(iso);
   if (isNaN(d.getTime())) return iso;
   const tz = 'America/Chicago';
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: tz });

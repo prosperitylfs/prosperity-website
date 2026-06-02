@@ -119,6 +119,10 @@ function escXml(str) {
     .replace(/"/g, '&quot;');
 }
 
+// Deferred missed-call SMS timers, keyed by call_id string.
+// /voicemail clears these if /voicemail-save fires first.
+const pendingSmsByCall = new Map();
+
 // Match an inbound caller's E.164 number to a CRM contact.
 function findContactByPhone(fromE164) {
   if (!fromE164) return null;
@@ -302,7 +306,7 @@ router.post('/voicemail', (req, res) => {
 
   // ── Caller hung up before agent answered ────────────────────────────────────
   if (DialCallStatus === 'canceled') {
-    console.log(`[twilio/voicemail] call_id=${callId}: caller hung up before agent answered — marking missed, queuing SMS`);
+    console.log(`[twilio/voicemail] call_id=${callId}: caller hung up before agent answered — marking missed`);
     db.prepare(
       "UPDATE comm_calls SET status = 'missed', ended_at = ? WHERE id = ?"
     ).run(now, callId);
@@ -313,6 +317,7 @@ router.post('/voicemail', (req, res) => {
         .run('missed', call.contact_id);
     }
 
+    console.log(`[twilio/sms] missed call before voicemail - send sms  call_id=${callId}`);
     sendMissedCallSms(callId).catch(err =>
       console.error(`[twilio/sms] canceled-branch error for call #${callId}:`, err.message)
     );
@@ -334,9 +339,26 @@ router.post('/voicemail', (req, res) => {
   }
 
   // Do NOT send SMS here — the greeting has not played yet.
-  // /voicemail-save decides: voicemail recorded → suppress SMS; no recording → send SMS.
-  // /call-ended is the safety net for the case where the caller hangs up during
-  // the greeting before <Record> starts (Twilio never fires /voicemail-save in that case).
+  // /voicemail-save cancels the timer below and decides immediately:
+  //   real recording → suppress SMS; no recording → send SMS.
+  // If the caller hangs up DURING the greeting (before <Record> starts), Twilio
+  // never calls /voicemail-save. The timer fires after 3 minutes as a reliable
+  // fallback: re-checks the DB and sends SMS only if no voicemail was recorded.
+  const smsTimer = setTimeout(() => {
+    pendingSmsByCall.delete(String(callId));
+    const fresh = db.prepare('SELECT recording_url, auto_sms_sent FROM comm_calls WHERE id = ?').get(callId);
+    if (!fresh) return;
+    if (fresh.recording_url) {
+      console.log(`[twilio/sms] voicemail recording exists - skip sms  call_id=${callId} (deferred check)`);
+      return;
+    }
+    if (fresh.auto_sms_sent) return;
+    console.log(`[twilio/sms] voicemail completed with no recording - send sms  call_id=${callId} (deferred check)`);
+    sendMissedCallSms(callId).catch(err =>
+      console.error(`[twilio/sms] deferred SMS error call_id=${callId}:`, err.message)
+    );
+  }, 3 * 60 * 1000);
+  pendingSmsByCall.set(String(callId), smsTimer);
 
   const saveUrl = `${publicUrl}/api/twilio/voicemail-save?call_id=${callId}`;
   console.log(`[twilio/voicemail] call_id=${callId}: playing greeting, recording to ${saveUrl}`);
@@ -366,6 +388,10 @@ router.post('/voicemail-save', (req, res) => {
   const { RecordingUrl, RecordingDuration, RecordingSid } = req.body;
   const callId   = req.query.call_id;
   const now      = new Date().toISOString();
+
+  // Cancel the deferred SMS timer set in /voicemail — we handle SMS here now.
+  const timer = pendingSmsByCall.get(String(callId));
+  if (timer) { clearTimeout(timer); pendingSmsByCall.delete(String(callId)); }
   const duration = RecordingDuration ? parseInt(RecordingDuration, 10) : null;
   const recUrl   = RecordingUrl ? `${RecordingUrl}.mp3` : null;
 
@@ -406,10 +432,10 @@ router.post('/voicemail-save', (req, res) => {
 
   if (hasRealVoicemail) {
     console.log(`[twilio/voicemail] recording created  call_id=${callId} duration=${duration}s sid=${RecordingSid}`);
-    console.log(`[twilio/sms] skipped because voicemail exists  call_id=${callId}`);
+    console.log(`[twilio/sms] voicemail recording exists - skip sms  call_id=${callId}`);
   } else {
     console.log(`[twilio/voicemail] no recording  call_id=${callId} RecordingUrl=${RecordingUrl || 'null'} duration=${duration ?? 'null'}`);
-    console.log(`[twilio/sms] sent after no voicemail  call_id=${callId}`);
+    console.log(`[twilio/sms] voicemail completed with no recording - send sms  call_id=${callId}`);
     sendMissedCallSms(callId).catch(err =>
       console.error(`[twilio/sms] voicemail-save error for call #${callId}:`, err.message)
     );
@@ -439,8 +465,9 @@ router.post('/call-ended', (req, res) => {
     `CallDuration=${CallDuration || '0'}s`
   );
 
-  // StatusCallback fires for multiple events; only act on final completion.
-  if (CallStatus !== 'completed') {
+  // StatusCallback fires for multiple events (initiated, ringing, in-progress,
+  // completed, canceled). Only act on terminal states that need SMS.
+  if (CallStatus !== 'completed' && CallStatus !== 'canceled') {
     res.sendStatus(204);
     return;
   }
@@ -466,8 +493,15 @@ router.post('/call-ended', (req, res) => {
     `auto_sms_sent=${call.auto_sms_sent}`
   );
 
+  // Real answered call — never send missed-call SMS.
+  if (call.status === 'answered') {
+    console.log(`[twilio/call-ended] call_id=${callId}: call was answered — no SMS`);
+    res.sendStatus(204);
+    return;
+  }
+
   if (call.recording_url) {
-    console.log(`[twilio/sms] skipped because voicemail exists  call_id=${callId}`);
+    console.log(`[twilio/sms] voicemail recording exists - skip sms  call_id=${callId}`);
     res.sendStatus(204);
     return;
   }
@@ -478,7 +512,12 @@ router.post('/call-ended', (req, res) => {
     return;
   }
 
-  console.log(`[twilio/sms] sent after no voicemail  call_id=${callId}`);
+  // Determine which log line to emit based on how the call ended.
+  if (CallStatus === 'canceled') {
+    console.log(`[twilio/sms] missed call before voicemail - send sms  call_id=${callId} (call-ended safety net)`);
+  } else {
+    console.log(`[twilio/sms] voicemail completed with no recording - send sms  call_id=${callId} (call-ended safety net)`);
+  }
   sendMissedCallSms(callId).catch(err =>
     console.error(`[twilio/sms] call-ended error for call #${callId}:`, err.message)
   );

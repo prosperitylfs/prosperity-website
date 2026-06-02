@@ -87,14 +87,27 @@ async function sendMissedCallSms(callId) {
     console.error(`[twilio/sms] failed=${err.message}  code=${err.code || 'none'}`);
     if (err.status)   console.error(`[twilio/sms] failed http=${err.status}`);
     if (err.moreInfo) console.error(`[twilio/sms] failed info=${err.moreInfo}`);
+
     // Save failure to SMS History with full error detail in body
     const errDetail = [
       err.message,
-      err.code    ? `Code: ${err.code}`        : null,
-      err.moreInfo ? `Info: ${err.moreInfo}`   : null,
+      err.code     ? `Code: ${err.code}`     : null,
+      err.moreInfo ? `Info: ${err.moreInfo}` : null,
     ].filter(Boolean).join(' | ');
     db.prepare('UPDATE sms_messages SET status = ?, body = ? WHERE id = ?')
       .run('failed', `[FAILED] ${errDetail}\n\nOriginal message: ${SMS_BODY}`, smsId);
+
+    // Create a Call task so the missed call is not lost when SMS is undeliverable
+    if (call.contact_id) {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+      db.prepare(`
+        INSERT INTO follow_up_tasks (contact_id, task_type, due_date, notes, priority)
+        VALUES (?, 'Call', ?, ?, 'High')
+      `).run(call.contact_id, today, 'Missed call from non-SMS-capable number. Call back.');
+      console.log(`[twilio/sms] failed - created call task  contact_id=${call.contact_id} due=${today}`);
+    } else {
+      console.warn(`[twilio/sms] failed - no contact_id, could not create call task`);
+    }
   }
 }
 
@@ -320,13 +333,10 @@ router.post('/voicemail', (req, res) => {
       .run('missed', call.contact_id);
   }
 
-  // Fire SMS immediately — do NOT wait for /voicemail-save.
-  // If the caller disconnects while the greeting TwiML (<Play>/<Say>) is running,
-  // Twilio stops executing and never invokes the <Record> action URL.
-  // /voicemail-save would never fire, so relying on it as the SMS trigger is unreliable.
-  sendMissedCallSms(callId).catch(err =>
-    console.error(`[twilio/sms] no-answer-branch error call_id=${callId}:`, err.message)
-  );
+  // Do NOT send SMS here — the greeting has not played yet.
+  // /voicemail-save decides: voicemail recorded → suppress SMS; no recording → send SMS.
+  // /call-ended is the safety net for the case where the caller hangs up during
+  // the greeting before <Record> starts (Twilio never fires /voicemail-save in that case).
 
   const saveUrl = `${publicUrl}/api/twilio/voicemail-save?call_id=${callId}`;
   console.log(`[twilio/voicemail] call_id=${callId}: playing greeting, recording to ${saveUrl}`);
@@ -395,9 +405,11 @@ router.post('/voicemail-save', (req, res) => {
   }
 
   if (hasRealVoicemail) {
-    console.log(`[twilio/voicemail-save] call_id=${callId}: voicemail saved (${duration}s, ${RecordingSid}) — SMS suppressed`);
+    console.log(`[twilio/voicemail] recording created  call_id=${callId} duration=${duration}s sid=${RecordingSid}`);
+    console.log(`[twilio/sms] skipped because voicemail exists  call_id=${callId}`);
   } else {
-    console.log(`[twilio/voicemail-save] call_id=${callId}: no usable recording (RecordingUrl=${RecordingUrl || 'null'} duration=${duration ?? 'null'}) — queuing missed-call SMS`);
+    console.log(`[twilio/voicemail] no recording  call_id=${callId} RecordingUrl=${RecordingUrl || 'null'} duration=${duration ?? 'null'}`);
+    console.log(`[twilio/sms] sent after no voicemail  call_id=${callId}`);
     sendMissedCallSms(callId).catch(err =>
       console.error(`[twilio/sms] voicemail-save error for call #${callId}:`, err.message)
     );
@@ -455,7 +467,7 @@ router.post('/call-ended', (req, res) => {
   );
 
   if (call.recording_url) {
-    console.log(`[twilio/call-ended] call_id=${callId}: voicemail recording exists — SMS suppressed`);
+    console.log(`[twilio/sms] skipped because voicemail exists  call_id=${callId}`);
     res.sendStatus(204);
     return;
   }
@@ -466,7 +478,7 @@ router.post('/call-ended', (req, res) => {
     return;
   }
 
-  console.log(`[twilio/call-ended] call_id=${callId}: no recording and no prior SMS → sending missed-call auto-reply`);
+  console.log(`[twilio/sms] sent after no voicemail  call_id=${callId}`);
   sendMissedCallSms(callId).catch(err =>
     console.error(`[twilio/sms] call-ended error for call #${callId}:`, err.message)
   );

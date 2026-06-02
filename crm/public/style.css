@@ -3608,6 +3608,23 @@ body {
   opacity: 0;
   pointer-events: none;
 }
+.crm-toast.crm-toast-error {
+  background: var(--red);
+  box-shadow: 0 4px 16px rgba(224,82,82,.35);
+}
+
+/* ── Appointment status control (select + hint text) ─────────────────────── */
+
+.appt-status-control {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+
+.appt-autosave-hint {
+  font-size: .7rem;
+  color: var(--text-muted);
+}
 
 /* ── Next Action / Due columns ─────────────────────────────────────────────── */
 

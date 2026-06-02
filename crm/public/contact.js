@@ -679,7 +679,12 @@ function renderApptItem(a, isPast) {
       ${a.notes    ? `<div class="appt-item-notes">${escHtml(a.notes)}</div>` : ''}
       ${needsOutcome ? '<div class="appt-outcome-prompt">What was the outcome? Update the status below.</div>' : ''}
       <div class="appt-item-footer">
-        <select class="crm-select appt-status-sel" onchange="updateApptStatus(${a.id}, this.value)">${statusOpts}</select>
+        <div class="appt-status-control">
+          <select class="crm-select appt-status-sel"
+                  data-prev="${escHtml(a.status)}"
+                  onchange="updateApptStatus(${a.id}, this.value, this)">${statusOpts}</select>
+          <span class="appt-autosave-hint">Changes are saved automatically</span>
+        </div>
         <button class="btn-section-cancel" onclick="deleteAppt(${a.id})">Delete</button>
       </div>
     </div>`;
@@ -748,10 +753,14 @@ async function saveAppointment() {
   }
 }
 
-async function updateApptStatus(apptId, newStatus) {
-  // Immediate optimistic update — swap badge and remove needs-outcome styling
-  // before the round-trip so the UI feels instant.
+async function updateApptStatus(apptId, newStatus, selectEl) {
+  // Disable dropdown and flip hint to "Saving…" for immediate feedback
+  if (selectEl) selectEl.disabled = true;
   const card = document.querySelector(`.appt-item[data-appt-id="${apptId}"]`);
+  const hint = card?.querySelector('.appt-autosave-hint');
+  if (hint) hint.textContent = 'Saving…';
+
+  // Optimistic badge swap so the status tag updates before the round-trip
   if (card) {
     const oldBadge = card.querySelector('.appt-status-tag');
     if (oldBadge) oldBadge.outerHTML = apptStatusTag(newStatus);
@@ -770,8 +779,10 @@ async function updateApptStatus(apptId, newStatus) {
       method: 'PATCH',
       body: JSON.stringify({ status: newStatus }),
     });
+    showToast('Appointment updated successfully');
+    // loadAppointments re-renders the list: re-enables the select and restores hint text
     await loadAppointments();
-    // Server updated the contact's lead_status — refresh the dropdown
+    // Refresh lead_status dropdown (server may have updated it)
     const refreshed = await CRM.fetch(`/api/contacts/${id}`);
     if (refreshed.lead_status) {
       const statusEl = document.getElementById('lead-status-select');
@@ -779,8 +790,8 @@ async function updateApptStatus(apptId, newStatus) {
       if (window._currentContact) window._currentContact.lead_status = refreshed.lead_status;
     }
   } catch (e) {
-    showError(`Could not update appointment: ${e.message}`);
-    await loadAppointments(); // revert optimistic update on error
+    showToast('Unable to update appointment', 3500, 'error');
+    await loadAppointments(); // re-render reverts optimistic updates and re-enables the select
   }
 }
 
@@ -1322,16 +1333,15 @@ document.getElementById('add-note-btn').addEventListener('click', async () => {
 
 // ─── Toast notification ───────────────────────────────────────────────────────
 
-function showToast(msg, duration = 2500) {
+function showToast(msg, duration = 2500, type = '') {
   let el = document.getElementById('crm-toast');
   if (!el) {
     el = document.createElement('div');
     el.id = 'crm-toast';
-    el.className = 'crm-toast crm-toast-hidden';
     document.body.appendChild(el);
   }
   el.textContent = msg;
-  el.classList.remove('crm-toast-hidden');
+  el.className = `crm-toast${type === 'error' ? ' crm-toast-error' : ''}`;
   clearTimeout(el._timer);
   el._timer = setTimeout(() => el.classList.add('crm-toast-hidden'), duration);
 }

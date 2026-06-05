@@ -438,6 +438,15 @@ router.post('/voicemail-save', (req, res) => {
         call.contact_id,
         `📞 Voicemail received (${duration}s) from ${call.from_number || 'unknown'}. Recording saved to call log.`
       );
+
+      // High-priority callback task. Skips if an open voicemail callback task
+      // already exists for this contact (e.g. caller left multiple voicemails).
+      createAutoTask(
+        call.contact_id, 'Call', 15,
+        'Voicemail received. Listen to voicemail and return call.',
+        'Voicemail received',
+        'High'
+      );
     }
   }
 

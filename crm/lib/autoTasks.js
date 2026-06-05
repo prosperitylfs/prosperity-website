@@ -33,9 +33,10 @@ function ctDueDateAndTime(minutesFromNow) {
  * @param {string} notes        - full task note
  * @param {string} dedupKeyword - substring that uniquely identifies this auto-task
  *                                category for duplicate detection
+ * @param {string} [priority]   - 'High' | 'Medium' | 'Low' (default: 'Medium')
  * @returns {number|null} new follow_up_tasks.id, or null if a duplicate was found
  */
-function createAutoTask(contactId, taskType, dueMins, notes, dedupKeyword) {
+function createAutoTask(contactId, taskType, dueMins, notes, dedupKeyword, priority = 'Medium') {
   const existing = db.prepare(`
     SELECT id FROM follow_up_tasks
     WHERE contact_id = ? AND task_type = ? AND status = 'Pending' AND notes LIKE ?
@@ -50,10 +51,10 @@ function createAutoTask(contactId, taskType, dueMins, notes, dedupKeyword) {
   const { date, time } = ctDueDateAndTime(dueMins);
   const result = db.prepare(`
     INSERT INTO follow_up_tasks (contact_id, task_type, due_date, due_time, notes, priority)
-    VALUES (?, ?, ?, ?, ?, 'Medium')
-  `).run(contactId, taskType, date, time, notes);
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(contactId, taskType, date, time, notes, priority);
 
-  console.log(`[auto-task] created  contact_id=${contactId} type=${taskType} due=${date} ${time} id=${result.lastInsertRowid}`);
+  console.log(`[auto-task] created  contact_id=${contactId} type=${taskType} priority=${priority} due=${date} ${time} id=${result.lastInsertRowid}`);
   return result.lastInsertRowid;
 }
 

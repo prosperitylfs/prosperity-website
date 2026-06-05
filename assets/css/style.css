@@ -2347,9 +2347,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .nav-toggle { display: flex; }
 
   /* Phone button — stack icon above number on tablet/mobile.
-     The HTML has an inline style so !important is required to override it.
-     font-size:0 hides the raw text node; ::after re-renders the number
-     at a small size so only CSS needs updating if the number changes. */
+     The HTML has an inline style so !important is required to override it. */
   .phone-btn {
     display: inline-flex !important;
     flex-direction: column !important;
@@ -2364,8 +2362,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     font-size: 1rem !important;
     margin-right: 0 !important;
   }
-  .phone-btn::after {
-    content: "414-441-1177";
+  .phone-btn-number {
     display: block;
     font-size: 0.62rem;
     font-weight: 600;
@@ -2410,7 +2407,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
 /* Very small phones (≤360px) — revert to icon-only to avoid header overflow */
 @media (max-width: 360px) {
-  .phone-btn::after { display: none !important; }
+  .phone-btn-number { display: none !important; }
   .phone-btn {
     padding: 9px 11px !important;
     gap: 0 !important;

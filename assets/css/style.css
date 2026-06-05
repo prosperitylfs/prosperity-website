@@ -2347,13 +2347,14 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .nav-toggle { display: flex; }
 
   /* Phone button — stack icon above number on tablet/mobile.
-     The HTML has an inline style so !important is required to override it. */
+     The HTML has an inline style so !important is required to override it.
+     font-size is NOT set to 0 here — text lives in .phone-btn-number which
+     has its own explicit font-size, so no hiding trick is needed. */
   .phone-btn {
     display: inline-flex !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    font-size: 0 !important;
     padding: 6px 10px !important;
     gap: 2px !important;
     line-height: 1 !important;
@@ -2363,13 +2364,13 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     margin-right: 0 !important;
   }
   .phone-btn-number {
-    display: block;
-    font-size: 0.62rem;
-    font-weight: 600;
-    color: #ffffff;
-    white-space: nowrap;
-    line-height: 1;
-    letter-spacing: 0;
+    display: block !important;
+    font-size: 0.62rem !important;
+    font-weight: 600 !important;
+    color: #ffffff !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+    letter-spacing: 0 !important;
   }
 
   .hero-lead      { max-width: none; }

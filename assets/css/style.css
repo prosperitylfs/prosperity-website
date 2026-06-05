@@ -2346,17 +2346,33 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .main-nav   { display: none; }
   .nav-toggle { display: flex; }
 
-  /* Phone button has an inline style="display:inline-flex" — !important is required to override it.
-     At tablet/mobile widths, collapse it to an icon-only tap target so it fits the header. */
+  /* Phone button — stack icon above number on tablet/mobile.
+     The HTML has an inline style so !important is required to override it.
+     font-size:0 hides the raw text node; ::after re-renders the number
+     at a small size so only CSS needs updating if the number changes. */
   .phone-btn {
     display: inline-flex !important;
-    font-size: 0 !important;          /* hides "414-441-1177" number text */
-    padding: 9px 11px !important;
-    gap: 0 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 0 !important;
+    padding: 6px 10px !important;
+    gap: 2px !important;
+    line-height: 1 !important;
   }
   .phone-btn i {
     font-size: 1rem !important;
     margin-right: 0 !important;
+  }
+  .phone-btn::after {
+    content: "414-441-1177";
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: #ffffff;
+    white-space: nowrap;
+    line-height: 1;
+    letter-spacing: 0;
   }
 
   .hero-lead      { max-width: none; }
@@ -2390,6 +2406,15 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 
   .footer-inner { grid-template-columns: 1fr 1fr; }
   .footer-brand { grid-column: 1 / -1; }
+}
+
+/* Very small phones (≤360px) — revert to icon-only to avoid header overflow */
+@media (max-width: 360px) {
+  .phone-btn::after { display: none !important; }
+  .phone-btn {
+    padding: 9px 11px !important;
+    gap: 0 !important;
+  }
 }
 
 @media (max-width: 680px) {

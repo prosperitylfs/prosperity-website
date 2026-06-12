@@ -16,7 +16,11 @@
 /assets/guides/*
   Cache-Control: public, max-age=31536000
 
-# HTML files
+# HTML files — always revalidate
 /*.html
   Cache-Control: no-cache
   Content-Type: text/html; charset=utf-8
+
+# Root path — always revalidate (not matched by /*.html)
+/
+  Cache-Control: no-cache

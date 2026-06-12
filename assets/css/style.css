@@ -2440,42 +2440,71 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   /* Prevent the sticky header from being wider than the viewport */
   .site-header { overflow-x: hidden; }
 
-  /* Reduce header bar height — desktop is 100px, too tall for phones.
-     flex-wrap: wrap lets the phone bar drop to its own full-width row. */
+  /* Single-row header: [Logo] [icon] [number] [hamburger] — no wrapping */
   .header-inner {
     height: auto !important;
-    min-height: 60px !important;
-    padding: 8px 16px !important;
+    min-height: 70px !important;
+    padding: 8px 14px !important;
     box-sizing: border-box !important;
-    gap: 8px !important;
-    flex-wrap: wrap !important;
+    gap: 12px !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
   }
 
-  /* Row 1: [logo ← flex:1 →] [hamburger] */
-  .logo       { order: 1 !important; flex: 1 !important; }
-  .nav-toggle { order: 2 !important; }
+  /* Reset any order overrides — DOM order is: logo, nav(hidden), phone-btn, toggle */
+  .logo       { order: unset !important; flex: unset !important; flex-shrink: 0 !important; }
+  .nav-toggle { order: unset !important; margin-left: 0 !important; flex-shrink: 0 !important; }
 
-  /* Row 2: full-width call bar */
+  /* Logo: larger and clearly visible */
+  .logo-img {
+    max-width: 170px !important;
+    max-height: 58px !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  /* Phone link: transparent container — icon and number sit side by side */
   .phone-btn {
-    order: 3 !important;
-    width: 100% !important;
-    justify-content: center !important;
-    padding: 9px 16px !important;
-    border-radius: 6px !important;
-    font-size: 0.9rem !important;
-    gap: 8px !important;
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    gap: 10px !important;
     flex-direction: row !important;
+    order: unset !important;
+    width: auto !important;
+    justify-content: flex-start !important;
+    font-size: inherit !important;
+    align-items: center !important;
+    flex-shrink: 1 !important;
+    min-width: 0 !important;
   }
-  .phone-btn i { font-size: 1rem !important; }
-  .phone-btn-number {
-    font-size: 0.9rem !important;
-    white-space: nowrap !important;
-  }
-  /* "Call/Text: " prefix is mobile-only; desktop shows just the number */
-  .phone-btn-number::before { content: "Call/Text: "; }
 
-  /* Scale logo image down for mobile — max 160px wide, max 50px tall */
-  .logo-img  { max-width: 160px !important; max-height: 50px !important; width: auto !important; height: auto !important; }
+  /* Phone icon: purple rounded-square, ~50×50px */
+  .phone-btn i {
+    background: #4e2c94 !important;
+    border-radius: 10px !important;
+    width: 50px !important;
+    height: 50px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.2rem !important;
+    color: #ffffff !important;
+    margin-right: 0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Phone number: Prosperity purple, 18px, always visible */
+  .phone-btn-number {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    color: #4e2c94 !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+    display: inline !important;
+  }
+  .phone-btn-number::before { content: none !important; }
 
   /* Mobile nav drawer — ensure it doesn't overflow */
   .mobile-nav {
@@ -2501,6 +2530,15 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     padding: 14px !important;
     font-size: 1rem !important;
   }
+}
+
+/* Very small phones (≤375px) — tighten spacing, never hide the number */
+@media (max-width: 375px) {
+  .header-inner    { gap: 8px !important; padding: 8px 10px !important; }
+  .logo-img        { max-width: 140px !important; max-height: 52px !important; }
+  .phone-btn       { gap: 7px !important; }
+  .phone-btn i     { width: 44px !important; height: 44px !important; font-size: 1.05rem !important; border-radius: 8px !important; }
+  .phone-btn-number { font-size: 15px !important; }
 }
 
 /* ---------- Homepage mobile fixes (768px and below) ---------- */

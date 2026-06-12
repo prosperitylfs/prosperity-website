@@ -215,15 +215,16 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0;
   text-decoration: none;
   flex-shrink: 0;
 }
 
-/* Full logo image (place file at assets/images/logo.png) */
 .logo-img {
-  height: 68px;
+  height: auto;
   width: auto;
+  max-height: 68px;
+  max-width: 220px;
   display: block;
 }
 
@@ -2473,15 +2474,8 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   /* "Call/Text: " prefix is mobile-only; desktop shows just the number */
   .phone-btn-number::before { content: "Call/Text: "; }
 
-  /* Scale logo image down from 68px */
-  .logo-img  { height: 40px !important; }
-
-  /* Tighten gap between logo image and text */
-  .logo-text { gap: 3px !important; }
-
-  /* Scale logo wordmark */
-  .logo-name { font-size: 1.05rem !important; letter-spacing: 0 !important; }
-  .logo-sub  { font-size: 0.68rem !important; }
+  /* Scale logo image down for mobile — max 160px wide, max 50px tall */
+  .logo-img  { max-width: 160px !important; max-height: 50px !important; width: auto !important; height: auto !important; }
 
   /* Mobile nav drawer — ensure it doesn't overflow */
   .mobile-nav {

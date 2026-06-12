@@ -2346,30 +2346,28 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .main-nav   { display: none; }
   .nav-toggle { display: flex; }
 
-  /* Phone button — stack icon above number on tablet/mobile.
-     The HTML has an inline style so !important is required to override it.
-     font-size is NOT set to 0 here — text lives in .phone-btn-number which
-     has its own explicit font-size, so no hiding trick is needed. */
+  /* Phone button — compact row layout on tablet.
+     The HTML has an inline style so !important is required to override it. */
   .phone-btn {
     display: inline-flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 6px 10px !important;
-    gap: 2px !important;
-    line-height: 1 !important;
+    padding: 7px 12px !important;
+    gap: 5px !important;
+    line-height: 1.2 !important;
   }
   .phone-btn i {
-    font-size: 1rem !important;
+    font-size: 0.95rem !important;
     margin-right: 0 !important;
   }
   .phone-btn-number {
-    display: block !important;
-    font-size: 0.62rem !important;
+    display: inline !important;
+    font-size: 0.82rem !important;
     font-weight: 600 !important;
     color: #ffffff !important;
     white-space: nowrap !important;
-    line-height: 1 !important;
+    line-height: 1.2 !important;
     letter-spacing: 0 !important;
   }
 
@@ -2406,14 +2404,6 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .footer-brand { grid-column: 1 / -1; }
 }
 
-/* Very small phones (≤360px) — revert to icon-only to avoid header overflow */
-@media (max-width: 360px) {
-  .phone-btn-number { display: none !important; }
-  .phone-btn {
-    padding: 9px 11px !important;
-    gap: 0 !important;
-  }
-}
 
 @media (max-width: 680px) {
   section { padding: 56px 0; }
@@ -2449,14 +2439,39 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   /* Prevent the sticky header from being wider than the viewport */
   .site-header { overflow-x: hidden; }
 
-  /* Reduce header bar height — desktop is 100px, too tall for phones */
+  /* Reduce header bar height — desktop is 100px, too tall for phones.
+     flex-wrap: wrap lets the phone bar drop to its own full-width row. */
   .header-inner {
     height: auto !important;
     min-height: 60px !important;
     padding: 8px 16px !important;
     box-sizing: border-box !important;
     gap: 8px !important;
+    flex-wrap: wrap !important;
   }
+
+  /* Row 1: [logo ← flex:1 →] [hamburger] */
+  .logo       { order: 1 !important; flex: 1 !important; }
+  .nav-toggle { order: 2 !important; }
+
+  /* Row 2: full-width call bar */
+  .phone-btn {
+    order: 3 !important;
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 9px 16px !important;
+    border-radius: 6px !important;
+    font-size: 0.9rem !important;
+    gap: 8px !important;
+    flex-direction: row !important;
+  }
+  .phone-btn i { font-size: 1rem !important; }
+  .phone-btn-number {
+    font-size: 0.9rem !important;
+    white-space: nowrap !important;
+  }
+  /* "Call/Text: " prefix is mobile-only; desktop shows just the number */
+  .phone-btn-number::before { content: "Call/Text: "; }
 
   /* Scale logo image down from 68px */
   .logo-img  { height: 40px !important; }

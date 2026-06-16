@@ -85,13 +85,12 @@ async function sendMissedCallSms(callId) {
       .run(message.sid, message.status || 'sent', smsId);
     db.prepare('UPDATE comm_calls SET auto_sms_sent = 1 WHERE id = ?').run(callId);
 
-    // Auto follow-up task: remind to call the lead back after the auto-text.
-    // Skips if an open "Missed call auto-text" Call task already exists.
+    // Upsert the single open Call task for this contact.
     if (call.contact_id) {
-      createAutoTask(
-        call.contact_id, 'Call', 30,
+      upsertCallTask(
+        call.contact_id, 30,
         'Missed call auto-text sent. Call this lead back.',
-        'Missed call auto-text'
+        'Medium'
       );
     }
   } catch (err) {
@@ -108,73 +107,69 @@ async function sendMissedCallSms(callId) {
     db.prepare('UPDATE sms_messages SET status = ?, body = ? WHERE id = ?')
       .run('failed', `[FAILED] ${errDetail}\n\nOriginal message: ${SMS_BODY}`, smsId);
 
-    // Create a Call task so the missed call is not lost when SMS is undeliverable
+    // Upsert the single open Call task — SMS undeliverable, must call back.
     if (call.contact_id) {
-      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-      db.prepare(`
-        INSERT INTO follow_up_tasks (contact_id, task_type, due_date, notes, priority)
-        VALUES (?, 'Call', ?, ?, 'High')
-      `).run(call.contact_id, today, 'Missed call from non-SMS-capable number. Call back.');
-      console.log(`[twilio/sms] failed - created call task  contact_id=${call.contact_id} due=${today}`);
+      upsertCallTask(
+        call.contact_id, 30,
+        'Missed call — SMS delivery failed. Call this lead back.',
+        'High'
+      );
     } else {
       console.warn(`[twilio/sms] failed - no contact_id, could not create call task`);
     }
   }
 }
 
-// Creates or upgrades the voicemail callback task when a real voicemail is saved.
-//
-// Priority order:
-//   1. If an open "Voicemail received" Call task already exists → skip (dedup).
-//   2. If an open "Missed call" Call task exists → upgrade it in-place:
-//        priority = High, notes = voicemail text, due = now+15 min (CT).
-//   3. Otherwise → insert a fresh High-priority Call task due in 15 min (CT).
-//
-// Always appends an Activity Timeline note when a task is created or upgraded.
-function createOrUpgradeVoicemailTask(contactId) {
-  const { date: vmDate, time: vmTime } = ctDueDateAndTime(15);
-  const NOTES = 'Voicemail received. Listen to voicemail and return call.';
+// Ensures only ONE open Call task exists per contact.
+// If an open Call task exists: updates notes and due date/time.
+//   Priority only ever goes up — an existing High is never downgraded to Medium.
+//   Notes only update when the new priority is >= the existing priority.
+// If no open Call task exists: creates a fresh one.
+// Pass timelineNote to also append an Activity Timeline entry.
+function upsertCallTask(contactId, dueMins, notes, priority = 'Medium', timelineNote = null) {
+  const { date, time } = ctDueDateAndTime(dueMins);
+  const RANK           = { High: 3, Medium: 2, Low: 1 };
 
-  // ── Dedup: open voicemail callback already exists ──────────────────────────
-  const existingVm = db.prepare(`
-    SELECT id FROM follow_up_tasks
+  const existing = db.prepare(`
+    SELECT id, priority, notes AS existingNotes FROM follow_up_tasks
     WHERE contact_id = ? AND task_type = 'Call' AND status = 'Pending'
-      AND notes LIKE '%Voicemail received%'
     LIMIT 1
   `).get(contactId);
 
-  if (existingVm) {
-    console.log(`[auto-task] skip duplicate voicemail callback  contact_id=${contactId} existing_id=${existingVm.id}`);
-    return;
-  }
+  if (existing) {
+    const existingRank  = RANK[existing.priority] || 0;
+    const newRank       = RANK[priority]           || 0;
+    const finalPriority = newRank >= existingRank ? priority          : existing.priority;
+    const finalNotes    = newRank >= existingRank ? notes             : existing.existingNotes;
 
-  // ── Upgrade open missed-call task if one exists ────────────────────────────
-  const missedTask = db.prepare(`
-    SELECT id FROM follow_up_tasks
-    WHERE contact_id = ? AND task_type = 'Call' AND status = 'Pending'
-      AND notes LIKE '%Missed call%'
-    LIMIT 1
-  `).get(contactId);
-
-  if (missedTask) {
     db.prepare(`
       UPDATE follow_up_tasks
-      SET priority = 'High', notes = ?, due_date = ?, due_time = ?
+      SET priority = ?, notes = ?, due_date = ?, due_time = ?
       WHERE id = ?
-    `).run(NOTES, vmDate, vmTime, missedTask.id);
-    console.log(`[auto-task] upgraded missed-call task id=${missedTask.id} → High voicemail callback  contact_id=${contactId} due=${vmDate} ${vmTime}`);
+    `).run(finalPriority, finalNotes, date, time, existing.id);
+    console.log(`[auto-task] updated Call task id=${existing.id}  contact_id=${contactId} priority=${finalPriority} due=${date} ${time}`);
   } else {
-    // ── Create fresh voicemail callback task ───────────────────────────────
     const r = db.prepare(`
       INSERT INTO follow_up_tasks (contact_id, task_type, due_date, due_time, notes, priority)
-      VALUES (?, 'Call', ?, ?, ?, 'High')
-    `).run(contactId, vmDate, vmTime, NOTES);
-    console.log(`[auto-task] created voicemail callback  contact_id=${contactId} id=${r.lastInsertRowid} due=${vmDate} ${vmTime}`);
+      VALUES (?, 'Call', ?, ?, ?, ?)
+    `).run(contactId, date, time, notes, priority);
+    console.log(`[auto-task] created Call task contact_id=${contactId} id=${r.lastInsertRowid} priority=${priority} due=${date} ${time}`);
   }
 
-  // ── Activity Timeline entry ────────────────────────────────────────────────
-  db.prepare('INSERT INTO contact_notes (contact_id, body) VALUES (?, ?)')
-    .run(contactId, '⚡ High Priority Call Task Created — Voicemail Received');
+  if (timelineNote) {
+    db.prepare('INSERT INTO contact_notes (contact_id, body) VALUES (?, ?)')
+      .run(contactId, timelineNote);
+  }
+}
+
+// Thin wrapper — upserts the single open Call task to voicemail status.
+function createOrUpgradeVoicemailTask(contactId) {
+  upsertCallTask(
+    contactId, 15,
+    'Voicemail received. Listen to voicemail and return call.',
+    'High',
+    '⚡ High Priority Call Task Created — Voicemail Received'
+  );
 }
 
 function escXml(str) {

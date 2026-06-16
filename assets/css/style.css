@@ -2446,7 +2446,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
     min-height: 70px !important;
     padding: 8px 14px !important;
     box-sizing: border-box !important;
-    gap: 12px !important;
+    gap: 10px !important;
     flex-wrap: nowrap !important;
     align-items: center !important;
     justify-content: space-between !important;
@@ -2456,10 +2456,10 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
   .logo       { order: unset !important; flex: unset !important; flex-shrink: 0 !important; }
   .nav-toggle { order: unset !important; margin-left: 0 !important; flex-shrink: 0 !important; }
 
-  /* Logo: larger and clearly visible */
+  /* Logo: 65px tall — clearly larger than the 50px phone icon */
   .logo-img {
-    max-width: 170px !important;
-    max-height: 58px !important;
+    max-width: 210px !important;
+    max-height: 65px !important;
     width: auto !important;
     height: auto !important;
   }
@@ -2535,7 +2535,7 @@ h1, h2, h3, h4 { line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 /* Very small phones (≤375px) — tighten spacing, never hide the number */
 @media (max-width: 375px) {
   .header-inner    { gap: 8px !important; padding: 8px 10px !important; }
-  .logo-img        { max-width: 140px !important; max-height: 52px !important; }
+  .logo-img        { max-width: 160px !important; max-height: 58px !important; }
   .phone-btn       { gap: 7px !important; }
   .phone-btn i     { width: 44px !important; height: 44px !important; font-size: 1.05rem !important; border-radius: 8px !important; }
   .phone-btn-number { font-size: 15px !important; }

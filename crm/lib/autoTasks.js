@@ -58,4 +58,4 @@ function createAutoTask(contactId, taskType, dueMins, notes, dedupKeyword, prior
   return result.lastInsertRowid;
 }
 
-module.exports = { createAutoTask };
+module.exports = { createAutoTask, ctDueDateAndTime };

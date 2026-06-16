@@ -8,7 +8,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db/database');
-const { createAutoTask } = require('../lib/autoTasks');
+const { createAutoTask, ctDueDateAndTime } = require('../lib/autoTasks');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -120,6 +120,61 @@ async function sendMissedCallSms(callId) {
       console.warn(`[twilio/sms] failed - no contact_id, could not create call task`);
     }
   }
+}
+
+// Creates or upgrades the voicemail callback task when a real voicemail is saved.
+//
+// Priority order:
+//   1. If an open "Voicemail received" Call task already exists → skip (dedup).
+//   2. If an open "Missed call" Call task exists → upgrade it in-place:
+//        priority = High, notes = voicemail text, due = now+15 min (CT).
+//   3. Otherwise → insert a fresh High-priority Call task due in 15 min (CT).
+//
+// Always appends an Activity Timeline note when a task is created or upgraded.
+function createOrUpgradeVoicemailTask(contactId) {
+  const { date: vmDate, time: vmTime } = ctDueDateAndTime(15);
+  const NOTES = 'Voicemail received. Listen to voicemail and return call.';
+
+  // ── Dedup: open voicemail callback already exists ──────────────────────────
+  const existingVm = db.prepare(`
+    SELECT id FROM follow_up_tasks
+    WHERE contact_id = ? AND task_type = 'Call' AND status = 'Pending'
+      AND notes LIKE '%Voicemail received%'
+    LIMIT 1
+  `).get(contactId);
+
+  if (existingVm) {
+    console.log(`[auto-task] skip duplicate voicemail callback  contact_id=${contactId} existing_id=${existingVm.id}`);
+    return;
+  }
+
+  // ── Upgrade open missed-call task if one exists ────────────────────────────
+  const missedTask = db.prepare(`
+    SELECT id FROM follow_up_tasks
+    WHERE contact_id = ? AND task_type = 'Call' AND status = 'Pending'
+      AND notes LIKE '%Missed call%'
+    LIMIT 1
+  `).get(contactId);
+
+  if (missedTask) {
+    db.prepare(`
+      UPDATE follow_up_tasks
+      SET priority = 'High', notes = ?, due_date = ?, due_time = ?
+      WHERE id = ?
+    `).run(NOTES, vmDate, vmTime, missedTask.id);
+    console.log(`[auto-task] upgraded missed-call task id=${missedTask.id} → High voicemail callback  contact_id=${contactId} due=${vmDate} ${vmTime}`);
+  } else {
+    // ── Create fresh voicemail callback task ───────────────────────────────
+    const r = db.prepare(`
+      INSERT INTO follow_up_tasks (contact_id, task_type, due_date, due_time, notes, priority)
+      VALUES (?, 'Call', ?, ?, ?, 'High')
+    `).run(contactId, vmDate, vmTime, NOTES);
+    console.log(`[auto-task] created voicemail callback  contact_id=${contactId} id=${r.lastInsertRowid} due=${vmDate} ${vmTime}`);
+  }
+
+  // ── Activity Timeline entry ────────────────────────────────────────────────
+  db.prepare('INSERT INTO contact_notes (contact_id, body) VALUES (?, ?)')
+    .run(contactId, '⚡ High Priority Call Task Created — Voicemail Received');
 }
 
 function escXml(str) {
@@ -439,14 +494,8 @@ router.post('/voicemail-save', (req, res) => {
         `📞 Voicemail received (${duration}s) from ${call.from_number || 'unknown'}. Recording saved to call log.`
       );
 
-      // High-priority callback task. Skips if an open voicemail callback task
-      // already exists for this contact (e.g. caller left multiple voicemails).
-      createAutoTask(
-        call.contact_id, 'Call', 15,
-        'Voicemail received. Listen to voicemail and return call.',
-        'Voicemail received',
-        'High'
-      );
+      // Create or upgrade voicemail callback task (High priority, deduped).
+      createOrUpgradeVoicemailTask(call.contact_id);
     }
   }
 

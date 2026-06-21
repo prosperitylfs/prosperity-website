@@ -17,6 +17,9 @@ export async function onRequestPost(context) {
   const isRetirementSavings  = guide === 'retirement-savings';
   const isRetirementRollover = !isRetirementSavings; // default for homepage form + any missing/unknown guide type
 
+  // TEMP DEBUG — remove after diagnosing Resend send failures
+  console.log('[send-guide] DEBUG key present:', !!env.RESEND_API_KEY, 'key length:', env.RESEND_API_KEY ? env.RESEND_API_KEY.length : 0, 'guide:', guide);
+
   // ── Retirement & Rollover Mistakes Guide (homepage form) ──────────────────
   if (isRetirementRollover) {
     const guideUrl         = 'https://www.prosperitylfs.com/13-costly-rollover-mistakes-guide.pdf';
@@ -93,6 +96,9 @@ export async function onRequestPost(context) {
       }),
     });
 
+    // TEMP DEBUG — remove after diagnosing Resend send failures
+    console.log('[send-guide] DEBUG rollover branch — Resend status:', resendRes.status, resendRes.statusText);
+
     if (!resendRes.ok) {
       const errText = await resendRes.text();
       console.error('Resend error:', resendRes.status, errText);
@@ -152,6 +158,9 @@ export async function onRequestPost(context) {
         html,
       }),
     });
+
+    // TEMP DEBUG — remove after diagnosing Resend send failures
+    console.log('[send-guide] DEBUG savings branch — Resend status:', resendRes.status, resendRes.statusText);
 
     if (!resendRes.ok) {
       const errText = await resendRes.text();

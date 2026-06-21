@@ -81,31 +81,50 @@ export async function onRequestPost(context) {
       >
     `;
 
-    const resendRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Loretta Stewart <loretta@prosperitylfs.com>',
-        to: [email],
-        subject: 'Your Free Retirement & Rollover Guide Is Ready',
-        text,
-        html,
-      }),
-    });
-
-    // TEMP DEBUG — remove after diagnosing Resend send failures
-    console.log('[send-guide] DEBUG rollover branch — Resend status:', resendRes.status, resendRes.statusText);
-
-    if (!resendRes.ok) {
-      const errText = await resendRes.text();
-      console.error('Resend error:', resendRes.status, errText);
-      return json({ error: 'Could not send email. Please try again.' }, 500);
+    // TEMP DEBUG — returns debug info directly in the response body for testing.
+    // REMOVE this whole block and restore the plain fetch+return below once diagnosed.
+    let resendRes, caughtError = null;
+    try {
+      resendRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Loretta Stewart <loretta@prosperitylfs.com>',
+          to: [email],
+          subject: 'Your Free Retirement & Rollover Guide Is Ready',
+          text,
+          html,
+        }),
+      });
+    } catch (err) {
+      caughtError = err.message;
     }
 
-    return json({ ok: true }, 200);
+    const debug = {
+      keyPresent: !!env.RESEND_API_KEY,
+      keyLength: env.RESEND_API_KEY ? env.RESEND_API_KEY.length : 0,
+      branch: 'rollover',
+      resendStatus: resendRes ? resendRes.status : null,
+      resendResponseText: null,
+      caughtError,
+    };
+
+    if (caughtError) {
+      console.error('[send-guide] fetch threw:', caughtError);
+      return json({ error: 'Could not send email. Please try again.', debug }, 500);
+    }
+
+    debug.resendResponseText = await resendRes.text().catch(e => `(failed to read body: ${e.message})`);
+
+    if (!resendRes.ok) {
+      console.error('Resend error:', resendRes.status, debug.resendResponseText);
+      return json({ error: 'Could not send email. Please try again.', debug }, 500);
+    }
+
+    return json({ ok: true, debug }, 200);
   }
 
   // ── 7 Retirement & Savings Mistakes Guide (free-guide page) ───────────────
@@ -144,31 +163,50 @@ export async function onRequestPost(context) {
       >
     `;
 
-    const resendRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Loretta Stewart <loretta@prosperitylfs.com>',
-        to: [email],
-        subject: 'Your Free 7 Retirement & Savings Mistakes Guide',
-        text,
-        html,
-      }),
-    });
-
-    // TEMP DEBUG — remove after diagnosing Resend send failures
-    console.log('[send-guide] DEBUG savings branch — Resend status:', resendRes.status, resendRes.statusText);
-
-    if (!resendRes.ok) {
-      const errText = await resendRes.text();
-      console.error('Resend error:', resendRes.status, errText);
-      return json({ error: 'Could not send email. Please try again.' }, 500);
+    // TEMP DEBUG — returns debug info directly in the response body for testing.
+    // REMOVE this whole block and restore the plain fetch+return below once diagnosed.
+    let resendRes, caughtError = null;
+    try {
+      resendRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Loretta Stewart <loretta@prosperitylfs.com>',
+          to: [email],
+          subject: 'Your Free 7 Retirement & Savings Mistakes Guide',
+          text,
+          html,
+        }),
+      });
+    } catch (err) {
+      caughtError = err.message;
     }
 
-    return json({ ok: true }, 200);
+    const debug = {
+      keyPresent: !!env.RESEND_API_KEY,
+      keyLength: env.RESEND_API_KEY ? env.RESEND_API_KEY.length : 0,
+      branch: 'savings',
+      resendStatus: resendRes ? resendRes.status : null,
+      resendResponseText: null,
+      caughtError,
+    };
+
+    if (caughtError) {
+      console.error('[send-guide] fetch threw:', caughtError);
+      return json({ error: 'Could not send email. Please try again.', debug }, 500);
+    }
+
+    debug.resendResponseText = await resendRes.text().catch(e => `(failed to read body: ${e.message})`);
+
+    if (!resendRes.ok) {
+      console.error('Resend error:', resendRes.status, debug.resendResponseText);
+      return json({ error: 'Could not send email. Please try again.', debug }, 500);
+    }
+
+    return json({ ok: true, debug }, 200);
   }
 
 }

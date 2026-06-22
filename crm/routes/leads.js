@@ -54,6 +54,11 @@ function formatLeadTypeLabel(raw) {
 // this endpoint (skipping the browser entirely) can't fake its way past it.
 // TURNSTILE_SECRET_KEY must be set as an env var on Render — never commit it.
 async function verifyTurnstile(token, remoteIp) {
+  // TEMP DEBUG — never logs the secret value itself, only whether it's
+  // present and how long it is, to confirm Render actually injected it.
+  console.log('[turnstile][debug] secret key present:', !!process.env.TURNSTILE_SECRET_KEY,
+    'length:', process.env.TURNSTILE_SECRET_KEY ? process.env.TURNSTILE_SECRET_KEY.length : 0);
+
   if (!token) return false;
   if (!process.env.TURNSTILE_SECRET_KEY) {
     console.warn('WARNING: TURNSTILE_SECRET_KEY is not set. Rejecting all submissions until configured.');
@@ -70,9 +75,11 @@ async function verifyTurnstile(token, remoteIp) {
       }),
     });
     const result = await verifyRes.json();
-    if (!result.success) {
-      console.warn('[turnstile] verification failed:', result['error-codes']);
-    }
+    // TEMP DEBUG — always logs the outcome (not just failures) plus
+    // Cloudflare's exact error-codes array so we can see specifics like
+    // 'invalid-input-secret' (wrong key) vs 'timeout-or-duplicate' (token
+    // expired or already used) vs 'invalid-input-response' (bad token).
+    console.log('[turnstile][debug] siteverify result:', result.success, 'error-codes:', result['error-codes']);
     return result.success === true;
   } catch (err) {
     console.error('[turnstile] verification request error:', err.message);

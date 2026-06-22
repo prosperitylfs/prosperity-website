@@ -8,6 +8,12 @@ const CRM_LEADS_ENDPOINT = 'https://prosperity-crm.onrender.com/api/leads';
 // TURNSTILE_SECRET_KEY must be set as a Cloudflare Pages env var — never
 // commit it or expose it to the browser.
 async function verifyTurnstile(env, token, remoteIp) {
+  // TEMP DEBUG — never logs the secret value itself, only whether it's
+  // present and how long it is, to confirm Cloudflare Pages actually
+  // injected it into this deployment's env bindings.
+  console.log('[send-guide][debug] secret key present:', !!env.TURNSTILE_SECRET_KEY,
+    'length:', env.TURNSTILE_SECRET_KEY ? env.TURNSTILE_SECRET_KEY.length : 0);
+
   if (!token) return false;
   if (!env.TURNSTILE_SECRET_KEY) {
     console.warn('[send-guide] TURNSTILE_SECRET_KEY is not set. Rejecting all submissions until configured.');
@@ -24,9 +30,11 @@ async function verifyTurnstile(env, token, remoteIp) {
       }),
     });
     const result = await verifyRes.json();
-    if (!result.success) {
-      console.warn('[send-guide] turnstile verification failed:', result['error-codes']);
-    }
+    // TEMP DEBUG — always logs the outcome (not just failures) plus
+    // Cloudflare's exact error-codes array so we can see specifics like
+    // 'invalid-input-secret' (wrong key) vs 'timeout-or-duplicate' (token
+    // expired or already used) vs 'invalid-input-response' (bad token).
+    console.log('[send-guide][debug] siteverify result:', result.success, 'error-codes:', result['error-codes']);
     return result.success === true;
   } catch (err) {
     console.error('[send-guide] turnstile verification request error:', err.message);

@@ -103,6 +103,68 @@ function sendBookingLead(data, callback) {
 window.sendBookingLead = sendBookingLead;
 // ─────────────────────────────────────────────────────────────────────────
 
+// ── CLOUDFLARE TURNSTILE (bot protection on public forms) ──────────────────
+// SITE_KEY is the *public* key — safe to ship in browser code by design.
+// The matching SECRET_KEY lives only on the server (Render + Cloudflare
+// Pages env vars) and is used to verify tokens server-side; it must never
+// appear in this file or any other browser-facing code.
+var TURNSTILE_SITE_KEY = '0x4AAAAAADpOEPO6GgzLyRvM';
+
+/**
+ * Renders a Turnstile widget into every [data-turnstile] container on the
+ * page using Cloudflare's explicit render API (rather than the implicit
+ * data-sitekey auto-render), so each widget gets its own callback closure
+ * tied to its own form — required because a page can have more than one
+ * protected form (e.g. a qualifier form plus a footer contact form).
+ *
+ * For each widget:
+ *   - the gated button starts disabled (also set in the HTML as a fail-safe
+ *     in case this script is blocked or slow to load). By default this is
+ *     the nearest form's button[type="submit"]; for pages that use a
+ *     button-driven multi-step flow instead of a native submit (e.g.
+ *     book.html), set data-turnstile-button="#some-id" on the widget
+ *     container to point at the specific button to gate.
+ *   - on successful verification, the token is stored on the form element
+ *     (form.dataset.turnstileToken) for the submit handler to read, and the
+ *     gated button is re-enabled
+ *   - on expiry or error, the token is cleared and the button is disabled
+ *     again, forcing re-verification before the form can be submitted
+ *
+ * Called automatically once the Turnstile script finishes loading via the
+ * ?onload=renderTurnstileWidgets parameter on its <script> tag.
+ */
+function renderTurnstileWidgets() {
+  if (typeof turnstile === 'undefined') return;
+
+  document.querySelectorAll('[data-turnstile]').forEach(function (container) {
+    var form = container.closest('form');
+    var submitBtn = container.dataset.turnstileButton
+      ? document.querySelector(container.dataset.turnstileButton)
+      : (form ? form.querySelector('button[type="submit"]') : null);
+
+    if (submitBtn) submitBtn.disabled = true;
+
+    turnstile.render(container, {
+      sitekey: TURNSTILE_SITE_KEY,
+      callback: function (token) {
+        if (form) form.dataset.turnstileToken = token;
+        if (submitBtn) submitBtn.disabled = false;
+      },
+      'expired-callback': function () {
+        if (form) form.dataset.turnstileToken = '';
+        if (submitBtn) submitBtn.disabled = true;
+      },
+      'error-callback': function () {
+        if (form) form.dataset.turnstileToken = '';
+        if (submitBtn) submitBtn.disabled = true;
+      },
+    });
+  });
+}
+
+window.renderTurnstileWidgets = renderTurnstileWidgets;
+// ─────────────────────────────────────────────────────────────────────────
+
 // ── PHONE FORMATTING UTILITIES ─────────────────────────────────────────────
 // Exposed on window so inline <script> blocks on any page can call them.
 

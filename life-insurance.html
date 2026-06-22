@@ -567,9 +567,14 @@
                 </div>
               </div>
 
+              <!-- Cloudflare Turnstile bot-check widget. renderTurnstileWidgets()
+                   (assets/js/main.v2.js) renders it and unlocks the submit
+                   button below once verification succeeds. -->
+              <div class="cf-turnstile-widget" data-turnstile></div>
+
               <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; align-items:center;">
                 <button type="button" class="btn btn-primary" onclick="liPrevStep()" style="flex:0 0 auto;">&larr; Back</button>
-                <button type="submit" class="btn btn-amber" style="flex:1;">Schedule My Free Consultation &rarr;</button>
+                <button type="submit" class="btn btn-amber" style="flex:1;" disabled>Schedule My Free Consultation &rarr;</button>
               </div>
               <p id="li-form-error" style="color:#c0392b; font-size:0.85rem; margin-top:10px; display:none;"></p>
 
@@ -647,6 +652,9 @@
 
   <script>window.CRM_API_BASE = 'https://prosperity-crm.onrender.com';</script>
   <script src="assets/js/main.v2.js"></script>
+  <!-- Cloudflare Turnstile — onload calls renderTurnstileWidgets() (defined in
+       main.v2.js, loaded above) once the widget script is ready. -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=renderTurnstileWidgets" async defer></script>
   <script>
     // ── Step 1 → Step 2 ──
     function liNextStep() {
@@ -727,6 +735,12 @@
       if (!health)   { showErr('Please answer the health question.'); return; }
       if (!existing) { showErr('Please indicate whether you currently have life insurance.'); return; }
 
+      // Turnstile check — the submit button is disabled until the widget
+      // succeeds, but this guards the rare case of a token expiring between
+      // verification and submit.
+      var turnstileToken = e.target.dataset.turnstileToken;
+      if (!turnstileToken) { showErr('Please complete the verification check above.'); return; }
+
       errEl.style.display = 'none';
 
       // Send lead to CRM (fire-and-forget)
@@ -743,6 +757,7 @@
         health_concerns: health.value,
         has_coverage:    existing.value,
         terms_accepted:  'yes',
+        turnstile_token: turnstileToken,
       });
 
       document.getElementById('li-step-2').style.display = 'none';

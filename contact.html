@@ -149,7 +149,11 @@
                 </label>
               </div>
 
-              <button type="submit" class="btn btn-amber btn-full" style="margin-top:16px;">Send Message</button>
+              <!-- Cloudflare Turnstile bot-check widget. renderTurnstileWidgets()
+                   (assets/js/main.v2.js) renders it and unlocks the submit
+                   button below once verification succeeds. -->
+              <div class="cf-turnstile-widget" data-turnstile></div>
+              <button type="submit" class="btn btn-amber btn-full" style="margin-top:16px;" disabled>Send Message</button>
               <p class="form-privacy">We respect your privacy and will never share your information.</p>
               <div id="contact-message-result" class="form-message" aria-live="polite"></div>
             </form>
@@ -211,6 +215,9 @@
 
   <script>window.CRM_API_BASE = 'https://prosperity-crm.onrender.com';</script>
   <script src="assets/js/main.v2.js"></script>
+  <!-- Cloudflare Turnstile — onload calls renderTurnstileWidgets() (defined in
+       main.v2.js, loaded above) once the widget script is ready. -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=renderTurnstileWidgets" async defer></script>
   <script>
     const toggle = document.querySelector('.nav-toggle');
     const mobileNav = document.getElementById('mobile-nav');
@@ -251,17 +258,27 @@
           result.style.color = '#c0392b';
           return;
         }
+        // Turnstile check — the submit button is disabled until the widget
+        // succeeds, but this guards the rare case of a token expiring between
+        // verification and submit.
+        var turnstileToken = contactForm.dataset.turnstileToken;
+        if (!turnstileToken) {
+          result.textContent = 'Please complete the verification check above.';
+          result.style.color = '#c0392b';
+          return;
+        }
         result.textContent = 'Thank you! Your message has been received. Loretta will respond as soon as possible.';
         result.style.color = '#1a7a4a';
         var nameParts = document.getElementById('contact-name').value.trim().split(/\s+/);
         postToCRM({
-          first_name:     nameParts[0] || '',
-          last_name:      nameParts.slice(1).join(' ') || '',
-          email:          document.getElementById('contact-email').value.trim(),
-          phone:          document.getElementById('contact-phone').value.trim(),
-          message:        document.getElementById('contact-message').value.trim(),
-          terms_accepted: 'yes',
-          lead_type:      'contact',
+          first_name:      nameParts[0] || '',
+          last_name:       nameParts.slice(1).join(' ') || '',
+          email:           document.getElementById('contact-email').value.trim(),
+          phone:           document.getElementById('contact-phone').value.trim(),
+          message:         document.getElementById('contact-message').value.trim(),
+          terms_accepted:  'yes',
+          lead_type:       'contact',
+          turnstile_token: turnstileToken,
         });
         contactForm.reset();
       });

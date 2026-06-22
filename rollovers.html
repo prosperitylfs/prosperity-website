@@ -888,14 +888,14 @@
         <p>Learn strategies that may help protect your retirement savings, reduce unnecessary taxes, and avoid common rollover mistakes.</p>
       </div>
       <div class="rollovers-lead-card">
-        <form
-          class="rollovers-lead-form"
-          name="rollovers-guide"
-          method="POST"
-          data-netlify="true"
-          action="/thank-you-guide.html"
-        >
-          <input type="hidden" name="form-name" value="rollovers-guide" />
+        <!-- This form used to be configured for Netlify Forms (data-netlify,
+             action="/thank-you-guide.html"), which only works on Netlify —
+             this site is hosted on Cloudflare Pages, so that POST went
+             nowhere. It's now wired to /send-guide like the homepage guide
+             form, sending the same "13 Retirement & Rollover Mistakes" guide
+             via Resend and creating a CRM lead. See the submit handler near
+             the bottom of this file. -->
+        <form class="rollovers-lead-form" novalidate>
           <div class="field-group">
             <label for="rollover-first-name">First Name</label>
             <input id="rollover-first-name" name="first_name" type="text" placeholder="Your first name" required>
@@ -914,10 +914,15 @@
             <span>I agree to the <a href="/privacy-policy">Privacy Policy</a> and <a href="/terms-and-conditions">Terms &amp; Conditions</a> and consent to being contacted by Prosperity Life &amp; Financial Solutions regarding my request or appointment.</span>
           </label>
           <label class="rollovers-consent-row">
-            <input type="checkbox" name="sms_consent">
+            <input type="checkbox" id="rollover-sms-consent" name="sms_consent">
             <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding appointment scheduling, reminders, and occasional updates. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out.</span>
           </label>
-          <button type="submit" class="rollovers-submit-btn">Send Me the Free Guide</button>
+          <!-- Cloudflare Turnstile bot-check widget. renderTurnstileWidgets()
+               (assets/js/main.v2.js) renders it and unlocks the submit
+               button below once verification succeeds. -->
+          <div class="cf-turnstile-widget" data-turnstile></div>
+          <button type="submit" class="rollovers-submit-btn" disabled>Send Me the Free Guide</button>
+          <p id="rollover-form-error" style="color:#c0392b; font-size:0.85rem; margin-top:8px; display:none;"></p>
         </form>
       </div>
     </div>
@@ -961,15 +966,23 @@
   </footer>
 
   <script src="assets/js/main.v2.js"></script>
+  <!-- Cloudflare Turnstile — onload calls renderTurnstileWidgets() (defined in
+       main.v2.js, loaded above) once the widget script is ready. -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=renderTurnstileWidgets" async defer></script>
   <script>
-    // Normalize rollover form phone to E.164 before Netlify POST
+    // Sends the "13 Retirement & Rollover Mistakes" guide via the same
+    // /send-guide endpoint the homepage form uses (Resend email + CRM lead).
     var rolloverForm = document.querySelector('.rollovers-lead-form');
     if (rolloverForm) {
-      rolloverForm.addEventListener('submit', function(e) {
+      rolloverForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
         var rolloverEmailInput = document.getElementById('rollover-email');
         var rolloverEmailErr   = document.getElementById('rollover-email-err');
+        var formErrEl          = document.getElementById('rollover-form-error');
+        var submitBtn          = rolloverForm.querySelector('button[type="submit"]');
+
         if (!isValidEmail(rolloverEmailInput.value.trim())) {
-          e.preventDefault();
           if (rolloverEmailErr) { rolloverEmailErr.textContent = 'Please enter a valid email address.'; rolloverEmailErr.style.display = 'block'; }
           rolloverEmailInput.classList.add('input-error');
           rolloverEmailInput.focus();
@@ -977,9 +990,9 @@
         }
         if (rolloverEmailErr) { rolloverEmailErr.textContent = ''; rolloverEmailErr.style.display = 'none'; }
         rolloverEmailInput.classList.remove('input-error');
+
         var rolloverTerms = document.getElementById('rollover-terms-consent');
         if (!rolloverTerms || !rolloverTerms.checked) {
-          e.preventDefault();
           var termsErrEl = document.getElementById('rollover-terms-err');
           if (!termsErrEl) {
             termsErrEl = document.createElement('p');
@@ -991,9 +1004,9 @@
           rolloverTerms.closest('label').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           return;
         }
+
         var phoneErr = normalizeFormPhones(rolloverForm);
         if (phoneErr) {
-          e.preventDefault();
           var errEl = document.getElementById('rollover-phone-err');
           if (!errEl) {
             errEl = document.createElement('p');
@@ -1002,6 +1015,51 @@
             document.getElementById('rollover-phone').closest('.field-group').appendChild(errEl);
           }
           errEl.textContent = phoneErr;
+          return;
+        }
+
+        // Turnstile check — the submit button is disabled until the widget
+        // succeeds, but this guards the rare case of a token expiring
+        // between verification and submit.
+        var turnstileToken = rolloverForm.dataset.turnstileToken;
+        if (!turnstileToken) {
+          if (formErrEl) { formErrEl.textContent = 'Please complete the verification check above.'; formErrEl.style.display = 'block'; }
+          return;
+        }
+
+        if (formErrEl) formErrEl.style.display = 'none';
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending…'; }
+
+        try {
+          var res = await fetch('/send-guide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              first_name: document.getElementById('rollover-first-name').value.trim(),
+              email:      rolloverEmailInput.value.trim(),
+              phone:      document.getElementById('rollover-phone').value.trim(),
+              guide:      'retirement-rollover',
+              sms_consent: document.getElementById('rollover-sms-consent').checked ? 'yes' : 'no',
+              turnstile_token: turnstileToken
+            })
+          });
+
+          if (res.ok) {
+            window.location.href = '/thank-you-guide.html';
+          } else {
+            var data = await res.json().catch(function() { return {}; });
+            if (formErrEl) {
+              formErrEl.textContent = data.error || 'Something went wrong. Please try again or call us at 414-441-1177.';
+              formErrEl.style.display = 'block';
+            }
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Send Me the Free Guide'; }
+          }
+        } catch (err) {
+          if (formErrEl) {
+            formErrEl.textContent = 'Something went wrong. Please try again or call us at 414-441-1177.';
+            formErrEl.style.display = 'block';
+          }
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Send Me the Free Guide'; }
         }
       });
     }

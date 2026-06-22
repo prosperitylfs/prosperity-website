@@ -47,8 +47,41 @@ function formatLeadTypeLabel(raw) {
   return map[(raw || '').toLowerCase().replace(/ /g, '_')] || raw || 'Website Lead';
 }
 
+// Verifies a Turnstile token with Cloudflare's siteverify API. This is the
+// part that actually stops bots — the widget on the frontend only proves the
+// *browser* solved a challenge; this server-side check proves the token is
+// real, unused, and was issued for our site, so a script POSTing straight to
+// this endpoint (skipping the browser entirely) can't fake its way past it.
+// TURNSTILE_SECRET_KEY must be set as an env var on Render — never commit it.
+async function verifyTurnstile(token, remoteIp) {
+  if (!token) return false;
+  if (!process.env.TURNSTILE_SECRET_KEY) {
+    console.warn('WARNING: TURNSTILE_SECRET_KEY is not set. Rejecting all submissions until configured.');
+    return false;
+  }
+  try {
+    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        secret:   process.env.TURNSTILE_SECRET_KEY,
+        response: token,
+        remoteip: remoteIp || '',
+      }),
+    });
+    const result = await verifyRes.json();
+    if (!result.success) {
+      console.warn('[turnstile] verification failed:', result['error-codes']);
+    }
+    return result.success === true;
+  } catch (err) {
+    console.error('[turnstile] verification request error:', err.message);
+    return false;
+  }
+}
+
 function buildFormNote(body) {
-  const skip = new Set(['first_name', 'last_name', 'email', 'phone', 'lead_type', 'lead_source', 'honeypot', 'sms_consent', 'sms', 'email_consent', 'terms_accepted']);
+  const skip = new Set(['first_name', 'last_name', 'email', 'phone', 'lead_type', 'lead_source', 'honeypot', 'sms_consent', 'sms', 'email_consent', 'terms_accepted', 'turnstile_token']);
   const lines = Object.entries(body)
     .filter(([k, v]) => !skip.has(k) && v !== null && v !== undefined && String(v).trim() !== '')
     .map(([k, v]) => {
@@ -60,7 +93,7 @@ function buildFormNote(body) {
 
 // ─── POST /api/leads ──────────────────────────────────────────────────────────
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const {
       first_name,
@@ -74,6 +107,7 @@ router.post('/', (req, res) => {
       sms: smsSF,
       email_consent: emailConsentCF,
       terms_accepted,   // consumed but not stored as a note
+      turnstile_token,  // Cloudflare Turnstile token from the frontend widget
       ...rest
     } = req.body;
 
@@ -84,6 +118,13 @@ router.post('/', (req, res) => {
     // Basic spam check
     if (honeypot) {
       return res.status(200).json({ ok: true }); // silent discard
+    }
+
+    // Reject requests with a missing/invalid Turnstile token before doing any
+    // DB work — this is what actually blocks bots and direct-POST bypasses.
+    const turnstileOk = await verifyTurnstile(turnstile_token, req.ip);
+    if (!turnstileOk) {
+      return res.status(400).json({ error: 'Verification failed. Please refresh the page and try again.' });
     }
 
     if (!email && !phone) {

@@ -440,7 +440,11 @@
                   <input type="checkbox" id="sms-consent-checkbox" aria-describedby="sms-consent-text">
                   <span id="sms-consent-text">I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding appointment scheduling, reminders, and occasional updates. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out.</span>
                 </div>
-                <button type="submit" class="btn btn-amber btn-full">Send My Free Guide</button>
+                <!-- Cloudflare Turnstile bot-check widget. renderTurnstileWidgets()
+                     (assets/js/main.v2.js) renders it and unlocks the submit
+                     button below once verification succeeds. -->
+                <div class="cf-turnstile-widget" data-turnstile></div>
+                <button type="submit" class="btn btn-amber btn-full" disabled>Send My Free Guide</button>
                 <p id="free-guide-message" class="form-message" aria-live="polite"></p>
               </form>
             </div>
@@ -485,6 +489,9 @@
     </div>
   </footer>
   <script src="/assets/js/main.v2.js"></script>
+  <!-- Cloudflare Turnstile — onload calls renderTurnstileWidgets() (defined in
+       main.v2.js, loaded above) once the widget script is ready. -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=renderTurnstileWidgets" async defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       var form = document.getElementById('free-guide-form');
@@ -538,6 +545,15 @@
           return;
         }
 
+        // Turnstile check — the submit button is disabled until the widget
+        // succeeds, but this guards the rare case of a token expiring between
+        // verification and submit.
+        var turnstileToken = form.dataset.turnstileToken;
+        if (!turnstileToken) {
+          setError('Please complete the verification check above.');
+          return;
+        }
+
         var phoneValue = form.elements['phone'].value.trim();
         consentHidden.value = consentCheckbox.checked ? 'yes' : 'no';
 
@@ -547,7 +563,8 @@
           email: email,
           phone: phoneValue,
           sms_consent: consentHidden.value,
-          guide: 'retirement-savings'
+          guide: 'retirement-savings',
+          turnstile_token: turnstileToken
         };
 
         try {

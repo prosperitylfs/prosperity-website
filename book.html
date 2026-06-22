@@ -572,10 +572,17 @@
                 <input type="hidden" id="bk-assets" value="">
               </div>
 
+              <!-- Cloudflare Turnstile bot-check widget. renderTurnstileWidgets()
+                   (assets/js/main.v2.js) renders it and unlocks the "Next:
+                   Schedule" button below once verification succeeds.
+                   data-turnstile-button is needed here because this page has
+                   no native form submit — navigation is button-driven. -->
+              <div class="cf-turnstile-widget" data-turnstile data-turnstile-button="#bk-next-2-btn"></div>
+
               <div class="step-nav">
                 <div class="step-nav-row">
                   <button type="button" class="btn-back" onclick="bookBack(2)">&larr; Back</button>
-                  <button type="button" class="btn-next-step" onclick="bookNext(2)">Next: Schedule &rarr;</button>
+                  <button type="button" id="bk-next-2-btn" class="btn-next-step" onclick="bookNext(2)" disabled>Next: Schedule &rarr;</button>
                 </div>
               </div>
               <p id="bk-err-2" class="step-error"></p>
@@ -636,6 +643,9 @@
 
   <script>window.CRM_API_BASE = 'https://prosperity-crm.onrender.com';</script>
   <script src="assets/js/main.v2.js"></script>
+  <!-- Cloudflare Turnstile — onload calls renderTurnstileWidgets() (defined in
+       main.v2.js, loaded above) once the widget script is ready. -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=renderTurnstileWidgets" async defer></script>
   <script>
     const toggle = document.querySelector('.nav-toggle');
     const mobileNav = document.getElementById('mobile-nav');
@@ -710,6 +720,13 @@
           if (!topics.length) { showErr('bk-err-2', 'Please select at least one topic to discuss.'); return; }
           if (!timeline) { showErr('bk-err-2', 'Please select your retirement timeline.'); return; }
 
+          // Turnstile check — the "Next: Schedule" button is disabled until
+          // the widget succeeds, but this guards the rare case of a token
+          // expiring between verification and click.
+          var bookForm = document.querySelector('.book-form');
+          var turnstileToken = bookForm ? bookForm.dataset.turnstileToken : '';
+          if (!turnstileToken) { showErr('bk-err-2', 'Please complete the verification check above.'); return; }
+
           postToCRM({
             first_name:          bkContact.fname,
             last_name:           bkContact.lname,
@@ -721,6 +738,7 @@
             topics:              topics.join(', '),
             retirement_timeline: timeline,
             assets:              document.getElementById('bk-assets').value || '',
+            turnstile_token:     turnstileToken,
           });
           bookShowStep(3);
 

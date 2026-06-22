@@ -1,5 +1,39 @@
 const CRM_LEADS_ENDPOINT = 'https://prosperity-crm.onrender.com/api/leads';
 
+// Verifies a Turnstile token with Cloudflare's siteverify API. This is the
+// server-side enforcement — the widget on the frontend only proves the
+// *browser* solved a challenge; this check proves the token is real, unused,
+// and issued for our site, so a script POSTing straight to /send-guide
+// (skipping the browser entirely) can't bypass it.
+// TURNSTILE_SECRET_KEY must be set as a Cloudflare Pages env var — never
+// commit it or expose it to the browser.
+async function verifyTurnstile(env, token, remoteIp) {
+  if (!token) return false;
+  if (!env.TURNSTILE_SECRET_KEY) {
+    console.warn('[send-guide] TURNSTILE_SECRET_KEY is not set. Rejecting all submissions until configured.');
+    return false;
+  }
+  try {
+    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        secret:   env.TURNSTILE_SECRET_KEY,
+        response: token,
+        remoteip: remoteIp || '',
+      }),
+    });
+    const result = await verifyRes.json();
+    if (!result.success) {
+      console.warn('[send-guide] turnstile verification failed:', result['error-codes']);
+    }
+    return result.success === true;
+  } catch (err) {
+    console.error('[send-guide] turnstile verification request error:', err.message);
+    return false;
+  }
+}
+
 // Saves/updates the CRM contact. Best-effort: a CRM failure is logged clearly
 // but never blocks guide delivery — the lead still gets their email even if
 // the CRM is temporarily down.
@@ -35,10 +69,19 @@ export async function onRequestPost(context) {
     return json({ error: 'Invalid request.' }, 400);
   }
 
-  const { first_name, last_name, email, phone, guide, sms_consent } = data;
+  const { first_name, last_name, email, phone, guide, sms_consent, turnstile_token } = data;
 
   if (!first_name || !email) {
     return json({ error: 'Missing required fields.' }, 400);
+  }
+
+  // Reject requests with a missing/invalid Turnstile token before doing any
+  // CRM or email work — this is what actually blocks bots and direct-POST
+  // bypasses of this endpoint.
+  const remoteIp = request.headers.get('CF-Connecting-IP');
+  const turnstileOk = await verifyTurnstile(env, turnstile_token, remoteIp);
+  if (!turnstileOk) {
+    return json({ error: 'Verification failed. Please refresh the page and try again.' }, 400);
   }
 
   const isRetirementSavings  = guide === 'retirement-savings';

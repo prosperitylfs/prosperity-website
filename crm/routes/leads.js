@@ -127,11 +127,26 @@ router.post('/', async (req, res) => {
       return res.status(200).json({ ok: true }); // silent discard
     }
 
-    // Reject requests with a missing/invalid Turnstile token before doing any
-    // DB work — this is what actually blocks bots and direct-POST bypasses.
-    const turnstileOk = await verifyTurnstile(turnstile_token, req.ip);
-    if (!turnstileOk) {
-      return res.status(400).json({ error: 'Verification failed. Please refresh the page and try again.' });
+    // Internal server-to-server calls (currently only functions/send-guide.js)
+    // already verified Turnstile themselves before reaching here — a Turnstile
+    // token is single-use, so re-checking the same token here would always
+    // fail. Those calls authenticate instead with CRM_INTERNAL_KEY, a secret
+    // known only to our own backends and never sent to any browser (unlike
+    // CRM_API_KEY, which is already public in assets/js/main.v2.js and so
+    // cannot be trusted as a bypass credential). Direct public POSTs to this
+    // endpoint never have this header and must still pass Turnstile below.
+    const isTrustedInternalCall =
+      !!process.env.CRM_INTERNAL_KEY &&
+      req.headers['x-internal-key'] === process.env.CRM_INTERNAL_KEY;
+
+    if (!isTrustedInternalCall) {
+      // Reject requests with a missing/invalid Turnstile token before doing
+      // any DB work — this is what actually blocks bots and direct-POST
+      // bypasses from the public internet.
+      const turnstileOk = await verifyTurnstile(turnstile_token, req.ip);
+      if (!turnstileOk) {
+        return res.status(400).json({ error: 'Verification failed. Please refresh the page and try again.' });
+      }
     }
 
     if (!email && !phone) {

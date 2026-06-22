@@ -45,6 +45,12 @@ async function verifyTurnstile(env, token, remoteIp) {
 // Saves/updates the CRM contact. Best-effort: a CRM failure is logged clearly
 // but never blocks guide delivery — the lead still gets their email even if
 // the CRM is temporarily down.
+//
+// x-internal-key proves to leads.js that this call comes from our own
+// trusted backend (which already verified Turnstile above) rather than a
+// public browser — Turnstile tokens are single-use, so the same token
+// couldn't be re-verified by leads.js even if we forwarded it. This key is
+// never sent to, or readable by, the browser.
 async function saveLeadToCRM(env, payload) {
   try {
     const res = await fetch(CRM_LEADS_ENDPOINT, {
@@ -52,6 +58,7 @@ async function saveLeadToCRM(env, payload) {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': env.CRM_API_KEY || 'prosperity-crm-2025',
+        'x-internal-key': env.CRM_INTERNAL_KEY || '',
       },
       body: JSON.stringify(payload),
     });
@@ -60,6 +67,7 @@ async function saveLeadToCRM(env, payload) {
       console.error('[send-guide] CRM save failed:', res.status, bodyText, 'payload:', JSON.stringify(payload));
       return false;
     }
+    console.log('[send-guide] CRM save succeeded:', res.status, bodyText);
     return true;
   } catch (err) {
     console.error('[send-guide] CRM save threw:', err.message, 'payload:', JSON.stringify(payload));

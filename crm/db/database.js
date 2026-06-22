@@ -165,6 +165,7 @@ function addCol(table, col, def) {
 // Lead management fields
 addCol('contacts', 'lead_status',            "TEXT DEFAULT 'New Lead'");
 addCol('contacts', 'sms_consent',            'INTEGER DEFAULT 0');
+addCol('contacts', 'email_consent',          'INTEGER DEFAULT 0');
 addCol('contacts', 'appointment_booked',     'INTEGER DEFAULT 0');
 addCol('contacts', 'appointment_date',       'TEXT');
 addCol('contacts', 'last_contacted',         'TEXT');

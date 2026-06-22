@@ -1,3 +1,30 @@
+const CRM_LEADS_ENDPOINT = 'https://prosperity-crm.onrender.com/api/leads';
+
+// Saves/updates the CRM contact. Best-effort: a CRM failure is logged clearly
+// but never blocks guide delivery — the lead still gets their email even if
+// the CRM is temporarily down.
+async function saveLeadToCRM(env, payload) {
+  try {
+    const res = await fetch(CRM_LEADS_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': env.CRM_API_KEY || 'prosperity-crm-2025',
+      },
+      body: JSON.stringify(payload),
+    });
+    const bodyText = await res.text().catch(() => '');
+    if (!res.ok) {
+      console.error('[send-guide] CRM save failed:', res.status, bodyText, 'payload:', JSON.stringify(payload));
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[send-guide] CRM save threw:', err.message, 'payload:', JSON.stringify(payload));
+    return false;
+  }
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -8,7 +35,7 @@ export async function onRequestPost(context) {
     return json({ error: 'Invalid request.' }, 400);
   }
 
-  const { first_name, email, guide } = data;
+  const { first_name, last_name, email, phone, guide, sms_consent } = data;
 
   if (!first_name || !email) {
     return json({ error: 'Missing required fields.' }, 400);
@@ -17,13 +44,22 @@ export async function onRequestPost(context) {
   const isRetirementSavings  = guide === 'retirement-savings';
   const isRetirementRollover = !isRetirementSavings; // default for homepage form + any missing/unknown guide type
 
-  // TEMP DEBUG — remove after diagnosing Resend send failures
-  console.log('[send-guide] DEBUG key present:', !!env.RESEND_API_KEY, 'key length:', env.RESEND_API_KEY ? env.RESEND_API_KEY.length : 0, 'guide:', guide);
-
   // ── Retirement & Rollover Mistakes Guide (homepage form) ──────────────────
   if (isRetirementRollover) {
     const guideUrl         = 'https://www.prosperitylfs.com/13-costly-rollover-mistakes-guide.pdf';
     const consultationUrl  = 'https://cal.com/prosperitylfs/retirement-safemoney-consultation';
+
+    await saveLeadToCRM(env, {
+      first_name,
+      last_name,
+      email,
+      phone,
+      lead_type: 'Retirement Guide Lead',
+      lead_source: '13 Retirement & Rollover Mistakes to Avoid',
+      sms_consent,
+      email_consent: true, // submitting this form is an explicit request to receive the guide by email
+      guide: 'retirement-rollover',
+    });
 
     const text = [
       `Hi ${first_name},`,
@@ -81,56 +117,46 @@ export async function onRequestPost(context) {
       >
     `;
 
-    // TEMP DEBUG — returns debug info directly in the response body for testing.
-    // REMOVE this whole block and restore the plain fetch+return below once diagnosed.
-    let resendRes, caughtError = null;
-    try {
-      resendRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Loretta Stewart <loretta@prosperitylfs.com>',
-          to: [email],
-          subject: 'Your Free Retirement & Rollover Guide Is Ready',
-          text,
-          html,
-        }),
-      });
-    } catch (err) {
-      caughtError = err.message;
-    }
-
-    const debug = {
-      keyPresent: !!env.RESEND_API_KEY,
-      keyLength: env.RESEND_API_KEY ? env.RESEND_API_KEY.length : 0,
-      branch: 'rollover',
-      resendStatus: resendRes ? resendRes.status : null,
-      resendResponseText: null,
-      caughtError,
-    };
-
-    if (caughtError) {
-      console.error('[send-guide] fetch threw:', caughtError);
-      return json({ error: 'Could not send email. Please try again.', debug }, 500);
-    }
-
-    debug.resendResponseText = await resendRes.text().catch(e => `(failed to read body: ${e.message})`);
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Loretta Stewart <loretta@prosperitylfs.com>',
+        to: [email],
+        subject: 'Your Free Retirement & Rollover Guide Is Ready',
+        text,
+        html,
+      }),
+    });
 
     if (!resendRes.ok) {
-      console.error('Resend error:', resendRes.status, debug.resendResponseText);
-      return json({ error: 'Could not send email. Please try again.', debug }, 500);
+      const errText = await resendRes.text();
+      console.error('Resend error:', resendRes.status, errText);
+      return json({ error: 'Could not send email. Please try again.' }, 500);
     }
 
-    return json({ ok: true, debug }, 200);
+    return json({ ok: true }, 200);
   }
 
   // ── 7 Retirement & Savings Mistakes Guide (free-guide page) ───────────────
   if (isRetirementSavings) {
     const guideUrl        = 'https://www.prosperitylfs.com/7-retirement-savings-mistakes-guide-new.pdf';
     const consultationUrl = 'https://www.prosperitylfs.com/book';
+
+    await saveLeadToCRM(env, {
+      first_name,
+      last_name,
+      email,
+      phone,
+      lead_type: 'Retirement Guide Lead',
+      lead_source: '7 Retirement & Savings Mistakes Guide',
+      sms_consent,
+      email_consent: true, // submitting this form is an explicit request to receive the guide by email
+      guide: 'retirement-savings',
+    });
 
     const text = [
       `Hi ${first_name},`,
@@ -163,50 +189,28 @@ export async function onRequestPost(context) {
       >
     `;
 
-    // TEMP DEBUG — returns debug info directly in the response body for testing.
-    // REMOVE this whole block and restore the plain fetch+return below once diagnosed.
-    let resendRes, caughtError = null;
-    try {
-      resendRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Loretta Stewart <loretta@prosperitylfs.com>',
-          to: [email],
-          subject: 'Your Free 7 Retirement & Savings Mistakes Guide',
-          text,
-          html,
-        }),
-      });
-    } catch (err) {
-      caughtError = err.message;
-    }
-
-    const debug = {
-      keyPresent: !!env.RESEND_API_KEY,
-      keyLength: env.RESEND_API_KEY ? env.RESEND_API_KEY.length : 0,
-      branch: 'savings',
-      resendStatus: resendRes ? resendRes.status : null,
-      resendResponseText: null,
-      caughtError,
-    };
-
-    if (caughtError) {
-      console.error('[send-guide] fetch threw:', caughtError);
-      return json({ error: 'Could not send email. Please try again.', debug }, 500);
-    }
-
-    debug.resendResponseText = await resendRes.text().catch(e => `(failed to read body: ${e.message})`);
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Loretta Stewart <loretta@prosperitylfs.com>',
+        to: [email],
+        subject: 'Your Free 7 Retirement & Savings Mistakes Guide',
+        text,
+        html,
+      }),
+    });
 
     if (!resendRes.ok) {
-      console.error('Resend error:', resendRes.status, debug.resendResponseText);
-      return json({ error: 'Could not send email. Please try again.', debug }, 500);
+      const errText = await resendRes.text();
+      console.error('Resend error:', resendRes.status, errText);
+      return json({ error: 'Could not send email. Please try again.' }, 500);
     }
 
-    return json({ ok: true, debug }, 200);
+    return json({ ok: true }, 200);
   }
 
 }

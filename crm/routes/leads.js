@@ -48,7 +48,7 @@ function formatLeadTypeLabel(raw) {
 }
 
 function buildFormNote(body) {
-  const skip = new Set(['first_name', 'last_name', 'email', 'phone', 'lead_type', 'lead_source', 'honeypot', 'sms_consent', 'sms', 'terms_accepted']);
+  const skip = new Set(['first_name', 'last_name', 'email', 'phone', 'lead_type', 'lead_source', 'honeypot', 'sms_consent', 'sms', 'email_consent', 'terms_accepted']);
   const lines = Object.entries(body)
     .filter(([k, v]) => !skip.has(k) && v !== null && v !== undefined && String(v).trim() !== '')
     .map(([k, v]) => {
@@ -72,12 +72,14 @@ router.post('/', (req, res) => {
       honeypot,         // spam trap — reject if filled
       sms_consent: smsCF,
       sms: smsSF,
+      email_consent: emailConsentCF,
       terms_accepted,   // consumed but not stored as a note
       ...rest
     } = req.body;
 
-    const smsConsentVal = (smsCF === true || smsCF === 'true' || smsCF === 1 ||
-                           smsSF === true || smsSF === 'true') ? 1 : 0;
+    const isTruthyConsent = (v) => v === true || v === 1 || v === 'true' || v === 'yes' || v === 'on' || v === '1';
+    const smsConsentVal   = (isTruthyConsent(smsCF) || isTruthyConsent(smsSF)) ? 1 : 0;
+    const emailConsentVal = isTruthyConsent(emailConsentCF) ? 1 : 0;
 
     // Basic spam check
     if (honeypot) {
@@ -93,35 +95,36 @@ router.post('/', (req, res) => {
     const now = new Date().toISOString();
 
     // ── Upsert contact ────────────────────────────────────────────────────────
+    // Dedupe by email first, then by phone (any existing contact — not just
+    // Unknown Caller placeholders) so repeat form submissions never create
+    // duplicate contacts.
     let contact = email ? db.prepare('SELECT * FROM contacts WHERE email = ?').get(email) : null;
 
-    // Phone-based merge: if an Unknown Caller auto-contact exists for this number, upgrade it
     if (!contact && phoneE164) {
-      contact = db.prepare(
-        "SELECT * FROM contacts WHERE phone_e164 = ? AND lead_type = 'Unknown Caller'"
-      ).get(phoneE164) || null;
+      contact = db.prepare('SELECT * FROM contacts WHERE phone_e164 = ?').get(phoneE164) || null;
     }
     if (!contact && phoneDisplay) {
       contact = db.prepare(
-        "SELECT * FROM contacts WHERE (phone = ? OR alt_phone = ?) AND lead_type = 'Unknown Caller'"
+        'SELECT * FROM contacts WHERE phone = ? OR alt_phone = ?'
       ).get(phoneDisplay, phoneDisplay) || null;
     }
 
     if (!contact) {
       const insert = db.prepare(`
-        INSERT INTO contacts (first_name, last_name, email, phone, phone_e164, lead_type, lead_status, lead_source, sms_consent, updated_at)
-        VALUES (@first_name, @last_name, @email, @phone, @phone_e164, @lead_type, @lead_status, @lead_source, @sms_consent, @now)
+        INSERT INTO contacts (first_name, last_name, email, phone, phone_e164, lead_type, lead_status, lead_source, sms_consent, email_consent, updated_at)
+        VALUES (@first_name, @last_name, @email, @phone, @phone_e164, @lead_type, @lead_status, @lead_source, @sms_consent, @email_consent, @now)
       `);
       const result = insert.run({
-        first_name:  first_name || null,
-        last_name:   last_name  || null,
-        email:       email      || null,
-        phone:       phoneDisplay,
-        phone_e164:  phoneE164,
-        lead_type:   leadLabel,
-        lead_status: 'New Lead',
-        lead_source: lead_source || null,
-        sms_consent: smsConsentVal,
+        first_name:    first_name || null,
+        last_name:     last_name  || null,
+        email:         email      || null,
+        phone:         phoneDisplay,
+        phone_e164:    phoneE164,
+        lead_type:     leadLabel,
+        lead_status:   'New Lead',
+        lead_source:   lead_source || null,
+        sms_consent:   smsConsentVal,
+        email_consent: emailConsentVal,
         now,
       });
       contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
@@ -129,25 +132,27 @@ router.post('/', (req, res) => {
       // Upgrade Unknown Caller → real contact: replace placeholder name, set email, update lead type
       db.prepare(`
         UPDATE contacts SET
-          first_name  = COALESCE(@first_name, first_name),
-          last_name   = COALESCE(@last_name,  last_name),
-          email       = COALESCE(@email,      email),
-          phone       = COALESCE(phone,       @phone),
-          phone_e164  = COALESCE(phone_e164,  @phone_e164),
-          lead_type   = @lead_type,
-          lead_source = COALESCE(lead_source, @lead_source),
-          sms_consent = MAX(sms_consent,      @sms_consent),
-          updated_at  = @now
+          first_name    = COALESCE(@first_name, first_name),
+          last_name     = COALESCE(@last_name,  last_name),
+          email         = COALESCE(@email,      email),
+          phone         = COALESCE(phone,       @phone),
+          phone_e164    = COALESCE(phone_e164,  @phone_e164),
+          lead_type     = @lead_type,
+          lead_source   = COALESCE(lead_source, @lead_source),
+          sms_consent   = MAX(sms_consent,      @sms_consent),
+          email_consent = MAX(email_consent,    @email_consent),
+          updated_at    = @now
         WHERE id = @id
       `).run({
-        first_name:  first_name || null,
-        last_name:   last_name  || null,
-        email:       email      || null,
-        phone:       phoneDisplay,
-        phone_e164:  phoneE164,
-        lead_type:   leadLabel,
-        lead_source: lead_source || null,
-        sms_consent: smsConsentVal,
+        first_name:    first_name || null,
+        last_name:     last_name  || null,
+        email:         email      || null,
+        phone:         phoneDisplay,
+        phone_e164:    phoneE164,
+        lead_type:     leadLabel,
+        lead_source:   lead_source || null,
+        sms_consent:   smsConsentVal,
+        email_consent: emailConsentVal,
         now,
         id: contact.id,
       });
@@ -157,23 +162,25 @@ router.post('/', (req, res) => {
       // sms_consent is OR'd so it can only go from 0→1, never cleared by re-submission
       db.prepare(`
         UPDATE contacts SET
-          first_name  = COALESCE(first_name,  @first_name),
-          last_name   = COALESCE(last_name,   @last_name),
-          phone       = COALESCE(phone,       @phone),
-          phone_e164  = COALESCE(phone_e164,  @phone_e164),
-          lead_type   = COALESCE(lead_type,   @lead_type),
-          lead_source = COALESCE(lead_source, @lead_source),
-          sms_consent = MAX(sms_consent,      @sms_consent),
-          updated_at  = @now
+          first_name    = COALESCE(first_name,  @first_name),
+          last_name     = COALESCE(last_name,   @last_name),
+          phone         = COALESCE(phone,       @phone),
+          phone_e164    = COALESCE(phone_e164,  @phone_e164),
+          lead_type     = COALESCE(lead_type,   @lead_type),
+          lead_source   = COALESCE(lead_source, @lead_source),
+          sms_consent   = MAX(sms_consent,      @sms_consent),
+          email_consent = MAX(email_consent,    @email_consent),
+          updated_at    = @now
         WHERE id = @id
       `).run({
-        first_name:  first_name || null,
-        last_name:   last_name  || null,
-        phone:       phoneDisplay,
-        phone_e164:  phoneE164,
-        lead_type:   leadLabel,
-        lead_source: lead_source || null,
-        sms_consent: smsConsentVal,
+        first_name:    first_name || null,
+        last_name:     last_name  || null,
+        phone:         phoneDisplay,
+        phone_e164:    phoneE164,
+        lead_type:     leadLabel,
+        lead_source:   lead_source || null,
+        sms_consent:   smsConsentVal,
+        email_consent: emailConsentVal,
         now,
         id: contact.id,
       });

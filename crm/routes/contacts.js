@@ -12,6 +12,28 @@ function normalizePhone(raw) {
   return { display, e164 };
 }
 
+// Computes whole-years age as of today from a YYYY-MM-DD (or any Date-parsable)
+// date of birth. Used so Age stays in sync whenever date_of_birth is set,
+// rather than relying on it being entered/maintained separately.
+function calcAge(dobStr) {
+  if (!dobStr) return null;
+  const dob = new Date(dobStr);
+  if (isNaN(dob.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const monthDiff = now.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) age--;
+  return age;
+}
+
+// Normalizes the optional numeric fields on a create/update payload — blank
+// string or null both mean "unknown", not zero.
+function toIntOrNull(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = parseInt(v, 10);
+  return isNaN(n) ? null : n;
+}
+
 // GET /api/contacts — list all, newest first
 router.get('/', (req, res) => {
   const { q, lead_type, lead_status, sms_consent, appointment_booked,
@@ -120,6 +142,86 @@ router.get('/', (req, res) => {
   }
 
   res.json(contacts);
+});
+
+// POST /api/contacts — manually create a new contact (Add Contact form).
+// Distinct from the public POST /api/leads endpoint: this is for the CRM
+// dashboard user explicitly adding someone, so a clash on email/phone is
+// reported back as an error rather than silently merged.
+router.post('/', (req, res) => {
+  try {
+    const body = req.body || {};
+    const { first_name, last_name, email, phone } = body;
+
+    if (!first_name && !last_name && !email && !phone) {
+      return res.status(400).json({ error: 'At least a name, email, or phone number is required.' });
+    }
+
+    if (email) {
+      const existing = db.prepare('SELECT id FROM contacts WHERE email = ?').get(email);
+      if (existing) {
+        return res.status(409).json({ error: 'A contact with this email already exists.', contact_id: existing.id });
+      }
+    }
+
+    const { display: phoneDisplay, e164: phoneE164 } = normalizePhone(phone);
+    if (phoneE164) {
+      const existing = db.prepare('SELECT id FROM contacts WHERE phone_e164 = ?').get(phoneE164);
+      if (existing) {
+        return res.status(409).json({ error: 'A contact with this phone number already exists.', contact_id: existing.id });
+      }
+    }
+
+    // Age is derived from DOB whenever DOB is provided; otherwise it falls
+    // back to whatever was typed directly into the Age field.
+    const age = body.date_of_birth ? calcAge(body.date_of_birth) : toIntOrNull(body.age);
+
+    const fields = {
+      first_name:               first_name || null,
+      last_name:                last_name  || null,
+      email:                    email      || null,
+      phone:                    phoneDisplay,
+      phone_e164:               phoneE164,
+      home_phone:               normalizePhone(body.home_phone).display,
+      preferred_contact_method: body.preferred_contact_method || null,
+      street_address:           body.street_address || null,
+      city:                     body.city            || null,
+      state:                    body.state            || null,
+      zip_code:                 body.zip_code         || null,
+      date_of_birth:            body.date_of_birth    || null,
+      age,
+      marital_status:           body.marital_status   || null,
+      spouse_name:              body.spouse_name      || null,
+      spouse_date_of_birth:     body.spouse_date_of_birth || null,
+      number_of_children:       toIntOrNull(body.number_of_children),
+      number_of_grandchildren:  toIntOrNull(body.number_of_grandchildren),
+      family_notes:             body.family_notes  || null,
+      occupation:               body.occupation    || null,
+      employer:                 body.employer      || null,
+      retirement_date_goal:     body.retirement_date_goal || null,
+      lead_type:                body.lead_type     || null,
+      lead_source:              body.lead_source   || null,
+      referred_by:              body.referred_by   || null,
+      best_time_to_contact:     body.best_time_to_contact || null,
+      lead_status:              body.lead_status   || 'New Lead',
+      sms_consent:              body.sms_consent   ? 1 : 0,
+      email_consent:            body.email_consent ? 1 : 0,
+      general_notes:            body.general_notes || null,
+    };
+
+    const cols = Object.keys(fields);
+    const insert = db.prepare(
+      `INSERT INTO contacts (${cols.join(', ')}) VALUES (${cols.map(c => '@' + c).join(', ')})`
+    );
+    const result = insert.run(fields);
+
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
+    console.log(`[contacts] Created contact #${contact.id}: ${[first_name, last_name].filter(Boolean).join(' ') || '(no name)'}`);
+    res.status(201).json(contact);
+  } catch (err) {
+    console.error('[contacts] create failed:', err.message);
+    res.status(500).json({ error: err.message || 'Could not create contact' });
+  }
 });
 
 // GET /api/contacts/:id/activity — dedicated activity feed (never returns emails)
@@ -292,7 +394,7 @@ router.patch('/:id', (req, res) => {
   const allowed = [
     'first_name', 'last_name', 'phone', 'alt_phone', 'email',
     'role', 'tags', 'notes', 'lead_type', 'lead_source', 'phone_e164',
-    'lead_status', 'sms_consent', 'appointment_booked', 'appointment_date', 'last_contacted',
+    'lead_status', 'sms_consent', 'email_consent', 'appointment_booked', 'appointment_date', 'last_contacted',
     'retirement_assets', 'account_types', 'retirement_timeline', 'interested_in', 'existing_advisor',
     'coverage_goal', 'existing_coverage', 'mortgage_protection', 'final_expense', 'children_grandchildren',
     'retirement_account_type', 'current_institution', 'estimated_rollover_amount',
@@ -301,6 +403,13 @@ router.patch('/:id', (req, res) => {
     'policy_status', 'application_date', 'policy_issue_date',
     'annuity_carrier', 'annuity_type', 'annuity_premium', 'income_rider', 'estimated_income', 'surrender_period',
     'next_follow_up_date', 'last_contact_date', 'commission_estimate',
+    // Complete contact profile fields
+    'home_phone', 'preferred_contact_method',
+    'street_address', 'city', 'state', 'zip_code',
+    'date_of_birth', 'age', 'marital_status', 'spouse_name', 'spouse_date_of_birth',
+    'number_of_children', 'number_of_grandchildren', 'family_notes',
+    'occupation', 'employer', 'retirement_date_goal',
+    'referred_by', 'best_time_to_contact', 'general_notes',
   ];
   const updates = {};
   for (const key of allowed) {
@@ -318,6 +427,22 @@ router.patch('/:id', (req, res) => {
   }
   if (updates.alt_phone !== undefined) {
     updates.alt_phone = normalizePhone(updates.alt_phone).display;
+  }
+  if (updates.home_phone !== undefined) {
+    updates.home_phone = normalizePhone(updates.home_phone).display;
+  }
+  if (updates.number_of_children !== undefined) {
+    updates.number_of_children = toIntOrNull(updates.number_of_children);
+  }
+  if (updates.number_of_grandchildren !== undefined) {
+    updates.number_of_grandchildren = toIntOrNull(updates.number_of_grandchildren);
+  }
+  // Age always follows date_of_birth when DOB is part of this update, even if
+  // an age value was also sent in the same request — DOB is authoritative.
+  if (updates.date_of_birth !== undefined) {
+    updates.age = calcAge(updates.date_of_birth);
+  } else if (updates.age !== undefined) {
+    updates.age = toIntOrNull(updates.age);
   }
 
   updates.updated_at = new Date().toISOString();

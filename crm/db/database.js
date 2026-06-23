@@ -210,6 +210,32 @@ addCol('contacts', 'commission_estimate', 'REAL');
 // Click-to-call tracking
 addCol('contacts', 'last_called_at',    'TEXT');
 addCol('contacts', 'last_call_status',  'TEXT');
+// Complete contact profile fields
+// Mobile phone reuses the existing phone/phone_e164 columns (already the
+// fields Twilio call/SMS routing matches contacts by) — no separate
+// mobile_phone column, to avoid two phone fields drifting out of sync.
+addCol('contacts', 'home_phone',                'TEXT');
+addCol('contacts', 'preferred_contact_method',  'TEXT');
+addCol('contacts', 'street_address',            'TEXT');
+addCol('contacts', 'city',                      'TEXT');
+addCol('contacts', 'state',                     'TEXT');
+addCol('contacts', 'zip_code',                  'TEXT');
+addCol('contacts', 'date_of_birth',             'TEXT');
+addCol('contacts', 'age',                       'INTEGER');
+addCol('contacts', 'marital_status',            'TEXT');
+addCol('contacts', 'spouse_name',               'TEXT');
+addCol('contacts', 'spouse_date_of_birth',      'TEXT');
+addCol('contacts', 'number_of_children',        'INTEGER');
+addCol('contacts', 'number_of_grandchildren',   'INTEGER');
+addCol('contacts', 'family_notes',              'TEXT');
+addCol('contacts', 'referred_by',               'TEXT');
+// Distinct from the legacy unused 'notes' column (stripped from API
+// responses in routes/contacts.js — old records have malformed data there).
+addCol('contacts', 'general_notes',             'TEXT');
+addCol('contacts', 'occupation',                'TEXT');
+addCol('contacts', 'employer',                  'TEXT');
+addCol('contacts', 'retirement_date_goal',      'TEXT');
+addCol('contacts', 'best_time_to_contact',      'TEXT');
 // comm_calls enrichment for click-to-call and voicemail
 addCol('comm_calls', 'contact_name',      'TEXT');
 addCol('comm_calls', 'notes',             'TEXT');

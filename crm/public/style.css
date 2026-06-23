@@ -2200,6 +2200,24 @@ body {
 }
 .em-fallback-link:hover { text-decoration: underline; }
 
+/* ── Add Contact modal ─────────────────────────────────────────────────────── */
+/* Reuses .email-modal-* chrome and .crm-* field styling already defined above;
+   only the wider box and section dividers are new. */
+
+.ac-modal-box { max-width: 680px; }
+
+.ac-modal-body .crm-grid:first-of-type { margin-top: 0; }
+
+.ac-section-title {
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--purple);
+  padding-bottom: .4rem;
+  border-bottom: 1px solid var(--purple-light);
+}
+
 /* "Send Email" button — contact detail page header */
 .btn-email {
   display: inline-flex;

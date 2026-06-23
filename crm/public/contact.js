@@ -111,6 +111,44 @@ const SECTIONS = {
     { id: 'f-last_contact_date',   key: 'last_contact_date',   type: 'date' },
     { id: 'f-commission_estimate', key: 'commission_estimate', type: 'currency' },
   ],
+  basic: [
+    { id: 'f-first_name',               key: 'first_name',               type: 'text' },
+    { id: 'f-last_name',                key: 'last_name',                type: 'text' },
+    { id: 'f-email',                    key: 'email',                    type: 'text' },
+    { id: 'f-phone',                    key: 'phone',                    type: 'text' }, // "Mobile Phone" — reuses the phone/phone_e164 columns Twilio call/SMS routing already matches by
+    { id: 'f-home_phone',               key: 'home_phone',               type: 'text' },
+    { id: 'f-preferred_contact_method', key: 'preferred_contact_method', type: 'select' },
+    { id: 'f-general_notes',            key: 'general_notes',            type: 'text' },
+  ],
+  address: [
+    { id: 'f-street_address', key: 'street_address', type: 'text' },
+    { id: 'f-city',           key: 'city',            type: 'text' },
+    { id: 'f-state',          key: 'state',           type: 'text' },
+    { id: 'f-zip_code',       key: 'zip_code',        type: 'text' },
+  ],
+  family: [
+    { id: 'f-date_of_birth',           key: 'date_of_birth',           type: 'date' },
+    { id: 'f-age',                     key: 'age',                     type: 'number' }, // auto-set server-side from date_of_birth when present
+    { id: 'f-marital_status',          key: 'marital_status',          type: 'select' },
+    { id: 'f-spouse_name',             key: 'spouse_name',             type: 'text' },
+    { id: 'f-spouse_date_of_birth',    key: 'spouse_date_of_birth',    type: 'date' },
+    { id: 'f-number_of_children',      key: 'number_of_children',      type: 'number' },
+    { id: 'f-number_of_grandchildren', key: 'number_of_grandchildren', type: 'number' },
+    { id: 'f-occupation',              key: 'occupation',              type: 'text' },
+    { id: 'f-employer',                key: 'employer',                type: 'text' },
+    { id: 'f-retirement_date_goal',    key: 'retirement_date_goal',    type: 'date' },
+    { id: 'f-family_notes',            key: 'family_notes',            type: 'text' },
+  ],
+  lead: [
+    { id: 'f-lead_type',            key: 'lead_type',            type: 'select' },
+    { id: 'f-lead_source',          key: 'lead_source',          type: 'text' },
+    { id: 'f-referred_by',          key: 'referred_by',          type: 'text' },
+    { id: 'f-best_time_to_contact', key: 'best_time_to_contact', type: 'text' },
+  ],
+  marketing: [
+    { id: 'f-sms_consent',   key: 'sms_consent',   type: 'bool' },
+    { id: 'f-email_consent', key: 'email_consent', type: 'bool' },
+  ],
 };
 
 // ─── Populate all section fields from a contact object ────────────────────────
@@ -125,14 +163,33 @@ function populateSections(contact) {
         el.checked = !!val;
       } else if (f.type === 'date') {
         el.value = toDateInput(val);
-      } else if (f.type === 'currency') {
-        // Store raw number; placeholder shows "$0" so context is clear
+      } else if (f.type === 'currency' || f.type === 'number') {
+        // Store raw number; falsy-but-valid 0 must still display as "0", not blank
         el.value = (val != null && val !== '') ? String(val) : '';
       } else {
         el.value = val || '';
       }
     }
   }
+}
+
+// ─── Personal & Family: live age preview while editing ────────────────────────
+// The server always recomputes age from date_of_birth on save (authoritative),
+// but this gives instant feedback before the user clicks Save Changes.
+
+function recalcAgeField() {
+  const dobEl = document.getElementById('f-date_of_birth');
+  const ageEl = document.getElementById('f-age');
+  if (!dobEl || !ageEl || !dobEl.value) return;
+
+  const dob = new Date(dobEl.value);
+  if (isNaN(dob.getTime())) return;
+
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const monthDiff = now.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) age--;
+  ageEl.value = age;
 }
 
 // ─── Save a section (called from onclick in HTML) ─────────────────────────────
@@ -154,6 +211,8 @@ async function saveCrmSection(event, key) {
       data[f.key] = el.checked ? 1 : 0;
     } else if (f.type === 'currency') {
       data[f.key] = parseCurrencyInput(el.value); // null if blank
+    } else if (f.type === 'number') {
+      data[f.key] = el.value !== '' ? parseInt(el.value, 10) : null;
     } else {
       data[f.key] = el.value.trim() || null;
     }
@@ -166,6 +225,16 @@ async function saveCrmSection(event, key) {
     });
     // Re-populate from server response so displayed values are authoritative
     populateSections(updated);
+    window._currentContact = updated;
+    // Basic Information can change name/email/phone — keep the header, the
+    // click-to-call button, and the SMS compose area in sync without
+    // requiring a full page refresh.
+    if (key === 'basic') {
+      renderInfo(updated);
+      wireCallButton(updated);
+      wireEmailButton(updated);
+      wireSmsCompose(updated);
+    }
     savedEl.classList.remove('hidden');
     setTimeout(() => savedEl.classList.add('hidden'), 2500);
   } catch (err) {

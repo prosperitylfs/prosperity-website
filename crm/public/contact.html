@@ -127,6 +127,200 @@
           <div id="contact-info" class="info-grid"></div>
         </div>
 
+        <!-- ── Basic Information ──────────────────────────────────────── -->
+        <div class="card crm-card card-basic-info">
+          <h2 class="crm-card-title">Basic Information</h2>
+          <div class="crm-grid">
+            <div class="crm-field">
+              <label class="crm-label" for="f-first_name">First Name</label>
+              <input id="f-first_name" type="text" class="crm-input">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-last_name">Last Name</label>
+              <input id="f-last_name" type="text" class="crm-input">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-email">Email</label>
+              <input id="f-email" type="email" class="crm-input">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-phone">Mobile Phone</label>
+              <input id="f-phone" type="tel" class="crm-input" placeholder="(414) 555-0100">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-home_phone">Home Phone</label>
+              <input id="f-home_phone" type="tel" class="crm-input" placeholder="(414) 555-0100">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-preferred_contact_method">Preferred Contact Method</label>
+              <select id="f-preferred_contact_method" class="crm-select">
+                <option value="">— Select —</option>
+                <option>Email</option>
+                <option>Phone Call</option>
+                <option>Text / SMS</option>
+                <option>Mail</option>
+              </select>
+            </div>
+            <div class="crm-field crm-field-full">
+              <label class="crm-label" for="f-general_notes">General Notes</label>
+              <textarea id="f-general_notes" class="crm-input" rows="3" placeholder="General notes about this contact…"></textarea>
+            </div>
+          </div>
+          <div class="crm-footer">
+            <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'basic')">Save Changes</button>
+            <span class="crm-saved hidden" id="saved-basic">Saved!</span>
+          </div>
+        </div>
+
+        <!-- ── Address ─────────────────────────────────────────────────── -->
+        <div class="card crm-card card-address">
+          <h2 class="crm-card-title">Address</h2>
+          <div class="crm-grid">
+            <div class="crm-field crm-field-full">
+              <label class="crm-label" for="f-street_address">Street Address</label>
+              <input id="f-street_address" type="text" class="crm-input" placeholder="123 Main St">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-city">City</label>
+              <input id="f-city" type="text" class="crm-input">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-state">State</label>
+              <input id="f-state" type="text" class="crm-input" placeholder="WI">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-zip_code">ZIP Code</label>
+              <input id="f-zip_code" type="text" class="crm-input" placeholder="53202">
+            </div>
+          </div>
+          <div class="crm-footer">
+            <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'address')">Save Changes</button>
+            <span class="crm-saved hidden" id="saved-address">Saved!</span>
+          </div>
+        </div>
+
+        <!-- ── Personal & Family Information ──────────────────────────── -->
+        <div class="card crm-card card-family">
+          <h2 class="crm-card-title">Personal &amp; Family Information</h2>
+          <div class="crm-grid">
+            <div class="crm-field">
+              <label class="crm-label" for="f-date_of_birth">Date of Birth</label>
+              <input id="f-date_of_birth" type="date" class="crm-input" onchange="recalcAgeField()">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-age">Age</label>
+              <input id="f-age" type="number" min="0" class="crm-input" placeholder="Auto-calculated from DOB">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-marital_status">Marital Status</label>
+              <select id="f-marital_status" class="crm-select">
+                <option value="">— Select —</option>
+                <option>Single</option>
+                <option>Married</option>
+                <option>Divorced</option>
+                <option>Widowed</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-spouse_name">Spouse Name</label>
+              <input id="f-spouse_name" type="text" class="crm-input">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-spouse_date_of_birth">Spouse Date of Birth</label>
+              <input id="f-spouse_date_of_birth" type="date" class="crm-input">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-number_of_children">Number of Children</label>
+              <input id="f-number_of_children" type="number" min="0" class="crm-input">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-number_of_grandchildren">Number of Grandchildren</label>
+              <input id="f-number_of_grandchildren" type="number" min="0" class="crm-input">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-occupation">Occupation</label>
+              <input id="f-occupation" type="text" class="crm-input">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-employer">Employer</label>
+              <input id="f-employer" type="text" class="crm-input">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-retirement_date_goal">Retirement Date Goal</label>
+              <input id="f-retirement_date_goal" type="date" class="crm-input">
+            </div>
+            <div class="crm-field crm-field-full">
+              <label class="crm-label" for="f-family_notes">Family Notes</label>
+              <textarea id="f-family_notes" class="crm-input" rows="3" placeholder="Notes about spouse, children, grandchildren…"></textarea>
+            </div>
+          </div>
+          <div class="crm-footer">
+            <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'family')">Save Changes</button>
+            <span class="crm-saved hidden" id="saved-family">Saved!</span>
+          </div>
+        </div>
+
+        <!-- ── Lead Information ───────────────────────────────────────── -->
+        <div class="card crm-card card-lead-info">
+          <h2 class="crm-card-title">Lead Information</h2>
+          <div class="crm-grid">
+            <div class="crm-field">
+              <label class="crm-label" for="f-lead_type">Lead Type</label>
+              <select id="f-lead_type" class="crm-select">
+                <option value="">— Select —</option>
+                <option>Unknown Caller</option>
+                <option>Retirement Guide Lead</option>
+                <option>Retirement Lead</option>
+                <option>Roth Conversion Lead</option>
+                <option>Life Insurance Lead</option>
+                <option>Contact Form Lead</option>
+                <option>Existing Client</option>
+                <option>Referral Partner</option>
+              </select>
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-lead_source">Lead Source</label>
+              <input id="f-lead_source" type="text" class="crm-input" placeholder="e.g. Website, Referral, Facebook Ad">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-referred_by">Referred By</label>
+              <input id="f-referred_by" type="text" class="crm-input" placeholder="Name of referring person">
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-best_time_to_contact">Best Time To Contact</label>
+              <input id="f-best_time_to_contact" type="text" class="crm-input" placeholder="e.g. Weekday mornings">
+            </div>
+          </div>
+          <div class="crm-footer">
+            <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'lead')">Save Changes</button>
+            <span class="crm-saved hidden" id="saved-lead">Saved!</span>
+          </div>
+        </div>
+
+        <!-- ── Marketing Permissions ──────────────────────────────────── -->
+        <div class="card crm-card card-marketing">
+          <h2 class="crm-card-title">Marketing Permissions</h2>
+          <div class="crm-grid">
+            <div class="crm-field crm-field-full">
+              <div class="crm-checks">
+                <label class="crm-check-label">
+                  <input id="f-sms_consent" type="checkbox">
+                  <span>SMS Consent</span>
+                </label>
+                <label class="crm-check-label">
+                  <input id="f-email_consent" type="checkbox">
+                  <span>Email Consent</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="crm-footer">
+            <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'marketing')">Save Changes</button>
+            <span class="crm-saved hidden" id="saved-marketing">Saved!</span>
+          </div>
+        </div>
+
         <!-- ── Activity Timeline ──────────────────────────────────────── -->
         <div class="card card-timeline" id="timeline-card">
           <h2 class="card-title">Activity Timeline</h2>

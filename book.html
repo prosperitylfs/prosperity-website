@@ -742,6 +742,10 @@
           });
           bookShowStep(3);
 
+          // Booking has now submitted — clear the guide-lead handoff so it
+          // can't silently prefill a later, unrelated visit to /book.
+          try { sessionStorage.removeItem('prosperityGuideLead'); } catch (storageErr) {}
+
           setTimeout(function () {
             window.location.href = 'https://cal.com/prosperitylfs/retirement-safemoney-consultation';
           }, 1500);
@@ -773,25 +777,26 @@
 
         // Prefill Step 1 from a guide-form submission earlier in this browser
         // session (set by index.html's guide-form handler before redirecting
-        // through /thank-you-guide). One-time use — cleared immediately so a
-        // stale value can never silently reappear on a later, unrelated visit.
+        // through /thank-you-guide). Left in sessionStorage (not cleared here)
+        // so a page refresh on /book before submitting doesn't lose the
+        // prefill — it's cleared in bookNext(2) once booking actually
+        // completes. Never overwrites a field the user already typed into.
         try {
-          var saved = sessionStorage.getItem('prosperityGuideContact');
+          var saved = sessionStorage.getItem('prosperityGuideLead');
           if (saved) {
             var data = JSON.parse(saved);
             var fEl = document.getElementById('bk-fname');
             var lEl = document.getElementById('bk-lname');
             var eEl = document.getElementById('bk-email');
             var pEl = document.getElementById('bk-phone');
-            if (fEl && data.firstName) fEl.value = data.firstName;
-            if (lEl && data.lastName)  lEl.value = data.lastName;
-            if (eEl && data.email)     eEl.value = data.email;
-            if (pEl && data.phone) {
+            if (fEl && !fEl.value && data.firstName) fEl.value = data.firstName;
+            if (lEl && !lEl.value && data.lastName)  lEl.value = data.lastName;
+            if (eEl && !eEl.value && data.email)     eEl.value = data.email;
+            if (pEl && !pEl.value && data.phone) {
               pEl.value = (typeof phoneDigits === 'function' && typeof formatPhoneDisplay === 'function')
                 ? formatPhoneDisplay(phoneDigits(data.phone).slice(0, 10))
                 : data.phone;
             }
-            sessionStorage.removeItem('prosperityGuideContact');
           }
         } catch (storageErr) { /* private-mode storage block — fields just stay blank */ }
       });

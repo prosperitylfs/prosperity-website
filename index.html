@@ -544,9 +544,10 @@
         if (res.ok) {
           // Carry contact info into /book so the booking form can prefill —
           // sessionStorage (not localStorage) so it's cleared when the tab
-          // closes, and cleared again on read in book.html (one-time use).
+          // closes. book.html clears this key once the booking form actually
+          // completes (see bookNext(2) in book.html).
           try {
-            sessionStorage.setItem('prosperityGuideContact', JSON.stringify({
+            sessionStorage.setItem('prosperityGuideLead', JSON.stringify({
               firstName: firstName.value.trim(),
               lastName:  lastName.value.trim(),
               email:     email.value.trim(),

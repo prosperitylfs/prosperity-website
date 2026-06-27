@@ -542,6 +542,17 @@
         });
 
         if (res.ok) {
+          // Carry contact info into /book so the booking form can prefill —
+          // sessionStorage (not localStorage) so it's cleared when the tab
+          // closes, and cleared again on read in book.html (one-time use).
+          try {
+            sessionStorage.setItem('prosperityGuideContact', JSON.stringify({
+              firstName: firstName.value.trim(),
+              lastName:  lastName.value.trim(),
+              email:     email.value.trim(),
+              phone:     phone.value.trim(),
+            }));
+          } catch (storageErr) { /* private-mode storage block — booking page just won't prefill */ }
           window.location.href = 'thank-you-guide.html';
         } else {
           var data = await res.json().catch(function() { return {}; });

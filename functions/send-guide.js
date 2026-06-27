@@ -106,7 +106,7 @@ export async function onRequestPost(context) {
   // ── Retirement & Rollover Mistakes Guide (homepage form) ──────────────────
   if (isRetirementRollover) {
     const guideUrl         = 'https://www.prosperitylfs.com/13-costly-rollover-mistakes-guide.pdf';
-    const consultationUrl  = 'https://cal.com/prosperitylfs/retirement-safemoney-consultation';
+    const consultationUrl  = 'https://www.prosperitylfs.com/book';
 
     await saveLeadToCRM(env, {
       first_name,

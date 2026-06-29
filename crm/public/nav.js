@@ -1,5 +1,21 @@
-// Shared CRM shell: service worker registration, mobile sidebar, nav badges.
-// Loaded on every page after config.js.
+// Shared CRM shell: service worker registration, mobile sidebar, nav badges,
+// logout link. Loaded on every page after config.js.
+
+// ── Log out link ──────────────────────────────────────────────────────────────
+// Injected into the sidebar footer on every page rather than duplicated across
+// 5 HTML files. Hitting /logout returns 401 with a different Basic Auth realm,
+// which makes most browsers drop the cached dashboard credentials. If Basic
+// Auth isn't enabled (CRM_DASHBOARD_AUTH_ENABLED unset), this link is harmless
+// — there's nothing to log out of.
+(function () {
+  const footer = document.querySelector('.sidebar-footer');
+  if (!footer) return;
+  const link = document.createElement('a');
+  link.href = '/logout';
+  link.textContent = 'Log out';
+  link.style.cssText = 'display:block;margin-top:8px;color:inherit;opacity:0.75;font-size:0.8rem;text-decoration:underline;';
+  footer.insertAdjacentElement('afterend', link);
+})();
 
 // ── Service worker ────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {

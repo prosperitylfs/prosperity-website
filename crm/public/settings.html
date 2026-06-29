@@ -74,6 +74,21 @@
         <button id="save-settings-btn" class="btn btn-primary">Save Settings</button>
         <span id="settings-saved" class="save-msg hidden">Saved!</span>
       </section>
+
+      <section class="card" style="max-width:480px;margin-top:1.25rem;">
+        <h2 class="card-title">Dashboard Login</h2>
+        <p style="margin-bottom:1rem;color:var(--text-muted);font-size:.9rem;">
+          This entire dashboard is protected by a browser login prompt (HTTP Basic
+          Auth) using the <strong>CRM_DASHBOARD_USER</strong> and
+          <strong>CRM_DASHBOARD_PASSWORD</strong> set in Render's environment
+          variables — not a username/password stored in this app.
+        </p>
+        <p style="margin-bottom:0;color:var(--text-muted);font-size:.9rem;">
+          To log out, click <a href="/logout">Log out</a> (also in the sidebar) or
+          close all browser windows — browsers remember this login until the
+          browser itself is closed.
+        </p>
+      </section>
     </main>
   </div>
 

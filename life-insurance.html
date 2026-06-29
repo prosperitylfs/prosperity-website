@@ -492,6 +492,13 @@
                 <p class="form-error-message" id="li-email-err" style="display:none;"></p>
               </div>
 
+              <!-- Cloudflare Turnstile bot-check widget. renderTurnstileWidgets()
+                   (assets/js/main.v2.js) renders it and unlocks the "Next"
+                   button below once verification succeeds. data-turnstile-button
+                   is needed here because Step 1's button is not a native
+                   submit — navigation is button-driven until the final step. -->
+              <div class="cf-turnstile-widget" data-turnstile data-turnstile-button="#li-next-1-btn"></div>
+
               <label class="li-sms-consent-wrap">
                 <input type="checkbox" id="li-terms-consent">
                 <span>I agree to the <a href="/privacy-policy">Privacy Policy</a> and <a href="/terms-and-conditions">Terms &amp; Conditions</a> and consent to being contacted by Prosperity Life &amp; Financial Solutions regarding my request or appointment.</span>
@@ -502,7 +509,7 @@
                 <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding appointment scheduling, reminders, and occasional updates. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out.</span>
               </label>
 
-              <button type="button" class="btn btn-amber btn-full" onclick="liNextStep()">Next: Coverage Details &rarr;</button>
+              <button type="button" id="li-next-1-btn" class="btn btn-amber btn-full" onclick="liNextStep()" disabled>Next: Coverage Details &rarr;</button>
               <p id="li-err-1" style="color:#c0392b; font-size:0.85rem; margin-top:10px; display:none;"></p>
 
             </div><!-- /step-1 -->
@@ -567,14 +574,9 @@
                 </div>
               </div>
 
-              <!-- Cloudflare Turnstile bot-check widget. renderTurnstileWidgets()
-                   (assets/js/main.v2.js) renders it and unlocks the submit
-                   button below once verification succeeds. -->
-              <div class="cf-turnstile-widget" data-turnstile></div>
-
               <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; align-items:center;">
                 <button type="button" class="btn btn-primary" onclick="liPrevStep()" style="flex:0 0 auto;">&larr; Back</button>
-                <button type="submit" class="btn btn-amber" style="flex:1;" disabled>Schedule My Free Consultation &rarr;</button>
+                <button type="submit" class="btn btn-amber" style="flex:1;">Schedule My Free Consultation &rarr;</button>
               </div>
               <p id="li-form-error" style="color:#c0392b; font-size:0.85rem; margin-top:10px; display:none;"></p>
 
@@ -683,6 +685,13 @@
 
       if (!document.getElementById('li-terms-consent').checked) { showErr('Please accept the Privacy Policy and Terms & Conditions to continue.'); return; }
 
+      // Turnstile check — the "Next" button is disabled until the widget
+      // succeeds, but this guards the rare case of a token expiring between
+      // verification and click.
+      var liForm = document.querySelector('.book-form');
+      var liTurnstileToken1 = liForm ? liForm.dataset.turnstileToken : '';
+      if (!liTurnstileToken1) { showErr('Please complete the verification check above.'); return; }
+
       // Normalize phone value for step 2 submission
       document.getElementById('li-f-phone').value = e164Phone;
 
@@ -735,11 +744,12 @@
       if (!health)   { showErr('Please answer the health question.'); return; }
       if (!existing) { showErr('Please indicate whether you currently have life insurance.'); return; }
 
-      // Turnstile check — the submit button is disabled until the widget
-      // succeeds, but this guards the rare case of a token expiring between
-      // verification and submit.
+      // Turnstile check — verification happens in Step 1, but this guards
+      // the case of the token expiring while the user fills out Step 2
+      // (Turnstile tokens are time-limited). Sends the user back to
+      // re-verify rather than letting a stale/empty token through.
       var turnstileToken = e.target.dataset.turnstileToken;
-      if (!turnstileToken) { showErr('Please complete the verification check above.'); return; }
+      if (!turnstileToken) { showErr('Verification expired — please go back to Step 1 and verify again.'); return; }
 
       errEl.style.display = 'none';
 

@@ -483,6 +483,13 @@
                 <p id="bk-email-err" class="form-error-message" style="display:none;"></p>
               </div>
 
+              <!-- Cloudflare Turnstile bot-check widget. renderTurnstileWidgets()
+                   (assets/js/main.v2.js) renders it and unlocks the "Next"
+                   button below once verification succeeds. data-turnstile-button
+                   is needed here because this page has no native form submit —
+                   navigation is button-driven. -->
+              <div class="cf-turnstile-widget" data-turnstile data-turnstile-button="#bk-next-1-btn"></div>
+
               <div class="sms-consent-group">
                 <label class="sms-consent">
                   <input type="checkbox" id="bk-terms-consent">
@@ -499,7 +506,7 @@
 
               <div class="step-nav">
                 <div class="step-nav-row">
-                  <button type="button" class="btn-next-step" onclick="bookNext(1)">Next: Your Retirement Goals &rarr;</button>
+                  <button type="button" id="bk-next-1-btn" class="btn-next-step" onclick="bookNext(1)" disabled>Next: Your Retirement Goals &rarr;</button>
                 </div>
               </div>
               <p id="bk-err-1" class="step-error"></p>
@@ -572,17 +579,10 @@
                 <input type="hidden" id="bk-assets" value="">
               </div>
 
-              <!-- Cloudflare Turnstile bot-check widget. renderTurnstileWidgets()
-                   (assets/js/main.v2.js) renders it and unlocks the "Next:
-                   Schedule" button below once verification succeeds.
-                   data-turnstile-button is needed here because this page has
-                   no native form submit — navigation is button-driven. -->
-              <div class="cf-turnstile-widget" data-turnstile data-turnstile-button="#bk-next-2-btn"></div>
-
               <div class="step-nav">
                 <div class="step-nav-row">
                   <button type="button" class="btn-back" onclick="bookBack(2)">&larr; Back</button>
-                  <button type="button" id="bk-next-2-btn" class="btn-next-step" onclick="bookNext(2)" disabled>Next: Schedule &rarr;</button>
+                  <button type="button" id="bk-next-2-btn" class="btn-next-step" onclick="bookNext(2)">Next: Schedule &rarr;</button>
                 </div>
               </div>
               <p id="bk-err-2" class="step-error"></p>
@@ -710,6 +710,14 @@
             return;
           }
           if (!document.getElementById('bk-terms-consent').checked) { showErr('bk-err-1', 'Please accept the Privacy Policy and Terms & Conditions to continue.'); return; }
+
+          // Turnstile check — the "Next" button is disabled until the widget
+          // succeeds, but this guards the rare case of a token expiring
+          // between verification and click.
+          var bookFormStep1 = document.querySelector('.book-form');
+          var turnstileToken1 = bookFormStep1 ? bookFormStep1.dataset.turnstileToken : '';
+          if (!turnstileToken1) { showErr('bk-err-1', 'Please complete the verification check above.'); return; }
+
           bkContact = { fname: fname, lname: lname, phone: e164, email: email, sms: document.getElementById('bk-sms-consent').checked, terms: true };
           bookShowStep(2);
 
@@ -720,12 +728,13 @@
           if (!topics.length) { showErr('bk-err-2', 'Please select at least one topic to discuss.'); return; }
           if (!timeline) { showErr('bk-err-2', 'Please select your retirement timeline.'); return; }
 
-          // Turnstile check — the "Next: Schedule" button is disabled until
-          // the widget succeeds, but this guards the rare case of a token
-          // expiring between verification and click.
+          // Turnstile check — verification happens in Step 1, but this guards
+          // the case of the token expiring while the user fills out Step 2
+          // (Turnstile tokens are time-limited). Sends the user back to
+          // re-verify rather than letting a stale/empty token through.
           var bookForm = document.querySelector('.book-form');
           var turnstileToken = bookForm ? bookForm.dataset.turnstileToken : '';
-          if (!turnstileToken) { showErr('bk-err-2', 'Please complete the verification check above.'); return; }
+          if (!turnstileToken) { showErr('bk-err-2', 'Verification expired — please go back to Step 1 and verify again.'); return; }
 
           postToCRM({
             first_name:          bkContact.fname,

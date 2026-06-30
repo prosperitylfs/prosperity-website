@@ -791,7 +791,14 @@ function renderDashFilterBanner() {
 }
 
 // ─── Load contacts ─────────────────────────────────────────────────────────────
-async function loadContacts() {
+// opts.silent — used by the manual Refresh button and the 30s auto-refresh:
+// on failure, leave the table showing whatever it last successfully loaded
+// instead of wiping it, and skip the big error banner (the caller surfaces a
+// small "Unable to refresh" notice instead). Plain calls (initial page load,
+// search/filter changes) keep the original behavior since there's no prior
+// data worth preserving — clearing it and showing the cause is more useful.
+async function loadContacts(opts = {}) {
+  const silent = !!opts.silent;
   const params = new URLSearchParams();
 
   if (activeDashFilter) {
@@ -815,12 +822,16 @@ async function loadContacts() {
     } else {
       renderPipeline(contacts);
     }
+    return true;
   } catch (err) {
-    showError(`Could not load contacts: ${err.message}. Is the CRM server running?`);
-    if (currentView === 'list') {
-      tbody.innerHTML = '';
-      countEl.textContent = '';
+    if (!silent) {
+      showError(`Could not load contacts: ${err.message}. Is the CRM server running?`);
+      if (currentView === 'list') {
+        tbody.innerHTML = '';
+        countEl.textContent = '';
+      }
     }
+    return false;
   }
 }
 
@@ -937,6 +948,10 @@ filterSmsEl.addEventListener('change', () => { cancelDashFilter(); loadContacts(
 
 // ─── Dashboard stats ──────────────────────────────────────────────────────────
 
+// Covers "stats" and "inbound SMS" (s.inboundSms is one of the dashboard
+// cards rendered below) for the 30s auto-refresh — both come from the same
+// /api/stats call. Returns true/false so refreshAll() can tell whether this
+// tick succeeded without needing to throw.
 async function loadTaskStats() {
   try {
     const s = await CRM.fetch('/api/stats');
@@ -954,8 +969,10 @@ async function loadTaskStats() {
     }
 
     renderDashboardStats(s);
+    return true;
   } catch {
-    // stats endpoint may not be active yet
+    // stats endpoint may not be active yet — keep whatever was last rendered
+    return false;
   }
 }
 
@@ -1031,6 +1048,83 @@ function renderDashboardStats(s) {
     if (card) { e.preventDefault(); card.click(); }
   });
 })();
+
+// ─── Refresh ───────────────────────────────────────────────────────────────────
+
+const AUTO_REFRESH_INTERVAL_MS = 30000;
+let refreshStatusTimer;
+let refreshInFlight = false;
+
+// True while the user is mid-action on this page — adding a contact,
+// composing an email, writing a quick note, or dragging a pipeline card.
+// Auto-refresh checks this and skips the tick entirely rather than
+// re-rendering underneath an in-progress edit; it just tries again on the
+// next 30s tick.
+function isUserBusy() {
+  if (dragState || notePopover) return true;
+  const addModal   = document.getElementById('add-contact-modal');
+  const emailModal = document.getElementById('email-compose-modal');
+  if (addModal && !addModal.classList.contains('hidden')) return true;
+  if (emailModal && !emailModal.classList.contains('hidden')) return true;
+  return false;
+}
+
+function showRefreshStatus(msg) {
+  const el = document.getElementById('refresh-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(refreshStatusTimer);
+  refreshStatusTimer = setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+function hideRefreshStatus() {
+  const el = document.getElementById('refresh-status');
+  if (el) el.classList.add('hidden');
+  clearTimeout(refreshStatusTimer);
+}
+
+// Reloads contacts + tasks/stats/inbound-SMS in place — no full page reload.
+// silent=true (auto-refresh ticks) skips the button's loading state and
+// never wipes existing data on failure; it just surfaces a small "Unable to
+// refresh" notice and leaves the table as-is. The manual button click uses
+// the same silent data-handling (so a flaky request never blanks the table)
+// but still shows "Refreshing…" since that click was an explicit request.
+async function refreshAll(opts = {}) {
+  const silent = !!opts.silent;
+  if (refreshInFlight) return;
+  refreshInFlight = true;
+
+  const btn = document.getElementById('btn-refresh');
+  if (!silent && btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+
+  try {
+    // loadContacts/loadTaskStats cover contacts, tasks, dashboard stats,
+    // appointments (s.apptsToday), and inbound SMS (s.inboundSms) — all from
+    // /api/contacts + /api/stats. updateNavBadges (nav.js) covers the calls
+    // badge (missed calls + unread voicemails) from /api/calls/stats; it
+    // already fails silently on its own, so it isn't part of the ok check
+    // below — a stale calls badge for one tick isn't worth flagging.
+    const [contactsOk, statsOk] = await Promise.all([
+      loadContacts({ silent: true }),
+      loadTaskStats(),
+      typeof updateNavBadges === 'function' ? updateNavBadges() : Promise.resolve(),
+    ]);
+    if (contactsOk && statsOk) {
+      hideRefreshStatus();
+    } else {
+      showRefreshStatus('Unable to refresh');
+    }
+  } finally {
+    refreshInFlight = false;
+    if (!silent && btn) { btn.disabled = false; btn.textContent = '↻ Refresh'; }
+  }
+}
+
+setInterval(() => {
+  if (isUserBusy()) return;
+  refreshAll({ silent: true });
+}, AUTO_REFRESH_INTERVAL_MS);
 
 // ─── Init ──────────────────────────────────────────────────────────────────────
 setView(currentView);

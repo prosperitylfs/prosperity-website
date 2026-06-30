@@ -173,6 +173,12 @@ body {
   flex-wrap: wrap;
 }
 
+.refresh-status {
+  font-size: .8rem;
+  color: var(--red);
+  white-space: nowrap;
+}
+
 /* ── Form controls ───────────────────────────────────────────────────────── */
 
 .search-input,

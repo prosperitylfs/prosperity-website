@@ -55,19 +55,23 @@ if ('serviceWorker' in navigator) {
 })();
 
 // ── Nav badge counts (unread voicemails + missed calls) ───────────────────────
-(async function updateNavBadges() {
-  function setBadge(id, n) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (n > 0) {
-      el.textContent = n > 99 ? '99+' : String(n);
-      el.classList.remove('hidden');
-    } else {
-      el.textContent = '';
-      el.classList.add('hidden');
-    }
+// Runs once on load, then every 30s for as long as the page is open, so the
+// calls badge stays current without a full reload. A failed fetch just
+// leaves the previous badge value in place — it's a small corner indicator,
+// not worth surfacing an error for.
+function setBadge(id, n) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (n > 0) {
+    el.textContent = n > 99 ? '99+' : String(n);
+    el.classList.remove('hidden');
+  } else {
+    el.textContent = '';
+    el.classList.add('hidden');
   }
+}
 
+async function updateNavBadges() {
   try {
     const r = await fetch('/api/calls/stats', {
       headers: window.CRM ? { 'x-api-key': CRM.apiKey } : {},
@@ -78,4 +82,7 @@ if ('serviceWorker' in navigator) {
     setBadge('nav-badge-calls', total);
     setBadge('nav-badge-calls-mobile', total);
   } catch {}
-})();
+}
+
+updateNavBadges();
+setInterval(updateNavBadges, 30000);

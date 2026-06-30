@@ -19,6 +19,12 @@ const allowedOrigins = [
   'http://localhost:5500',     // VS Code Live Server (localhost variant)
   'http://127.0.0.1:5500',    // VS Code Live Server (127.0.0.1 variant)
   'http://127.0.0.1:3001',
+  // Production domains — hardcoded so CORS doesn't depend on ALLOWED_ORIGINS
+  // being set correctly on Render. www and bare apex are different origins
+  // to a browser, so both must be listed explicitly.
+  'https://prosperitylfs.com',
+  'https://www.prosperitylfs.com',
+  'https://prosperity-crm.onrender.com',
   ..._envOrigins,
 ];
 

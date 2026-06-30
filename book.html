@@ -689,7 +689,7 @@
         el.style.display = 'none';
       }
 
-      window.bookNext = function (step) {
+      window.bookNext = async function (step) {
         if (step === 1) {
           var fname = document.getElementById('bk-fname').value.trim();
           var lname = document.getElementById('bk-lname').value.trim();
@@ -736,19 +736,45 @@
           var turnstileToken = bookForm ? bookForm.dataset.turnstileToken : '';
           if (!turnstileToken) { showErr('bk-err-2', 'Verification expired — please go back to Step 1 and verify again.'); return; }
 
-          postToCRM({
-            first_name:          bkContact.fname,
-            last_name:           bkContact.lname,
-            phone:               bkContact.phone,
-            email:               bkContact.email,
-            sms_consent:         bkContact.sms ? 'yes' : 'no',
-            terms_accepted:      'yes',
-            lead_type:           'Retirement Lead',
-            topics:              topics.join(', '),
-            retirement_timeline: timeline,
-            assets:              document.getElementById('bk-assets').value || '',
-            turnstile_token:     turnstileToken,
-          });
+          // Submitted via /submit-lead (same-origin Cloudflare Pages
+          // Function, same pattern as the guide form's /send-guide) rather
+          // than a direct cross-origin postToCRM() call to the CRM, so this
+          // never depends on the CRM's CORS allowlist.
+          var bkNextBtn = document.getElementById('bk-next-2-btn');
+          var bkNextBtnLabel = bkNextBtn ? bkNextBtn.textContent : '';
+          if (bkNextBtn) { bkNextBtn.disabled = true; bkNextBtn.textContent = 'Submitting…'; }
+
+          try {
+            var bkRes = await fetch('/submit-lead', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                first_name:          bkContact.fname,
+                last_name:           bkContact.lname,
+                phone:               bkContact.phone,
+                email:               bkContact.email,
+                sms_consent:         bkContact.sms ? 'yes' : 'no',
+                terms_accepted:      'yes',
+                lead_type:           'Retirement Lead',
+                topics:              topics.join(', '),
+                retirement_timeline: timeline,
+                assets:              document.getElementById('bk-assets').value || '',
+                turnstile_token:     turnstileToken,
+              }),
+            });
+
+            if (!bkRes.ok) {
+              var bkErrData = await bkRes.json().catch(function () { return {}; });
+              showErr('bk-err-2', bkErrData.error || 'Something went wrong. Please try again or call us at 414-441-1177.');
+              if (bkNextBtn) { bkNextBtn.disabled = false; bkNextBtn.textContent = bkNextBtnLabel; }
+              return;
+            }
+          } catch (bkErr) {
+            showErr('bk-err-2', 'Something went wrong. Please try again or call us at 414-441-1177.');
+            if (bkNextBtn) { bkNextBtn.disabled = false; bkNextBtn.textContent = bkNextBtnLabel; }
+            return;
+          }
+
           bookShowStep(3);
 
           // Booking has now submitted — clear the guide-lead handoff so it

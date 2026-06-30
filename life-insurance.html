@@ -723,12 +723,13 @@
     }
 
     // ── Step 2 submit → CRM → Calendly (Step 3) ──
-    function handleLifeInsuranceForm(e) {
+    async function handleLifeInsuranceForm(e) {
       e.preventDefault();
       var firstName = document.getElementById('li-f-fname').value.trim();
       var lastName  = document.getElementById('li-f-lname').value.trim();
       var phone     = document.getElementById('li-f-phone').value.trim();
       var email     = document.getElementById('li-f-email').value.trim();
+      var smsConsent = document.getElementById('li-sms-consent').checked;
       var interest  = document.getElementById('li-f-interest').value;
       var amount    = document.getElementById('li-f-amount').value;
       var budget    = document.getElementById('li-f-budget').value;
@@ -753,22 +754,46 @@
 
       errEl.style.display = 'none';
 
-      // Send lead to CRM (fire-and-forget)
-      console.log('[LI Form] Sending lead to CRM…');
-      postToCRM({
-        first_name:      firstName,
-        last_name:       lastName,
-        phone:           phone,
-        email:           email,
-        lead_type:       'Life Insurance Lead',
-        coverage_type:   interest,
-        coverage_amount: amount,
-        monthly_budget:  budget,
-        health_concerns: health.value,
-        has_coverage:    existing.value,
-        terms_accepted:  'yes',
-        turnstile_token: turnstileToken,
-      });
+      // Submitted via /submit-lead (same-origin Cloudflare Pages Function,
+      // same pattern as the guide form's /send-guide) rather than a direct
+      // cross-origin postToCRM() call to the CRM, so this never depends on
+      // the CRM's CORS allowlist.
+      var submitBtn = e.target.querySelector('button[type="submit"]');
+      var submitBtnLabel = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting…'; }
+
+      try {
+        var res = await fetch('/submit-lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            first_name:      firstName,
+            last_name:       lastName,
+            phone:           phone,
+            email:           email,
+            sms_consent:     smsConsent ? 'yes' : 'no',
+            lead_type:       'Life Insurance Lead',
+            coverage_type:   interest,
+            coverage_amount: amount,
+            monthly_budget:  budget,
+            health_concerns: health.value,
+            has_coverage:    existing.value,
+            terms_accepted:  'yes',
+            turnstile_token: turnstileToken,
+          }),
+        });
+
+        if (!res.ok) {
+          var data = await res.json().catch(function () { return {}; });
+          showErr(data.error || 'Something went wrong. Please try again or call us at 414-441-1177.');
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = submitBtnLabel; }
+          return;
+        }
+      } catch (err) {
+        showErr('Something went wrong. Please try again or call us at 414-441-1177.');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = submitBtnLabel; }
+        return;
+      }
 
       document.getElementById('li-step-2').style.display = 'none';
       document.getElementById('li-step-3').style.display = 'block';

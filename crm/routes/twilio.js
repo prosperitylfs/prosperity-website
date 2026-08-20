@@ -1,14 +1,13 @@
-// Twilio webhook handlers — PUBLIC endpoints (no CRM API key required).
-// Twilio calls these from its own servers during every call flow.
-//
-// Production hardening TODO: validate X-Twilio-Signature header using
-//   twilio.validateRequest(authToken, sig, fullUrl, params)
-// before processing any webhook to prevent spoofed requests.
+// Twilio webhook handlers — PUBLIC endpoints (no CRM API key required, since
+// Twilio can't attach one). Every request is instead required to carry a
+// valid X-Twilio-Signature header, verified below before any route handler
+// runs. Twilio calls these from its own servers during every call flow.
 
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db/database');
 const { createAutoTask, ctDueDateAndTime } = require('../lib/autoTasks');
+const { requireValidTwilioSignature } = require('../lib/twilioSignature');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -205,6 +204,10 @@ router.use((req, res, next) => {
   console.log(`[twilio] route hit: ${req.method} ${req.path}`);
   next();
 });
+
+// Reject any request that isn't genuinely from Twilio before it reaches a
+// route handler — and therefore before any database write can happen.
+router.use(requireValidTwilioSignature);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INBOUND CALL HANDLERS

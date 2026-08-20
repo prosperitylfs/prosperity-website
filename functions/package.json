@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Local-only marker so Node's test runner resolves these Cloudflare Pages Functions as ES modules (they already run as ESM in Cloudflare's own build; this file has no effect on that deployment)."
+}

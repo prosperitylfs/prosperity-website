@@ -7,32 +7,25 @@
  * Deduplication: appointments are keyed on cal_booking_uid, so duplicate
  * webhook deliveries are idempotent (update in place, no duplicate rows).
  *
- * Optional HMAC verification: set CALCOM_WEBHOOK_SECRET env var in Render
- * to match the secret configured in Cal.com → Settings → Developer → Webhooks.
+ * Required HMAC verification: CALCOM_WEBHOOK_SECRET must be set, matching
+ * the secret configured in Cal.com → Settings → Developer → Webhooks. A
+ * request with no secret configured, no signature header, or a mismatched
+ * signature is rejected — verification is no longer optional/dev-skippable.
  */
 
 const express = require('express');
-const crypto  = require('crypto');
 const router  = express.Router();
 const db      = require('../db/database');
+const { isValidCalcomSignature } = require('../lib/calcomSignature');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function verifySignature(req) {
-  const secret = process.env.CALCOM_WEBHOOK_SECRET;
-  if (!secret) return true; // no secret configured — skip in dev
-  const sig = (req.headers['x-cal-signature-256'] || '').trim();
-  if (!sig) return false;
-  const raw = req.rawBody || Buffer.from(JSON.stringify(req.body));
-  const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(sig.toLowerCase()),
-      Buffer.from(expected.toLowerCase())
-    );
-  } catch {
-    return false;
-  }
+  return isValidCalcomSignature({
+    secret: process.env.CALCOM_WEBHOOK_SECRET,
+    signatureHeader: req.headers['x-cal-signature-256'],
+    rawBody: req.rawBody || Buffer.from(JSON.stringify(req.body)),
+  });
 }
 
 function normalizePhone(raw) {

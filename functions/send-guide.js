@@ -51,14 +51,24 @@ async function verifyTurnstile(env, token, remoteIp) {
 // public browser — Turnstile tokens are single-use, so the same token
 // couldn't be re-verified by leads.js even if we forwarded it. This key is
 // never sent to, or readable by, the browser.
-async function saveLeadToCRM(env, payload) {
+export async function saveLeadToCRM(env, payload) {
+  // Fail closed: no hardcoded fallback credential. A previous version of this
+  // function fell back to a literal API-key string when CRM_API_KEY was
+  // unset — that string ends up in git history and is effectively a
+  // permanent, unrotatable credential. If either required credential is
+  // missing, refuse to call the CRM (guide delivery below is unaffected,
+  // since this save is already best-effort by design).
+  if (!env.CRM_API_KEY || !env.CRM_INTERNAL_KEY) {
+    console.error('[send-guide] CRM_API_KEY or CRM_INTERNAL_KEY is not configured — refusing to contact the CRM (no fallback credential is used).');
+    return false;
+  }
   try {
     const res = await fetch(CRM_LEADS_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': env.CRM_API_KEY || 'prosperity-crm-2025',
-        'x-internal-key': env.CRM_INTERNAL_KEY || '',
+        'x-api-key': env.CRM_API_KEY,
+        'x-internal-key': env.CRM_INTERNAL_KEY,
       },
       body: JSON.stringify(payload),
     });

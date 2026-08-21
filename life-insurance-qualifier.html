@@ -737,22 +737,34 @@
 
       errEl.style.display = 'none';
 
-      postToCRM({
-        first_name:      firstName,
-        last_name:       lastName,
-        phone:           e164Phone,
-        email:           email,
-        lead_type:       'Life Insurance Lead',
-        state:           state,
-        age_range:       age,
-        coverage_type:   coverage,
-        coverage_for:    coverageFor ? coverageFor.value : '',
-        tobacco:         tobacco ? tobacco.value : '',
-        health_concerns: health ? health.value : '',
-        sms_consent:     consent ? 'yes' : 'no',
-        terms_accepted:  'yes',
-        turnstile_token: turnstileToken,
-      });
+      // Submitted via /submit-lead (same-origin Cloudflare Pages Function,
+      // same pattern as book.html / life-insurance.html) rather than a
+      // direct cross-origin postToCRM() call — the CRM never sees a
+      // browser-supplied credential; the server adds its own private
+      // credential before forwarding. Fire-and-forget, matching this form's
+      // existing behavior — the success/redirect flow below never waited on
+      // the CRM response before, and still doesn't.
+      fetch('/submit-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name:      firstName,
+          last_name:       lastName,
+          phone:           e164Phone,
+          email:           email,
+          lead_type:       'Life Insurance Lead',
+          lead_source:     window.location.href,
+          state:           state,
+          age_range:       age,
+          coverage_type:   coverage,
+          coverage_for:    coverageFor ? coverageFor.value : '',
+          tobacco:         tobacco ? tobacco.value : '',
+          health_concerns: health ? health.value : '',
+          sms_consent:     consent ? 'yes' : 'no',
+          terms_accepted:  'yes',
+          turnstile_token: turnstileToken,
+        }),
+      }).catch(function (err) { console.error('[submit-lead] network error:', err); });
 
       // Hide form, show success message, then redirect to booking
       document.getElementById('liq-form-wrap').style.display = 'none';

@@ -32,6 +32,8 @@ function createLegacyDb() {
       lead_type     TEXT,
       lead_source   TEXT,
       lead_status   TEXT DEFAULT 'New Lead',
+      sms_consent   INTEGER DEFAULT 0,
+      email_consent INTEGER DEFAULT 0,
       created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP
     );

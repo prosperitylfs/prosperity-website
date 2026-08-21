@@ -73,6 +73,14 @@ export async function saveLeadToCRM(env, payload) {
   }
 }
 
+// Same-origin entry point for every browser-originated Prosperity lead form
+// (book.html, life-insurance.html, life-insurance-qualifier.html,
+// contact.html). Whatever JSON fields a form sends (minus turnstile_token)
+// are forwarded to the CRM unchanged via saveLeadToCRM() below — this
+// function never special-cases individual forms' field shapes, so adding a
+// new form here requires no change to this file. The browser never sees or
+// sends a CRM credential; CRM_API_KEY/CRM_INTERNAL_KEY are read only from
+// this Function's own server-side env (env.*, never request data).
 export async function onRequestPost(context) {
   const { request, env } = context;
 

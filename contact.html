@@ -270,16 +270,28 @@
         result.textContent = 'Thank you! Your message has been received. Loretta will respond as soon as possible.';
         result.style.color = '#1a7a4a';
         var nameParts = document.getElementById('contact-name').value.trim().split(/\s+/);
-        postToCRM({
-          first_name:      nameParts[0] || '',
-          last_name:       nameParts.slice(1).join(' ') || '',
-          email:           document.getElementById('contact-email').value.trim(),
-          phone:           document.getElementById('contact-phone').value.trim(),
-          message:         document.getElementById('contact-message').value.trim(),
-          terms_accepted:  'yes',
-          lead_type:       'contact',
-          turnstile_token: turnstileToken,
-        });
+        // Submitted via /submit-lead (same-origin Cloudflare Pages Function,
+        // same pattern as book.html / life-insurance.html) rather than a
+        // direct cross-origin postToCRM() call — the CRM never sees a
+        // browser-supplied credential; the server adds its own private
+        // credential before forwarding. Fire-and-forget, matching this
+        // form's existing behavior — the success message and form reset
+        // below never waited on the CRM response before, and still don't.
+        fetch('/submit-lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            first_name:      nameParts[0] || '',
+            last_name:       nameParts.slice(1).join(' ') || '',
+            email:           document.getElementById('contact-email').value.trim(),
+            phone:           document.getElementById('contact-phone').value.trim(),
+            message:         document.getElementById('contact-message').value.trim(),
+            terms_accepted:  'yes',
+            lead_type:       'contact',
+            lead_source:     window.location.href,
+            turnstile_token: turnstileToken,
+          }),
+        }).catch(function (err) { console.error('[submit-lead] network error:', err); });
         contactForm.reset();
       });
     }

@@ -6,101 +6,15 @@ var EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // e.g. 'template_xyz789'
 // ─────────────────────────────────────────────────────────────────────────
 
 // ── CRM LEAD CAPTURE ──────────────────────────────────────────────────────
-var CRM_API_KEY = 'prosperity-crm-2025';
-function getCrmEndpoint() {
-  return 'https://prosperity-crm.onrender.com/api/leads';
-}
-
-/**
- * Post a lead to the CRM. Fire-and-forget — never blocks the user.
- * Accepts an optional callback(success) called after the request settles.
- *
- * @param {Object}   data     - any lead fields; lead_type should already be set
- * @param {string}   leadType - fallback lead_type if not present in data
- * @param {Function} callback - optional; called with true (success) or false (fail)
- */
-function postToCRM(data, leadType, callback) {
-  var payload = Object.assign({}, data, {
-    lead_type:   data.lead_type || leadType || 'contact',
-    lead_source: data.lead_source || window.location.href,
-    created_at:  new Date().toISOString(),
-  });
-
-  console.log('[CRM] Sending lead...', payload);
-
-  fetch(getCrmEndpoint(), {
-    method:  'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key':    CRM_API_KEY,
-    },
-    body: JSON.stringify(payload),
-  })
-    .then(function(res) {
-      return res.json().then(function(body) { return { ok: res.ok, status: res.status, body: body }; });
-    })
-    .then(function(r) {
-      if (r.ok) {
-        console.log('[CRM] Lead saved successfully:', r.body);
-      } else {
-        console.error('[CRM] Lead save failed (' + r.status + '):', r.body);
-      }
-      if (typeof callback === 'function') callback(r.ok);
-    })
-    .catch(function(err) {
-      console.error('[CRM] Lead save error (network):', err);
-      if (typeof callback === 'function') callback(false);
-    });
-}
-
-window.postToCRM = postToCRM;
-
-/**
- * Send a booking form lead to the CRM, then call callback().
- * Used by book.html immediately before showing the Calendly step.
- * All fields collected through the multi-step form are passed through.
- * Callback always fires — user is never blocked by a CRM failure.
- *
- * @param {Object}   data     - booking form fields
- * @param {Function} callback - called after request settles
- */
-function sendBookingLead(data, callback) {
-  var payload = Object.assign({
-    lead_source: window.location.href,
-    created_at:  new Date().toISOString(),
-  }, data);
-
-  console.log('[CRM] Sending booking lead...', payload);
-
-  var done = false;
-  function proceed() { if (!done) { done = true; callback(); } }
-
-  fetch(getCrmEndpoint(), {
-    method:  'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key':    CRM_API_KEY,
-    },
-    body: JSON.stringify(payload),
-  })
-    .then(function(res) {
-      return res.json().then(function(body) { return { ok: res.ok, status: res.status, body: body }; });
-    })
-    .then(function(r) {
-      if (r.ok) {
-        console.log('[CRM] Booking lead saved successfully:', r.body);
-      } else {
-        console.error('[CRM] Booking lead save failed (' + r.status + '):', r.body);
-      }
-      proceed();
-    })
-    .catch(function(err) {
-      console.error('[CRM] Booking lead save error (network):', err);
-      proceed();
-    });
-}
-
-window.sendBookingLead = sendBookingLead;
+// There is no client-side CRM credential and no direct browser call to the
+// CRM's /api/leads endpoint. A key embedded in browser JavaScript is public
+// and can never authenticate the originating site — it cannot be treated as
+// a secret. Every form on this site submits through the same-origin
+// /submit-lead Cloudflare Pages Function instead (see book.html,
+// life-insurance.html, life-insurance-qualifier.html, contact.html), which
+// verifies Turnstile/honeypot server-side and then forwards to the CRM
+// using a private, server-only credential (CRM_INTERNAL_KEY) that never
+// reaches the browser. See functions/submit-lead.js.
 // ─────────────────────────────────────────────────────────────────────────
 
 // ── CLOUDFLARE TURNSTILE (bot protection on public forms) ──────────────────
@@ -348,13 +262,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (messageEl) { messageEl.textContent = ''; messageEl.className = 'form-message'; }
 
-      // Post to CRM (fire-and-forget)
-      var crmPayload = {};
-      for (var i = 0; i < form.elements.length; i++) {
-        var el = form.elements[i];
-        if (el.name && el.value !== undefined) crmPayload[el.name] = el.value;
-      }
-      postToCRM(crmPayload, crmPayload.lead_type || 'contact');
+      // Note: this generic handler is not currently wired to any live form
+      // on the site (no page has a #lead or #book-form element — see the
+      // handleForm() calls at the bottom of this file). Live forms submit
+      // through /submit-lead directly from their own inline scripts; see
+      // the CRM LEAD CAPTURE note above.
 
       const data = new FormData(form);
       // Replace fetch URL with your backend or form service integration.
@@ -412,14 +324,10 @@ document.addEventListener('DOMContentLoaded', function () {
         guide_link: guideUrl
       };
 
-      // Post to CRM (fire-and-forget — never blocks the UX)
-      var crmData = {};
-      var formElements = form.elements;
-      for (var i = 0; i < formElements.length; i++) {
-        var el = formElements[i];
-        if (el.name && el.value !== undefined) crmData[el.name] = el.value;
-      }
-      postToCRM(crmData, 'guide');
+      // Note: this generic handler is not currently wired to any live form
+      // on the site (no page has a #guide-form-home element). The live
+      // homepage guide form submits CRM lead creation server-side through
+      // /send-guide (functions/send-guide.js) — see index.html.
 
       function showThankYou() {
         form.style.display = 'none';

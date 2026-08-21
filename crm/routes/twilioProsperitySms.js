@@ -18,6 +18,7 @@ const router = express.Router();
 const db = require('../db/database');
 const { requireValidTwilioSignature } = require('../lib/twilioSignature');
 const { handleInboundProsperitySms } = require('../lib/inboundSmsService');
+const { handleOutboundSmsStatusCallback } = require('../lib/smsStatusService');
 
 router.use((req, res, next) => {
   console.log(`[twilio-prosperity] route hit: ${req.method} ${req.path}`);
@@ -31,6 +32,19 @@ router.post('/sms/inbound', (req, res) => {
   const result = handleInboundProsperitySms(db, { From, To, Body, MessageSid });
   console.log(`[twilio-prosperity/sms/inbound] MessageSid=${MessageSid || 'none'} From=${From || 'none'} outcome=${result.outcome}`);
   res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+});
+
+// Outbound delivery-status callback — set as statusCallback when
+// crm/lib/providers/liveTwilioAdapter.js creates a message. Protected by
+// the SAME requireValidTwilioSignature middleware above (applied to this
+// whole router), so a forged or unsigned callback never reaches
+// handleOutboundSmsStatusCallback at all. The only status this route can
+// ever move a message to that no other code path can reach is 'delivered'.
+router.post('/sms/status', (req, res) => {
+  const { MessageSid, MessageStatus, ErrorCode } = req.body;
+  const result = handleOutboundSmsStatusCallback(db, { MessageSid, MessageStatus, ErrorCode });
+  console.log(`[twilio-prosperity/sms/status] MessageSid=${MessageSid || 'none'} MessageStatus=${MessageStatus || 'none'} outcome=${result.outcome}`);
+  res.sendStatus(204);
 });
 
 module.exports = router;

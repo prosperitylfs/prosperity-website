@@ -11,7 +11,7 @@
 const { getSenderGuardrailForCase } = require('./senderGuardrail');
 const { getAdapter } = require('./providers');
 const { toStringOrNull } = require('./leadNormalize');
-const { BRANDS } = require('../config/brands');
+const { sendProsperitySmsForDraft } = require('./prosperitySmsGateway');
 
 function contactBrandIdFor(db, contactId) {
   const link = db.prepare(`SELECT id FROM contact_brands WHERE contact_id = ? AND status = 'Active'`).get(contactId);
@@ -73,47 +73,32 @@ function createDraft(db, fields, actor) {
   return db.prepare('SELECT * FROM communication_drafts WHERE id = ?').get(result.lastInsertRowid);
 }
 
-// The final confirmation step. Always routes through getAdapter() (always
-// the fake adapter in this checkpoint — see crm/lib/providers/index.js),
-// which never contacts a provider and always returns status:'blocked'. The
-// draft is marked 'blocked', NEVER 'sent' or 'delivered' — there is no code
-// path in this module that can set either of those statuses.
-// Resolves the e164 FROM number for a resolved contact_brand row, purely
-// for display/storage on the resulting sms_messages row — never used to
-// decide WHETHER to send (that's already been decided by the guardrail
-// before the draft was ever created).
-function fromNumberForContactBrand(db, contactBrandId) {
-  if (!contactBrandId) return null;
-  const link = db.prepare('SELECT b.slug FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id WHERE cb.id = ?').get(contactBrandId);
-  return link && BRANDS[link.slug] ? BRANDS[link.slug].phone.e164 : null;
-}
-
+// The final confirmation step. The communication_drafts row itself is
+// ALWAYS marked 'blocked' here regardless of channel or outcome — it is
+// deliberately never a record of what actually happened with a provider;
+// that real, truthful lifecycle (queued -> sent | failed | blocked, and
+// delivered only via a later verified status callback) lives entirely in
+// sms_messages, written by crm/lib/prosperitySmsGateway.js for the text
+// channel. Email has no live adapter in this checkpoint and always routes
+// through whatever getAdapter() returns for sendEmail(), which stays
+// hard-blocked even when the live Twilio adapter is selected.
 async function confirmSend(db, draftId, actor) {
   if (!actor) throw new Error('confirmSend: actor is required');
   const draft = db.prepare('SELECT * FROM communication_drafts WHERE id = ?').get(draftId);
   if (!draft) throw new Error(`confirmSend: draft ${draftId} does not exist`);
 
-  const adapter = getAdapter();
-  const result = draft.channel === 'text'
-    ? await adapter.sendText({ toNumber: draft.to_address, body: draft.body })
-    : await adapter.sendEmail({ toAddress: draft.to_address, subject: draft.subject, body: draft.body });
+  let smsMessage = null;
+  let result;
+  if (draft.channel === 'text') {
+    const sendResult = await sendProsperitySmsForDraft(db, draft, actor);
+    smsMessage = sendResult.message;
+    result = sendResult.providerResult;
+  } else {
+    const adapter = getAdapter();
+    result = await adapter.sendEmail({ toAddress: draft.to_address, subject: draft.subject, body: draft.body });
+  }
 
   db.prepare("UPDATE communication_drafts SET status = 'blocked', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(draftId);
-
-  // Text drafts, once confirmed, are also persisted into sms_messages — the
-  // same table the inbound-reply webhook writes to — so the threaded text
-  // conversation (Requirement 4) has a real outbound row with its delivery
-  // status, not just a draft that disappears after confirmation. Never
-  // 'sent'/'delivered': the fake adapter's result.status is always
-  // 'blocked', and that's exactly what's stored.
-  let smsMessage = null;
-  if (draft.channel === 'text') {
-    const insert = db.prepare(`
-      INSERT INTO sms_messages (contact_id, contact_brand_id, case_id, direction, from_number, to_number, body, status)
-      VALUES (?, ?, ?, 'outbound', ?, ?, ?, ?)
-    `).run(draft.contact_id, draft.contact_brand_id, draft.case_id, fromNumberForContactBrand(db, draft.contact_brand_id), draft.to_address, draft.body, result.status);
-    smsMessage = db.prepare('SELECT * FROM sms_messages WHERE id = ?').get(insert.lastInsertRowid);
-  }
 
   return { draft: db.prepare('SELECT * FROM communication_drafts WHERE id = ?').get(draftId), providerResult: result, smsMessage };
 }

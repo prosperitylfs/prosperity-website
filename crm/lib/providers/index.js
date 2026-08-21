@@ -1,12 +1,22 @@
-// Single place that decides which adapter Call/Text/Email use. Always
-// returns the fake adapter in this checkpoint — there is no environment
-// variable, config flag, or condition anywhere that could select
-// liveAdapterStub.js; it isn't even required here. Swapping this to a real
-// adapter later is the ONLY change needed to activate live sending.
+// Single place that decides which adapter Call/Text/Email use.
+//
+// Defaults to the fake adapter always. The live Twilio adapter is only ever
+// selected by an exact, case-sensitive match on
+// process.env.COMMUNICATION_PROVIDER === 'twilio' — a server-side-only
+// environment variable. Missing, empty, misspelled ('Twilio', 'TWILIO',
+// 'live'), or any other value keeps the fake adapter active; there is no
+// other condition anywhere in this file that could select the live
+// adapter. getAdapter() takes no arguments, so nothing a browser sends can
+// ever influence this decision — the only input is the server process's
+// own environment.
 
 const fakeAdapter = require('./fakeAdapter');
+const liveTwilioAdapter = require('./liveTwilioAdapter');
 
 function getAdapter() {
+  if (process.env.COMMUNICATION_PROVIDER === 'twilio') {
+    return liveTwilioAdapter;
+  }
   return fakeAdapter;
 }
 

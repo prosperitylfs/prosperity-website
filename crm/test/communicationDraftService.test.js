@@ -8,6 +8,7 @@ const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
 const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
+const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
 const { createDraft, confirmSend, resolveSenderForContact, previewCall } = require('../lib/communicationDraftService');
 const { createClient } = require('../lib/clientService');
 const { createCaseForClient } = require('../lib/caseService');
@@ -16,7 +17,7 @@ const { getAdapter } = require('../lib/providers');
 function setup() {
   const db = createLegacyDb();
   const { prosperityId } = runMigrations(db);
-  runDashboardMigrations(db); runCrmAppMigrations(db); runCrmCoreMigrations(db);
+  runDashboardMigrations(db); runCrmAppMigrations(db); runCrmCoreMigrations(db); runRevenueMvpMigrations(db);
   return { db, prosperityId };
 }
 function getProductId(db, brandId, name) {

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cases — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({ active: 'cases', title: 'Cases', subtitle: 'Every open matter, one row per case' });
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  async function load() {
+    const company = CrmApp.getCompany();
+    let data;
+    try { data = await CrmApp.fetchJSON(`/api/app/clients?company=${encodeURIComponent(company)}&status=active&pageSize=100`); }
+    catch (e) { content.innerHTML = `<div class="empty-state">Could not load cases: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+
+    const rows = [];
+    for (const c of data.contacts) for (const cs of c.cases) rows.push({ ...cs, contactId: c.contactId, contactName: c.contactName });
+
+    if (!rows.length) { content.innerHTML = '<div class="card"><div class="card-body"><div class="empty-state">No open cases.</div></div></div>'; return; }
+
+    content.innerHTML = `<div class="card"><div class="card-body no-pad table-scroll">
+      <table class="data-table">
+        <thead><tr><th>Client</th><th>Company</th><th>Product</th><th>Status</th><th>Next Action</th><th>Last Activity</th></tr></thead>
+        <tbody>${rows.map(r => `<tr class="clickable" data-id="${r.contactId}">
+          <td><strong>${CrmApp.escapeHtml(r.contactName)}</strong></td>
+          <td>${CrmApp.companyBadge(r.brandId, r.brandShortName)}</td>
+          <td>${CrmApp.escapeHtml(r.productName || '—')}</td>
+          <td><span class="pill status-${(r.caseStatus || '').toLowerCase()}">${CrmApp.escapeHtml(r.caseStatus)}</span></td>
+          <td>${r.nextAction ? CrmApp.escapeHtml(r.nextAction.notes || r.nextAction.taskType) : '—'}</td>
+          <td>${CrmApp.friendlyDate(r.lastActivity)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div></div>`;
+    content.querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => location.href = `client.html?id=${el.dataset.id}`));
+  }
+
+  document.addEventListener('crmapp:companychange', load);
+  load();
+}
+render();
+</script>
+</body>
+</html>

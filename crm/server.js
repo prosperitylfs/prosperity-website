@@ -178,6 +178,11 @@ app.use('/api/stats', requireApiKey, require('./routes/stats'));
 // SMS history — protected
 app.use('/api/sms', requireApiKey, require('./routes/sms'));
 
+// Redesigned CRM interface (crm/public/app/) — read-only company-aware
+// dashboard/clients/review/communications/policies data. Same protection
+// tier as every other private CRM data route above.
+app.use('/api/app', requireApiKey, require('./routes/crmApp'));
+
 // Email / Gmail
 // /auth and /callback are browser redirects — no API key header is possible
 // there, but they're still behind dashboardAuth above (the browser already

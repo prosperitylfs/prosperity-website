@@ -1,0 +1,348 @@
+/* Redesigned CRM interface — shared design system for crm/public/app/*.
+   Deep-blue sidebar, light spacious workspace, restrained color, compact
+   tables. Company badges distinguish Insurance Lady (amber) from
+   Prosperity (purple) without ever implying the app itself favors one. */
+
+:root {
+  --sidebar-bg: #101a30;
+  --sidebar-bg-active: #1b2b4d;
+  --sidebar-text: #c3ccdd;
+  --sidebar-text-dim: #7c8aa8;
+  --sidebar-text-active: #ffffff;
+  --sidebar-accent: #4f8cff;
+
+  --bg: #f5f6f9;
+  --surface: #ffffff;
+  --surface-alt: #fafbfd;
+  --border: #e3e6ee;
+  --border-strong: #cdd3e0;
+
+  --text: #1c2333;
+  --text-dim: #5b6478;
+  --text-faint: #8a91a3;
+
+  --accent: #2c4a7c;
+  --accent-dark: #1f3660;
+  --accent-tint: #eaf0fb;
+
+  --il-color: #9a6a12;
+  --il-tint: #fbf1dd;
+  --prosperity-color: #4e2c94;
+  --prosperity-tint: #f0ecfa;
+
+  --success: #1a7a4a;
+  --success-tint: #e6f5ec;
+  --warning: #a5680b;
+  --warning-tint: #fbf1de;
+  --danger: #b3261e;
+  --danger-tint: #fbe9e8;
+  --neutral-tint: #eef0f4;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+  --shadow-sm: 0 1px 2px rgba(16, 26, 48, 0.06);
+  --shadow-md: 0 4px 16px rgba(16, 26, 48, 0.10);
+  --sidebar-w: 232px;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14.5px;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+
+/* ── App shell ─────────────────────────────────────────────────────────── */
+.app-shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 12px;
+}
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 20px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.2px;
+}
+.sidebar-brand-mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--sidebar-accent), #274a8b);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: #fff;
+}
+.sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; }
+.nav-link {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px; border-radius: var(--radius-sm);
+  color: var(--sidebar-text); font-size: 14px; font-weight: 500;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-link.active { background: var(--sidebar-bg-active); color: var(--sidebar-text-active); }
+.nav-link .nav-icon { width: 18px; height: 18px; flex: none; opacity: 0.9; }
+.nav-link .nav-label { flex: 1; }
+.nav-badge {
+  min-width: 19px; height: 19px; padding: 0 5px; border-radius: 10px;
+  background: #d64545; color: #fff; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.nav-badge.hidden { display: none; }
+.sidebar-footer {
+  margin-top: 12px; padding: 10px 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  color: var(--sidebar-text-dim); font-size: 12px;
+}
+
+.workspace { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex; align-items: center; gap: 16px;
+  flex-wrap: wrap;
+}
+.topbar-title { font-size: 19px; font-weight: 700; color: var(--text); margin-right: auto; }
+.topbar-sub { font-size: 12.5px; color: var(--text-dim); font-weight: 500; margin-top: 2px; }
+
+.hamburger-btn {
+  display: none;
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); background: var(--surface);
+  align-items: center; justify-content: center; cursor: pointer;
+}
+.sidebar-overlay { display: none; }
+
+.content { padding: 22px 24px 60px; max-width: 1320px; width: 100%; margin: 0 auto; }
+
+/* ── Company filter ───────────────────────────────────────────────────── */
+.company-filter { display: flex; gap: 6px; background: var(--neutral-tint); padding: 4px; border-radius: 999px; }
+.company-filter button {
+  border: none; background: transparent; padding: 7px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; color: var(--text-dim); cursor: pointer;
+  display: flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.company-filter button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.company-filter .dot { width: 8px; height: 8px; border-radius: 50%; }
+.company-filter .dot.il { background: var(--il-color); }
+.company-filter .dot.prosperity { background: var(--prosperity-color); }
+
+.badge-company {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+  white-space: nowrap;
+}
+.badge-company.il { background: var(--il-tint); color: var(--il-color); }
+.badge-company.prosperity { background: var(--prosperity-tint); color: var(--prosperity-color); }
+.badge-company .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* ── Cards / sections ─────────────────────────────────────────────────── */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.card-header {
+  padding: 16px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.card-header h2 { font-size: 15px; margin: 0; font-weight: 700; }
+.card-header .card-header-sub { font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
+.card-body { padding: 16px 18px; }
+.card-body.no-pad { padding: 0; }
+
+.grid { display: grid; gap: 16px; }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+.stat-tile {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; cursor: pointer;
+  transition: box-shadow .12s ease, border-color .12s ease;
+}
+.stat-tile:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+.stat-tile .stat-value { font-size: 26px; font-weight: 800; color: var(--text); line-height: 1; }
+.stat-tile .stat-label { font-size: 12.5px; color: var(--text-dim); font-weight: 600; }
+.stat-tile.attention .stat-value { color: var(--danger); }
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
+table.data-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.data-table th {
+  text-align: left; padding: 10px 14px; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+table.data-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.data-table tbody tr:last-child td { border-bottom: none; }
+table.data-table tbody tr.clickable { cursor: pointer; }
+table.data-table tbody tr.clickable:hover { background: var(--surface-alt); }
+.table-scroll { overflow-x: auto; }
+
+.pill {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 700;
+}
+.pill.status-open, .pill.status-active, .pill.status-sent, .pill.status-delivered { background: var(--success-tint); color: var(--success); }
+.pill.status-pending, .pill.status-queued { background: var(--warning-tint); color: var(--warning); }
+.pill.status-archived, .pill.status-closed { background: var(--neutral-tint); color: var(--text-dim); }
+.pill.status-failed, .pill.overdue { background: var(--danger-tint); color: var(--danger); }
+
+.text-dim { color: var(--text-dim); }
+.text-faint { color: var(--text-faint); font-size: 12.5px; }
+.text-danger { color: var(--danger); font-weight: 700; }
+
+/* ── Buttons / inputs ─────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-dark); }
+.btn.small { padding: 6px 11px; font-size: 12.5px; }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.input {
+  width: 100%; padding: 9px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); font-size: 13.5px; background: var(--surface); color: var(--text);
+}
+.input:focus, .btn:focus-visible, .nav-link:focus-visible { outline: 2px solid var(--sidebar-accent); outline-offset: 1px; }
+.search-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.search-box { position: relative; flex: 1; min-width: 220px; }
+.search-box input { padding-left: 34px; }
+.search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-faint); }
+.filter-select { padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); font-size: 13px; background: var(--surface); }
+
+.empty-state { padding: 40px 20px; text-align: center; color: var(--text-dim); }
+.empty-state svg { opacity: 0.35; margin-bottom: 10px; }
+
+.pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-dim); }
+.pagination .btn.small[disabled] { opacity: 0.4; }
+
+/* ── Tabs (client detail) ─────────────────────────────────────────────── */
+.tabs-wrap { position: relative; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: thin; }
+.tab-btn { padding: 11px 14px; font-size: 13px; font-weight: 600; color: var(--text-dim); border-bottom: 2px solid transparent; white-space: nowrap; cursor: pointer; background: none; border-left: none; border-right: none; border-top: none; flex: none; }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+/* Overflow indication for the horizontally-scrollable tab bar — a fade at
+   the trailing edge signals more tabs exist off-screen; hidden once the bar
+   is scrolled to its end. Visible at every width, but only ever needed on
+   narrow viewports since the tabs already all fit on desktop. */
+.tabs-fade {
+  position: absolute; top: 0; right: 0; bottom: 1px; width: 30px;
+  background: linear-gradient(to right, transparent, var(--surface));
+  pointer-events: none; opacity: 0; transition: opacity .15s ease;
+}
+.tabs-fade.visible { opacity: 1; }
+
+.detail-header { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; padding: 20px; }
+.detail-avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--accent-tint); color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; flex: none; }
+.detail-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.detail-title h1 { font-size: 20px; margin: 0; }
+.detail-meta { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; font-size: 13px; color: var(--text-dim); }
+.detail-actions { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+
+.kv-list { display: grid; grid-template-columns: 140px 1fr; row-gap: 10px; column-gap: 12px; font-size: 13.5px; }
+.kv-list dt { color: var(--text-dim); font-weight: 600; }
+.kv-list dd { margin: 0; }
+
+.tech-details { margin-top: 8px; }
+.tech-details summary { cursor: pointer; font-size: 12px; color: var(--text-dim); font-weight: 600; }
+.tech-details pre { font-size: 11.5px; background: var(--surface-alt); padding: 10px; border-radius: var(--radius-sm); overflow-x: auto; white-space: pre-wrap; word-break: break-word; margin-top: 6px; border: 1px solid var(--border); }
+
+.sender-preview { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--accent-tint); border-radius: var(--radius-sm); font-size: 12.5px; color: var(--accent-dark); margin-bottom: 10px; }
+.sender-preview.blocked { background: var(--danger-tint); color: var(--danger); }
+
+.conflict-compare { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; padding: 14px; background: var(--surface-alt); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.conflict-compare .company-box { text-align: center; }
+.conflict-compare .company-box .label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-faint); font-weight: 700; margin-bottom: 6px; }
+.conflict-compare .arrow { color: var(--text-faint); font-size: 18px; }
+
+/* ── Work list ─────────────────────────────────────────────────────────── */
+.work-item { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.work-item:last-child { border-bottom: none; }
+.work-item:hover { background: var(--surface-alt); }
+.work-item-icon { width: 34px; height: 34px; border-radius: 8px; background: var(--accent-tint); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none; }
+.work-item-icon.overdue { background: var(--danger-tint); color: var(--danger); }
+.work-item-body { flex: 1; min-width: 0; }
+.work-item-label { font-weight: 600; font-size: 13.5px; }
+.work-item-sub { font-size: 12.5px; color: var(--text-dim); }
+.work-item-due { font-size: 12px; font-weight: 600; color: var(--text-dim); white-space: nowrap; }
+.work-item-due.overdue { color: var(--danger); }
+
+/* Hidden by default (desktop) — the Recently Active Clients "View all
+   clients" action only appears at mobile widths, see the media query below.
+   Desktop's Recently Active Clients card is otherwise unchanged. */
+.view-all-clients-link { display: none; }
+
+/* ── Mobile ────────────────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 40; transform: translateX(-100%); transition: transform .18s ease; box-shadow: var(--shadow-md); }
+  .sidebar.sidebar-open { transform: translateX(0); }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(10,14,26,0.45); z-index: 39; }
+  .sidebar-overlay.visible { display: block; }
+  .hamburger-btn { display: inline-flex; }
+  .topbar { padding: 12px 14px; }
+  .topbar-title { font-size: 16px; }
+  .content { padding: 14px 14px 40px; }
+  .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+  .detail-actions { width: 100%; margin-left: 0; }
+  .detail-actions .btn { flex: 1; justify-content: center; }
+  table.data-table.desktop-only { display: none; }
+  .mobile-list { display: block; }
+  .company-filter { width: 100%; overflow-x: auto; }
+  .card-header { flex-wrap: wrap; row-gap: 8px; }
+
+  /* Dashboard: seven full-width stat boxes -> compact 2-column grid.
+     Higher specificity than the generic ".grid-4" rule above (two classes
+     vs one), so this wins regardless of source order. Desktop keeps the
+     original 4-column ".grid-4" layout untouched. */
+  .dashboard-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .dashboard-stats .stat-tile { padding: 12px; }
+  .dashboard-stats .stat-value { font-size: 22px; }
+  /* Failed Communications / Review Required stay visually prominent even at
+     compact size — a tinted background in addition to the existing red
+     value text. Mobile-only; desktop's approved attention styling
+     (red number only) is unchanged. */
+  .dashboard-stats .stat-tile.attention { background: var(--danger-tint); border-color: var(--danger); }
+
+  /* Recently Active Clients: cap to 5 on mobile (desktop still shows what
+     the API returns) and reveal the "View all clients" action. */
+  #recent-clients-list .work-item:nth-child(n+6) { display: none; }
+  .view-all-clients-link { display: inline-flex; }
+}
+@media (min-width: 861px) {
+  .mobile-list { display: none; }
+}
+
+/* Compact mobile client rows */
+.mobile-client-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.mobile-client-row:last-child { border-bottom: none; }
+.mobile-client-row:active { background: var(--surface-alt); }
+.mobile-client-name { font-weight: 700; font-size: 14px; flex: 1; min-width: 0; }
+.mobile-client-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+.mobile-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent-tint); color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

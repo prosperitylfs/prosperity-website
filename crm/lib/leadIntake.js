@@ -187,7 +187,14 @@ function restFields(payload) {
 //   { outcome: 'matched' | 'created', contact, contactBrand, case }
 //   { outcome: 'brand_review_required', contact, unresolvedIntake }
 //   { outcome: 'case_review_required',  contact, contactBrand, unresolvedIntake }
-function processLeadIntake(db, { sourceId, payload }) {
+//   { outcome: 'company_conflict',      contact, unresolvedIntake }
+//
+// deps.resolveBrandSlugForSource lets tests substitute a source/brand
+// mapping without mutating crm/config/leadSources.js's shared exports —
+// same pattern as crm/lib/leadSubmission.js's deps.verifyTurnstile.
+// Production always uses the real crm/config/leadSources.js mapping.
+function processLeadIntake(db, { sourceId, payload }, deps = {}) {
+  const resolveBrandSlugForSourceFn = deps.resolveBrandSlugForSource || resolveBrandSlugForSource;
   const {
     first_name, last_name, email: rawEmail, phone,
     lead_type, lead_source,
@@ -218,7 +225,7 @@ function processLeadIntake(db, { sourceId, payload }) {
 
   // ── 4. Resolve brand strictly from the verified source — never from any
   //      client-supplied field, never from product/service. ─────────────
-  const resolvedBrandSlug = resolveBrandSlugForSource(sourceId);
+  const resolvedBrandSlug = resolveBrandSlugForSourceFn(sourceId);
 
   if (!resolvedBrandSlug) {
     const unresolvedIntake = stageUnresolvedIntake(db, {
@@ -245,6 +252,34 @@ function processLeadIntake(db, { sourceId, payload }) {
   const brandRow = getBrandRow(db, resolvedBrandSlug);
   if (!brandRow) {
     throw new Error(`processLeadIntake: configured brand slug '${resolvedBrandSlug}' was not found in the brands table — has crm/db/migrateBrands.js been run?`);
+  }
+
+  // ── Permanent-company rule: a client keeps ONE active originating company
+  //    for active business (never inferred from product). If this contact
+  //    already has an ACTIVE contact_brands relationship under a DIFFERENT
+  //    brand than the one this verified source just resolved, do not
+  //    silently create a second active relationship, transfer the contact,
+  //    or send anything — stage a company-assignment conflict for
+  //    deliberate, audited review instead. A contact with no existing
+  //    relationship, or one that already matches this brand, is unaffected
+  //    (first-time establishment / repeat lead — proceeds normally below).
+  const existingActiveBrands = db.prepare(`
+    SELECT * FROM contact_brands WHERE contact_id = ? AND status = 'Active'
+  `).all(contact.id);
+  const conflictingRelationship = existingActiveBrands.find(cb => cb.brand_id !== brandRow.id);
+
+  if (conflictingRelationship) {
+    const unresolvedIntake = stageUnresolvedIntake(db, {
+      source: sourceId,
+      rawPayload: payload,
+      candidateContactId: contact.id,
+      reason: `incoming verified source resolved to brand '${resolvedBrandSlug}', but this contact already has an active company assignment under a different brand — requires deliberate review before any second relationship is created`,
+      reviewType: 'company_conflict',
+      contactBrandId: conflictingRelationship.id,
+      incomingBrandId: brandRow.id,
+      refType, refValue: externalRef,
+    });
+    return { outcome: 'company_conflict', contact, unresolvedIntake };
   }
 
   // ── 5. Confirm the contact_brand relationship. ─────────────────────────

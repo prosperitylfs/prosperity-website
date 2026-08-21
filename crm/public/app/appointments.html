@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Appointments — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({ active: 'appointments', title: 'Appointments', subtitle: 'Upcoming first, most recent past last', showCompanyFilter: false });
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  let items;
+  try { items = await CrmApp.fetchJSON('/api/appointments?view=upcoming'); }
+  catch (e) { content.innerHTML = `<div class="empty-state">Could not load appointments: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+
+  if (!items.length) { content.innerHTML = '<div class="card"><div class="card-body"><div class="empty-state">No upcoming appointments.</div></div></div>'; return; }
+
+  content.innerHTML = `<div class="card"><div class="card-body no-pad table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Client</th><th>Type</th><th>When</th><th>Status</th></tr></thead>
+      <tbody>${items.map(a => `<tr class="clickable" data-id="${a.contact_id}">
+        <td><strong>${CrmApp.escapeHtml([a.first_name, a.last_name].filter(Boolean).join(' '))}</strong></td>
+        <td>${CrmApp.escapeHtml(a.appt_type)}</td>
+        <td>${CrmApp.friendlyDateTime(a.appt_datetime)}</td>
+        <td><span class="pill status-${(a.status || '').toLowerCase()}">${CrmApp.escapeHtml(a.status)}</span></td>
+      </tr>`).join('')}</tbody>
+    </table>
+  </div></div>`;
+  content.querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => location.href = `client.html?id=${el.dataset.id}`));
+}
+render();
+</script>
+</body>
+</html>

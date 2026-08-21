@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Communications — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({ active: 'communications', title: 'Communications', subtitle: 'Delivery status across every channel — no credentials or raw payloads shown' });
+  const content = document.getElementById('page-content');
+  const params = new URLSearchParams(location.search);
+  let statusFilter = params.get('status') || 'all';
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="card-body">
+        <div class="search-row">
+          <div class="filter-select" style="display:flex; gap:6px;" id="status-filters"></div>
+        </div>
+      </div>
+      <div class="card-body no-pad">
+        <div class="table-scroll">
+          <table class="data-table desktop-only">
+            <thead><tr><th>Company</th><th>Channel</th><th>Recipient</th><th>Status</th><th>Related Case</th><th>When</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div class="mobile-list" id="mobile-rows"></div>
+      </div>
+    </div>`;
+
+  const STATUSES = ['all', 'Queued', 'Sent', 'Delivered', 'Failed'];
+  const filterBar = document.getElementById('status-filters');
+  filterBar.style.background = 'none'; filterBar.style.padding = '0';
+  function renderFilterBar() {
+    filterBar.innerHTML = STATUSES.map(s => `<button type="button" class="btn small${statusFilter === s ? ' primary' : ''}" data-status="${s}">${s === 'all' ? 'All' : s}</button>`).join('');
+  }
+  filterBar.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-status]');
+    if (!btn) return;
+    statusFilter = btn.dataset.status;
+    renderFilterBar();
+    load();
+  });
+
+  async function load() {
+    const company = CrmApp.getCompany();
+    const qs = new URLSearchParams({ company });
+    if (statusFilter !== 'all') qs.set('status', statusFilter);
+    let data;
+    try { data = await CrmApp.fetchJSON('/api/app/communications?' + qs.toString()); }
+    catch (e) { document.getElementById('rows').innerHTML = `<tr><td colspan="6"><div class="empty-state">Could not load communications: ${CrmApp.escapeHtml(e.message)}</div></td></tr>`; return; }
+
+    const rows = document.getElementById('rows');
+    const mobileRows = document.getElementById('mobile-rows');
+    if (!data.items.length) {
+      rows.innerHTML = `<tr><td colspan="6"><div class="empty-state">No communications found.</div></td></tr>`;
+      mobileRows.innerHTML = `<div class="empty-state">No communications found.</div>`;
+      return;
+    }
+    rows.innerHTML = data.items.map(m => `<tr class="${m.status === 'Failed' ? '' : ''}">
+      <td>${m.brandId ? CrmApp.companyBadge(m.brandId, m.brandShortName) : '<span class="text-faint">Unassigned</span>'}</td>
+      <td style="text-transform:capitalize;">${CrmApp.escapeHtml(m.channel)}</td>
+      <td>${CrmApp.escapeHtml(m.recipient || '—')}</td>
+      <td><span class="pill status-${m.status.toLowerCase()}">${m.status}</span>${m.status === 'Failed' && m.failureReason ? `<div class="text-danger" style="font-size:11.5px; margin-top:3px;">${CrmApp.escapeHtml(m.failureReason)}</div>` : ''}</td>
+      <td>${CrmApp.escapeHtml(m.relatedCase || '—')}</td>
+      <td>${CrmApp.friendlyDateTime(m.timestamp)}</td>
+    </tr>`).join('');
+
+    mobileRows.innerHTML = data.items.map(m => `<div class="mobile-client-row" style="cursor:default;">
+      <div style="flex:1;">
+        <div class="mobile-client-name" style="text-transform:capitalize;">${CrmApp.escapeHtml(m.channel)} to ${CrmApp.escapeHtml(m.recipient || '—')}</div>
+        <div class="mobile-client-meta">${m.brandId ? CrmApp.companyBadge(m.brandId, m.brandShortName) : ''}<span class="text-faint">${CrmApp.friendlyDateTime(m.timestamp)}</span></div>
+        ${m.status === 'Failed' && m.failureReason ? `<div class="text-danger" style="font-size:12px; margin-top:4px;">${CrmApp.escapeHtml(m.failureReason)}</div>` : ''}
+      </div>
+      <span class="pill status-${m.status.toLowerCase()}">${m.status}</span>
+    </div>`).join('');
+  }
+
+  renderFilterBar();
+  document.addEventListener('crmapp:companychange', load);
+  load();
+}
+render();
+</script>
+</body>
+</html>

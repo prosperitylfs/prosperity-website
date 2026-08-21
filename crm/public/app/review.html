@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review Required — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({ active: 'review', title: 'Review Required', subtitle: 'Nothing here was decided automatically', showCompanyFilter: false });
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  let data;
+  try { data = await CrmApp.fetchJSON('/api/app/review'); }
+  catch (e) { content.innerHTML = `<div class="empty-state">Could not load review queues: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+
+  const params = new URLSearchParams(location.search);
+  let activeQueue = params.get('type') || 'brand';
+
+  const QUEUES = [
+    { key: 'brand', label: 'Brand Review Required', items: data.brandReview },
+    { key: 'case', label: 'Case Review Required', items: data.caseReview },
+    { key: 'company_conflict', label: 'Company-Assignment Conflicts', items: data.companyConflicts },
+    { key: 'archive', label: 'Test / Archive', items: data.testArchive },
+  ];
+
+  function evidenceBlock(evidence) {
+    if (!evidence || !evidence.length) return '';
+    return `<div style="margin-top:8px; font-size:13px;">${evidence.map(e => `<div>${CrmApp.escapeHtml(e)}</div>`).join('')}</div>`;
+  }
+
+  function techDetails(details) {
+    if (!details) return '';
+    return `<details class="tech-details"><summary>Technical details</summary><pre>${CrmApp.escapeHtml(JSON.stringify(details, null, 2))}</pre></details>`;
+  }
+
+  function confirmAction(label) {
+    alert(`"${label}" requires deliberate confirmation and is not activated in this local checkpoint. No data was changed.`);
+  }
+
+  function brandItemHtml(item) {
+    return `<div class="card" style="margin-bottom:12px;"><div class="card-body">
+      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <strong>${CrmApp.escapeHtml(item.identifier)}</strong>
+        <span class="text-faint">${CrmApp.escapeHtml(item.channelLabel)} · ${CrmApp.friendlyDate(item.receivedDate)}</span>
+      </div>
+      <div style="margin-top:6px;">${CrmApp.escapeHtml(item.reason)}</div>
+      ${evidenceBlock(item.evidence)}
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn small" data-confirm="Assign to Insurance Lady">Assign to Insurance Lady</button>
+        <button class="btn small" data-confirm="Assign to Prosperity">Assign to Prosperity</button>
+        <button class="btn small ghost" data-confirm="Archive as test">Archive as test</button>
+      </div>
+    </div></div>`;
+  }
+
+  function caseItemHtml(item) {
+    return `<div class="card" style="margin-bottom:12px;"><div class="card-body">
+      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <strong>${CrmApp.escapeHtml(item.contactName || 'Unnamed contact')}</strong>
+        ${item.brandId ? CrmApp.companyBadge(item.brandId, item.brandShortName) : ''}
+      </div>
+      <div style="margin-top:6px;">${CrmApp.escapeHtml(item.reason)}</div>
+      ${item.candidateCases && item.candidateCases.length ? `<div class="text-faint" style="margin-top:8px;">Possible matching cases: ${item.candidateCases.map(c => CrmApp.escapeHtml(c.label)).join(', ')}</div>` : ''}
+      ${techDetails(item.technicalDetails)}
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn small" data-confirm="Attach to existing case">Attach to existing case</button>
+        <button class="btn small" data-confirm="Create new case">Create new case</button>
+      </div>
+    </div></div>`;
+  }
+
+  function conflictItemHtml(item) {
+    return `<div class="card" style="margin-bottom:12px;"><div class="card-body">
+      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <strong>${CrmApp.escapeHtml(item.contactName || 'Unnamed contact')}</strong>
+        <span class="text-faint">${CrmApp.escapeHtml(item.channelLabel)} · ${CrmApp.friendlyDate(item.receivedDate)}</span>
+      </div>
+      <div style="margin-top:6px;">${CrmApp.escapeHtml(item.reason)}</div>
+      <div class="conflict-compare" style="margin-top:12px;">
+        <div class="company-box"><div class="label">Existing Company</div>${CrmApp.companyBadge(item.existingBrandId, item.existingBrandShortName)}</div>
+        <div class="arrow">vs</div>
+        <div class="company-box"><div class="label">Incoming Source Company</div>${CrmApp.companyBadge(item.incomingBrandId, item.incomingBrandShortName)}</div>
+      </div>
+      ${evidenceBlock(item.evidence)}
+      ${techDetails(item.technicalDetails)}
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn small" data-confirm="Keep existing company, do not link incoming record">Keep existing company</button>
+        <button class="btn small ghost" data-confirm="Escalate for manual transfer decision">Escalate for manual decision</button>
+      </div>
+      <div class="text-faint" style="margin-top:8px;">A transfer action is not implemented in this checkpoint — this record stays staged until a deliberate decision is made.</div>
+    </div></div>`;
+  }
+
+  function archiveItemHtml(item) {
+    return `<div class="card" style="margin-bottom:12px;"><div class="card-body">
+      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <span>${CrmApp.escapeHtml(item.reason)}</span>
+        <span class="text-faint">${CrmApp.friendlyDate(item.resolved_at)}</span>
+      </div>
+      <div class="text-faint" style="margin-top:6px;">Resolved by ${CrmApp.escapeHtml(item.resolved_by || 'unknown')}</div>
+    </div></div>`;
+  }
+
+  const RENDERERS = { brand: brandItemHtml, case: caseItemHtml, company_conflict: conflictItemHtml, archive: archiveItemHtml };
+
+  function renderQueue() {
+    const queue = QUEUES.find(q => q.key === activeQueue) || QUEUES[0];
+    const listHtml = queue.items.length
+      ? queue.items.map(RENDERERS[queue.key]).join('')
+      : '<div class="empty-state">Nothing waiting here.</div>';
+    document.getElementById('queue-body').innerHTML = listHtml;
+    document.querySelectorAll('[data-confirm]').forEach(btn => btn.addEventListener('click', () => confirmAction(btn.dataset.confirm)));
+  }
+
+  content.innerHTML = `
+    <div class="tabs" id="queue-tabs" style="background:var(--surface); border:1px solid var(--border); border-bottom:none; border-radius:var(--radius) var(--radius) 0 0; padding:0 8px;">
+      ${QUEUES.map(q => `<button class="tab-btn${q.key === activeQueue ? ' active' : ''}" data-queue="${q.key}">${q.label} <span class="text-faint">(${q.items.length})</span></button>`).join('')}
+    </div>
+    <div style="border:1px solid var(--border); border-top:none; border-radius:0 0 var(--radius) var(--radius); background:var(--surface); padding:16px;" id="queue-body"></div>
+  `;
+
+  document.getElementById('queue-tabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    activeQueue = btn.dataset.queue;
+    document.querySelectorAll('#queue-tabs .tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderQueue();
+  });
+
+  renderQueue();
+}
+render();
+</script>
+</body>
+</html>

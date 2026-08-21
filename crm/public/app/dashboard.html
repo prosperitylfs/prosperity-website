@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({ active: 'dashboard', title: 'Dashboard', subtitle: "Today's priorities across your book of business" });
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  async function load() {
+    const company = CrmApp.getCompany();
+    let data;
+    try {
+      data = await CrmApp.fetchJSON('/api/app/dashboard?company=' + encodeURIComponent(company));
+    } catch (e) {
+      content.innerHTML = `<div class="empty-state">Could not load the dashboard: ${CrmApp.escapeHtml(e.message)}</div>`;
+      return;
+    }
+    renderDashboard(data);
+  }
+
+  function statTile(value, label, target, attention, extraClass) {
+    return `<div class="stat-tile${attention ? ' attention' : ''}${extraClass ? ' ' + extraClass : ''}" data-target='${JSON.stringify(target)}'>
+      <div class="stat-value">${value}</div>
+      <div class="stat-label">${label}</div>
+    </div>`;
+  }
+
+  function workItemHtml(item) {
+    const overdueCls = item.overdue ? ' overdue' : '';
+    const dueLabel = item.type === 'appointment' ? CrmApp.friendlyDateTime(item.dueDate) : CrmApp.friendlyDate(item.dueDate);
+    const iconSvg = item.type === 'review'
+      ? '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 2 7l10 5 8-4V17h2V7l-10-5Z"/></svg>'
+      : item.type === 'appointment'
+        ? '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7Z"/></svg>'
+        : '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="m9.5 16.2-3.5-3.5L4.6 14.1l4.9 4.9 10-10-1.4-1.4z"/></svg>';
+    return `<div class="work-item" data-target='${JSON.stringify(item.target)}'>
+      <div class="work-item-icon${overdueCls}">${iconSvg}</div>
+      <div class="work-item-body">
+        <div class="work-item-label">${CrmApp.escapeHtml(item.label)}</div>
+        <div class="work-item-sub">${CrmApp.escapeHtml(item.subject)}</div>
+      </div>
+      <div class="work-item-due${overdueCls}">${item.overdue ? 'Overdue · ' : ''}${dueLabel}</div>
+    </div>`;
+  }
+
+  function goToTarget(target) {
+    if (!target) return;
+    if (target.kind === 'client') location.href = `client.html?id=${target.contactId}`;
+    else if (target.kind === 'review') location.href = `review.html?type=${target.reviewType}`;
+  }
+
+  function renderDashboard(data) {
+    const s = data.summary;
+    content.innerHTML = `
+      <div class="grid grid-4 dashboard-stats" style="margin-bottom:20px;">
+        ${statTile(s.newLeads, 'New Leads', { kind: 'review', reviewType: 'brand' })}
+        ${statTile(s.followUpsDue, 'Follow-ups Due Today', { kind: 'nav', href: 'tasks.html' })}
+        ${statTile(s.overdueTasks, 'Overdue Tasks', { kind: 'nav', href: 'tasks.html' }, s.overdueTasks > 0)}
+        ${statTile(s.todaysAppointments, "Today's Appointments", { kind: 'nav', href: 'appointments.html' })}
+        ${statTile(s.casesInProgress, 'Cases In Progress', { kind: 'nav', href: 'cases.html' })}
+        ${statTile(s.failedComms, 'Failed Communications', { kind: 'nav', href: 'communications.html?status=Failed' }, s.failedComms > 0, 'stat-failed')}
+        ${statTile(s.reviewRequired, 'Review Required', { kind: 'nav', href: 'review.html' }, s.reviewRequired > 0, 'stat-review')}
+      </div>
+
+      <div class="grid grid-2" style="align-items:start;">
+        <div class="card">
+          <div class="card-header"><h2>What needs attention</h2><span class="card-header-sub">${data.workList.length} item${data.workList.length === 1 ? '' : 's'}</span></div>
+          <div class="card-body no-pad" id="work-list">
+            ${data.workList.length ? data.workList.map(workItemHtml).join('') : '<div class="empty-state">Nothing needs attention right now.</div>'}
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card">
+            <div class="card-header"><h2>Upcoming Appointments</h2></div>
+            <div class="card-body no-pad">
+              ${data.upcomingAppointments.length ? data.upcomingAppointments.map(a => `
+                <div class="work-item" data-target='${JSON.stringify({ kind: 'client', contactId: a.contactId })}'>
+                  <div class="work-item-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7Z"/></svg></div>
+                  <div class="work-item-body">
+                    <div class="work-item-label">${CrmApp.escapeHtml(a.contactName)}</div>
+                    <div class="work-item-sub">${CrmApp.escapeHtml(a.apptType || 'Appointment')}</div>
+                  </div>
+                  <div class="work-item-due">${CrmApp.friendlyDateTime(a.apptDatetime)}</div>
+                </div>`).join('') : '<div class="empty-state">No upcoming appointments.</div>'}
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Recently Active Clients</h2>
+              <a class="btn small ghost view-all-clients-link" href="clients.html">View all clients</a>
+            </div>
+            <div class="card-body no-pad" id="recent-clients-list">
+              ${data.recentlyActive.length ? data.recentlyActive.map(c => `
+                <div class="work-item" data-target='${JSON.stringify({ kind: 'client', contactId: c.contactId })}'>
+                  <div class="mobile-avatar">${CrmApp.initials(c.contactName)}</div>
+                  <div class="work-item-body">
+                    <div class="work-item-label">${CrmApp.escapeHtml(c.contactName)}</div>
+                  </div>
+                  <div class="work-item-due">${CrmApp.friendlyDate(c.lastActivity)}</div>
+                </div>`).join('') : '<div class="empty-state">No recent activity.</div>'}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    content.querySelectorAll('[data-target]').forEach(el => {
+      el.addEventListener('click', () => {
+        const target = JSON.parse(el.dataset.target);
+        if (target.kind === 'nav') location.href = target.href;
+        else goToTarget(target);
+      });
+    });
+  }
+
+  document.addEventListener('crmapp:companychange', load);
+  load();
+}
+render();
+</script>
+</body>
+</html>

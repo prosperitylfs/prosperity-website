@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reports — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({ active: 'reports', title: 'Reports', subtitle: 'Only counts backed by real, stored data' });
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  async function load() {
+    const company = CrmApp.getCompany();
+    let data;
+    try { data = await CrmApp.fetchJSON('/api/app/dashboard?company=' + encodeURIComponent(company)); }
+    catch (e) { content.innerHTML = `<div class="empty-state">Could not load report: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+    const s = data.summary;
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header"><h2>Book of Business Summary</h2></div>
+        <div class="card-body">
+          <dl class="kv-list">
+            <dt>New leads</dt><dd>${s.newLeads}</dd>
+            <dt>Cases in progress</dt><dd>${s.casesInProgress}</dd>
+            <dt>Follow-ups due today</dt><dd>${s.followUpsDue}</dd>
+            <dt>Overdue tasks</dt><dd>${s.overdueTasks}</dd>
+            <dt>Today's appointments</dt><dd>${s.todaysAppointments}</dd>
+            <dt>Failed communications</dt><dd>${s.failedComms}</dd>
+            <dt>Review Required items</dt><dd>${s.reviewRequired}</dd>
+          </dl>
+          <p class="text-faint" style="margin-top:16px;">This report intentionally shows only counts of real, stored records — no projected commissions, renewal estimates, or lead-temperature scoring, since no reliable data for those exists yet.</p>
+        </div>
+      </div>`;
+  }
+
+  document.addEventListener('crmapp:companychange', load);
+  load();
+}
+render();
+</script>
+</body>
+</html>

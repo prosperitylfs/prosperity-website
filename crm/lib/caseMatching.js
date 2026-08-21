@@ -74,23 +74,40 @@ function createCase(db, { contactBrandId, productId, title, status = 'Open' }) {
 }
 
 // reviewType: 'brand' (the brand relationship itself is unresolved — Brand
-// Review Required) or 'case' (brand relationship is known; which case this
-// belongs to is uncertain — Case Review Required). contactBrandId/productId/
-// refType/refValue are structured evidence for the dashboard to display —
-// see crm/db/migrateDashboard.js.
+// Review Required), 'case' (brand relationship is known; which case this
+// belongs to is uncertain — Case Review Required), or 'company_conflict'
+// (a verified source resolved to a DIFFERENT brand than a contact's
+// existing active company assignment — Company-Assignment Conflict; see
+// crm/lib/leadIntake.js). contactBrandId/productId/refType/refValue are
+// structured evidence for the dashboard to display — see
+// crm/db/migrateDashboard.js. incomingBrandId (crm/db/migrateCrmApp.js) is
+// used only for 'company_conflict': contactBrandId identifies the EXISTING
+// relationship, incomingBrandId the NEW brand the incoming source resolved
+// to — every other reviewType leaves it null.
 function stageUnresolvedIntake(db, {
   source, rawPayload, candidateContactId, reason,
   reviewType = 'brand', contactBrandId = null, productId = null,
-  refType = null, refValue = null,
+  refType = null, refValue = null, incomingBrandId = null,
 }) {
+  // incoming_brand_id (crm/db/migrateCrmApp.js) is a newer, optional column
+  // — many existing callers/tests build a db that only ran migrateBrands.js
+  // + migrateDashboard.js and never migrateCrmApp.js. Checked dynamically
+  // (not assumed present) so this function keeps working unmodified against
+  // every already-approved db shape; only dbs that HAVE the column ever
+  // receive a value for it.
+  const hasIncomingBrandCol = db.prepare("PRAGMA table_info(unresolved_intake)").all().some(c => c.name === 'incoming_brand_id');
+
+  const cols = ['source', 'raw_payload', 'candidate_contact_id', 'reason', 'status', 'review_type', 'contact_brand_id', 'product_id', 'ref_type', 'ref_value'];
+  const vals = [source, JSON.stringify(rawPayload || {}), candidateContactId || null, reason, 'Pending', reviewType, contactBrandId || null, productId || null, refType || null, refValue || null];
+  if (hasIncomingBrandCol) {
+    cols.push('incoming_brand_id');
+    vals.push(incomingBrandId || null);
+  }
+
   const result = db.prepare(`
-    INSERT INTO unresolved_intake
-      (source, raw_payload, candidate_contact_id, reason, status, review_type, contact_brand_id, product_id, ref_type, ref_value)
-    VALUES (?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?)
-  `).run(
-    source, JSON.stringify(rawPayload || {}), candidateContactId || null, reason,
-    reviewType, contactBrandId || null, productId || null, refType || null, refValue || null
-  );
+    INSERT INTO unresolved_intake (${cols.join(', ')})
+    VALUES (${cols.map(() => '?').join(', ')})
+  `).run(...vals);
   return db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(result.lastInsertRowid);
 }
 

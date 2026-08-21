@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clients — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({ active: 'clients', title: 'Clients', subtitle: 'Search, filter, and open any client record' });
+  const content = document.getElementById('page-content');
+
+  let state = { search: '', status: 'active', sort: 'name', page: 1, pageSize: 25 };
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="card-body">
+        <div class="search-row">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.8 10.6l5.3 5.3 1.4-1.4-5.3-5.3A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"/></svg>
+            <input class="input" id="client-search" type="text" placeholder="Search by name, phone, email, or product">
+          </div>
+          <select class="filter-select" id="status-filter">
+            <option value="active">Active clients</option>
+            <option value="archived">Archived clients</option>
+            <option value="all">All clients</option>
+          </select>
+          <select class="filter-select" id="sort-select">
+            <option value="name">Sort: Name</option>
+            <option value="nextAction">Sort: Next action due date</option>
+            <option value="lastActivity">Sort: Most recent activity</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-body no-pad">
+        <div class="table-scroll">
+          <table class="data-table desktop-only">
+            <thead><tr>
+              <th>Client</th><th>Company</th><th>Product</th><th>Status</th>
+              <th>Next Action</th><th>Due</th><th>Last Activity</th><th></th>
+            </tr></thead>
+            <tbody id="client-rows"></tbody>
+          </table>
+        </div>
+        <div class="mobile-list" id="mobile-client-list"></div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+  `;
+
+  const searchInput = document.getElementById('client-search');
+  const statusSelect = document.getElementById('status-filter');
+  const sortSelect = document.getElementById('sort-select');
+  let searchTimer;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { state.search = searchInput.value; state.page = 1; load(); }, 200);
+  });
+  statusSelect.addEventListener('change', () => { state.status = statusSelect.value; state.page = 1; load(); });
+  sortSelect.addEventListener('change', () => { state.sort = sortSelect.value; state.page = 1; load(); });
+  document.addEventListener('crmapp:companychange', () => { state.page = 1; load(); });
+
+  function primaryCase(cases) {
+    return cases.find(c => c.caseStatus !== 'Archived') || cases[0] || null;
+  }
+
+  function clientRowHtml(c) {
+    const main = primaryCase(c.cases);
+    const badges = c.brandIds.map(b => CrmApp.companyBadge(b)).join(' ');
+    const nextAction = main && main.nextAction ? (main.nextAction.notes || main.nextAction.taskType) : '—';
+    const due = main && main.dueDate ? CrmApp.friendlyDate(main.dueDate) : '—';
+    const overdue = c.nearestDueOverdue;
+    return `<tr class="clickable" data-id="${c.contactId}">
+      <td><strong>${CrmApp.escapeHtml(c.contactName)}</strong>${c.activeCaseCount > 1 ? `<div class="text-faint">${c.activeCaseCount} active cases</div>` : ''}</td>
+      <td>${badges}</td>
+      <td>${main ? CrmApp.escapeHtml(main.productName || '—') : '—'}</td>
+      <td>${main ? `<span class="pill status-${(main.caseStatus || '').toLowerCase()}">${CrmApp.escapeHtml(main.caseStatus)}</span>` : '—'}</td>
+      <td>${CrmApp.escapeHtml(nextAction)}</td>
+      <td class="${overdue ? 'text-danger' : ''}">${overdue ? 'Overdue · ' : ''}${due}</td>
+      <td>${main ? CrmApp.friendlyDate(main.lastActivity) : '—'}</td>
+      <td><button class="btn small" data-view="${c.contactId}">View Client</button></td>
+    </tr>`;
+  }
+
+  function mobileRowHtml(c) {
+    const badges = c.brandIds.map(b => CrmApp.companyBadge(b)).join(' ');
+    const main = primaryCase(c.cases);
+    return `<div class="mobile-client-row" data-id="${c.contactId}">
+      <div class="mobile-avatar">${CrmApp.initials(c.contactName)}</div>
+      <div style="flex:1; min-width:0;">
+        <div class="mobile-client-name">${CrmApp.escapeHtml(c.contactName)}</div>
+        <div class="mobile-client-meta">${badges}${c.activeCaseCount > 1 ? `<span class="text-faint">${c.activeCaseCount} cases</span>` : ''}</div>
+      </div>
+      <div class="text-faint" style="text-align:right;">${main ? CrmApp.friendlyDate(main.dueDate) : ''}</div>
+    </div>`;
+  }
+
+  async function load() {
+    const company = CrmApp.getCompany();
+    const params = new URLSearchParams({
+      company, status: state.status, search: state.search, sort: state.sort,
+      page: state.page, pageSize: state.pageSize,
+    });
+    let data;
+    try {
+      data = await CrmApp.fetchJSON('/api/app/clients?' + params.toString());
+    } catch (e) {
+      document.getElementById('client-rows').innerHTML = `<tr><td colspan="8"><div class="empty-state">Could not load clients: ${CrmApp.escapeHtml(e.message)}</div></td></tr>`;
+      return;
+    }
+
+    const rowsEl = document.getElementById('client-rows');
+    const mobileEl = document.getElementById('mobile-client-list');
+    if (!data.contacts.length) {
+      rowsEl.innerHTML = `<tr><td colspan="8"><div class="empty-state">No clients found${state.search ? ' for “' + CrmApp.escapeHtml(state.search) + '”' : ''}.</div></td></tr>`;
+      mobileEl.innerHTML = `<div class="empty-state">No clients found.</div>`;
+    } else {
+      rowsEl.innerHTML = data.contacts.map(clientRowHtml).join('');
+      mobileEl.innerHTML = data.contacts.map(mobileRowHtml).join('');
+    }
+
+    document.querySelectorAll('#client-rows tr[data-id], #mobile-client-list [data-id]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        location.href = `client.html?id=${el.dataset.id}`;
+      });
+    });
+    document.querySelectorAll('button[data-view]').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); location.href = `client.html?id=${btn.dataset.view}`; });
+    });
+
+    const p = data.pagination;
+    const pagEl = document.getElementById('pagination');
+    if (!p.totalContacts) { pagEl.innerHTML = ''; }
+    else {
+      pagEl.innerHTML = `
+        <span>${p.rangeStart}–${p.rangeEnd} of ${p.totalContacts} clients</span>
+        <span>
+          <button class="btn small" id="prev-page" ${p.page <= 1 ? 'disabled' : ''}>Previous</button>
+          <button class="btn small" id="next-page" ${p.page >= p.totalPages ? 'disabled' : ''}>Next</button>
+        </span>`;
+      const prev = document.getElementById('prev-page'), next = document.getElementById('next-page');
+      prev && prev.addEventListener('click', () => { state.page = Math.max(1, p.page - 1); load(); });
+      next && next.addEventListener('click', () => { state.page = Math.min(p.totalPages, p.page + 1); load(); });
+    }
+  }
+
+  load();
+}
+render();
+</script>
+</body>
+</html>

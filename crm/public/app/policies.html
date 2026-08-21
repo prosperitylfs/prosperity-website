@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Policies — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({ active: 'policies', title: 'Policies', subtitle: 'Ready to track once carrier data is on file' });
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  async function load() {
+    const company = CrmApp.getCompany();
+    let data;
+    try { data = await CrmApp.fetchJSON('/api/app/policies?company=' + encodeURIComponent(company)); }
+    catch (e) { content.innerHTML = `<div class="empty-state">Could not load policies: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+
+    if (!data.items.length) {
+      content.innerHTML = `<div class="card"><div class="card-body"><div class="empty-state">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/></svg>
+        <div>No policies on file yet. This section is ready to display carrier, coverage, and premium details as soon as real policy data exists.</div>
+      </div></div></div>`;
+      return;
+    }
+
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-body no-pad">
+          <div class="table-scroll">
+            <table class="data-table desktop-only">
+              <thead><tr><th>Client</th><th>Company</th><th>Product</th><th>Carrier</th><th>Policy #</th><th>Status</th><th>Coverage</th><th>Premium</th><th>Renewal</th></tr></thead>
+              <tbody>${data.items.map(p => `<tr class="clickable" data-id="${p.contactId}">
+                <td><strong>${CrmApp.escapeHtml(p.contactName)}</strong></td>
+                <td>${CrmApp.companyBadge(p.brandId, p.brandShortName)}</td>
+                <td>${CrmApp.escapeHtml(p.productName || '—')}</td>
+                <td>${CrmApp.escapeHtml(p.carrier || '—')}</td>
+                <td>${CrmApp.escapeHtml(p.policyNumber || '—')}</td>
+                <td><span class="pill status-${(p.policyStatus || '').toLowerCase()}">${CrmApp.escapeHtml(p.policyStatus || '—')}</span></td>
+                <td>${p.coverageAmount ? '$' + Number(p.coverageAmount).toLocaleString() : '—'}</td>
+                <td>${p.premium ? '$' + Number(p.premium).toLocaleString() : '—'}</td>
+                <td>${CrmApp.escapeHtml(p.renewalDate || '—')}</td>
+              </tr>`).join('')}</tbody>
+            </table>
+          </div>
+          <div class="mobile-list">
+            ${data.items.map(p => `<div class="mobile-client-row" data-id="${p.contactId}">
+              <div class="mobile-avatar">${CrmApp.initials(p.contactName)}</div>
+              <div style="flex:1;">
+                <div class="mobile-client-name">${CrmApp.escapeHtml(p.contactName)}</div>
+                <div class="mobile-client-meta">${CrmApp.companyBadge(p.brandId, p.brandShortName)}<span class="text-faint">${CrmApp.escapeHtml(p.carrier || 'No carrier')}</span></div>
+              </div>
+              <span class="pill status-${(p.policyStatus || '').toLowerCase()}">${CrmApp.escapeHtml(p.policyStatus || '—')}</span>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+
+    content.querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => location.href = `client.html?id=${el.dataset.id}`));
+  }
+
+  document.addEventListener('crmapp:companychange', load);
+  load();
+}
+render();
+</script>
+</body>
+</html>

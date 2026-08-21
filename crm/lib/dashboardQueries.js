@@ -97,7 +97,35 @@ function batchNextActions(db, caseIds) {
 //
 // Returns { contacts: [{ contactId, contactName, cases: [...], activeCaseCount,
 //   brandIds, nearestDueDate, nearestDueOverdue }], pagination: {...} }
-function getCaseList(db, { brandId = null, statusFilter = 'active', search = '', page = 1, pageSize = 25 } = {}) {
+// DB-level ORDER BY for the client list. 'name' is a plain column sort.
+// 'dueDate'/'nextAction' order by each contact's nearest PENDING task due
+// date (correlated subquery — contacts with no pending task sort last).
+// 'lastActivity' orders by each contact's most recent case.updated_at
+// (a reasonable, indexable proxy for full activity recency — the complete
+// multi-source "last activity" shown on each case, via batchLastActivity,
+// still reflects every source; only the SORT key uses this cheaper proxy).
+function buildClientListOrderBy(sort) {
+  const dueDateExpr = `(
+    SELECT MIN(t.due_date) FROM follow_up_tasks t
+    JOIN cases cc ON cc.id = t.case_id
+    JOIN contact_brands ccb ON ccb.id = cc.contact_brand_id
+    WHERE ccb.contact_id = ct.id AND t.status = 'Pending'
+  )`;
+  const lastActivityExpr = `(
+    SELECT MAX(cc.updated_at) FROM cases cc
+    JOIN contact_brands ccb ON ccb.id = cc.contact_brand_id
+    WHERE ccb.contact_id = ct.id
+  )`;
+  if (sort === 'dueDate' || sort === 'nextAction') {
+    return `${dueDateExpr} IS NULL, ${dueDateExpr} ASC, ct.last_name COLLATE NOCASE, ct.first_name COLLATE NOCASE, ct.id`;
+  }
+  if (sort === 'lastActivity') {
+    return `${lastActivityExpr} IS NULL, ${lastActivityExpr} DESC, ct.last_name COLLATE NOCASE, ct.first_name COLLATE NOCASE, ct.id`;
+  }
+  return 'ct.last_name COLLATE NOCASE, ct.first_name COLLATE NOCASE, ct.id';
+}
+
+function getCaseList(db, { brandId = null, statusFilter = 'active', search = '', page = 1, pageSize = 25, sort = 'name' } = {}) {
   const clauses = [];
   const params = [];
 
@@ -146,7 +174,7 @@ function getCaseList(db, { brandId = null, statusFilter = 'active', search = '',
     JOIN brands b           ON b.id = cb.brand_id
     LEFT JOIN products p    ON p.id = c.product_id
     ${where}
-    ORDER BY ct.last_name COLLATE NOCASE, ct.first_name COLLATE NOCASE, ct.id
+    ORDER BY ${buildClientListOrderBy(sort)}
     LIMIT ? OFFSET ?
   `).all(...params, pageSize, offset);
 
@@ -346,6 +374,398 @@ function getCaseReviewQueue(db) {
   });
 }
 
+// ── Company-Assignment Conflicts ────────────────────────────────────────────
+// See crm/lib/leadIntake.js (permanent-company rule) and
+// crm/db/migrateCrmApp.js (incoming_brand_id column).
+
+function friendlyCompanyConflictReason() {
+  return 'This person already has an active relationship with one company. A new inquiry verified as coming from the other company was NOT automatically linked — review and choose how to proceed.';
+}
+
+function getCompanyConflictQueue(db) {
+  const rows = db.prepare(`
+    SELECT * FROM unresolved_intake
+    WHERE review_type = 'company_conflict' AND status = 'Pending'
+    ORDER BY created_at ASC
+  `).all();
+
+  return rows.map(row => {
+    let contactName = null;
+    let existingBrandId = null, existingBrandShortName = null;
+    if (row.contact_brand_id) {
+      const link = db.prepare(`
+        SELECT ct.first_name, ct.last_name, b.slug AS brand_id
+        FROM contact_brands cb
+        JOIN contacts ct ON ct.id = cb.contact_id
+        JOIN brands b     ON b.id = cb.brand_id
+        WHERE cb.id = ?
+      `).get(row.contact_brand_id);
+      if (link) {
+        contactName = contactDisplayName(link);
+        existingBrandId = link.brand_id;
+        const brand = publicBrandIdentity(link.brand_id);
+        existingBrandShortName = brand ? brand.shortName : link.brand_id;
+      }
+    }
+    let incomingBrandId = null, incomingBrandShortName = null;
+    if (row.incoming_brand_id) {
+      const b = db.prepare('SELECT slug FROM brands WHERE id = ?').get(row.incoming_brand_id);
+      if (b) {
+        incomingBrandId = b.slug;
+        const brand = publicBrandIdentity(b.slug);
+        incomingBrandShortName = brand ? brand.shortName : b.slug;
+      }
+    }
+    const { evidence } = summarizeIntakeEvidence(row.raw_payload);
+
+    return {
+      intakeId: row.id,
+      contactName,
+      existingBrandId, existingBrandShortName,
+      incomingBrandId, incomingBrandShortName,
+      receivedDate: toIsoUtc(row.created_at),
+      channelLabel: friendlySourceLabel(row.source),
+      evidence,
+      reason: friendlyCompanyConflictReason(),
+      technicalDetails: { refType: row.ref_type, refValue: row.ref_value, rawReason: row.reason },
+    };
+  });
+}
+
+// ── Client detail ───────────────────────────────────────────────────────────
+// Full record for one contact: identity, every contact_brand relationship
+// (a contact may historically have more than one — see the permanent-
+// company rule for how a SECOND one is now prevented from being created
+// silently going forward), every case under each, tasks, appointments,
+// communications, notes. Read-only; never selects a sender, never triggers
+// anything.
+
+// Real audit entries only — when each company relationship was established,
+// and every unresolved_intake decision (pending or resolved) tied to this
+// contact, exactly as recorded by crm/lib/reviewResolution.js. Never
+// fabricates an event that didn't actually happen.
+function getClientAuditHistory(db, contactId, brandLinks) {
+  const entries = brandLinks.map(link => {
+    const brand = publicBrandIdentity(link.brand_id);
+    return {
+      type: 'company_established',
+      label: `Company assignment established: ${brand ? brand.shortName : link.brand_id}`,
+      timestamp: toIsoUtc(link.created_at),
+    };
+  });
+
+  const intakeRows = db.prepare(`
+    SELECT * FROM unresolved_intake WHERE candidate_contact_id = ? ORDER BY created_at ASC
+  `).all(contactId);
+
+  for (const row of intakeRows) {
+    entries.push({
+      type: 'intake_staged',
+      label: `Staged for review (${row.review_type.replace('_', ' ')}): ${row.reason}`,
+      timestamp: toIsoUtc(row.created_at),
+    });
+    if (row.status !== 'Pending') {
+      entries.push({
+        type: 'intake_resolved',
+        label: `Review resolved — decision: ${row.decision || row.status}${row.resolved_by ? ` (by ${row.resolved_by})` : ''}`,
+        timestamp: toIsoUtc(row.resolved_at),
+      });
+    }
+  }
+
+  return entries.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+}
+
+function getClientDetail(db, contactId) {
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
+  if (!contact) return null;
+
+  const brandLinks = db.prepare(`
+    SELECT cb.id AS contact_brand_id, cb.status, cb.created_at, b.slug AS brand_id
+    FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id
+    WHERE cb.contact_id = ?
+    ORDER BY cb.created_at ASC
+  `).all(contactId);
+
+  const contactBrands = brandLinks.map(link => {
+    const brand = publicBrandIdentity(link.brand_id);
+    const caseRows = db.prepare(`
+      SELECT c.id AS case_id, c.status, c.title, c.opened_at, c.closed_at, c.updated_at, p.name AS product_name
+      FROM cases c LEFT JOIN products p ON p.id = c.product_id
+      WHERE c.contact_brand_id = ?
+      ORDER BY c.opened_at DESC
+    `).all(link.contact_brand_id);
+
+    const caseIds = caseRows.map(c => c.case_id);
+    const nextActions = batchNextActions(db, caseIds);
+    const lastActivities = batchLastActivity(db, caseIds);
+    const policyStmt = db.prepare('SELECT * FROM policies WHERE case_id = ? ORDER BY id ASC');
+
+    const cases = caseRows.map(c => {
+      const nextAction = nextActions.get(c.case_id) || null;
+      const baseline = toIsoUtc(c.updated_at);
+      const fromSources = lastActivities.get(c.case_id) || null;
+      return {
+        caseId: c.case_id,
+        status: c.status,
+        title: c.title,
+        productName: c.product_name,
+        openedAt: toIsoUtc(c.opened_at),
+        closedAt: toIsoUtc(c.closed_at),
+        lastActivity: fromSources && fromSources > baseline ? fromSources : baseline,
+        nextAction: nextAction ? { taskType: nextAction.task_type, notes: nextAction.notes, dueDate: nextAction.due_date, dueTime: nextAction.due_time } : null,
+        policies: policyStmt.all(c.case_id),
+      };
+    });
+
+    return {
+      contactBrandId: link.contact_brand_id,
+      brandId: link.brand_id,
+      brandShortName: brand ? brand.shortName : link.brand_id,
+      status: link.status,
+      establishedAt: toIsoUtc(link.created_at),
+      cases,
+    };
+  });
+
+  const contactBrandIds = brandLinks.map(l => l.contact_brand_id);
+  const idPh = contactBrandIds.length ? contactBrandIds.map(() => '?').join(',') : null;
+
+  const tasks = idPh ? db.prepare(`
+    SELECT * FROM follow_up_tasks WHERE contact_id = ? ORDER BY (status = 'Pending') DESC, due_date ASC, due_time ASC
+  `).all(contactId) : [];
+
+  const appointments = db.prepare('SELECT * FROM appointments WHERE contact_id = ? ORDER BY appt_datetime DESC').all(contactId);
+
+  const communications = db.prepare(`
+    SELECT 'form' AS channel, id, subject AS summary, body, status, created_at AS timestamp, contact_brand_id, case_id FROM communications WHERE contact_id = ?
+    UNION ALL
+    SELECT 'call' AS channel, id, notes AS summary, transcription AS body, status, COALESCE(started_at, created_at) AS timestamp, contact_brand_id, case_id FROM comm_calls WHERE contact_id = ?
+    UNION ALL
+    SELECT 'sms' AS channel, id, NULL AS summary, body, status, sent_at AS timestamp, contact_brand_id, case_id FROM sms_messages WHERE contact_id = ?
+    UNION ALL
+    SELECT 'email' AS channel, id, subject AS summary, body, status, sent_at AS timestamp, contact_brand_id, case_id FROM emails WHERE contact_id = ?
+    ORDER BY timestamp DESC
+  `).all(contactId, contactId, contactId, contactId).map(row => ({
+    ...row,
+    timestamp: toIsoUtc(row.timestamp),
+    status: row.status ? normalizeMessageStatus(row.status) : row.status,
+  }));
+
+  const notes = db.prepare('SELECT * FROM contact_notes WHERE contact_id = ? ORDER BY created_at DESC').all(contactId)
+    .map(n => ({ ...n, created_at: toIsoUtc(n.created_at) }));
+
+  return {
+    contact: {
+      contactId: contact.id,
+      name: contactDisplayName(contact),
+      firstName: contact.first_name,
+      lastName: contact.last_name,
+      email: contact.email,
+      phone: contact.phone,
+      phoneE164: contact.phone_e164,
+      city: contact.city || null,
+      state: contact.state || null,
+      leadStatus: contact.lead_status,
+      smsConsent: !!contact.sms_consent,
+      emailConsent: !!contact.email_consent,
+    },
+    contactBrands,
+    tasks: tasks.map(t => ({ ...t, due_date: t.due_date, created_at: toIsoUtc(t.created_at) })),
+    appointments: appointments.map(a => ({ ...a, appt_datetime: toIsoUtc(a.appt_datetime) })),
+    communications,
+    notes,
+    auditHistory: getClientAuditHistory(db, contactId, brandLinks),
+  };
+}
+
+// ── Dashboard summary ───────────────────────────────────────────────────────
+// Counts and a prioritized work list — never decorative metrics. brandId:
+// null/'all' for All Companies, or a brand slug to scope everything to one
+// company. Every count is derived from real rows, never invented.
+
+function brandFilterClause(brandId, alias) {
+  if (!brandId || brandId === 'all') return { clause: '', params: [] };
+  return { clause: `AND ${alias}.slug = ?`, params: [brandId] };
+}
+
+function getDashboardSummary(db, { brandId = null } = {}) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const { clause: bClause, params: bParams } = brandFilterClause(brandId, 'b');
+
+  const newLeads = db.prepare(`
+    SELECT COUNT(*) AS n FROM unresolved_intake WHERE status = 'Pending' AND review_type = 'brand'
+  `).get().n;
+
+  const followUpsDue = db.prepare(`
+    SELECT COUNT(*) AS n
+    FROM follow_up_tasks t
+    LEFT JOIN cases c ON c.id = t.case_id
+    LEFT JOIN contact_brands cb ON cb.id = c.contact_brand_id
+    LEFT JOIN brands b ON b.id = cb.brand_id
+    WHERE t.status = 'Pending' AND t.due_date = ? ${bClause}
+  `).get(todayStr, ...bParams).n;
+
+  const overdueTasks = db.prepare(`
+    SELECT COUNT(*) AS n
+    FROM follow_up_tasks t
+    LEFT JOIN cases c ON c.id = t.case_id
+    LEFT JOIN contact_brands cb ON cb.id = c.contact_brand_id
+    LEFT JOIN brands b ON b.id = cb.brand_id
+    WHERE t.status = 'Pending' AND t.due_date < ? ${bClause}
+  `).get(todayStr, ...bParams).n;
+
+  const todaysAppointments = db.prepare(`
+    SELECT COUNT(*) AS n FROM appointments a
+    WHERE a.status = 'Scheduled' AND substr(a.appt_datetime, 1, 10) = ?
+  `).get(todayStr).n;
+
+  const casesInProgress = db.prepare(`
+    SELECT COUNT(*) AS n FROM cases c
+    JOIN contact_brands cb ON cb.id = c.contact_brand_id
+    JOIN brands b ON b.id = cb.brand_id
+    WHERE c.status = 'Open' ${bClause}
+  `).get(...bParams).n;
+
+  const failedComms = getMessageDeliveryStatus(db, { brandId }).filter(m => m.status === 'Failed').length;
+
+  const reviewRequired =
+    getBrandReviewQueue(db).length +
+    getCaseReviewQueue(db).length +
+    getCompanyConflictQueue(db).length;
+
+  return {
+    newLeads, followUpsDue, overdueTasks,
+    todaysAppointments, casesInProgress, failedComms, reviewRequired,
+  };
+}
+
+// Prioritized, openable work items — every item names a concrete next step
+// and a concrete target to open (client/case/task/appointment/message/
+// review item). Never a decorative metric.
+function getWorkList(db, { brandId = null, limit = 15 } = {}) {
+  const { clause: bClause, params: bParams } = brandFilterClause(brandId, 'b');
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const items = [];
+
+  const overdue = db.prepare(`
+    SELECT t.id AS task_id, t.notes, t.due_date, t.priority, t.contact_id, ct.first_name, ct.last_name
+    FROM follow_up_tasks t
+    JOIN contacts ct ON ct.id = t.contact_id
+    LEFT JOIN cases c ON c.id = t.case_id
+    LEFT JOIN contact_brands cb ON cb.id = c.contact_brand_id
+    LEFT JOIN brands b ON b.id = cb.brand_id
+    WHERE t.status = 'Pending' AND t.due_date <= ? ${bClause}
+    ORDER BY t.due_date ASC, (t.priority = 'High') DESC
+    LIMIT ?
+  `).all(todayStr, ...bParams, limit).map(r => ({
+    type: 'task',
+    id: r.task_id,
+    label: r.notes || 'Follow up',
+    subject: contactDisplayName(r),
+    dueDate: r.due_date,
+    overdue: r.due_date < todayStr,
+    target: { kind: 'client', contactId: r.contact_id },
+  }));
+  items.push(...overdue);
+
+  const appts = db.prepare(`
+    SELECT a.id AS appt_id, a.appt_type, a.appt_datetime, a.contact_id, ct.first_name, ct.last_name
+    FROM appointments a
+    JOIN contacts ct ON ct.id = a.contact_id
+    WHERE a.status = 'Scheduled' AND substr(a.appt_datetime,1,10) >= ?
+    ORDER BY a.appt_datetime ASC
+    LIMIT ?
+  `).all(todayStr, limit).map(r => ({
+    type: 'appointment',
+    id: r.appt_id,
+    label: `${r.appt_type || 'Appointment'} — follow up`,
+    subject: contactDisplayName(r),
+    dueDate: toIsoUtc(r.appt_datetime),
+    overdue: false,
+    target: { kind: 'client', contactId: r.contact_id },
+  }));
+  items.push(...appts);
+
+  for (const item of getBrandReviewQueue(db)) {
+    items.push({ type: 'review', id: item.intakeId, label: 'Resolve an intake — brand unclear', subject: item.identifier, dueDate: item.receivedDate, overdue: false, target: { kind: 'review', reviewType: 'brand', intakeId: item.intakeId } });
+  }
+  for (const item of getCaseReviewQueue(db)) {
+    items.push({ type: 'review', id: item.intakeId, label: 'Resolve a case-review item', subject: item.contactName || 'Unnamed contact', dueDate: item.receivedDate, overdue: false, target: { kind: 'review', reviewType: 'case', intakeId: item.intakeId } });
+  }
+  for (const item of getCompanyConflictQueue(db)) {
+    items.push({ type: 'review', id: item.intakeId, label: 'Resolve a company-assignment conflict', subject: item.contactName || 'Unnamed contact', dueDate: item.receivedDate, overdue: false, target: { kind: 'review', reviewType: 'company_conflict', intakeId: item.intakeId } });
+  }
+
+  return items
+    .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)))
+    .slice(0, limit);
+}
+
+function getUpcomingAppointments(db, { limit = 10 } = {}) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  return db.prepare(`
+    SELECT a.id, a.appt_type, a.appt_datetime, a.contact_id, ct.first_name, ct.last_name
+    FROM appointments a JOIN contacts ct ON ct.id = a.contact_id
+    WHERE a.status = 'Scheduled' AND substr(a.appt_datetime,1,10) >= ?
+    ORDER BY a.appt_datetime ASC LIMIT ?
+  `).all(todayStr, limit).map(r => ({
+    appointmentId: r.id, apptType: r.appt_type, apptDatetime: toIsoUtc(r.appt_datetime),
+    contactId: r.contact_id, contactName: contactDisplayName(r),
+  }));
+}
+
+function getRecentlyActiveClients(db, { limit = 8 } = {}) {
+  return db.prepare(`
+    SELECT ct.id AS contact_id, ct.first_name, ct.last_name, MAX(ct.updated_at) AS ts
+    FROM contacts ct
+    GROUP BY ct.id
+    ORDER BY ts DESC
+    LIMIT ?
+  `).all(limit).map(r => ({ contactId: r.contact_id, contactName: contactDisplayName(r), lastActivity: toIsoUtc(r.ts) }));
+}
+
+// ── Policies (see crm/db/migrateCrmApp.js — real, empty-by-default table) ──
+
+function getPoliciesList(db, { brandId = null } = {}) {
+  const { clause: bClause, params: bParams } = brandFilterClause(brandId, 'b');
+  const rows = db.prepare(`
+    SELECT
+      pol.*, ct.id AS contact_id, ct.first_name, ct.last_name,
+      b.slug AS brand_id, p.name AS product_name
+    FROM policies pol
+    JOIN cases c ON c.id = pol.case_id
+    JOIN contact_brands cb ON cb.id = c.contact_brand_id
+    JOIN contacts ct ON ct.id = cb.contact_id
+    JOIN brands b ON b.id = cb.brand_id
+    LEFT JOIN products p ON p.id = c.product_id
+    WHERE 1=1 ${bClause}
+    ORDER BY pol.updated_at DESC
+  `).all(...bParams);
+
+  return rows.map(row => {
+    const brand = publicBrandIdentity(row.brand_id);
+    return {
+      policyId: row.id,
+      caseId: row.case_id,
+      contactId: row.contact_id,
+      contactName: contactDisplayName(row),
+      brandId: row.brand_id,
+      brandShortName: brand ? brand.shortName : row.brand_id,
+      productName: row.product_name,
+      carrier: row.carrier,
+      policyNumber: row.policy_number,
+      policyStatus: row.policy_status,
+      effectiveDate: row.effective_date,
+      premium: row.premium,
+      premiumFrequency: row.premium_frequency,
+      coverageAmount: row.coverage_amount,
+      beneficiary: row.beneficiary,
+      renewalDate: row.renewal_date,
+    };
+  });
+}
+
 // ── Message delivery status ─────────────────────────────────────────────────
 
 function normalizeMessageStatus(raw) {
@@ -417,4 +837,11 @@ module.exports = {
   getOpenCasesForContactBrand,
   getMessageDeliveryStatus,
   normalizeMessageStatus,
+  getCompanyConflictQueue,
+  getClientDetail,
+  getDashboardSummary,
+  getWorkList,
+  getUpcomingAppointments,
+  getRecentlyActiveClients,
+  getPoliciesList,
 };

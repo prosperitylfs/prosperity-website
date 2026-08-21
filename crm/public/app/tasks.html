@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tasks — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({ active: 'tasks', title: 'Tasks', subtitle: 'Pending follow-ups across every client', showCompanyFilter: false });
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  let data;
+  try { data = await CrmApp.fetchJSON('/api/app/tasks?status=Pending'); }
+  catch (e) { content.innerHTML = `<div class="empty-state">Could not load tasks: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const items = data.items;
+  if (!items.length) { content.innerHTML = '<div class="card"><div class="card-body"><div class="empty-state">No pending tasks.</div></div></div>'; return; }
+
+  content.innerHTML = `<div class="card"><div class="card-body no-pad table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Client</th><th>Type</th><th>Notes</th><th>Due</th><th>Priority</th></tr></thead>
+      <tbody>${items.map(t => {
+        const overdue = t.due_date < todayStr;
+        return `<tr class="clickable" data-id="${t.contact_id}">
+          <td><strong>${CrmApp.escapeHtml([t.first_name, t.last_name].filter(Boolean).join(' '))}</strong></td>
+          <td>${CrmApp.escapeHtml(t.task_type)}</td>
+          <td>${CrmApp.escapeHtml(t.notes || '—')}</td>
+          <td class="${overdue ? 'text-danger' : ''}">${overdue ? 'Overdue · ' : ''}${CrmApp.friendlyDate(t.due_date)}</td>
+          <td>${CrmApp.escapeHtml(t.priority)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div></div>`;
+  content.querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => location.href = `client.html?id=${el.dataset.id}`));
+}
+render();
+</script>
+</body>
+</html>

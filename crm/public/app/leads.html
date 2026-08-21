@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leads — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({ active: 'leads', title: 'Leads', subtitle: 'New inquiries not yet assigned to a company', showCompanyFilter: false });
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  let data;
+  try { data = await CrmApp.fetchJSON('/api/app/review'); }
+  catch (e) { content.innerHTML = `<div class="empty-state">Could not load leads: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+
+  const items = data.brandReview;
+  content.innerHTML = `<div class="card">
+    <div class="card-header"><h2>New Leads</h2><span class="card-header-sub">${items.length} waiting</span></div>
+    <div class="card-body no-pad">
+      ${items.length ? items.map(item => `<div class="work-item">
+        <div class="work-item-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 2 8l10 6 8-4.8V17h2V8L12 2Z"/></svg></div>
+        <div class="work-item-body">
+          <div class="work-item-label">${CrmApp.escapeHtml(item.identifier)}</div>
+          <div class="work-item-sub">${CrmApp.escapeHtml(item.channelLabel)} · ${CrmApp.escapeHtml(item.reason)}</div>
+        </div>
+        <div class="work-item-due">${CrmApp.friendlyDate(item.receivedDate)}</div>
+      </div>`).join('') : '<div class="empty-state">No new leads waiting.</div>'}
+    </div>
+    <div class="card-body"><a class="btn" href="review.html?type=brand">Open in Review Required</a></div>
+  </div>`;
+}
+render();
+</script>
+</body>
+</html>

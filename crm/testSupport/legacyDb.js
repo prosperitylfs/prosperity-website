@@ -62,6 +62,7 @@ function createLegacyDb() {
     CREATE TABLE comm_calls (
       id                  INTEGER PRIMARY KEY AUTOINCREMENT,
       contact_id          INTEGER,
+      contact_name        TEXT,
       direction           TEXT,
       from_number         TEXT,
       to_number           TEXT,
@@ -69,6 +70,8 @@ function createLegacyDb() {
       duration_sec        INTEGER,
       recording_url       TEXT,
       provider_call_uuid  TEXT,
+      notes               TEXT,
+      transcription       TEXT,
       started_at          DATETIME,
       answered_at         DATETIME,
       ended_at            DATETIME,

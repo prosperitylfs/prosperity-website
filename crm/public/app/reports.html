@@ -12,36 +12,69 @@
 <script src="shell.js"></script>
 <script>
 async function render() {
-  CrmApp.mount({ active: 'reports', title: 'Reports', subtitle: 'Only counts backed by real, stored data' });
+  CrmApp.mount({ active: 'reports', title: 'Reports', subtitle: 'Only counts backed by real, stored data', showCompanyFilter: false });
   const content = document.getElementById('page-content');
   content.innerHTML = '<div class="empty-state">Loading…</div>';
 
-  async function load() {
-    const company = CrmApp.getCompany();
-    let data;
-    try { data = await CrmApp.fetchJSON('/api/app/dashboard?company=' + encodeURIComponent(company)); }
-    catch (e) { content.innerHTML = `<div class="empty-state">Could not load report: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
-    const s = data.summary;
-    content.innerHTML = `
-      <div class="card">
-        <div class="card-header"><h2>Book of Business Summary</h2></div>
-        <div class="card-body">
-          <dl class="kv-list">
-            <dt>New leads</dt><dd>${s.newLeads}</dd>
-            <dt>Cases in progress</dt><dd>${s.casesInProgress}</dd>
-            <dt>Follow-ups due today</dt><dd>${s.followUpsDue}</dd>
-            <dt>Overdue tasks</dt><dd>${s.overdueTasks}</dd>
-            <dt>Today's appointments</dt><dd>${s.todaysAppointments}</dd>
-            <dt>Failed communications</dt><dd>${s.failedComms}</dd>
-            <dt>Review Required items</dt><dd>${s.reviewRequired}</dd>
-          </dl>
-          <p class="text-faint" style="margin-top:16px;">This report intentionally shows only counts of real, stored records — no projected commissions, renewal estimates, or lead-temperature scoring, since no reliable data for those exists yet.</p>
-        </div>
-      </div>`;
+  let s;
+  try { s = await CrmApp.fetchJSON('/api/app/reports'); }
+  catch (e) { content.innerHTML = `<div class="empty-state">Could not load reports: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+
+  function byCompanyRows(list) {
+    const il = list.find(x => x.brand_id === 'insurance-lady');
+    const pr = list.find(x => x.brand_id === 'prosperity');
+    return `<dt>${CrmApp.companyBadge('insurance-lady', 'Insurance Lady')}</dt><dd>${il ? il.n : 0}</dd>
+            <dt>${CrmApp.companyBadge('prosperity', 'Prosperity')}</dt><dd>${pr ? pr.n : 0}</dd>`;
   }
 
-  document.addEventListener('crmapp:companychange', load);
-  load();
+  const policyRows = {};
+  s.policiesByCompanyStatus.forEach(p => { policyRows[p.brand_id] = policyRows[p.brand_id] || {}; policyRows[p.brand_id][p.status] = p.n; });
+
+  content.innerHTML = `
+    <div class="grid grid-2">
+      <div class="card"><div class="card-header"><h2>Clients by Company</h2></div>
+        <div class="card-body"><dl class="kv-list">${byCompanyRows(s.clientsByCompany)}</dl></div>
+      </div>
+      <div class="card"><div class="card-header"><h2>Active Cases by Company</h2></div>
+        <div class="card-body"><dl class="kv-list">${byCompanyRows(s.activeCasesByCompany)}</dl></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header"><h2>Policies by Company and Status</h2></div>
+      <div class="card-body no-pad table-scroll">
+        <table class="data-table">
+          <thead><tr><th>Company</th>${['Pending', 'Active', 'Lapsed', 'Cancelled'].map(st => `<th>${st}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${['insurance-lady', 'prosperity'].map(b => `<tr>
+              <td>${CrmApp.companyBadge(b, b === 'insurance-lady' ? 'Insurance Lady' : 'Prosperity')}</td>
+              ${['Pending', 'Active', 'Lapsed', 'Cancelled'].map(st => `<td>${(policyRows[b] && policyRows[b][st]) || 0}</td>`).join('')}
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:16px;">
+      <div class="card"><div class="card-header"><h2>Tasks</h2></div>
+        <div class="card-body"><dl class="kv-list"><dt>Due today</dt><dd>${s.tasksDue}</dd><dt>Overdue</dt><dd>${s.tasksOverdue}</dd></dl></div>
+      </div>
+      <div class="card"><div class="card-header"><h2>Review Required</h2></div>
+        <div class="card-body"><dl class="kv-list">
+          <dt>Brand Review</dt><dd>${s.reviewTotals.brand}</dd>
+          <dt>Case Review</dt><dd>${s.reviewTotals.case}</dd>
+          <dt>Company Conflicts</dt><dd>${s.reviewTotals.companyConflict}</dd>
+        </dl></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header"><h2>Communication Delivery Status</h2></div>
+      <div class="card-body"><dl class="kv-list">${s.commsByStatus.map(c => `<dt>${c.status}</dt><dd>${c.n}</dd>`).join('')}</dl></div>
+    </div>
+
+    <p class="text-faint" style="margin-top:16px;">This report intentionally shows only counts of real, stored records — no projected commissions, renewal estimates, or lead-temperature scoring, since no reliable data for those exists yet.</p>
+  `;
 }
 render();
 </script>

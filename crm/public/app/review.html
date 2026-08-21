@@ -11,37 +11,39 @@
 <script src="../config.js"></script>
 <script src="shell.js"></script>
 <script>
+const PRODUCTS_BY_BRAND = {
+  'insurance-lady': ['Online life-insurance application', 'Cash-building life insurance', 'Whole life/final expense', 'Cash cancer insurance', 'Annuities and safe-money solutions', 'Follow-up/service'],
+  prosperity: ['Life insurance', 'Annuities', 'Rollovers and safe-money solutions', 'Follow-up/service'],
+};
+
 async function render() {
   CrmApp.mount({ active: 'review', title: 'Review Required', subtitle: 'Nothing here was decided automatically', showCompanyFilter: false });
   const content = document.getElementById('page-content');
   content.innerHTML = '<div class="empty-state">Loading…</div>';
 
-  let data;
-  try { data = await CrmApp.fetchJSON('/api/app/review'); }
-  catch (e) { content.innerHTML = `<div class="empty-state">Could not load review queues: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
-
   const params = new URLSearchParams(location.search);
   let activeQueue = params.get('type') || 'brand';
 
-  const QUEUES = [
-    { key: 'brand', label: 'Brand Review Required', items: data.brandReview },
-    { key: 'case', label: 'Case Review Required', items: data.caseReview },
-    { key: 'company_conflict', label: 'Company-Assignment Conflicts', items: data.companyConflicts },
-    { key: 'archive', label: 'Test / Archive', items: data.testArchive },
-  ];
+  let prosperityClients = [];
+
+  async function load() {
+    let data;
+    try { data = await CrmApp.fetchJSON('/api/app/review'); }
+    catch (e) { content.innerHTML = `<div class="empty-state">Could not load review queues: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+    try {
+      const clientsResp = await CrmApp.fetchJSON('/api/app/clients?company=prosperity&status=active&pageSize=200');
+      prosperityClients = clientsResp.contacts || [];
+    } catch { prosperityClients = []; }
+    renderShell(data);
+  }
 
   function evidenceBlock(evidence) {
     if (!evidence || !evidence.length) return '';
     return `<div style="margin-top:8px; font-size:13px;">${evidence.map(e => `<div>${CrmApp.escapeHtml(e)}</div>`).join('')}</div>`;
   }
-
   function techDetails(details) {
     if (!details) return '';
     return `<details class="tech-details"><summary>Technical details</summary><pre>${CrmApp.escapeHtml(JSON.stringify(details, null, 2))}</pre></details>`;
-  }
-
-  function confirmAction(label) {
-    alert(`"${label}" requires deliberate confirmation and is not activated in this local checkpoint. No data was changed.`);
   }
 
   function brandItemHtml(item) {
@@ -53,25 +55,43 @@ async function render() {
       <div style="margin-top:6px;">${CrmApp.escapeHtml(item.reason)}</div>
       ${evidenceBlock(item.evidence)}
       <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn small" data-confirm="Assign to Insurance Lady">Assign to Insurance Lady</button>
-        <button class="btn small" data-confirm="Assign to Prosperity">Assign to Prosperity</button>
-        <button class="btn small ghost" data-confirm="Archive as test">Archive as test</button>
+        <button class="btn small" data-brand-resolve="${item.intakeId}" data-decision="insurance-lady">Assign to Insurance Lady</button>
+        <button class="btn small" data-brand-resolve="${item.intakeId}" data-decision="prosperity">Assign to Prosperity</button>
+        <button class="btn small ghost" data-brand-resolve="${item.intakeId}" data-decision="test_archive">Archive as test</button>
       </div>
     </div></div>`;
   }
 
   function caseItemHtml(item) {
+    const candidateOptions = (item.candidateCases || []).map(c => `<option value="${c.caseId}">${CrmApp.escapeHtml(c.label)}</option>`).join('');
+    const brandForProducts = item.brandId || 'prosperity';
     return `<div class="card" style="margin-bottom:12px;"><div class="card-body">
       <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
         <strong>${CrmApp.escapeHtml(item.contactName || 'Unnamed contact')}</strong>
         ${item.brandId ? CrmApp.companyBadge(item.brandId, item.brandShortName) : ''}
       </div>
       <div style="margin-top:6px;">${CrmApp.escapeHtml(item.reason)}</div>
-      ${item.candidateCases && item.candidateCases.length ? `<div class="text-faint" style="margin-top:8px;">Possible matching cases: ${item.candidateCases.map(c => CrmApp.escapeHtml(c.label)).join(', ')}</div>` : ''}
       ${techDetails(item.technicalDetails)}
-      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn small" data-confirm="Attach to existing case">Attach to existing case</button>
-        <button class="btn small" data-confirm="Create new case">Create new case</button>
+      ${candidateOptions ? `
+        <div class="form-field" style="margin-top:12px;">
+          <label>Attach to which case?</label>
+          <select class="input" data-attach-select="${item.intakeId}">
+            <option value="">Choose a case…</option>
+            ${candidateOptions}
+          </select>
+        </div>
+        <button class="btn small" style="margin-top:8px;" data-case-resolve="${item.intakeId}" data-action="attach_existing_case">Attach to Selected Case</button>
+      ` : ''}
+      ${!item.productName ? `
+        <div class="form-field" style="margin-top:12px;">
+          <label>Product / service for a new case</label>
+          <select class="input" data-product-select="${item.intakeId}">
+            ${PRODUCTS_BY_BRAND[brandForProducts].map(p => `<option>${p}</option>`).join('')}
+          </select>
+        </div>` : ''}
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn small" data-case-resolve="${item.intakeId}" data-action="create_new_case">Create New Case</button>
+        <button class="btn small ghost" data-case-resolve="${item.intakeId}" data-action="test_archive">Archive as test</button>
       </div>
     </div></div>`;
   }
@@ -80,21 +100,44 @@ async function render() {
     return `<div class="card" style="margin-bottom:12px;"><div class="card-body">
       <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
         <strong>${CrmApp.escapeHtml(item.contactName || 'Unnamed contact')}</strong>
-        <span class="text-faint">${CrmApp.escapeHtml(item.channelLabel)} · ${CrmApp.friendlyDate(item.receivedDate)}</span>
+        <span class="text-faint">${item.kind === 'company_change' ? 'Manually requested' : CrmApp.escapeHtml(item.channelLabel)} · ${CrmApp.friendlyDate(item.receivedDate)}</span>
       </div>
       <div style="margin-top:6px;">${CrmApp.escapeHtml(item.reason)}</div>
       <div class="conflict-compare" style="margin-top:12px;">
         <div class="company-box"><div class="label">Existing Company</div>${CrmApp.companyBadge(item.existingBrandId, item.existingBrandShortName)}</div>
         <div class="arrow">vs</div>
-        <div class="company-box"><div class="label">Incoming Source Company</div>${CrmApp.companyBadge(item.incomingBrandId, item.incomingBrandShortName)}</div>
+        <div class="company-box"><div class="label">${item.kind === 'company_change' ? 'Requested Company' : 'Incoming Source Company'}</div>${CrmApp.companyBadge(item.incomingBrandId, item.incomingBrandShortName)}</div>
       </div>
       ${evidenceBlock(item.evidence)}
       ${techDetails(item.technicalDetails)}
       <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn small" data-confirm="Keep existing company, do not link incoming record">Keep existing company</button>
-        <button class="btn small ghost" data-confirm="Escalate for manual transfer decision">Escalate for manual decision</button>
+        <button class="btn small" data-company-resolve="${item.intakeId}" data-action="keep_existing">Keep Existing Company</button>
+        <button class="btn small ghost" data-company-resolve="${item.intakeId}" data-action="test_archive">Archive as test</button>
       </div>
-      <div class="text-faint" style="margin-top:8px;">A transfer action is not implemented in this checkpoint — this record stays staged until a deliberate decision is made.</div>
+      <div class="text-faint" style="margin-top:8px;">A transfer action is not implemented in this checkpoint — the only resolutions are keeping the existing company or archiving as test.</div>
+    </div></div>`;
+  }
+
+  function unknownSmsItemHtml(item) {
+    const clientOptions = prosperityClients.map(c => `<option value="${c.contactId}">${CrmApp.escapeHtml(c.contactName)}</option>`).join('');
+    return `<div class="card" style="margin-bottom:12px;"><div class="card-body">
+      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <strong>${CrmApp.escapeHtml(item.fromNumber || 'Unknown number')}</strong>
+        <span class="text-faint">Prosperity 414 number · ${CrmApp.friendlyDate(item.receivedDate)}</span>
+      </div>
+      <div style="margin-top:6px;">${CrmApp.escapeHtml(item.reason)}</div>
+      <div class="sender-preview" style="margin-top:10px;">"${CrmApp.escapeHtml(item.body || '')}"</div>
+      <div class="form-field" style="margin-top:12px;">
+        <label>Attach to which Prosperity client?</label>
+        <select class="input" data-unknown-sms-client="${item.intakeId}">
+          <option value="">Choose a client…</option>
+          ${clientOptions}
+        </select>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn small" data-unknown-sms-resolve="${item.intakeId}">Attach to Client</button>
+        <button class="btn small ghost" data-archive-review="${item.intakeId}">Archive</button>
+      </div>
     </div></div>`;
   }
 
@@ -108,33 +151,122 @@ async function render() {
     </div></div>`;
   }
 
-  const RENDERERS = { brand: brandItemHtml, case: caseItemHtml, company_conflict: conflictItemHtml, archive: archiveItemHtml };
+  const RENDERERS = { brand: brandItemHtml, case: caseItemHtml, company_conflict: conflictItemHtml, unknown_sms: unknownSmsItemHtml, archive: archiveItemHtml };
+  let currentData;
 
-  function renderQueue() {
+  function renderQueueBody() {
+    const QUEUES = [
+      { key: 'brand', label: 'Brand Review Required', items: currentData.brandReview },
+      { key: 'case', label: 'Case Review Required', items: currentData.caseReview },
+      { key: 'company_conflict', label: 'Company-Assignment Conflicts', items: currentData.companyConflicts },
+      { key: 'unknown_sms', label: 'Unrecognized Text Senders', items: currentData.unknownSmsReview },
+      { key: 'archive', label: 'Test / Archive', items: currentData.testArchive },
+    ];
+    document.getElementById('queue-tabs').innerHTML = QUEUES.map(q => `<button class="tab-btn${q.key === activeQueue ? ' active' : ''}" data-queue="${q.key}">${q.label} <span class="text-faint">(${q.items.length})</span></button>`).join('');
     const queue = QUEUES.find(q => q.key === activeQueue) || QUEUES[0];
-    const listHtml = queue.items.length
-      ? queue.items.map(RENDERERS[queue.key]).join('')
-      : '<div class="empty-state">Nothing waiting here.</div>';
-    document.getElementById('queue-body').innerHTML = listHtml;
-    document.querySelectorAll('[data-confirm]').forEach(btn => btn.addEventListener('click', () => confirmAction(btn.dataset.confirm)));
+    document.getElementById('queue-body').innerHTML = queue.items.length ? queue.items.map(RENDERERS[queue.key]).join('') : '<div class="empty-state">Nothing waiting here.</div>';
+    return QUEUES;
   }
 
-  content.innerHTML = `
-    <div class="tabs" id="queue-tabs" style="background:var(--surface); border:1px solid var(--border); border-bottom:none; border-radius:var(--radius) var(--radius) 0 0; padding:0 8px;">
-      ${QUEUES.map(q => `<button class="tab-btn${q.key === activeQueue ? ' active' : ''}" data-queue="${q.key}">${q.label} <span class="text-faint">(${q.items.length})</span></button>`).join('')}
-    </div>
-    <div style="border:1px solid var(--border); border-top:none; border-radius:0 0 var(--radius) var(--radius); background:var(--surface); padding:16px;" id="queue-body"></div>
-  `;
+  function renderShell(data) {
+    currentData = data;
+    content.innerHTML = `
+      <div class="tabs" id="queue-tabs" style="background:var(--surface); border:1px solid var(--border); border-bottom:none; border-radius:var(--radius) var(--radius) 0 0; padding:0 8px;"></div>
+      <div style="border:1px solid var(--border); border-top:none; border-radius:0 0 var(--radius) var(--radius); background:var(--surface); padding:16px;" id="queue-body"></div>
+    `;
+    renderQueueBody();
 
-  document.getElementById('queue-tabs').addEventListener('click', (e) => {
-    const btn = e.target.closest('.tab-btn');
-    if (!btn) return;
-    activeQueue = btn.dataset.queue;
-    document.querySelectorAll('#queue-tabs .tab-btn').forEach(b => b.classList.toggle('active', b === btn));
-    renderQueue();
-  });
+    document.getElementById('queue-tabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab-btn');
+      if (!btn) return;
+      activeQueue = btn.dataset.queue;
+      renderQueueBody();
+    });
 
-  renderQueue();
+    document.getElementById('queue-body').addEventListener('click', async (e) => {
+      const brandBtn = e.target.closest('[data-brand-resolve]');
+      if (brandBtn) {
+        const decision = brandBtn.dataset.decision;
+        const label = decision === 'test_archive' ? 'archive this intake as a test' : `assign this person to ${decision === 'insurance-lady' ? 'Insurance Lady' : 'Prosperity'}`;
+        const ok = await CrmApp.confirmAction(`Confirm: ${label}?`, { confirmLabel: 'Confirm', danger: decision === 'test_archive' });
+        if (!ok) return;
+        try {
+          await CrmApp.postJSON(`/api/app/review/brand/${brandBtn.dataset.brandResolve}/resolve`, 'POST', { decision });
+          CrmApp.toast('Resolved.');
+          load();
+        } catch (err) { CrmApp.toast(err.message, { error: true }); }
+        return;
+      }
+
+      const caseBtn = e.target.closest('[data-case-resolve]');
+      if (caseBtn) {
+        const intakeId = caseBtn.dataset.caseResolve;
+        const action = caseBtn.dataset.action;
+        const body = { action };
+        if (action === 'attach_existing_case') {
+          const sel = document.querySelector(`[data-attach-select="${intakeId}"]`);
+          if (!sel || !sel.value) { CrmApp.toast('Choose a case to attach to first.', { error: true }); return; }
+          body.targetCaseId = Number(sel.value);
+        }
+        if (action === 'create_new_case') {
+          const prodSel = document.querySelector(`[data-product-select="${intakeId}"]`);
+          if (prodSel) body.productName = prodSel.value;
+        }
+        const label = action === 'attach_existing_case' ? 'attach this to the selected case' : action === 'create_new_case' ? 'create a genuinely new case' : 'archive this intake as a test';
+        const ok = await CrmApp.confirmAction(`Confirm: ${label}?`, { confirmLabel: 'Confirm', danger: action === 'test_archive' });
+        if (!ok) return;
+        try {
+          await CrmApp.postJSON(`/api/app/review/case/${intakeId}/resolve`, 'POST', body);
+          CrmApp.toast('Resolved.');
+          load();
+        } catch (err) { CrmApp.toast(err.message, { error: true }); }
+        return;
+      }
+
+      const companyBtn = e.target.closest('[data-company-resolve]');
+      if (companyBtn) {
+        const action = companyBtn.dataset.action;
+        const label = action === 'keep_existing' ? 'keep the existing company (the incoming record stays unlinked)' : 'archive this as a test';
+        const ok = await CrmApp.confirmAction(`Confirm: ${label}?`, { confirmLabel: 'Confirm', danger: action === 'test_archive' });
+        if (!ok) return;
+        try {
+          await CrmApp.postJSON(`/api/app/review/company/${companyBtn.dataset.companyResolve}/resolve`, 'POST', { action });
+          CrmApp.toast('Resolved.');
+          load();
+        } catch (err) { CrmApp.toast(err.message, { error: true }); }
+        return;
+      }
+
+      const unknownSmsBtn = e.target.closest('[data-unknown-sms-resolve]');
+      if (unknownSmsBtn) {
+        const intakeId = unknownSmsBtn.dataset.unknownSmsResolve;
+        const sel = document.querySelector(`[data-unknown-sms-client="${intakeId}"]`);
+        if (!sel || !sel.value) { CrmApp.toast('Choose a client to attach this message to first.', { error: true }); return; }
+        const clientLabel = sel.options[sel.selectedIndex].textContent;
+        const ok = await CrmApp.confirmAction(`Confirm: attach this text message to ${clientLabel}?`, { confirmLabel: 'Attach' });
+        if (!ok) return;
+        try {
+          await CrmApp.postJSON(`/api/app/review/unknown-sms/${intakeId}/resolve`, 'POST', { contactId: Number(sel.value) });
+          CrmApp.toast('Message attached.');
+          load();
+        } catch (err) { CrmApp.toast(err.message, { error: true }); }
+        return;
+      }
+
+      const archiveBtn = e.target.closest('[data-archive-review]');
+      if (archiveBtn) {
+        const ok = await CrmApp.confirmAction('Confirm: archive this review item as a test?', { confirmLabel: 'Archive', danger: true });
+        if (!ok) return;
+        try {
+          await CrmApp.postJSON(`/api/app/review/${archiveBtn.dataset.archiveReview}/archive`, 'POST');
+          CrmApp.toast('Archived.');
+          load();
+        } catch (err) { CrmApp.toast(err.message, { error: true }); }
+      }
+    });
+  }
+
+  load();
 }
 render();
 </script>

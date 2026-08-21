@@ -37,9 +37,27 @@ const LAST_ACTIVITY_SOURCES = [
   { table: 'contact_notes',   column: 'created_at' },
   { table: 'follow_up_tasks', column: 'COALESCE(completed_at, created_at)' },
   { table: 'appointments',    column: 'updated_at' },
+  { table: 'activities',      column: 'COALESCE(updated_at, activity_at)' },
   // cases.updated_at itself is folded in separately as the baseline, since
   // it's already selected on the primary case-list query.
 ];
+
+// activities (crm/db/migrateCrmCore.js) is a newer, optional table — many
+// existing callers/tests build a db that never ran that migration. Checked
+// dynamically (not assumed present) so every source below keeps working
+// unmodified against every already-approved db shape.
+function tableExists(db, name) {
+  return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
+}
+
+// comm_calls.outcome/summary (crm/db/migrateRevenueMvp.js) are newer,
+// optional columns — many existing callers/tests build a db that never ran
+// that migration. Checked dynamically so every source below keeps working
+// unmodified against every already-approved db shape (same pattern as
+// tableExists() above).
+function columnExists(db, table, column) {
+  return db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === column);
+}
 
 // One query per source table (batched across every case id being
 // displayed), not one query per case — ready for a real-sized dataset.
@@ -48,6 +66,7 @@ function batchLastActivity(db, caseIds) {
   if (!caseIds.length) return latest;
   const placeholders = caseIds.map(() => '?').join(',');
   for (const { table, column } of LAST_ACTIVITY_SOURCES) {
+    if (!tableExists(db, table)) continue;
     const rows = db.prepare(`
       SELECT case_id, MAX(${column}) AS ts
       FROM ${table}
@@ -382,10 +401,18 @@ function friendlyCompanyConflictReason() {
   return 'This person already has an active relationship with one company. A new inquiry verified as coming from the other company was NOT automatically linked — review and choose how to proceed.';
 }
 
+// Surfaces BOTH automatically-detected conflicts (review_type
+// 'company_conflict', staged by crm/lib/leadIntake.js) and manually
+// requested changes (review_type 'company_change', staged by
+// crm/lib/clientService.js's requestCompanyChange) in one queue — they
+// share the same existing-vs-incoming shape and the same resolution
+// actions (crm/lib/reviewResolution.js's resolveCompanyConflict). Each
+// item's `kind` field tells the frontend which one it is, so a manual
+// request is never mislabeled as something the system caught on its own.
 function getCompanyConflictQueue(db) {
   const rows = db.prepare(`
     SELECT * FROM unresolved_intake
-    WHERE review_type = 'company_conflict' AND status = 'Pending'
+    WHERE review_type IN ('company_conflict', 'company_change') AND status = 'Pending'
     ORDER BY created_at ASC
   `).all();
 
@@ -420,14 +447,39 @@ function getCompanyConflictQueue(db) {
 
     return {
       intakeId: row.id,
+      kind: row.review_type, // 'company_conflict' (auto-detected) | 'company_change' (manually requested)
       contactName,
       existingBrandId, existingBrandShortName,
       incomingBrandId, incomingBrandShortName,
       receivedDate: toIsoUtc(row.created_at),
       channelLabel: friendlySourceLabel(row.source),
       evidence,
-      reason: friendlyCompanyConflictReason(),
+      reason: row.review_type === 'company_change' ? row.reason : friendlyCompanyConflictReason(),
       technicalDetails: { refType: row.ref_type, refValue: row.ref_value, rawReason: row.reason },
+    };
+  });
+}
+
+// Inbound texts to the Prosperity number that couldn't be matched to
+// exactly one active Prosperity client (crm/lib/inboundSmsService.js) —
+// Prosperity Revenue MVP, Requirement 3 ("route unknown or ambiguous
+// numbers to Review Required"). Read-only; resolving one is
+// crm/lib/reviewResolution.js's resolveUnknownSmsReview.
+function getUnknownSmsReviewQueue(db) {
+  const rows = db.prepare(`
+    SELECT * FROM unresolved_intake WHERE review_type = 'unknown_sms_sender' AND status = 'Pending' ORDER BY created_at ASC
+  `).all();
+  return rows.map(row => {
+    let payload = {};
+    try { payload = JSON.parse(row.raw_payload || '{}'); } catch { payload = {}; }
+    return {
+      intakeId: row.id,
+      fromNumber: payload.From || null,
+      toNumber: payload.To || null,
+      body: payload.Body || null,
+      messageSid: payload.MessageSid || null,
+      receivedDate: toIsoUtc(row.created_at),
+      reason: row.reason,
     };
   });
 }
@@ -537,23 +589,60 @@ function getClientDetail(db, contactId) {
 
   const appointments = db.prepare('SELECT * FROM appointments WHERE contact_id = ? ORDER BY appt_datetime DESC').all(contactId);
 
+  // activities (crm/db/migrateCrmCore.js) is optional/newer — only joined in
+  // when the table actually exists, so this keeps working unmodified
+  // against every already-approved (older) db shape.
+  const activitiesUnion = tableExists(db, 'activities')
+    ? `UNION ALL
+       SELECT 'activity' AS channel, id, (activity_type || ': ' || COALESCE(summary, '')) AS summary, details AS body, NULL AS status, COALESCE(updated_at, activity_at) AS timestamp, contact_brand_id, case_id FROM activities WHERE contact_id = ? AND archived_at IS NULL`
+    : '';
+  const communicationsParams = [contactId, contactId, contactId, contactId];
+  if (activitiesUnion) communicationsParams.push(contactId);
+
   const communications = db.prepare(`
     SELECT 'form' AS channel, id, subject AS summary, body, status, created_at AS timestamp, contact_brand_id, case_id FROM communications WHERE contact_id = ?
     UNION ALL
-    SELECT 'call' AS channel, id, notes AS summary, transcription AS body, status, COALESCE(started_at, created_at) AS timestamp, contact_brand_id, case_id FROM comm_calls WHERE contact_id = ?
+    SELECT 'call' AS channel, id, COALESCE(${columnExists(db, 'comm_calls', 'outcome') ? "outcome || ' — ' || summary, summary" : 'NULL'}, notes) AS summary, COALESCE(notes, transcription) AS body, status, COALESCE(started_at, created_at) AS timestamp, contact_brand_id, case_id FROM comm_calls WHERE contact_id = ?
     UNION ALL
     SELECT 'sms' AS channel, id, NULL AS summary, body, status, sent_at AS timestamp, contact_brand_id, case_id FROM sms_messages WHERE contact_id = ?
     UNION ALL
     SELECT 'email' AS channel, id, subject AS summary, body, status, sent_at AS timestamp, contact_brand_id, case_id FROM emails WHERE contact_id = ?
+    ${activitiesUnion}
     ORDER BY timestamp DESC
-  `).all(contactId, contactId, contactId, contactId).map(row => ({
+  `).all(...communicationsParams).map(row => ({
     ...row,
     timestamp: toIsoUtc(row.timestamp),
     status: row.status ? normalizeMessageStatus(row.status) : row.status,
   }));
 
-  const notes = db.prepare('SELECT * FROM contact_notes WHERE contact_id = ? ORDER BY created_at DESC').all(contactId)
-    .map(n => ({ ...n, created_at: toIsoUtc(n.created_at) }));
+  // Legacy notes (contact_notes) are historical/read-only display records.
+  // New notes created via crm/lib/activityService.js's addNote/editNote live
+  // in `activities` (activity_type='note') so they can support real edit
+  // audit history — see crm/lib/activityService.js. `source` tells the
+  // frontend which id-space `id` belongs to (only 'activity' notes are
+  // editable through /api/app/notes/:id).
+  const legacyNotes = db.prepare('SELECT * FROM contact_notes WHERE contact_id = ? ORDER BY created_at DESC').all(contactId)
+    .map(n => ({ id: n.id, source: 'legacy', body: n.body, created_at: toIsoUtc(n.created_at) }));
+  const activityNotes = tableExists(db, 'activities')
+    ? db.prepare(`SELECT * FROM activities WHERE contact_id = ? AND activity_type = 'note' AND archived_at IS NULL ORDER BY activity_at DESC`).all(contactId)
+        .map(n => ({ id: n.id, source: 'activity', body: n.details, created_at: toIsoUtc(n.updated_at || n.activity_at) }))
+    : [];
+  const notes = [...legacyNotes, ...activityNotes].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+
+  // Dedicated chronological text thread (Prosperity Revenue MVP,
+  // Requirement 4) — full raw fields (direction/from/to/failure reason),
+  // distinct from the mixed `communications` timeline above which only
+  // carries a generic summary/body/status. SELECT * so this keeps working
+  // against an older db that hasn't run crm/db/migrateRevenueMvp.js yet
+  // (failure_reason just won't be present on each row).
+  const smsThread = db.prepare('SELECT * FROM sms_messages WHERE contact_id = ? ORDER BY sent_at ASC, id ASC').all(contactId)
+    .map(m => ({ ...m, sent_at: toIsoUtc(m.sent_at), status: normalizeMessageStatus(m.status) }));
+
+  // Real call log (Twilio-tracked + manually logged) for this client, most
+  // recent first — the dedicated Call Log UI reads this directly rather
+  // than the mixed communications timeline's collapsed one-line summary.
+  const callLog = db.prepare('SELECT * FROM comm_calls WHERE contact_id = ? ORDER BY COALESCE(started_at, created_at) DESC').all(contactId)
+    .map(c => ({ ...c, started_at: c.started_at ? toIsoUtc(c.started_at) : null, created_at: toIsoUtc(c.created_at) }));
 
   return {
     contact: {
@@ -564,16 +653,25 @@ function getClientDetail(db, contactId) {
       email: contact.email,
       phone: contact.phone,
       phoneE164: contact.phone_e164,
+      address: contact.street_address || null,
       city: contact.city || null,
       state: contact.state || null,
+      zip: contact.zip_code || null,
+      dateOfBirth: contact.date_of_birth || null,
+      originalSource: contact.lead_source || null,
+      generalNotes: contact.general_notes || null,
       leadStatus: contact.lead_status,
       smsConsent: !!contact.sms_consent,
       emailConsent: !!contact.email_consent,
+      smsOptedOutAt: contact.sms_opted_out_at ? toIsoUtc(contact.sms_opted_out_at) : null,
+      archivedAt: contact.archived_at ? toIsoUtc(contact.archived_at) : null,
     },
     contactBrands,
     tasks: tasks.map(t => ({ ...t, due_date: t.due_date, created_at: toIsoUtc(t.created_at) })),
     appointments: appointments.map(a => ({ ...a, appt_datetime: toIsoUtc(a.appt_datetime) })),
     communications,
+    smsThread,
+    callLog,
     notes,
     auditHistory: getClientAuditHistory(db, contactId, brandLinks),
   };
@@ -638,6 +736,53 @@ function getDashboardSummary(db, { brandId = null } = {}) {
     newLeads, followUpsDue, overdueTasks,
     todaysAppointments, casesInProgress, failedComms, reviewRequired,
   };
+}
+
+// Deliberately narrow: only real, stored totals — clients by company,
+// active cases by company, policies by company/status, tasks due/overdue,
+// communication delivery status, and review-required totals. No projected
+// commissions, renewal estimates, or lead-temperature scoring.
+function getReportsSummary(db) {
+  const clientsByCompany = db.prepare(`
+    SELECT b.slug AS brand_id, COUNT(DISTINCT cb.contact_id) AS n
+    FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id
+    JOIN contacts ct ON ct.id = cb.contact_id
+    WHERE cb.status = 'Active' AND ct.archived_at IS NULL
+    GROUP BY b.slug
+  `).all();
+
+  const activeCasesByCompany = db.prepare(`
+    SELECT b.slug AS brand_id, COUNT(*) AS n
+    FROM cases c JOIN contact_brands cb ON cb.id = c.contact_brand_id JOIN brands b ON b.id = cb.brand_id
+    WHERE c.status = 'Open'
+    GROUP BY b.slug
+  `).all();
+
+  const policiesByCompanyStatus = db.prepare(`
+    SELECT b.slug AS brand_id, pol.policy_status AS status, COUNT(*) AS n
+    FROM policies pol
+    JOIN cases c ON c.id = pol.case_id
+    JOIN contact_brands cb ON cb.id = c.contact_brand_id JOIN brands b ON b.id = cb.brand_id
+    WHERE pol.archived_at IS NULL
+    GROUP BY b.slug, pol.policy_status
+  `).all();
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const tasksDue = db.prepare(`SELECT COUNT(*) AS n FROM follow_up_tasks WHERE status = 'Pending' AND due_date = ?`).get(todayStr).n;
+  const tasksOverdue = db.prepare(`SELECT COUNT(*) AS n FROM follow_up_tasks WHERE status = 'Pending' AND due_date < ?`).get(todayStr).n;
+
+  const allMessages = getMessageDeliveryStatus(db, {});
+  const commsByStatus = ['Queued', 'Sent', 'Delivered', 'Failed'].map(status => ({
+    status, n: allMessages.filter(m => m.status === status).length,
+  }));
+
+  const reviewTotals = {
+    brand: getBrandReviewQueue(db).length,
+    case: getCaseReviewQueue(db).length,
+    companyConflict: getCompanyConflictQueue(db).length,
+  };
+
+  return { clientsByCompany, activeCasesByCompany, policiesByCompanyStatus, tasksDue, tasksOverdue, commsByStatus, reviewTotals };
 }
 
 // Prioritized, openable work items — every item names a concrete next step
@@ -774,6 +919,12 @@ function normalizeMessageStatus(raw) {
   if (s === 'sent') return 'Sent';
   if (s === 'delivered') return 'Delivered';
   if (['failed', 'undelivered'].includes(s)) return 'Failed';
+  // 'blocked' is the fake adapter's terminus (crm/lib/providers/fakeAdapter.js)
+  // for every send attempted in this checkpoint — kept visually and
+  // semantically distinct from 'Queued' so the threaded text view never
+  // implies a message is still in flight when sending was never attempted.
+  if (s === 'blocked') return 'Blocked';
+  if (s === 'received') return 'Received';
   return 'Queued';
 }
 
@@ -838,10 +989,12 @@ module.exports = {
   getMessageDeliveryStatus,
   normalizeMessageStatus,
   getCompanyConflictQueue,
+  getUnknownSmsReviewQueue,
   getClientDetail,
   getDashboardSummary,
   getWorkList,
   getUpcomingAppointments,
   getRecentlyActiveClients,
   getPoliciesList,
+  getReportsSummary,
 };

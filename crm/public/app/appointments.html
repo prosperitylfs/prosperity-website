@@ -12,28 +12,117 @@
 <script src="shell.js"></script>
 <script>
 async function render() {
-  CrmApp.mount({ active: 'appointments', title: 'Appointments', subtitle: 'Upcoming first, most recent past last', showCompanyFilter: false });
+  CrmApp.mount({ active: 'appointments', title: 'Appointments', subtitle: 'Local records only — never connected to Cal.com', showCompanyFilter: false });
   const content = document.getElementById('page-content');
-  content.innerHTML = '<div class="empty-state">Loading…</div>';
 
-  let items;
-  try { items = await CrmApp.fetchJSON('/api/appointments?view=upcoming'); }
-  catch (e) { content.innerHTML = `<div class="empty-state">Could not load appointments: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+  const FILTERS = [['upcoming', 'Upcoming'], ['past', 'Past'], ['Cancelled', 'Cancelled'], ['Rescheduled', 'Rescheduled']];
+  let activeFilter = 'upcoming';
 
-  if (!items.length) { content.innerHTML = '<div class="card"><div class="card-body"><div class="empty-state">No upcoming appointments.</div></div></div>'; return; }
+  content.innerHTML = `
+    <div class="card">
+      <div class="card-body">
+        <div class="search-row">
+          <div class="company-filter" id="appt-filters" style="background:var(--neutral-tint);">${FILTERS.map(([k, l]) => `<button type="button" data-filter="${k}" class="${k === activeFilter ? 'active' : ''}">${l}</button>`).join('')}</div>
+          <button class="btn primary" id="add-appt-btn" style="margin-left:auto;">Add Appointment</button>
+        </div>
+      </div>
+      <div class="card-body no-pad table-scroll">
+        <table class="data-table"><thead><tr><th>Client</th><th>Type</th><th>When</th><th>Status</th><th></th></tr></thead>
+        <tbody id="appt-rows"></tbody></table>
+      </div>
+    </div>`;
 
-  content.innerHTML = `<div class="card"><div class="card-body no-pad table-scroll">
-    <table class="data-table">
-      <thead><tr><th>Client</th><th>Type</th><th>When</th><th>Status</th></tr></thead>
-      <tbody>${items.map(a => `<tr class="clickable" data-id="${a.contact_id}">
-        <td><strong>${CrmApp.escapeHtml([a.first_name, a.last_name].filter(Boolean).join(' '))}</strong></td>
-        <td>${CrmApp.escapeHtml(a.appt_type)}</td>
-        <td>${CrmApp.friendlyDateTime(a.appt_datetime)}</td>
-        <td><span class="pill status-${(a.status || '').toLowerCase()}">${CrmApp.escapeHtml(a.status)}</span></td>
-      </tr>`).join('')}</tbody>
-    </table>
-  </div></div>`;
-  content.querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => location.href = `client.html?id=${el.dataset.id}`));
+  document.getElementById('appt-filters').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-filter]');
+    if (!btn) return;
+    activeFilter = btn.dataset.filter;
+    document.querySelectorAll('#appt-filters button').forEach(b => b.classList.toggle('active', b === btn));
+    load();
+  });
+
+  function rowHtml(a) {
+    return `<tr>
+      <td><a href="client.html?id=${a.contact_id}"><strong>${CrmApp.escapeHtml([a.first_name, a.last_name].filter(Boolean).join(' '))}</strong></a></td>
+      <td>${CrmApp.escapeHtml(a.appt_type)}</td>
+      <td>${CrmApp.friendlyDateTime(a.appt_datetime)}</td>
+      <td><span class="pill status-${(a.status || '').toLowerCase()}">${CrmApp.escapeHtml(a.status)}</span></td>
+      <td class="field-row-actions">
+        <button class="btn small ghost" data-edit-appt="${a.id}" data-json='${JSON.stringify(a).replace(/'/g, "&#39;")}'>Edit</button>
+        <button class="btn small ghost" data-reschedule-appt="${a.id}" data-json='${JSON.stringify(a).replace(/'/g, "&#39;")}'>Reschedule</button>
+        ${a.status !== 'Cancelled' ? `<button class="btn small ghost" data-cancel-appt="${a.id}">Cancel</button>` : ''}
+      </td>
+    </tr>`;
+  }
+
+  async function load() {
+    let items;
+    try {
+      const view = activeFilter === 'upcoming' || activeFilter === 'past' ? activeFilter : 'past';
+      items = await CrmApp.fetchJSON(`/api/appointments?view=${view}`);
+      if (!['upcoming', 'past'].includes(activeFilter)) items = items.filter(a => a.status === activeFilter);
+    } catch (e) {
+      document.getElementById('appt-rows').innerHTML = `<tr><td colspan="5"><div class="empty-state">Could not load appointments: ${CrmApp.escapeHtml(e.message)}</div></td></tr>`;
+      return;
+    }
+    const rows = document.getElementById('appt-rows');
+    rows.innerHTML = items.length ? items.map(rowHtml).join('') : `<tr><td colspan="5"><div class="empty-state">No appointments in this view.</div></td></tr>`;
+  }
+
+  function apptFormModal({ existing, rescheduleOnly } = {}) {
+    const dialog = CrmApp.openModal({
+      title: rescheduleOnly ? 'Reschedule Appointment' : (existing ? 'Edit Appointment' : 'Add Appointment'),
+      bodyHtml: `
+        <form id="appt-form">
+          <div class="form-grid">
+            ${!existing ? `<div class="form-field full"><label>Client ID <span class="hint">(open the client and add appointments from there for a friendlier flow)</span></label><input class="input" name="contact_id" type="number" required></div>` : ''}
+            ${!rescheduleOnly ? `<div class="form-field full"><label>Type</label><input class="input" name="appt_type" value="${existing ? CrmApp.escapeHtml(existing.appt_type) : 'Phone Call'}" required></div>` : ''}
+            <div class="form-field full"><label>Date &amp; time</label><input class="input" name="appt_datetime" type="datetime-local" value="${existing ? existing.appt_datetime.slice(0, 16) : ''}" required></div>
+            ${!rescheduleOnly ? `<div class="form-field full"><label>Location</label><input class="input" name="location" value="${existing ? CrmApp.escapeHtml(existing.location || '') : ''}"></div>
+            <div class="form-field full"><label>Notes</label><textarea class="input" name="notes">${existing ? CrmApp.escapeHtml(existing.notes || '') : ''}</textarea></div>` : ''}
+          </div>
+          <div class="form-error" id="appt-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="appt-cancel">Cancel</button>
+            <button type="submit" class="btn primary">${rescheduleOnly ? 'Reschedule' : 'Save'}</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#appt-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#appt-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      if (fields.contact_id) fields.contact_id = Number(fields.contact_id);
+      if (rescheduleOnly) fields.status = 'Rescheduled';
+      try {
+        if (existing) await CrmApp.postJSON(`/api/appointments/${existing.id}`, 'PATCH', fields);
+        else await CrmApp.postJSON('/api/appointments', 'POST', fields);
+        CrmApp.toast(rescheduleOnly ? 'Appointment rescheduled.' : (existing ? 'Appointment updated.' : 'Appointment added.'));
+        dialog.close();
+        load();
+      } catch (err) {
+        dialog.querySelector('#appt-error').textContent = err.message;
+      }
+    });
+  }
+
+  document.getElementById('add-appt-btn').addEventListener('click', () => apptFormModal({}));
+  document.getElementById('appt-rows').addEventListener('click', async (e) => {
+    const editBtn = e.target.closest('[data-edit-appt]');
+    if (editBtn) return apptFormModal({ existing: JSON.parse(editBtn.dataset.json) });
+    const rescheduleBtn = e.target.closest('[data-reschedule-appt]');
+    if (rescheduleBtn) return apptFormModal({ existing: JSON.parse(rescheduleBtn.dataset.json), rescheduleOnly: true });
+    const cancelBtn = e.target.closest('[data-cancel-appt]');
+    if (cancelBtn) {
+      const ok = await CrmApp.confirmAction('Cancel this appointment?', { confirmLabel: 'Cancel Appointment', danger: true });
+      if (!ok) return;
+      await CrmApp.postJSON(`/api/appointments/${cancelBtn.dataset.cancelAppt}`, 'PATCH', { status: 'Cancelled' });
+      CrmApp.toast('Appointment cancelled.');
+      load();
+    }
+  });
+
+  load();
 }
 render();
 </script>

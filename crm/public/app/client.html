@@ -42,6 +42,8 @@ async function render() {
     { key: 'cases', label: 'Cases and Policies' },
     { key: 'tasks', label: 'Tasks and Next Action' },
     { key: 'appointments', label: 'Appointments' },
+    { key: 'texts', label: 'Texts' },
+    { key: 'calls', label: 'Call Log' },
     { key: 'communications', label: 'Communications' },
     { key: 'notes', label: 'Notes' },
     { key: 'documents', label: 'Documents' },
@@ -51,6 +53,100 @@ async function render() {
 
   function companyBadges() {
     return detail.contactBrands.map(cb => CrmApp.companyBadge(cb.brandId, cb.brandShortName)).join(' ') || '<span class="text-faint">No company assignment yet</span>';
+  }
+
+  async function reloadPage() { location.reload(); }
+
+  function editClientModal() {
+    const dialog = CrmApp.openModal({
+      title: 'Edit Client',
+      bodyHtml: `
+        <form id="edit-client-form">
+          <div class="form-grid">
+            <div class="form-field"><label>First name</label><input class="input" name="firstName" value="${CrmApp.escapeHtml(c.firstName || '')}"></div>
+            <div class="form-field"><label>Last name</label><input class="input" name="lastName" value="${CrmApp.escapeHtml(c.lastName || '')}"></div>
+            <div class="form-field"><label>Phone</label><input class="input" name="phone" type="tel" value="${CrmApp.escapeHtml(c.phone || '')}"></div>
+            <div class="form-field"><label>Email</label><input class="input" name="email" type="email" value="${CrmApp.escapeHtml(c.email || '')}"></div>
+            <div class="form-field full"><label>Address</label><input class="input" name="address" value="${CrmApp.escapeHtml(c.address || '')}"></div>
+            <div class="form-field"><label>City</label><input class="input" name="city" value="${CrmApp.escapeHtml(c.city || '')}"></div>
+            <div class="form-field"><label>State</label><input class="input" name="state" maxlength="2" value="${CrmApp.escapeHtml(c.state || '')}"></div>
+            <div class="form-field"><label>ZIP code</label><input class="input" name="zip" value="${CrmApp.escapeHtml(c.zip || '')}"></div>
+            <div class="form-field"><label>Date of birth</label><input class="input" name="dateOfBirth" type="date" value="${CrmApp.escapeHtml(c.dateOfBirth || '')}"></div>
+            <div class="form-field"><label>Original source</label><input class="input" name="originalSource" value="${CrmApp.escapeHtml(c.originalSource || '')}"></div>
+            <div class="form-field full"><label>General notes</label><textarea class="input" name="generalNotes">${CrmApp.escapeHtml(c.generalNotes || '')}</textarea></div>
+          </div>
+          <div class="text-faint" style="margin-top:10px;">Permanent company (${primaryBrand ? CrmApp.escapeHtml(primaryBrand.brandShortName) : 'none'}) cannot be edited here — use "Request Company Change" instead.</div>
+          <div class="form-error" id="edit-client-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="edit-client-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Changes</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#edit-client-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#edit-client-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      try {
+        await CrmApp.postJSON(`/api/app/clients/${contactId}`, 'PATCH', fields);
+        CrmApp.toast('Client updated.');
+        dialog.close();
+        reloadPage();
+      } catch (err) {
+        dialog.querySelector('#edit-client-error').textContent = err.message;
+      }
+    });
+  }
+
+  function requestCompanyChangeModal() {
+    const otherBrand = primaryBrand && primaryBrand.brandId === 'prosperity' ? 'insurance-lady' : 'prosperity';
+    const otherLabel = otherBrand === 'insurance-lady' ? 'Insurance Lady' : 'Prosperity';
+    const dialog = CrmApp.openModal({
+      title: 'Request Company Change',
+      bodyHtml: `
+        <p style="font-size:13.5px;">This does not move the client. It stages a request in Review Required, which preserves both the current and requested company and requires a deliberate, separate decision.</p>
+        <form id="company-change-form">
+          <div class="form-field full"><label>Requested company</label>
+            <select class="input" name="requestedBrandSlug">
+              <option value="${otherBrand}">${otherLabel}</option>
+            </select>
+          </div>
+          <div class="form-field full" style="margin-top:10px;"><label>Reason</label><textarea class="input" name="reason" placeholder="Why is this change needed?"></textarea></div>
+          <div class="form-error" id="company-change-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="company-change-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Stage for Review</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#company-change-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#company-change-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      try {
+        await CrmApp.postJSON(`/api/app/clients/${contactId}/request-company-change`, 'POST', fields);
+        CrmApp.toast('Company change staged in Review Required.');
+        dialog.close();
+      } catch (err) {
+        dialog.querySelector('#company-change-error').textContent = err.message;
+      }
+    });
+  }
+
+  async function toggleArchiveClient() {
+    const archiving = !c.archivedAt;
+    const ok = await CrmApp.confirmAction(
+      archiving
+        ? `Archive ${CrmApp.escapeHtml(c.name)}? Cases, policies, notes, and history are all preserved and this can be undone.`
+        : `Restore ${CrmApp.escapeHtml(c.name)}?`,
+      { confirmLabel: archiving ? 'Archive' : 'Restore', danger: archiving }
+    );
+    if (!ok) return;
+    await CrmApp.postJSON(`/api/app/clients/${contactId}/${archiving ? 'archive' : 'restore'}`, 'POST');
+    CrmApp.toast(archiving ? 'Client archived.' : 'Client restored.');
+    reloadPage();
   }
 
   function overviewHtml() {
@@ -90,11 +186,16 @@ async function render() {
         <dt>Last name</dt><dd>${CrmApp.escapeHtml(c.lastName || '—')}</dd>
         <dt>Phone</dt><dd>${CrmApp.escapeHtml(c.phone || '—')}</dd>
         <dt>Email</dt><dd>${CrmApp.escapeHtml(c.email || '—')}</dd>
+        <dt>Address</dt><dd>${CrmApp.escapeHtml(c.address || '—')}</dd>
         <dt>City</dt><dd>${CrmApp.escapeHtml(c.city || '—')}</dd>
         <dt>State</dt><dd>${CrmApp.escapeHtml(c.state || '—')}</dd>
+        <dt>ZIP code</dt><dd>${CrmApp.escapeHtml(c.zip || '—')}</dd>
+        <dt>Date of birth</dt><dd>${CrmApp.escapeHtml(c.dateOfBirth || '—')}</dd>
+        <dt>Original source</dt><dd>${CrmApp.escapeHtml(c.originalSource || '—')}</dd>
         <dt>SMS Consent</dt><dd>${c.smsConsent ? 'Yes' : 'No'}</dd>
         <dt>Email Consent</dt><dd>${c.emailConsent ? 'Yes' : 'No'}</dd>
         <dt>Lead Status</dt><dd>${CrmApp.escapeHtml(c.leadStatus || '—')}</dd>
+        <dt>General notes</dt><dd style="white-space:pre-wrap;">${CrmApp.escapeHtml(c.generalNotes || '—')}</dd>
       </dl>
     </div></div>`;
   }
@@ -105,21 +206,25 @@ async function render() {
       <div class="card" style="margin-bottom:14px;">
         <div class="card-header">
           <h2>${CrmApp.companyBadge(cb.brandId, cb.brandShortName)}</h2>
-          <span class="card-header-sub">${cb.cases.length} case${cb.cases.length === 1 ? '' : 's'}</span>
+          <button class="btn small primary" data-new-case="${cb.brandId}">New Case</button>
         </div>
         <div class="card-body no-pad">
           ${cb.cases.length ? cb.cases.map(cs => `
             <div style="padding:14px 18px; border-bottom:1px solid var(--border);">
-              <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+              <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
                 <strong>${CrmApp.escapeHtml(cs.productName || cs.title || ('Case #' + cs.caseId))}</strong>
-                <span class="pill status-${cs.status.toLowerCase()}">${cs.status}</span>
+                <span style="display:flex; gap:8px; align-items:center;">
+                  <span class="pill status-${cs.status.toLowerCase()}">${cs.status}</span>
+                  <button class="btn small ghost" data-edit-case="${cs.caseId}" data-status="${cs.status}" data-title="${CrmApp.escapeHtml(cs.productName || cs.title || '')}">Edit</button>
+                  <button class="btn small ghost" data-toggle-case="${cs.caseId}" data-status="${cs.status}">${cs.status === 'Archived' ? 'Restore' : 'Archive'}</button>
+                </span>
               </div>
               <div class="text-faint" style="margin-top:4px;">Opened ${CrmApp.friendlyDate(cs.openedAt)} · Last activity ${CrmApp.friendlyDate(cs.lastActivity)}</div>
               ${cs.nextAction ? `<div style="margin-top:6px; font-size:13px;">Next: ${CrmApp.escapeHtml(cs.nextAction.notes || cs.nextAction.taskType)} — ${CrmApp.friendlyDate(cs.nextAction.dueDate)}</div>` : ''}
               ${cs.policies.length ? `
                 <div class="table-scroll" style="margin-top:10px;">
                   <table class="data-table">
-                    <thead><tr><th>Carrier</th><th>Policy #</th><th>Status</th><th>Coverage</th><th>Premium</th><th>Renewal</th></tr></thead>
+                    <thead><tr><th>Carrier</th><th>Policy #</th><th>Status</th><th>Coverage</th><th>Premium</th><th>Renewal</th><th></th></tr></thead>
                     <tbody>${cs.policies.map(p => `<tr>
                       <td>${CrmApp.escapeHtml(p.carrier || '—')}</td>
                       <td>${CrmApp.escapeHtml(p.policy_number || '—')}</td>
@@ -127,12 +232,147 @@ async function render() {
                       <td>${p.coverage_amount ? '$' + Number(p.coverage_amount).toLocaleString() : '—'}</td>
                       <td>${p.premium ? '$' + Number(p.premium).toLocaleString() : '—'}</td>
                       <td>${CrmApp.escapeHtml(p.renewal_date || '—')}</td>
+                      <td><button class="btn small ghost" data-edit-policy="${p.id}" data-case-id="${cs.caseId}">Edit</button></td>
                     </tr>`).join('')}</tbody>
                   </table>
                 </div>` : '<div class="text-faint" style="margin-top:8px;">No policy on file yet.</div>'}
+              <div style="margin-top:10px;"><button class="btn small ghost" data-add-policy="${cs.caseId}">Add Policy</button></div>
             </div>`).join('') : '<div class="empty-state">No cases yet.</div>'}
         </div>
       </div>`).join('');
+  }
+
+  const PRODUCTS_BY_BRAND = {
+    'insurance-lady': ['Online life-insurance application', 'Cash-building life insurance', 'Whole life/final expense', 'Cash cancer insurance', 'Annuities and safe-money solutions', 'Follow-up/service'],
+    prosperity: ['Life insurance', 'Annuities', 'Rollovers and safe-money solutions', 'Follow-up/service'],
+  };
+
+  function newCaseModal(brandId) {
+    const dialog = CrmApp.openModal({
+      title: 'New Case',
+      bodyHtml: `
+        <form id="new-case-form">
+          <div class="form-field full"><label>Product / Service</label>
+            <select class="input" name="productName">${PRODUCTS_BY_BRAND[brandId].map(p => `<option>${p}</option>`).join('')}</select>
+          </div>
+          <div class="form-field full" style="margin-top:10px;"><label>Title (optional)</label><input class="input" name="title"></div>
+          <div class="form-error" id="new-case-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="new-case-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Create Case</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#new-case-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#new-case-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      try {
+        // productName is resolved to the correct brand-scoped productId
+        // server-side (see crm/routes/crmActions.js) -- never guessed here.
+        await CrmApp.postJSON('/api/app/cases', 'POST', {
+          contactId: Number(contactId), title: fields.title || fields.productName, productName: fields.productName,
+        });
+        CrmApp.toast('Case created.');
+        dialog.close();
+        reloadPage();
+      } catch (err) {
+        dialog.querySelector('#new-case-error').textContent = err.message;
+      }
+    });
+  }
+
+  function editCaseModal(caseId, currentStatus, currentTitle) {
+    const dialog = CrmApp.openModal({
+      title: 'Edit Case',
+      bodyHtml: `
+        <form id="edit-case-form">
+          <div class="form-field full"><label>Title</label><input class="input" name="title" value="${CrmApp.escapeHtml(currentTitle || '')}"></div>
+          <div class="form-field full" style="margin-top:10px;"><label>Status</label>
+            <select class="input" name="status">
+              <option value="Open" ${currentStatus === 'Open' ? 'selected' : ''}>Open</option>
+              <option value="Closed" ${currentStatus === 'Closed' ? 'selected' : ''}>Closed</option>
+            </select>
+          </div>
+          <div class="form-error" id="edit-case-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="edit-case-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Changes</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#edit-case-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#edit-case-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      try {
+        await CrmApp.postJSON(`/api/app/cases/${caseId}`, 'PATCH', fields);
+        CrmApp.toast('Case updated.');
+        dialog.close();
+        reloadPage();
+      } catch (err) {
+        dialog.querySelector('#edit-case-error').textContent = err.message;
+      }
+    });
+  }
+
+  async function toggleCaseArchive(caseId, currentStatus) {
+    const archiving = currentStatus !== 'Archived';
+    const ok = await CrmApp.confirmAction(archiving ? 'Archive this case? Only this case is affected.' : 'Restore this case?', { confirmLabel: archiving ? 'Archive' : 'Restore', danger: archiving });
+    if (!ok) return;
+    await CrmApp.postJSON(`/api/app/cases/${caseId}/${archiving ? 'archive' : 'restore'}`, 'POST');
+    CrmApp.toast(archiving ? 'Case archived.' : 'Case restored.');
+    reloadPage();
+  }
+
+  function policyFormModal({ caseId, policyId, existing } = {}) {
+    const p = existing || {};
+    const dialog = CrmApp.openModal({
+      title: policyId ? 'Edit Policy' : 'Add Policy', wide: true,
+      bodyHtml: `
+        <form id="policy-form">
+          <div class="form-grid">
+            <div class="form-field"><label>Carrier</label><input class="input" name="carrier" value="${CrmApp.escapeHtml(p.carrier || '')}"></div>
+            <div class="form-field"><label>Policy number</label><input class="input" name="policyNumber" value="${CrmApp.escapeHtml(p.policy_number || '')}"></div>
+            <div class="form-field"><label>Policy status</label>
+              <select class="input" name="policyStatus">
+                ${['Pending', 'Active', 'Lapsed', 'Cancelled'].map(s => `<option ${p.policy_status === s ? 'selected' : ''}>${s}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-field"><label>Effective date</label><input class="input" name="effectiveDate" type="date" value="${CrmApp.escapeHtml(p.effective_date || '')}"></div>
+            <div class="form-field"><label>Coverage / account value</label><input class="input" name="coverageAmount" type="number" value="${p.coverage_amount || ''}"></div>
+            <div class="form-field"><label>Premium / contribution</label><input class="input" name="premium" type="number" value="${p.premium || ''}"></div>
+            <div class="form-field"><label>Payment frequency</label>
+              <select class="input" name="premiumFrequency">${['Monthly', 'Quarterly', 'Annual', 'One-time'].map(f => `<option ${p.premium_frequency === f ? 'selected' : ''}>${f}</option>`).join('')}</select>
+            </div>
+            <div class="form-field"><label>Renewal / review date</label><input class="input" name="renewalDate" type="date" value="${CrmApp.escapeHtml(p.renewal_date || '')}"></div>
+            <div class="form-field full"><label>Beneficiary summary</label><input class="input" name="beneficiary" value="${CrmApp.escapeHtml(p.beneficiary || '')}"></div>
+            <div class="form-field full"><label>Notes</label><textarea class="input" name="notes">${CrmApp.escapeHtml(p.notes || '')}</textarea></div>
+          </div>
+          <div class="form-error" id="policy-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="policy-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Policy</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#policy-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#policy-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      try {
+        if (policyId) await CrmApp.postJSON(`/api/app/policies/${policyId}`, 'PATCH', fields);
+        else await CrmApp.postJSON('/api/app/policies', 'POST', { ...fields, caseId: Number(caseId) });
+        CrmApp.toast(policyId ? 'Policy updated.' : 'Policy added.');
+        dialog.close();
+        reloadPage();
+      } catch (err) {
+        dialog.querySelector('#policy-error').textContent = err.message;
+      }
+    });
   }
 
   function tasksHtml() {
@@ -162,6 +402,43 @@ async function render() {
     </div></div>`;
   }
 
+  // Chronological text thread (Prosperity Revenue MVP, Requirement 4) —
+  // both directions in one ordered view, oldest first like a real message
+  // app, with clear visual separation between sent (right-aligned, brand
+  // color) and received (left-aligned) bubbles.
+  function textsHtml() {
+    const thread = detail.smsThread || [];
+    if (!thread.length) return '<div class="empty-state">No text messages yet. Use the Text button above to start a conversation.</div>';
+    return `<div class="sms-thread">${thread.map(m => `
+      <div class="sms-bubble-row ${m.direction === 'outbound' ? 'outbound' : 'inbound'}">
+        <div class="sms-bubble">
+          <div class="sms-bubble-body">${CrmApp.escapeHtml(m.body || '')}</div>
+          <div class="sms-bubble-meta">
+            <span>${m.direction === 'outbound' ? CrmApp.escapeHtml(m.from_number || '') + ' → ' + CrmApp.escapeHtml(m.to_number || '') : CrmApp.escapeHtml(m.from_number || '')}</span>
+            <span class="pill status-${(m.status || '').toLowerCase()}">${CrmApp.escapeHtml(m.status || '—')}</span>
+          </div>
+          ${m.status === 'Failed' && m.failure_reason ? `<div class="sms-bubble-failure">${CrmApp.escapeHtml(m.failure_reason)}</div>` : ''}
+          <div class="sms-bubble-time">${CrmApp.friendlyDateTime(m.sent_at)}</div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  function callsHtml() {
+    const calls = detail.callLog || [];
+    if (!calls.length) return '<div class="empty-state">No calls logged yet. Use the Log Call button above.</div>';
+    return `<div class="card"><div class="card-body no-pad table-scroll">
+      <table class="data-table"><thead><tr><th>Direction</th><th>When</th><th>Duration</th><th>Outcome</th><th>Summary</th></tr></thead>
+      <tbody>${calls.map(c => `<tr>
+        <td style="text-transform:capitalize;">${CrmApp.escapeHtml(c.direction || '—')}</td>
+        <td>${CrmApp.friendlyDateTime(c.started_at || c.created_at)}</td>
+        <td>${c.duration_sec ? Math.round(c.duration_sec / 60) + ' min' : '—'}</td>
+        <td>${CrmApp.escapeHtml(c.outcome || '—')}</td>
+        <td>${CrmApp.escapeHtml(c.summary || c.notes || '—')}</td>
+      </tr>`).join('')}</tbody></table>
+    </div></div>`;
+  }
+
   function communicationsHtml() {
     if (!detail.communications.length) return '<div class="empty-state">No communications yet.</div>';
     return `<div class="card"><div class="card-body no-pad table-scroll">
@@ -176,11 +453,45 @@ async function render() {
   }
 
   function notesHtml() {
-    if (!detail.notes.length) return '<div class="empty-state">No notes yet.</div>';
-    return detail.notes.map(n => `<div class="card" style="margin-bottom:10px;"><div class="card-body">
-      <div style="white-space:pre-wrap;">${CrmApp.escapeHtml(n.body)}</div>
-      <div class="text-faint" style="margin-top:8px;">${CrmApp.friendlyDateTime(n.created_at)}</div>
-    </div></div>`).join('');
+    return `
+      <div style="margin-bottom:12px;"><button class="btn primary small" id="add-note-btn">Add Note</button></div>
+      ${detail.notes.length ? detail.notes.map(n => `<div class="card" style="margin-bottom:10px;"><div class="card-body">
+        <div style="white-space:pre-wrap;">${CrmApp.escapeHtml(n.body || '')}</div>
+        <div class="text-faint" style="margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
+          <span>${CrmApp.friendlyDateTime(n.created_at)}${n.source === 'legacy' ? ' · legacy note' : ''}</span>
+          ${n.source === 'activity' ? `<button class="btn small ghost" data-edit-note="${n.id}" data-body="${CrmApp.escapeHtml(n.body || '')}">Edit</button>` : ''}
+        </div>
+      </div></div>`).join('') : '<div class="empty-state">No notes yet.</div>'}`;
+  }
+
+  function noteFormModal({ noteId, currentBody } = {}) {
+    const dialog = CrmApp.openModal({
+      title: noteId ? 'Edit Note' : 'Add Note',
+      bodyHtml: `
+        <form id="note-form">
+          <div class="form-field full"><textarea class="input" name="body" rows="5" required>${currentBody ? CrmApp.escapeHtml(currentBody) : ''}</textarea></div>
+          <div class="form-error" id="note-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="note-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Note</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#note-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#note-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = new FormData(e.target).get('body');
+      try {
+        if (noteId) await CrmApp.postJSON(`/api/app/notes/${noteId}`, 'PATCH', { body });
+        else await CrmApp.postJSON('/api/app/notes', 'POST', { contactId: Number(contactId), body });
+        CrmApp.toast(noteId ? 'Note updated.' : 'Note added.');
+        dialog.close();
+        reloadPage();
+      } catch (err) {
+        dialog.querySelector('#note-error').textContent = err.message;
+      }
+    });
   }
 
   function documentsHtml() {
@@ -193,8 +504,12 @@ async function render() {
   function marketingHtml() {
     const fields = ['Original company', 'Intake channel', 'Landing page', 'UTM source', 'UTM medium', 'UTM campaign', 'Click identifier', 'First-touch date'];
     return `<div class="card"><div class="card-body">
-      <div class="text-faint" style="margin-bottom:12px;">This client's original company is ${primaryBrand ? CrmApp.escapeHtml(primaryBrand.brandShortName) : 'not yet established'}. Detailed marketing attribution (landing page, UTM parameters, click identifiers) is not connected in this checkpoint — this section is the reserved location for it once that integration is built.</div>
-      <dl class="kv-list">${fields.map(f => `<dt>${f}</dt><dd class="text-faint">Not yet available</dd>`).join('')}</dl>
+      <div class="text-faint" style="margin-bottom:12px;">Detailed marketing attribution (landing page, UTM parameters, click identifiers) is not connected in this checkpoint — this section is the reserved location for it once that integration is built.</div>
+      <dl class="kv-list">
+        <dt>Original company</dt><dd>${primaryBrand ? CrmApp.companyBadge(primaryBrand.brandId, primaryBrand.brandShortName) : '<span class="text-faint">Not yet established</span>'}</dd>
+        <dt>Intake channel</dt><dd>${CrmApp.escapeHtml(c.originalSource || 'Not recorded')}</dd>
+        ${fields.slice(2).map(f => `<dt>${f}</dt><dd class="text-faint">Not yet available</dd>`).join('')}
+      </dl>
     </div></div>`;
   }
 
@@ -210,7 +525,7 @@ async function render() {
 
   const PANEL_RENDERERS = {
     overview: overviewHtml, contact: contactInfoHtml, cases: casesHtml, tasks: tasksHtml,
-    appointments: appointmentsHtml, communications: communicationsHtml, notes: notesHtml,
+    appointments: appointmentsHtml, texts: textsHtml, calls: callsHtml, communications: communicationsHtml, notes: notesHtml,
     documents: documentsHtml, marketing: marketingHtml, audit: auditHtml,
   };
 
@@ -219,22 +534,27 @@ async function render() {
       <div class="detail-header">
         <div class="detail-avatar">${CrmApp.initials(c.name)}</div>
         <div style="flex:1; min-width:200px;">
-          <div class="detail-title"><h1>${CrmApp.escapeHtml(c.name)}</h1>${companyBadges()}</div>
+          <div class="detail-title"><h1>${CrmApp.escapeHtml(c.name)}</h1>${companyBadges()}${c.archivedAt ? '<span class="pill status-archived">Archived</span>' : ''}</div>
           <div class="detail-meta">
             <span>${CrmApp.escapeHtml(c.phone || 'No phone')}</span>
             <span>${CrmApp.escapeHtml(c.email || 'No email')}</span>
             <span>${CrmApp.escapeHtml([c.city, c.state].filter(Boolean).join(', ') || 'No location on file')}</span>
             <span class="pill status-${(c.leadStatus || '').toLowerCase().replace(/\s+/g, '-')}">${CrmApp.escapeHtml(c.leadStatus || 'Status unknown')}</span>
           </div>
+          <div style="margin-top:8px; display:flex; gap:14px;">
+            <button class="btn ghost small" id="action-edit-client">Edit Client</button>
+            <button class="btn ghost small" id="action-company-change">Request Company Change</button>
+            <button class="btn ghost small" id="action-archive-client">${c.archivedAt ? 'Restore Client' : 'Archive Client'}</button>
+          </div>
         </div>
         <div class="detail-actions">
           <button class="btn" id="action-call">Call</button>
+          <button class="btn" id="action-log-call">Log Call</button>
           <button class="btn" id="action-text">Text</button>
           <button class="btn" id="action-email">Email</button>
           <button class="btn primary" id="action-activity">Add Activity</button>
         </div>
       </div>
-      <div id="sender-preview-area"></div>
       <div class="tabs-wrap">
         <div class="tabs" id="tabs">
           ${TABS.map((t, i) => `<button class="tab-btn${i === 0 ? ' active' : ''}" data-tab="${t.key}">${t.label}</button>`).join('')}
@@ -256,6 +576,29 @@ async function render() {
     btn.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
   });
 
+  // Delegated clicks for every Cases/Policies/Notes action -- the panel
+  // HTML is rendered once up front, so buttons inside it are wired here
+  // rather than needing individual listeners re-attached per render.
+  content.addEventListener('click', (e) => {
+    const newCaseBtn = e.target.closest('[data-new-case]');
+    if (newCaseBtn) return newCaseModal(newCaseBtn.dataset.newCase);
+    const editCaseBtn = e.target.closest('[data-edit-case]');
+    if (editCaseBtn) return editCaseModal(editCaseBtn.dataset.editCase, editCaseBtn.dataset.status, editCaseBtn.dataset.title);
+    const toggleCaseBtn = e.target.closest('[data-toggle-case]');
+    if (toggleCaseBtn) return toggleCaseArchive(toggleCaseBtn.dataset.toggleCase, toggleCaseBtn.dataset.status);
+    const addPolicyBtn = e.target.closest('[data-add-policy]');
+    if (addPolicyBtn) return policyFormModal({ caseId: addPolicyBtn.dataset.addPolicy });
+    const editPolicyBtn = e.target.closest('[data-edit-policy]');
+    if (editPolicyBtn) {
+      const caseObj = allCases.find(cs => cs.caseId == editPolicyBtn.dataset.caseId);
+      const existing = caseObj ? caseObj.policies.find(p => p.id == editPolicyBtn.dataset.editPolicy) : null;
+      return policyFormModal({ caseId: editPolicyBtn.dataset.caseId, policyId: editPolicyBtn.dataset.editPolicy, existing });
+    }
+    if (e.target.closest('#add-note-btn')) return noteFormModal();
+    const editNoteBtn = e.target.closest('[data-edit-note]');
+    if (editNoteBtn) return noteFormModal({ noteId: editNoteBtn.dataset.editNote, currentBody: editNoteBtn.dataset.body });
+  });
+
   // Overflow indication for the scrollable tab bar (correction #2): show
   // the trailing fade whenever there are more tabs scrolled off to the
   // right; hide it once scrolled to the end. Re-checked on load, on
@@ -271,30 +614,205 @@ async function render() {
   window.addEventListener('resize', updateTabsFade);
   updateTabsFade();
 
-  async function showSenderPreview(channel) {
-    const area = document.getElementById('sender-preview-area');
-    const caseId = activeCases[0] ? activeCases[0].caseId : null;
-    const url = caseId
-      ? `/api/app/clients/${contactId}/sender-preview?caseId=${caseId}`
-      : `/api/app/clients/${contactId}/sender-preview`;
-    let result;
-    try { result = await CrmApp.fetchJSON(url); }
-    catch (e) { area.innerHTML = `<div class="sender-preview blocked" style="margin:0 20px 16px;">Could not resolve sender: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
 
-    if (result.scenario === 'no_relationship') {
-      area.innerHTML = `<div class="sender-preview blocked" style="margin:0 20px 16px;">${CrmApp.escapeHtml(result.message)}</div>`;
+  function composeDraftModal(channel) {
+    const consentOk = channel === 'text' ? c.smsConsent : channel === 'email' ? c.emailConsent : true;
+    const dialog = CrmApp.openModal({
+      title: channel === 'text' ? 'Draft Text' : 'Draft Email',
+      bodyHtml: !consentOk ? `
+        <p class="confirm-message">This client has not given ${channel === 'text' ? 'SMS' : 'email'} consent — a draft cannot be created.</p>
+        <div class="crmapp-modal-actions"><button type="button" class="btn" id="draft-close-noconsent">Close</button></div>
+      ` : `
+        <div id="draft-sender-preview"></div>
+        <form id="draft-form">
+          ${channel === 'email' ? '<div class="form-field full"><label>Subject</label><input class="input" name="subject"></div>' : ''}
+          <div class="form-field full" style="margin-top:10px;"><label>Message</label><textarea class="input" name="body" rows="5" required></textarea></div>
+          <div class="form-error" id="draft-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="draft-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Draft &amp; Continue</button>
+          </div>
+        </form>
+      `,
+    });
+    if (!consentOk) {
+      dialog.querySelector('#draft-close-noconsent').addEventListener('click', () => dialog.close());
       return;
     }
-    const chan = result.channels[channel];
-    area.innerHTML = `<div class="sender-preview${chan.blocked ? ' blocked' : ''}" style="margin:0 20px 16px;">${CrmApp.escapeHtml(chan.message)}${chan.blocked ? '' : ' <em>(sending is not activated in this checkpoint)</em>'}</div>`;
+    let senderIdentity = null;
+    (async () => {
+      const caseId = activeCases[0] ? activeCases[0].caseId : null;
+      const result = await CrmApp.fetchJSON(caseId ? `/api/app/clients/${contactId}/sender-preview?caseId=${caseId}` : `/api/app/clients/${contactId}/sender-preview`);
+      const previewEl = dialog.querySelector('#draft-sender-preview');
+      if (result.scenario === 'no_relationship') {
+        previewEl.innerHTML = `<div class="sender-preview blocked">${CrmApp.escapeHtml(result.message)}</div>`;
+      } else {
+        const chan = result.channels[channel];
+        senderIdentity = chan.identity || null;
+        previewEl.innerHTML = `<div class="sender-preview${chan.blocked ? ' blocked' : ''}">${CrmApp.escapeHtml(chan.message)}</div>`;
+      }
+    })();
+    dialog.querySelector('#draft-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#draft-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      fields.contactId = Number(contactId);
+      fields.channel = channel;
+      fields.caseId = activeCases[0] ? activeCases[0].caseId : null;
+      try {
+        const draft = await CrmApp.postJSON('/api/app/communications/draft', 'POST', fields);
+        showSendConfirmation(dialog, draft, senderIdentity);
+      } catch (err) {
+        dialog.querySelector('#draft-error').textContent = err.message;
+      }
+    });
   }
 
-  document.getElementById('action-call').addEventListener('click', () => showSenderPreview('call'));
-  document.getElementById('action-text').addEventListener('click', () => showSenderPreview('text'));
-  document.getElementById('action-email').addEventListener('click', () => showSenderPreview('email'));
-  document.getElementById('action-activity').addEventListener('click', () => {
-    document.getElementById('sender-preview-area').innerHTML = `<div class="sender-preview" style="margin:0 20px 16px;">Adding activity records locally is not implemented in this checkpoint.</div>`;
-  });
+  function showSendConfirmation(dialog, draft, senderLabel) {
+    dialog.querySelector('.crmapp-modal-body').innerHTML = `
+      <p class="confirm-message">Ready to send this ${CrmApp.escapeHtml(draft.channel)} to <strong>${CrmApp.escapeHtml(draft.to_address || 'this client')}</strong>${senderLabel ? ` from <strong>${CrmApp.escapeHtml(senderLabel)}</strong>` : ''}?</p>
+      <div class="crmapp-modal-actions">
+        <button type="button" class="btn" id="draft-back">Keep as Draft</button>
+        <button type="button" class="btn primary" id="draft-confirm-send">Send</button>
+      </div>
+      <div id="draft-blocked-area"></div>
+    `;
+    dialog.querySelector('#draft-back').addEventListener('click', () => { CrmApp.toast('Saved as draft.'); dialog.close(); });
+    dialog.querySelector('#draft-confirm-send').addEventListener('click', async () => {
+      const result = await CrmApp.postJSON(`/api/app/communications/draft/${draft.id}/confirm-send`, 'POST');
+      dialog.querySelector('#draft-blocked-area').innerHTML = `<div class="blocked-notice">Sending is disabled in this local checkpoint.</div>`;
+      dialog.querySelector('#draft-confirm-send').disabled = true;
+      if (result.smsMessage) CrmApp.toast('Outbound text stored — see the Texts tab.');
+    });
+  }
+
+  async function callPreviewModal() {
+    const caseId = activeCases[0] ? activeCases[0].caseId : null;
+    const { guardrail, providerResult } = await CrmApp.postJSON('/api/app/communications/call-preview', 'POST', { contactId: Number(contactId), caseId });
+    const message = guardrail.scenario === 'no_relationship' ? guardrail.message : guardrail.channels.call.message;
+    CrmApp.openModal({
+      title: 'Call',
+      bodyHtml: `
+        <div class="sender-preview${guardrail.scenario === 'no_relationship' || guardrail.channels.call.blocked ? ' blocked' : ''}">${CrmApp.escapeHtml(message)}</div>
+        <div class="blocked-notice">Sending is disabled in this local checkpoint.</div>
+        <div class="crmapp-modal-actions"><button type="button" class="btn" id="call-close">Close</button></div>
+      `,
+    });
+    document.querySelector('#call-close').addEventListener('click', CrmApp.closeModal);
+  }
+
+  // Manual call logging (Prosperity Revenue MVP, Requirement 5). No audio
+  // recording, no transcription — a structured note about a call that
+  // already happened. Separate from the "Call" button above, which only
+  // previews a (still-disabled) live-call attempt.
+  function callLogModal() {
+    const CALL_OUTCOMES = ['No answer', 'Left voicemail', 'Spoke with client', 'Appointment scheduled', 'Follow-up needed', 'Not interested', 'Wrong number'];
+    const caseOptions = activeCases.map(cs => `<option value="${cs.caseId}">${CrmApp.escapeHtml(cs.productName || cs.title || ('Case #' + cs.caseId))}</option>`).join('');
+    const today = new Date().toISOString().slice(0, 10);
+    const dialog = CrmApp.openModal({
+      title: 'Log Call', wide: true,
+      bodyHtml: `
+        <form id="call-log-form">
+          <div class="form-grid">
+            <div class="form-field"><label>Direction</label>
+              <select class="input" name="direction"><option value="outbound">Outbound</option><option value="inbound">Inbound</option></select>
+            </div>
+            <div class="form-field"><label>Date</label><input class="input" name="date" type="date" value="${today}" required></div>
+            <div class="form-field"><label>Start time</label><input class="input" name="startTime" type="time"></div>
+            <div class="form-field"><label>Duration (minutes)</label><input class="input" name="durationMinutes" type="number" min="0"></div>
+            <div class="form-field"><label>Outcome</label>
+              <select class="input" name="outcome" required>${CALL_OUTCOMES.map(o => `<option>${o}</option>`).join('')}</select>
+            </div>
+            ${caseOptions ? `<div class="form-field"><label>Related case (optional)</label><select class="input" name="caseId"><option value="">None</option>${caseOptions}</select></div>` : ''}
+            <div class="form-field full"><label>Summary</label><input class="input" name="summary" placeholder="Short summary"></div>
+            <div class="form-field full"><label>Detailed notes</label><textarea class="input" name="detailedNotes"></textarea></div>
+            <div class="form-field"><label>Next follow-up date</label><input class="input" name="nextActionDueDate" type="date"></div>
+            <div class="form-field"><label>Next follow-up time</label><input class="input" name="nextActionDueTime" type="time"></div>
+            <div class="form-field full"><label>Follow-up task</label><input class="input" name="nextAction" placeholder="What needs to happen next?"></div>
+          </div>
+          <div class="text-faint" style="margin-top:8px;">Logged by Loretta Stewart. No audio recording or transcription is created.</div>
+          <div class="form-error" id="call-log-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="call-log-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Call Log</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#call-log-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#call-log-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      fields.contactId = Number(contactId);
+      if (fields.caseId) fields.caseId = Number(fields.caseId);
+      try {
+        const result = await CrmApp.postJSON('/api/app/calls', 'POST', fields);
+        CrmApp.toast(result.followUpTask ? 'Call logged and follow-up task created.' : 'Call logged.');
+        dialog.close();
+        reloadPage();
+      } catch (err) {
+        dialog.querySelector('#call-log-error').textContent = err.message;
+      }
+    });
+  }
+
+  document.getElementById('action-call').addEventListener('click', callPreviewModal);
+  document.getElementById('action-log-call').addEventListener('click', callLogModal);
+  document.getElementById('action-text').addEventListener('click', () => composeDraftModal('text'));
+  document.getElementById('action-email').addEventListener('click', () => composeDraftModal('email'));
+  document.getElementById('action-activity').addEventListener('click', addActivityModal);
+  document.getElementById('action-edit-client').addEventListener('click', editClientModal);
+  document.getElementById('action-company-change').addEventListener('click', requestCompanyChangeModal);
+  document.getElementById('action-archive-client').addEventListener('click', toggleArchiveClient);
+
+  function addActivityModal() {
+    const ACTIVITY_TYPES = [
+      ['note', 'Note'], ['call', 'Phone call'], ['text', 'Text message'], ['email', 'Email'],
+      ['appointment', 'Appointment'], ['follow_up', 'Follow-up'], ['document_received', 'Document received'],
+      ['policy_update', 'Policy update'], ['general', 'General activity'],
+    ];
+    const caseOptions = activeCases.map(cs => `<option value="${cs.caseId}">${CrmApp.escapeHtml(cs.productName || cs.title || ('Case #' + cs.caseId))}</option>`).join('');
+    const dialog = CrmApp.openModal({
+      title: 'Add Activity', wide: true,
+      bodyHtml: `
+        <form id="activity-form">
+          <div class="form-grid">
+            <div class="form-field"><label>Type</label>
+              <select class="input" name="activityType">${ACTIVITY_TYPES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+            </div>
+            <div class="form-field"><label>Date &amp; time</label><input class="input" name="activityAt" type="datetime-local"></div>
+            ${caseOptions ? `<div class="form-field full"><label>Related case</label><select class="input" name="caseId"><option value="">None</option>${caseOptions}</select></div>` : ''}
+            <div class="form-field full"><label>Summary</label><input class="input" name="summary" placeholder="Short summary"></div>
+            <div class="form-field full"><label>Detailed notes</label><textarea class="input" name="details"></textarea></div>
+            <div class="form-field"><label>Next action</label><input class="input" name="nextAction"></div>
+            <div class="form-field"><label>Due date</label><input class="input" name="nextActionDueDate" type="date"></div>
+          </div>
+          <div class="text-faint" style="margin-top:8px;">Recorded by Loretta Stewart</div>
+          <div class="form-error" id="activity-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="activity-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Activity</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#activity-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#activity-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      fields.contactId = Number(contactId);
+      if (fields.caseId) fields.caseId = Number(fields.caseId);
+      if (!fields.activityAt) delete fields.activityAt;
+      try {
+        await CrmApp.postJSON('/api/app/activities', 'POST', fields);
+        CrmApp.toast('Activity added.');
+        dialog.close();
+        reloadPage();
+      } catch (err) {
+        dialog.querySelector('#activity-error').textContent = err.message;
+      }
+    });
+  }
 }
 render();
 </script>

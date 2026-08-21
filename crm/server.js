@@ -131,6 +131,12 @@ app.use('/api/leads', require('./routes/leads'));
 // Twilio webhooks — PUBLIC (Twilio calls these from its own servers, no CRM key)
 app.use('/api/twilio', require('./routes/twilio'));
 
+// Brand-aware Twilio SMS webhook for the Prosperity 414 number — PUBLIC,
+// same reasoning as /api/twilio above, protected by X-Twilio-Signature
+// verification instead of a CRM key. Not configured in any live Twilio
+// console yet (see crm/lib/inboundSmsService.js).
+app.use('/api/twilio-prosperity', require('./routes/twilioProsperitySms'));
+
 // Cal.com booking webhooks — PUBLIC (Cal.com posts from its servers, no CRM key)
 // Optional HMAC protection via CALCOM_WEBHOOK_SECRET env var
 app.use('/api/calcom', require('./routes/calcom'));
@@ -182,6 +188,11 @@ app.use('/api/sms', requireApiKey, require('./routes/sms'));
 // dashboard/clients/review/communications/policies data. Same protection
 // tier as every other private CRM data route above.
 app.use('/api/app', requireApiKey, require('./routes/crmApp'));
+
+// Redesigned CRM interface — mutation endpoints (create/edit/archive,
+// review resolution, draft-and-blocked-send communications, CSV import).
+// Same /api/app prefix and protection tier as the read-only routes above.
+app.use('/api/app', requireApiKey, require('./routes/crmActions'));
 
 // Email / Gmail
 // /auth and /callback are browser redirects — no API key header is possible

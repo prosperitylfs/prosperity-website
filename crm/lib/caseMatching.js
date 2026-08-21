@@ -24,6 +24,19 @@ function dedupeContact(db, { email, phone, phone_e164, first_name, last_name }) 
   return db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
 }
 
+// Shared by crm/lib/leadIntake.js (automatic intake) and
+// crm/lib/clientService.js (manual client creation): does this contact
+// already have an ACTIVE contact_brands row under a DIFFERENT brand than
+// brandRowId? Returns that row, or null if there's no conflict (no existing
+// relationship, or the existing one already matches). One implementation
+// for the permanent-company rule so both callers can never drift apart.
+function findConflictingActiveBrand(db, contactId, brandRowId) {
+  const existingActiveBrands = db.prepare(`
+    SELECT * FROM contact_brands WHERE contact_id = ? AND status = 'Active'
+  `).all(contactId);
+  return existingActiveBrands.find(cb => cb.brand_id !== brandRowId) || null;
+}
+
 // Idempotent: a contact can have at most one contact_brands row per brand
 // (enforced by the UNIQUE(contact_id, brand_id) index in migrateBrands.js).
 // brandId is required — a contact_brands row must never be created with a
@@ -219,4 +232,5 @@ module.exports = {
   stageUnresolvedIntake,
   attachExternalRef,
   createCase,
+  findConflictingActiveBrand,
 };

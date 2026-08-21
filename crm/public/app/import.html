@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Import Clients — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+const FIELD_KEYS = [
+  ['firstName', 'First name'], ['lastName', 'Last name'], ['email', 'Email'], ['phone', 'Phone'],
+  ['address', 'Address'], ['city', 'City'], ['state', 'State'], ['zip', 'ZIP code'],
+  ['dateOfBirth', 'Date of birth'], ['originalSource', 'Original source'], ['generalNotes', 'General notes'],
+  ['company', 'Company (per-row)'],
+  ['productName', 'Product / policy type'], ['carrier', 'Carrier'], ['policyNumber', 'Policy number'],
+  ['effectiveDate', 'Effective date'], ['premium', 'Premium'],
+];
+
+async function render() {
+  CrmApp.mount({ active: 'clients', title: 'Import Clients', subtitle: 'CSV import — preview before anything is created', showCompanyFilter: false });
+  const content = document.getElementById('page-content');
+
+  let parsed = null; // { headers, records }
+  let mapping = {};
+  let batchCompany = '';
+  let lastPreview = null;
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+          <input type="file" id="csv-file" accept=".csv,text/csv">
+          <a class="btn" id="download-sample" href="/api/app/import/sample-csv">Download Sample CSV</a>
+          <a class="btn" id="download-occidental-sample" href="/api/app/import/occidental-sample-csv">Download Occidental Sample CSV</a>
+        </div>
+        <div class="text-faint" style="margin-top:8px;">All data in the sample files is fake, for testing only. The Occidental sample includes policy fields (product, carrier, policy number, effective date, premium) for importing existing clients with a case + policy attached.</div>
+      </div>
+    </div>
+    <div id="mapping-area"></div>
+    <div id="preview-area"></div>
+  `;
+
+  document.getElementById('csv-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    parsed = await CrmApp.postJSON('/api/app/import/parse', 'POST', { csvText: text });
+    mapping = {};
+    // Best-effort auto-map by matching header names case-insensitively —
+    // tries the full label first, then just its first word, so a short CSV
+    // header like "Product" still matches a longer label like "Product /
+    // policy type" without requiring an exact match.
+    const norm = s => s.toLowerCase().replace(/[^a-z]/g, '');
+    for (const [key, label] of FIELD_KEYS) {
+      const full = norm(label).replace('perrow', '');
+      const firstWord = norm(label.split(/[\s/]/)[0]);
+      const found = parsed.headers.find(h => norm(h) === full) || parsed.headers.find(h => norm(h) === firstWord);
+      if (found) mapping[key] = found;
+    }
+    renderMapping();
+  });
+
+  function renderMapping() {
+    document.getElementById('mapping-area').innerHTML = `
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header"><h2>Column Mapping</h2><span class="card-header-sub">${parsed.records.length} row(s) found</span></div>
+        <div class="card-body">
+          <div class="form-field full" style="margin-bottom:14px;">
+            <label>Company for this whole batch <span class="hint">(leave as "Use per-row Company column" if your file has a Company column)</span></label>
+            <select class="input" id="batch-company">
+              <option value="">Use per-row Company column</option>
+              <option value="insurance-lady">All rows: Insurance Lady</option>
+              <option value="prosperity">All rows: Prosperity</option>
+            </select>
+          </div>
+          <div class="form-grid">
+            ${FIELD_KEYS.map(([key, label]) => `
+              <div class="form-field">
+                <label>${label}</label>
+                <select class="input" data-map="${key}">
+                  <option value="">Not mapped</option>
+                  ${parsed.headers.map(h => `<option value="${CrmApp.escapeHtml(h)}" ${mapping[key] === h ? 'selected' : ''}>${CrmApp.escapeHtml(h)}</option>`).join('')}
+                </select>
+              </div>`).join('')}
+          </div>
+          <div class="crmapp-modal-actions" style="justify-content:flex-start; margin-top:16px;">
+            <button class="btn primary" id="preview-btn">Preview (Dry Run — writes nothing)</button>
+          </div>
+        </div>
+      </div>`;
+    document.querySelectorAll('[data-map]').forEach(sel => {
+      sel.addEventListener('change', () => { mapping[sel.dataset.map] = sel.value || undefined; });
+    });
+    document.getElementById('batch-company').addEventListener('change', (e) => { batchCompany = e.target.value; });
+    document.getElementById('preview-btn').addEventListener('click', runPreview);
+  }
+
+  function outcomeLabel(outcome) {
+    const labels = {
+      would_create: 'Will create', would_update: 'Will update', likely_duplicate: 'Likely duplicate', invalid: 'Invalid',
+      created: 'Created', updated: 'Updated', skipped: 'Skipped', staged_for_review: 'Staged for review', failed: 'Failed',
+    };
+    return labels[outcome] || outcome;
+  }
+  function outcomeClass(outcome) {
+    if (['would_create', 'created'].includes(outcome)) return 'status-active';
+    if (['would_update', 'updated', 'likely_duplicate', 'staged_for_review'].includes(outcome)) return 'status-pending';
+    if (['invalid', 'failed'].includes(outcome)) return 'status-failed';
+    return 'status-archived';
+  }
+
+  async function runPreview() {
+    const body = { records: parsed.records, columnMapping: mapping, brandSlug: batchCompany || undefined, filename: 'preview.csv' };
+    let result;
+    try { result = await CrmApp.postJSON('/api/app/import/preview', 'POST', body); }
+    catch (err) { CrmApp.toast(err.message, { error: true }); return; }
+    lastPreview = result;
+    renderPreview(result, { committed: false });
+  }
+
+  function renderPreview(result, { committed }) {
+    const s = result.summary;
+    const summaryLine = committed
+      ? `Created ${s.created} · Updated ${s.updated} · Skipped ${s.skipped} · Staged for review ${s.staged_for_review} · Failed ${s.failed}`
+      : `Will create ${s.would_create} · Will update ${s.would_update} · Likely duplicates ${s.likely_duplicate} · Invalid ${s.invalid}`;
+    document.getElementById('preview-area').innerHTML = `
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header"><h2>${committed ? 'Import Summary' : 'Preview'}</h2><span class="card-header-sub">${summaryLine}</span></div>
+        <div class="card-body no-pad table-scroll">
+          <table class="data-table">
+            <thead><tr><th>Row</th><th>Outcome</th><th>Detail</th></tr></thead>
+            <tbody>${result.results.map(r => `<tr>
+              <td>${r.rowNumber}</td>
+              <td><span class="pill ${outcomeClass(r.outcome)}">${outcomeLabel(r.outcome)}</span></td>
+              <td>${CrmApp.escapeHtml(r.detail || '')}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+        ${!committed ? `<div class="card-body">
+          <div class="text-faint" style="margin-bottom:10px;">Nothing has been created yet. Likely duplicates default to "Skip" — importing now will never overwrite an existing client.</div>
+          <button class="btn primary" id="commit-btn">Import Now</button>
+        </div>` : ''}
+      </div>`;
+    if (!committed) document.getElementById('commit-btn').addEventListener('click', runCommit);
+  }
+
+  async function runCommit() {
+    const ok = await CrmApp.confirmAction(`Import ${parsed.records.length} row(s) now? This will create/update real client records in this local database.`, { confirmLabel: 'Import' });
+    if (!ok) return;
+    const body = { records: parsed.records, columnMapping: mapping, brandSlug: batchCompany || undefined, filename: 'import.csv' };
+    let result;
+    try { result = await CrmApp.postJSON('/api/app/import/commit', 'POST', body); }
+    catch (err) { CrmApp.toast(err.message, { error: true }); return; }
+    renderPreview(result, { committed: true });
+    CrmApp.toast('Import complete.');
+  }
+}
+render();
+</script>
+</body>
+</html>

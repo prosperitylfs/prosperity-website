@@ -179,4 +179,112 @@ function resolveCaseReviewItem(db, { intakeId, action, targetCaseId, productId, 
   throw new Error(`resolveCaseReviewItem: unknown action '${action}'`);
 }
 
-module.exports = { archiveCase, resolveBrandReviewItem, resolveCaseReviewItem };
+// action: 'keep_existing' | 'test_archive' — a transfer action is
+// intentionally NOT implemented (matches the original prohibition this
+// queue was built under): keeping the existing company is the only way to
+// resolve a conflict or a manual company-change request without an
+// explicit, separately-approved transfer mechanism. Applies to BOTH
+// review_type 'company_conflict' (detected automatically at intake) and
+// 'company_change' (a manual request via crm/lib/clientService.js's
+// requestCompanyChange) — both share the same contact_brand_id (existing)
+// / incoming_brand_id (requested) shape.
+//
+// "Keeping the existing company must not falsely relabel the incoming
+// source" — this never rewrites incoming_brand_id or the raw_payload; it
+// only records the decision and resolution actor/time, so the full
+// existing-vs-incoming comparison stays intact in the resolved record.
+function resolveCompanyConflict(db, { intakeId, action, actor }) {
+  if (!actor) throw new Error('resolveCompanyConflict: actor is required for the audit trail');
+  const intake = db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId);
+  if (!intake) throw new Error(`resolveCompanyConflict: intake ${intakeId} does not exist`);
+  if (!['company_conflict', 'company_change'].includes(intake.review_type)) {
+    throw new Error(`resolveCompanyConflict: intake ${intakeId} is not a company-conflict or company-change item`);
+  }
+  if (intake.status !== 'Pending') throw new Error(`resolveCompanyConflict: intake ${intakeId} is not pending (status: ${intake.status})`);
+
+  if (action === 'test_archive') {
+    db.prepare(`
+      UPDATE unresolved_intake
+      SET status = 'Archived', decision = 'test_archive', resolved_by = ?, resolved_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(actor, intakeId);
+    return { outcome: 'archived', intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId) };
+  }
+
+  if (action === 'keep_existing') {
+    db.prepare(`
+      UPDATE unresolved_intake
+      SET status = 'Resolved', decision = 'keep_existing_company', resolved_by = ?, resolved_at = CURRENT_TIMESTAMP, resolved_contact_brand_id = ?
+      WHERE id = ?
+    `).run(actor, intake.contact_brand_id, intakeId);
+    return { outcome: 'kept_existing', intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId) };
+  }
+
+  throw new Error(`resolveCompanyConflict: unknown action '${action}' (only 'keep_existing' and 'test_archive' are implemented)`);
+}
+
+// Attaches a staged unmatched-inbound-SMS review item (review_type
+// 'unknown_sms_sender', crm/lib/inboundSmsService.js) to a client the
+// reviewer chooses by hand — never a guess, never automatic. Only ever
+// attaches to a client whose ACTIVE company is Prosperity, matching "never
+// attach a reply to an Insurance Lady client." Preserves the original
+// intake row (raw_payload untouched) and inserts the message into
+// sms_messages using the same idempotent INSERT OR IGNORE on twilio_sid as
+// the webhook itself, so resolving the same review item twice can never
+// create two message rows.
+function resolveUnknownSmsReview(db, { intakeId, contactId, actor }) {
+  if (!actor) throw new Error('resolveUnknownSmsReview: actor is required for the audit trail');
+  const intake = db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId);
+  if (!intake) throw new Error(`resolveUnknownSmsReview: intake ${intakeId} does not exist`);
+  if (intake.review_type !== 'unknown_sms_sender') throw new Error(`resolveUnknownSmsReview: intake ${intakeId} is not an unknown-SMS-sender item`);
+  if (intake.status !== 'Pending') throw new Error(`resolveUnknownSmsReview: intake ${intakeId} is not pending (status: ${intake.status})`);
+
+  if (!contactId) {
+    throw new Error('resolveUnknownSmsReview: contactId is required to attach this message to a client');
+  }
+
+  const link = db.prepare(`
+    SELECT cb.id AS contact_brand_id, b.slug FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id
+    WHERE cb.contact_id = ? AND cb.status = 'Active'
+  `).get(contactId);
+  if (!link || link.slug !== 'prosperity') {
+    throw new Error('resolveUnknownSmsReview: this message can only be attached to a client whose active company is Prosperity');
+  }
+
+  let payload = {};
+  try { payload = JSON.parse(intake.raw_payload || '{}'); } catch { payload = {}; }
+
+  const insertResult = db.prepare(`
+    INSERT OR IGNORE INTO sms_messages (contact_id, contact_brand_id, direction, from_number, to_number, body, status, twilio_sid)
+    VALUES (?, ?, 'inbound', ?, ?, ?, 'received', ?)
+  `).run(contactId, link.contact_brand_id, payload.From || null, payload.To || null, payload.Body || '', payload.MessageSid || null);
+
+  db.prepare(`
+    UPDATE unresolved_intake
+    SET status = 'Resolved', decision = 'attached_to_client', resolved_by = ?, resolved_at = CURRENT_TIMESTAMP, resolved_contact_brand_id = ?
+    WHERE id = ?
+  `).run(actor, link.contact_brand_id, intakeId);
+
+  return {
+    outcome: 'attached', contactId, messageCreated: insertResult.changes > 0,
+    intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId),
+  };
+}
+
+// Generic "archive this review item" for any pending item regardless of
+// review_type — a thin, explicit wrapper so the frontend has one action
+// name for "dismiss this without a business decision" everywhere.
+function archiveReviewItem(db, { intakeId, actor }) {
+  if (!actor) throw new Error('archiveReviewItem: actor is required for the audit trail');
+  const intake = db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId);
+  if (!intake) throw new Error(`archiveReviewItem: intake ${intakeId} does not exist`);
+  if (intake.status !== 'Pending') throw new Error(`archiveReviewItem: intake ${intakeId} is not pending (status: ${intake.status})`);
+  db.prepare(`
+    UPDATE unresolved_intake
+    SET status = 'Archived', decision = 'test_archive', resolved_by = ?, resolved_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(actor, intakeId);
+  return { outcome: 'archived', intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId) };
+}
+
+module.exports = { archiveCase, resolveBrandReviewItem, resolveCaseReviewItem, resolveCompanyConflict, resolveUnknownSmsReview, archiveReviewItem };

@@ -37,12 +37,14 @@ const db = require('../db/database'); // creates the real legacy schema at DB_PA
 const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
+const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
 const { dedupeContact, resolveContactBrand, matchOrCreateCase, stageUnresolvedIntake } = require('../lib/caseMatching');
 const { processLeadIntake } = require('../lib/leadIntake');
 
 const { insuranceLadyId, prosperityId } = runMigrations(db);
 runDashboardMigrations(db);
 runCrmAppMigrations(db);
+runCrmCoreMigrations(db);
 
 function pid(brandSlug, name) {
   const brand = db.prepare('SELECT id FROM brands WHERE slug = ?').get(brandSlug);
@@ -75,6 +77,7 @@ function makeClient({ brandId, first, last, email, phone, product, city, state, 
 
 // ── Prosperity clients ──────────────────────────────────────────────────
 const dana = makeClient({ brandId: prosperityId, first: 'Dana', last: 'Furst', email: 'dana.furst@example-mail.com', phone: '4145550101', product: 'Life insurance', secondProduct: 'Annuities', city: 'Milwaukee', state: 'WI' });
+db.prepare('UPDATE contacts SET sms_consent = 1, email_consent = 1 WHERE id = ?').run(dana.contact.id); // preview only -- lets the draft-compose flow be demonstrated end-to-end
 db.prepare(`INSERT INTO follow_up_tasks (contact_id, case_id, task_type, due_date, notes, priority) VALUES (?, ?, 'Call', ?, 'Review term life quote options', 'High')`).run(dana.contact.id, dana.case1.id, dateOnly(-2));
 db.prepare(`INSERT INTO appointments (contact_id, appt_type, appt_datetime, status) VALUES (?, 'Phone Call', ?, 'Scheduled')`).run(dana.contact.id, iso(0, 14));
 db.prepare(`INSERT INTO contact_notes (contact_id, body) VALUES (?, 'Prefers evening calls after 5pm. Has two grandchildren she wants covered under a final expense policy eventually.')`).run(dana.contact.id);

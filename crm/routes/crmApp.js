@@ -23,11 +23,14 @@ const {
   getBrandReviewQueue,
   getCaseReviewQueue,
   getCompanyConflictQueue,
+  getUnknownSmsReviewQueue,
   getMessageDeliveryStatus,
   getPoliciesList,
+  getReportsSummary,
 } = require('../lib/dashboardQueries');
 const { BRANDS } = require('../config/brands');
 const { getSenderGuardrailForCase, getSenderGuardrailForManualSelection } = require('../lib/senderGuardrail');
+const { listTasks } = require('../lib/taskService');
 
 // Normalizes the ?company= query param used throughout this API to a valid
 // brandId value for crm/lib/dashboardQueries.js: null/'all' pass through as
@@ -94,6 +97,7 @@ router.get('/review', (req, res) => {
     brandReview: getBrandReviewQueue(db),
     caseReview: getCaseReviewQueue(db),
     companyConflicts: getCompanyConflictQueue(db),
+    unknownSmsReview: getUnknownSmsReviewQueue(db),
     testArchive: testArchiveLog,
   });
 });
@@ -106,25 +110,22 @@ router.get('/communications', (req, res) => {
   res.json({ items });
 });
 
-// Simple, real listing for the Tasks nav page — crm/routes/tasks.js has no
-// generic "all tasks" endpoint (only /stats and /contact/:id), so this is
-// added here rather than touching that already-tested route file.
+// Real listing for the Tasks screen — overdue|today|upcoming|completed|all.
+// crm/routes/tasks.js (legacy) has no generic "all tasks" endpoint (only
+// /stats and /contact/:id), so this is added here rather than touching that
+// already-tested route file.
 router.get('/tasks', (req, res) => {
-  const status = ['Pending', 'Completed', 'Cancelled'].includes(req.query.status) ? req.query.status : 'Pending';
-  const rows = db.prepare(`
-    SELECT t.*, ct.first_name, ct.last_name
-    FROM follow_up_tasks t
-    JOIN contacts ct ON ct.id = t.contact_id
-    WHERE t.status = ?
-    ORDER BY t.due_date ASC, t.due_time ASC
-    LIMIT 200
-  `).all(status);
-  res.json({ items: rows });
+  const filter = ['overdue', 'today', 'upcoming', 'completed', 'all'].includes(req.query.filter) ? req.query.filter : 'all';
+  res.json({ items: listTasks(db, { filter }) });
 });
 
 router.get('/policies', (req, res) => {
   const brandId = parseCompanyParam(req.query.company);
   res.json({ items: getPoliciesList(db, { brandId }) });
+});
+
+router.get('/reports', (req, res) => {
+  res.json(getReportsSummary(db));
 });
 
 module.exports = router;

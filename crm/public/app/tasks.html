@@ -12,34 +12,124 @@
 <script src="shell.js"></script>
 <script>
 async function render() {
-  CrmApp.mount({ active: 'tasks', title: 'Tasks', subtitle: 'Pending follow-ups across every client', showCompanyFilter: false });
+  CrmApp.mount({ active: 'tasks', title: 'Tasks', subtitle: 'Follow-ups across every client', showCompanyFilter: false });
   const content = document.getElementById('page-content');
-  content.innerHTML = '<div class="empty-state">Loading…</div>';
 
-  let data;
-  try { data = await CrmApp.fetchJSON('/api/app/tasks?status=Pending'); }
-  catch (e) { content.innerHTML = `<div class="empty-state">Could not load tasks: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+  const FILTERS = [
+    ['overdue', 'Overdue'], ['today', 'Due Today'], ['upcoming', 'Upcoming'], ['completed', 'Completed'], ['all', 'All'],
+  ];
+  let activeFilter = 'all';
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="card-body">
+        <div class="search-row">
+          <div class="company-filter" id="task-filters" style="background:var(--neutral-tint);">${FILTERS.map(([k, l]) => `<button type="button" data-filter="${k}" class="${k === activeFilter ? 'active' : ''}">${l}</button>`).join('')}</div>
+          <button class="btn primary" id="add-task-btn" style="margin-left:auto;">New Task</button>
+        </div>
+      </div>
+      <div class="card-body no-pad table-scroll">
+        <table class="data-table"><thead><tr><th>Client</th><th>Type</th><th>Notes</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead>
+        <tbody id="task-rows"></tbody></table>
+      </div>
+    </div>`;
+
+  document.getElementById('task-filters').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-filter]');
+    if (!btn) return;
+    activeFilter = btn.dataset.filter;
+    document.querySelectorAll('#task-filters button').forEach(b => b.classList.toggle('active', b === btn));
+    load();
+  });
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const items = data.items;
-  if (!items.length) { content.innerHTML = '<div class="card"><div class="card-body"><div class="empty-state">No pending tasks.</div></div></div>'; return; }
 
-  content.innerHTML = `<div class="card"><div class="card-body no-pad table-scroll">
-    <table class="data-table">
-      <thead><tr><th>Client</th><th>Type</th><th>Notes</th><th>Due</th><th>Priority</th></tr></thead>
-      <tbody>${items.map(t => {
-        const overdue = t.due_date < todayStr;
-        return `<tr class="clickable" data-id="${t.contact_id}">
-          <td><strong>${CrmApp.escapeHtml([t.first_name, t.last_name].filter(Boolean).join(' '))}</strong></td>
-          <td>${CrmApp.escapeHtml(t.task_type)}</td>
-          <td>${CrmApp.escapeHtml(t.notes || '—')}</td>
-          <td class="${overdue ? 'text-danger' : ''}">${overdue ? 'Overdue · ' : ''}${CrmApp.friendlyDate(t.due_date)}</td>
-          <td>${CrmApp.escapeHtml(t.priority)}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>
-  </div></div>`;
-  content.querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => location.href = `client.html?id=${el.dataset.id}`));
+  function rowHtml(t) {
+    const overdue = t.status === 'Pending' && t.due_date < todayStr;
+    return `<tr>
+      <td><a href="client.html?id=${t.contact_id}"><strong>${CrmApp.escapeHtml([t.first_name, t.last_name].filter(Boolean).join(' '))}</strong></a></td>
+      <td>${CrmApp.escapeHtml(t.task_type)}</td>
+      <td>${CrmApp.escapeHtml(t.notes || '—')}</td>
+      <td class="${overdue ? 'text-danger' : ''}">${overdue ? 'Overdue · ' : ''}${CrmApp.friendlyDate(t.due_date)}${t.due_time ? ' ' + t.due_time : ''}</td>
+      <td>${CrmApp.escapeHtml(t.priority)}</td>
+      <td><span class="pill status-${t.status.toLowerCase()}">${t.status}</span></td>
+      <td class="field-row-actions">
+        ${t.status === 'Pending' ? `<button class="btn small ghost" data-complete="${t.id}">Complete</button>` : ''}
+        ${t.status === 'Completed' ? `<button class="btn small ghost" data-reopen="${t.id}">Reopen</button>` : ''}
+        <button class="btn small ghost" data-edit-task="${t.id}" data-json='${JSON.stringify(t).replace(/'/g, "&#39;")}'>Edit</button>
+        <button class="btn small ghost" data-archive-task="${t.id}">Archive</button>
+      </td>
+    </tr>`;
+  }
+
+  async function load() {
+    let data;
+    try { data = await CrmApp.fetchJSON(`/api/app/tasks?filter=${activeFilter}`); }
+    catch (e) { document.getElementById('task-rows').innerHTML = `<tr><td colspan="7"><div class="empty-state">Could not load tasks: ${CrmApp.escapeHtml(e.message)}</div></td></tr>`; return; }
+    const rows = document.getElementById('task-rows');
+    rows.innerHTML = data.items.length ? data.items.map(rowHtml).join('') : `<tr><td colspan="7"><div class="empty-state">No tasks in this view.</div></td></tr>`;
+  }
+
+  function taskFormModal(existing) {
+    const dialog = CrmApp.openModal({
+      title: existing ? 'Edit Task' : 'New Task',
+      bodyHtml: `
+        <form id="task-form">
+          <div class="form-grid">
+            ${!existing ? `<div class="form-field full"><label>Client ID <span class="hint">(open the client and use Add Activity for a friendlier flow)</span></label><input class="input" name="contactId" type="number" required></div>` : ''}
+            <div class="form-field"><label>Type</label>
+              <select class="input" name="taskType">${['Call', 'Text', 'Email', 'Follow-up', 'Meeting', 'Other'].map(t => `<option ${existing && existing.task_type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+            </div>
+            <div class="form-field"><label>Priority</label>
+              <select class="input" name="priority">${['Low', 'Medium', 'High'].map(p => `<option ${existing && existing.priority === p ? 'selected' : ''}>${p}</option>`).join('')}</select>
+            </div>
+            <div class="form-field"><label>Due date</label><input class="input" name="dueDate" type="date" value="${existing ? existing.due_date : ''}" required></div>
+            <div class="form-field"><label>Due time</label><input class="input" name="dueTime" type="time" value="${existing && existing.due_time ? existing.due_time : ''}"></div>
+            <div class="form-field full"><label>Notes</label><textarea class="input" name="notes">${existing ? CrmApp.escapeHtml(existing.notes || '') : ''}</textarea></div>
+          </div>
+          <div class="form-error" id="task-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="task-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Task</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#task-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#task-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      if (fields.contactId) fields.contactId = Number(fields.contactId);
+      try {
+        if (existing) await CrmApp.postJSON(`/api/app/tasks/${existing.id}`, 'PATCH', fields);
+        else await CrmApp.postJSON('/api/app/tasks', 'POST', fields);
+        CrmApp.toast(existing ? 'Task updated.' : 'Task created.');
+        dialog.close();
+        load();
+      } catch (err) {
+        dialog.querySelector('#task-error').textContent = err.message;
+      }
+    });
+  }
+
+  document.getElementById('add-task-btn').addEventListener('click', () => taskFormModal());
+  document.getElementById('task-rows').addEventListener('click', async (e) => {
+    const completeBtn = e.target.closest('[data-complete]');
+    if (completeBtn) { await CrmApp.postJSON(`/api/app/tasks/${completeBtn.dataset.complete}/complete`, 'POST'); CrmApp.toast('Task completed.'); load(); return; }
+    const reopenBtn = e.target.closest('[data-reopen]');
+    if (reopenBtn) { await CrmApp.postJSON(`/api/app/tasks/${reopenBtn.dataset.reopen}/reopen`, 'POST'); CrmApp.toast('Task reopened.'); load(); return; }
+    const archiveBtn = e.target.closest('[data-archive-task]');
+    if (archiveBtn) {
+      const ok = await CrmApp.confirmAction('Archive this task?', { confirmLabel: 'Archive', danger: true });
+      if (!ok) return;
+      await CrmApp.postJSON(`/api/app/tasks/${archiveBtn.dataset.archiveTask}/archive`, 'POST');
+      CrmApp.toast('Task archived.'); load(); return;
+    }
+    const editBtn = e.target.closest('[data-edit-task]');
+    if (editBtn) taskFormModal(JSON.parse(editBtn.dataset.json));
+  });
+
+  load();
 }
 render();
 </script>

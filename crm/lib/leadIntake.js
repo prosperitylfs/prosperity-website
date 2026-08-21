@@ -36,6 +36,7 @@ const {
   resolveContactBrand,
   matchOrCreateCase,
   stageUnresolvedIntake,
+  findConflictingActiveBrand,
 } = require('./caseMatching');
 const { resolveBrandSlugForSource } = require('../config/leadSources');
 const {
@@ -263,10 +264,7 @@ function processLeadIntake(db, { sourceId, payload }, deps = {}) {
   //    deliberate, audited review instead. A contact with no existing
   //    relationship, or one that already matches this brand, is unaffected
   //    (first-time establishment / repeat lead — proceeds normally below).
-  const existingActiveBrands = db.prepare(`
-    SELECT * FROM contact_brands WHERE contact_id = ? AND status = 'Active'
-  `).all(contact.id);
-  const conflictingRelationship = existingActiveBrands.find(cb => cb.brand_id !== brandRow.id);
+  const conflictingRelationship = findConflictingActiveBrand(db, contact.id, brandRow.id);
 
   if (conflictingRelationship) {
     const unresolvedIntake = stageUnresolvedIntake(db, {

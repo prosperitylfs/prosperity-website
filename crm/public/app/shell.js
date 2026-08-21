@@ -195,8 +195,92 @@
     } catch (e) { /* badges are a nicety, never block the page on this */ }
   }
 
+  // Shared JSON POST/PATCH helper — every mutation goes through here so
+  // error handling (and the API key header) stays consistent everywhere.
+  async function postJSON(path, method, body) {
+    const url = (window.CRM ? window.CRM.baseUrl : '') + path;
+    const headers = window.CRM ? window.CRM.headers() : { 'Content-Type': 'application/json' };
+    const res = await fetch(url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  }
+
+  // A single, reusable <dialog>-based modal — every "Add X" / "Edit X" form
+  // in the app renders into this same element instead of each page
+  // reinventing modal open/close/backdrop/focus handling. bodyHtml is
+  // trusted markup built by the caller (never raw user input without
+  // escapeHtml). onMount(dialogEl) runs after the dialog is in the DOM and
+  // open, for wiring form listeners.
+  function openModal({ title, bodyHtml, onMount, wide }) {
+    let dialog = document.getElementById('crmapp-modal');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.id = 'crmapp-modal';
+      dialog.className = 'crmapp-modal';
+      document.body.appendChild(dialog);
+      dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
+    }
+    dialog.classList.toggle('wide', !!wide);
+    dialog.innerHTML = `
+      <div class="crmapp-modal-header">
+        <h2>${title}</h2>
+        <button type="button" class="crmapp-modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="crmapp-modal-body">${bodyHtml}</div>
+    `;
+    dialog.querySelector('.crmapp-modal-close').addEventListener('click', () => dialog.close());
+    if (typeof HTMLDialogElement === 'function' && dialog.showModal) dialog.showModal();
+    else dialog.setAttribute('open', '');
+    if (onMount) onMount(dialog);
+    return dialog;
+  }
+  function closeModal() {
+    const dialog = document.getElementById('crmapp-modal');
+    if (dialog && dialog.open) dialog.close();
+  }
+
+  // Custom confirm-modal (not native confirm()) so every confirmation reads
+  // an exact message and resolves a Promise<boolean> — used before every
+  // review action / archive action per "require confirmation before local
+  // review actions."
+  function confirmAction(message, { confirmLabel = 'Confirm', danger = false } = {}) {
+    return new Promise((resolve) => {
+      const dialog = openModal({
+        title: 'Please confirm',
+        bodyHtml: `
+          <p class="confirm-message">${message}</p>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" data-act="cancel">Cancel</button>
+            <button type="button" class="btn ${danger ? '' : 'primary'}" data-act="confirm" ${danger ? 'style="background:var(--danger);border-color:var(--danger);color:#fff;"' : ''}>${confirmLabel}</button>
+          </div>
+        `,
+      });
+      let settled = false;
+      const settle = (val) => { if (settled) return; settled = true; resolve(val); dialog.close(); };
+      dialog.querySelector('[data-act="cancel"]').addEventListener('click', () => settle(false));
+      dialog.querySelector('[data-act="confirm"]').addEventListener('click', () => settle(true));
+      dialog.addEventListener('close', () => settle(false), { once: true });
+    });
+  }
+
+  // Small transient toast instead of alert() -- non-blocking, CDP-friendly.
+  function toast(message, { error = false } = {}) {
+    let el = document.getElementById('crmapp-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'crmapp-toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = message;
+    el.className = error ? 'error visible' : 'visible';
+    clearTimeout(el.__timer);
+    el.__timer = setTimeout(() => el.classList.remove('visible'), 3200);
+  }
+
   window.CrmApp = {
     mount, getCompany, setCompany, companyBadge, escapeHtml, initials,
-    fetchJSON, friendlyDate, friendlyDateTime, NAV_ITEMS,
+    fetchJSON, postJSON, friendlyDate, friendlyDateTime, NAV_ITEMS,
+    openModal, closeModal, confirmAction, toast,
   };
 })();

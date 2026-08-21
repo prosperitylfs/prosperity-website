@@ -199,9 +199,10 @@ table.data-table tbody tr.clickable:hover { background: var(--surface-alt); }
   font-size: 11.5px; font-weight: 700;
 }
 .pill.status-open, .pill.status-active, .pill.status-sent, .pill.status-delivered { background: var(--success-tint); color: var(--success); }
-.pill.status-pending, .pill.status-queued { background: var(--warning-tint); color: var(--warning); }
+.pill.status-pending, .pill.status-queued, .pill.status-received { background: var(--warning-tint); color: var(--warning); }
 .pill.status-archived, .pill.status-closed { background: var(--neutral-tint); color: var(--text-dim); }
 .pill.status-failed, .pill.overdue { background: var(--danger-tint); color: var(--danger); }
+.pill.status-blocked, .pill.status-logged { background: var(--neutral-tint); color: var(--text-dim); }
 
 .text-dim { color: var(--text-dim); }
 .text-faint { color: var(--text-faint); font-size: 12.5px; }
@@ -345,4 +346,80 @@ table.data-table tbody tr.clickable:hover { background: var(--surface-alt); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
+}
+
+/* ── Modal / form / toast (CRM Core Functionality Completion) ───────────── */
+dialog.crmapp-modal {
+  border: none; border-radius: var(--radius); padding: 0; width: 560px; max-width: 92vw;
+  max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-md); background: var(--surface); color: var(--text);
+}
+dialog.crmapp-modal.wide { width: 760px; }
+dialog.crmapp-modal::backdrop { background: rgba(10, 14, 26, 0.5); }
+.crmapp-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); }
+.crmapp-modal-header h2 { font-size: 16px; margin: 0; }
+.crmapp-modal-close { border: none; background: none; font-size: 22px; line-height: 1; color: var(--text-faint); cursor: pointer; padding: 4px 8px; }
+.crmapp-modal-body { padding: 18px 20px 22px; }
+.crmapp-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.confirm-message { font-size: 14px; line-height: 1.5; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+.form-grid .full { grid-column: 1 / -1; }
+.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-field label { font-size: 12.5px; font-weight: 600; color: var(--text-dim); }
+.form-field .hint { font-size: 11.5px; color: var(--text-faint); font-weight: 400; }
+.form-field textarea.input { resize: vertical; min-height: 64px; font-family: inherit; }
+.form-error { color: var(--danger); font-size: 12.5px; margin-top: 10px; min-height: 1em; }
+.company-choice-row { display: flex; gap: 10px; }
+.company-choice-row .company-choice-btn {
+  flex: 1; padding: 12px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-strong);
+  background: var(--surface); cursor: pointer; font-weight: 700; font-size: 13.5px; text-align: center;
+}
+.company-choice-row .company-choice-btn.selected.il { border-color: var(--il-color); background: var(--il-tint); color: var(--il-color); }
+.company-choice-row .company-choice-btn.selected.prosperity { border-color: var(--prosperity-color); background: var(--prosperity-tint); color: var(--prosperity-color); }
+
+#crmapp-toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+  background: var(--text); color: #fff; padding: 11px 18px; border-radius: 999px; font-size: 13.5px;
+  font-weight: 600; box-shadow: var(--shadow-md); opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
+  z-index: 100; max-width: 90vw; text-align: center;
+}
+#crmapp-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+#crmapp-toast.error { background: var(--danger); }
+
+.blocked-notice {
+  padding: 12px 14px; background: var(--danger-tint); color: var(--danger); border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; text-align: center; margin-top: 12px;
+}
+.field-row-actions { display: flex; gap: 6px; }
+.inline-form-toggle { margin-bottom: 12px; }
+
+@media (max-width: 860px) {
+  .form-grid { grid-template-columns: 1fr; }
+  dialog.crmapp-modal { width: 94vw; }
+}
+
+/* Threaded text conversation (Prosperity Revenue MVP, Requirement 4) —
+   outbound bubbles align right in the Prosperity brand color, inbound
+   bubbles align left in a neutral surface, matching a real messaging app
+   so sent vs received is obvious at a glance without reading the meta row. */
+.sms-thread { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 12px; }
+.sms-bubble-row { display: flex; }
+.sms-bubble-row.outbound { justify-content: flex-end; }
+.sms-bubble-row.inbound { justify-content: flex-start; }
+.sms-bubble {
+  max-width: min(72%, 480px); padding: 10px 13px; border-radius: 14px; font-size: 13.5px;
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,.06));
+}
+.sms-bubble-row.outbound .sms-bubble { background: var(--prosperity-color); color: #fff; border-bottom-right-radius: 3px; }
+.sms-bubble-row.inbound .sms-bubble { background: var(--surface-alt); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 3px; }
+.sms-bubble-body { white-space: pre-wrap; word-break: break-word; }
+.sms-bubble-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 11px; opacity: .85; flex-wrap: wrap; }
+.sms-bubble-row.outbound .sms-bubble-meta .pill { background: rgba(255,255,255,.22); color: #fff; }
+.sms-bubble-time { font-size: 10.5px; opacity: .7; margin-top: 3px; }
+.sms-bubble-failure { font-size: 11.5px; margin-top: 4px; font-weight: 600; }
+.sms-bubble-row.outbound .sms-bubble-failure { color: #ffe3e0; }
+.sms-bubble-row.inbound .sms-bubble-failure { color: var(--danger); }
+
+@media (max-width: 480px) {
+  .sms-bubble { max-width: 86%; }
 }

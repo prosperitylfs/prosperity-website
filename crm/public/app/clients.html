@@ -35,6 +35,8 @@ async function render() {
             <option value="nextAction">Sort: Next action due date</option>
             <option value="lastActivity">Sort: Most recent activity</option>
           </select>
+          <a class="btn" href="import.html">Import CSV</a>
+          <button class="btn primary" id="add-client-btn">Add Client</button>
         </div>
       </div>
       <div class="card-body no-pad">
@@ -149,6 +151,76 @@ async function render() {
       next && next.addEventListener('click', () => { state.page = Math.min(p.totalPages, p.page + 1); load(); });
     }
   }
+
+  function addClientModal() {
+    let selectedCompany = null; // never preselected
+    const dialog = CrmApp.openModal({
+      title: 'Add Client',
+      bodyHtml: `
+        <div class="form-field full">
+          <label>Permanent company <span class="hint">(required — cannot be changed casually after saving)</span></label>
+          <div class="company-choice-row" id="add-client-company">
+            <button type="button" class="company-choice-btn" data-company="insurance-lady">Insurance Lady</button>
+            <button type="button" class="company-choice-btn" data-company="prosperity">Prosperity</button>
+          </div>
+        </div>
+        <form id="add-client-form">
+          <div class="form-grid" style="margin-top:14px;">
+            <div class="form-field"><label>First name</label><input class="input" name="firstName"></div>
+            <div class="form-field"><label>Last name</label><input class="input" name="lastName"></div>
+            <div class="form-field"><label>Phone</label><input class="input" name="phone" type="tel"></div>
+            <div class="form-field"><label>Email</label><input class="input" name="email" type="email"></div>
+            <div class="form-field full"><label>Address</label><input class="input" name="address"></div>
+            <div class="form-field"><label>City</label><input class="input" name="city"></div>
+            <div class="form-field"><label>State</label><input class="input" name="state" maxlength="2" style="text-transform:uppercase;"></div>
+            <div class="form-field"><label>ZIP code</label><input class="input" name="zip"></div>
+            <div class="form-field"><label>Date of birth <span class="hint">(optional)</span></label><input class="input" name="dateOfBirth" type="date"></div>
+            <div class="form-field"><label>Original source</label><input class="input" name="originalSource" placeholder="e.g. Referral, Website"></div>
+            <div class="form-field full"><label>General notes</label><textarea class="input" name="generalNotes"></textarea></div>
+          </div>
+          <div class="form-error" id="add-client-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="add-client-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Add Client</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#add-client-company').addEventListener('click', (e) => {
+      const btn = e.target.closest('.company-choice-btn');
+      if (!btn) return;
+      selectedCompany = btn.dataset.company;
+      dialog.querySelectorAll('.company-choice-btn').forEach(b => {
+        b.classList.toggle('selected', b === btn);
+        b.classList.toggle('il', b === btn && b.dataset.company === 'insurance-lady');
+        b.classList.toggle('prosperity', b === btn && b.dataset.company === 'prosperity');
+      });
+    });
+    dialog.querySelector('#add-client-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#add-client-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = dialog.querySelector('#add-client-error');
+      errorEl.textContent = '';
+      if (!selectedCompany) { errorEl.textContent = 'Choose a permanent company before saving.'; return; }
+      const fd = new FormData(e.target);
+      const fields = Object.fromEntries(fd.entries());
+      fields.brandSlug = selectedCompany;
+      try {
+        const result = await CrmApp.postJSON('/api/app/clients', 'POST', fields);
+        if (result.outcome === 'company_conflict') {
+          CrmApp.toast('This person already has a different company on file — staged for Review Required instead of created twice.', { error: true });
+          dialog.close();
+        } else {
+          CrmApp.toast('Client added.');
+          dialog.close();
+          location.href = `client.html?id=${result.contact.id}`;
+        }
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    });
+  }
+  document.getElementById('add-client-btn').addEventListener('click', addClientModal);
 
   load();
 }

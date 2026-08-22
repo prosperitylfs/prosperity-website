@@ -81,12 +81,14 @@ function mapRow(row, columnMapping) {
     phone: get('phone'), address: get('address'), city: get('city'), state: get('state'),
     zip: get('zip'), dateOfBirth: get('dateOfBirth'), originalSource: get('originalSource'),
     generalNotes: get('generalNotes'),
-    // Policy/case fields — used only for the smallest-safe Occidental
-    // client import (Prosperity Revenue MVP, Requirement 1). Company is
+    // Policy/case fields — used for importing an existing client's policy
+    // from any carrier (Prosperity Revenue MVP, Requirement 1). Company is
     // still NEVER inferred from any of these — see resolveRowBrandSlug,
-    // which never reads productName/carrier/etc.
+    // which never reads productName/carrier/etc. Carrier itself is always
+    // taken from the row's own data, never assumed or hard-coded.
     productName: get('productName'), carrier: get('carrier'), policyNumber: get('policyNumber'),
     effectiveDate: get('effectiveDate'), premium: get('premium'),
+    premiumFrequency: get('premiumFrequency'), policyStatus: get('policyStatus'),
   };
 }
 
@@ -114,7 +116,8 @@ function validateRow(mapped, brandSlug) {
 // policy columns mapped is completely unaffected — it still gets 'New
 // Lead', exactly as before.
 function hasPolicyData(mapped) {
-  return !!(mapped.productName || mapped.carrier || mapped.policyNumber || mapped.premium || mapped.effectiveDate);
+  return !!(mapped.productName || mapped.carrier || mapped.policyNumber || mapped.premium
+    || mapped.effectiveDate || mapped.premiumFrequency || mapped.policyStatus);
 }
 
 // Product/carrier/policy number/effective date/premium are only ever used
@@ -142,6 +145,8 @@ function attachPolicyIfPresent(db, { contactId, rowBrandSlug, mapped, actor }) {
     policyNumber: mapped.policyNumber || null,
     effectiveDate: mapped.effectiveDate || null,
     premium: mapped.premium || null,
+    premiumFrequency: mapped.premiumFrequency || null,
+    policyStatus: mapped.policyStatus || null,
     notes: mapped.generalNotes || null,
   }, actor);
 
@@ -301,17 +306,21 @@ function generateSampleCsv() {
   return [header, ...rows].join('\n') + '\n';
 }
 
-// Sample matching the exact field list for the Occidental client import
-// (Prosperity Revenue MVP, Requirement 1) — every name, number, and policy
+// Sample matching the field list for importing an existing client with a
+// policy attached (Prosperity Revenue MVP, Requirement 1) — carrier-neutral:
+// the Carrier column is just another mapped field, filled in per row from
+// the CSV data, exactly like every other field here. Never hard-coded to
+// any one insurance company. The three sample rows deliberately use
+// different carriers to make that explicit. Every name, number, and policy
 // detail below is invented for this download, never real client data.
-function generateOccidentalSampleCsv() {
-  const header = 'First Name,Last Name,Phone,Email,Address,City,State,Zip,Product,Carrier,Policy Number,Effective Date,Premium,Notes,Original Source';
+function generateClientPolicySampleCsv() {
+  const header = 'First Name,Last Name,Phone,Email,Address,City,State,Zip,Product,Carrier,Policy Number,Effective Date,Premium,Premium Frequency,Policy Status,Notes,Original Source';
   const rows = [
-    'Harold,Voss,414-555-2201,harold.voss@example-mail.com,118 Maple Ct,Milwaukee,WI,53204,Life insurance,Occidental Life,OCC-40021,2019-06-01,54.00,Existing whole life policy — annual review due,Occidental Life — Existing Client',
-    'Ines,Calloway,414-555-2202,ines.calloway@example-mail.com,872 Elm St,Greenfield,WI,53220,Annuities,Occidental Life,OCC-40022,2021-02-15,,Fixed annuity — client asked about withdrawal options,Occidental Life — Existing Client',
-    'Deshawn,Priest,414-555-2203,deshawn.priest@example-mail.com,,,,,Life insurance,Occidental Life,OCC-40023,2016-09-10,88.50,,Occidental Life — Existing Client',
+    'Harold,Voss,414-555-2201,harold.voss@example-mail.com,118 Maple Ct,Milwaukee,WI,53204,Life insurance,Occidental Life,OCC-40021,2019-06-01,54.00,Monthly,Active,Existing whole life policy — annual review due,Existing Client',
+    'Ines,Calloway,414-555-2202,ines.calloway@example-mail.com,872 Elm St,Greenfield,WI,53220,Annuities,Mutual of Omaha,MOO-77213,2021-02-15,,Annual,Active,Fixed annuity — client asked about withdrawal options,Existing Client',
+    'Deshawn,Priest,414-555-2203,deshawn.priest@example-mail.com,,,,,Life insurance,Foresters Financial,FF-90042,2016-09-10,88.50,Monthly,Active,,Existing Client',
   ];
   return [header, ...rows].join('\n') + '\n';
 }
 
-module.exports = { parseCsv, runImport, getImportBatch, generateSampleCsv, generateOccidentalSampleCsv, findExistingContact };
+module.exports = { parseCsv, runImport, getImportBatch, generateSampleCsv, generateClientPolicySampleCsv, findExistingContact };

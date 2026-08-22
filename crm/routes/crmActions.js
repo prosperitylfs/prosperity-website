@@ -143,10 +143,10 @@ router.get('/import/sample-csv', (req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename="sample-clients.csv"');
   res.send(importService.generateSampleCsv());
 });
-router.get('/import/occidental-sample-csv', (req, res) => {
+router.get('/import/client-policy-sample-csv', (req, res) => {
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="sample-occidental-clients.csv"');
-  res.send(importService.generateOccidentalSampleCsv());
+  res.setHeader('Content-Disposition', 'attachment; filename="sample-client-policy-import.csv"');
+  res.send(importService.generateClientPolicySampleCsv());
 });
 router.post('/import/parse', handle(req => importService.parseCsv(req.body.csvText || '')));
 router.post('/import/preview', handle(req => importService.runImport(db, { ...req.body, dryRun: true, actor: ACTOR })));

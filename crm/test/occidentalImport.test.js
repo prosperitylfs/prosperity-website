@@ -11,7 +11,7 @@ const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
 const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
-const { runImport, generateOccidentalSampleCsv, parseCsv } = require('../lib/importService');
+const { runImport, generateClientPolicySampleCsv, parseCsv } = require('../lib/importService');
 
 function setup() {
   const db = createLegacyDb();
@@ -26,8 +26,8 @@ const OCCIDENTAL_MAPPING = {
   effectiveDate: 'Effective Date', premium: 'Premium', generalNotes: 'Notes', originalSource: 'Original Source',
 };
 
-test('generateOccidentalSampleCsv produces a parseable CSV with every Occidental field', () => {
-  const csv = generateOccidentalSampleCsv();
+test('generateClientPolicySampleCsv produces a parseable CSV with every policy field', () => {
+  const csv = generateClientPolicySampleCsv();
   const { headers, records } = parseCsv(csv);
   for (const col of ['Product', 'Carrier', 'Policy Number', 'Effective Date', 'Premium']) {
     assert.ok(headers.includes(col), `missing column ${col}`);

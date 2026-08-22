@@ -18,6 +18,7 @@ const FIELD_KEYS = [
   ['company', 'Company (per-row)'],
   ['productName', 'Product / policy type'], ['carrier', 'Carrier'], ['policyNumber', 'Policy number'],
   ['effectiveDate', 'Effective date'], ['premium', 'Premium'],
+  ['premiumFrequency', 'Premium frequency'], ['policyStatus', 'Policy status'],
 ];
 
 async function render() {
@@ -35,14 +36,38 @@ async function render() {
         <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
           <input type="file" id="csv-file" accept=".csv,text/csv">
           <a class="btn" id="download-sample" href="/api/app/import/sample-csv">Download Sample CSV</a>
-          <a class="btn" id="download-occidental-sample" href="/api/app/import/occidental-sample-csv">Download Occidental Sample CSV</a>
+          <button type="button" class="btn" id="download-client-policy-sample">Download Client &amp; Policy Sample CSV</button>
         </div>
-        <div class="text-faint" style="margin-top:8px;">All data in the sample files is fake, for testing only. The Occidental sample includes policy fields (product, carrier, policy number, effective date, premium) for importing existing clients with a case + policy attached.</div>
+        <div class="text-faint" style="margin-top:8px;">All data in the sample files is fake, for testing only. The Client &amp; Policy sample includes policy fields (product, carrier, policy number, effective date, premium, premium frequency, policy status) for importing existing clients with a case + policy attached, from any insurance carrier — just fill in the Carrier column per row.</div>
       </div>
     </div>
     <div id="mapping-area"></div>
     <div id="preview-area"></div>
   `;
+
+  // A plain <a href> navigation to an /api/app/* route never carries the
+  // x-api-key header requireApiKey checks for, so it 401s even when the
+  // browser is already logged into the dashboard. Fetch with CRM.headers()
+  // instead and turn the response into a client-side download.
+  document.getElementById('download-client-policy-sample').addEventListener('click', async () => {
+    try {
+      const url = (window.CRM ? window.CRM.baseUrl : '') + '/api/app/import/client-policy-sample-csv';
+      const headers = window.CRM ? window.CRM.headers() : {};
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = 'sample-client-policy-import.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      CrmApp.toast('Could not download the sample CSV.', { error: true });
+    }
+  });
 
   document.getElementById('csv-file').addEventListener('change', async (e) => {
     const file = e.target.files[0];

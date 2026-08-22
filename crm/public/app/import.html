@@ -84,7 +84,12 @@ async function render() {
     const file = e.target.files[0];
     if (!file) return;
     const text = await file.text();
-    parsed = await CrmApp.postJSON('/api/app/import/parse', 'POST', { csvText: text });
+    try {
+      parsed = await CrmApp.postJSON('/api/app/import/parse', 'POST', { csvText: text });
+    } catch (err) {
+      CrmApp.toast(`Could not read this CSV: ${err.message}`, { error: true });
+      return;
+    }
     mapping = {};
     // Best-effort auto-map by matching header names case-insensitively —
     // tries the full label first, then just its first word, so a short CSV

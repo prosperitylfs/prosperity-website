@@ -39,7 +39,13 @@ app.use(cors({
 }));
 
 // Capture raw body buffer for HMAC webhook signature verification (Cal.com, etc.)
+// limit raised from Express's 100kb default -- a real client/policy CSV
+// pasted into the import JSON body (crm/routes/crmActions.js's
+// /import/parse|preview|commit) routinely exceeds that for a few hundred
+// rows. 5mb comfortably covers a large client book while staying a
+// deliberate, bounded limit rather than unlimited.
 app.use(express.json({
+  limit: '5mb',
   verify: (req, _res, buf) => { req.rawBody = buf; },
 }));
 app.use(express.urlencoded({ extended: true }));

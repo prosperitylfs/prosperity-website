@@ -32,13 +32,21 @@ async function render() {
 
   content.innerHTML = `
     <div class="card">
+      <div class="card-header"><h2>Import Clients</h2></div>
       <div class="card-body">
         <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
           <input type="file" id="csv-file" accept=".csv,text/csv">
-          <button type="button" class="btn" id="download-sample">Download Sample CSV</button>
+        </div>
+        <div class="text-faint" style="margin-top:8px;">Choose your completed CSV. You'll get a preview to review — including duplicates, errors, and company assignment — before anything is imported.</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header"><h2>Download Template</h2></div>
+      <div class="card-body">
+        <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
           <button type="button" class="btn" id="download-client-policy-sample">Download Client &amp; Policy Sample CSV</button>
         </div>
-        <div class="text-faint" style="margin-top:8px;">All data in the sample files is fake, for testing only. The Client &amp; Policy sample includes policy fields (product, carrier, policy number, effective date, premium, premium frequency, policy status) for importing existing clients with a case + policy attached, from any insurance carrier — just fill in the Carrier column per row.</div>
+        <div class="text-faint" style="margin-top:8px;">Carrier-neutral template (fake data, for reference only) showing how to format a file for importing existing clients and policies from any insurance carrier — includes product, carrier, policy number, effective date, premium, premium frequency, and policy status. Fill in the Carrier column per row.</div>
       </div>
     </div>
     <div id="mapping-area"></div>
@@ -68,9 +76,6 @@ async function render() {
       CrmApp.toast('Could not download the sample CSV.', { error: true });
     }
   }
-  document.getElementById('download-sample').addEventListener('click', () => {
-    downloadAuthenticatedCsv('/api/app/import/sample-csv', 'sample-clients.csv');
-  });
   document.getElementById('download-client-policy-sample').addEventListener('click', () => {
     downloadAuthenticatedCsv('/api/app/import/client-policy-sample-csv', 'sample-client-policy-import.csv');
   });

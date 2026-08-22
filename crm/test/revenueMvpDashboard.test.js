@@ -76,7 +76,7 @@ test('resolveUnknownSmsReview attaches the message to the chosen Prosperity clie
   const client = createClient(db, { firstName: 'Petra', lastName: 'Quinn', phone: '4145551503', brandSlug: 'prosperity' }, 'Loretta Stewart');
   handleInboundProsperitySms(db, { From: '+14145559922', To: BRANDS.prosperity.phone.e164, Body: 'is this Loretta', MessageSid: 'SM_QUEUE_2' });
   const pending = getUnknownSmsReviewQueue(db)[0];
-  const result = resolveUnknownSmsReview(db, { intakeId: pending.intakeId, contactId: client.contact.id, actor: 'Loretta Stewart' });
+  const result = resolveUnknownSmsReview(db, { intakeId: pending.intakeId, action: 'attach_existing', contactId: client.contact.id, actor: 'Loretta Stewart' });
   assert.equal(result.outcome, 'attached');
   assert.equal(result.messageCreated, true);
   const message = db.prepare('SELECT * FROM sms_messages WHERE contact_id = ?').get(client.contact.id);
@@ -93,5 +93,5 @@ test('resolveUnknownSmsReview refuses to attach to a client whose active company
   const ilClient = createClient(db, { firstName: 'Quinn', lastName: 'Rios', phone: '4145551504', brandSlug: 'insurance-lady' }, 'Loretta Stewart');
   handleInboundProsperitySms(db, { From: '+14145559933', To: BRANDS.prosperity.phone.e164, Body: 'hi', MessageSid: 'SM_QUEUE_3' });
   const pending = getUnknownSmsReviewQueue(db)[0];
-  assert.throws(() => resolveUnknownSmsReview(db, { intakeId: pending.intakeId, contactId: ilClient.contact.id, actor: 'Loretta Stewart' }), /Prosperity/);
+  assert.throws(() => resolveUnknownSmsReview(db, { intakeId: pending.intakeId, action: 'attach_existing', contactId: ilClient.contact.id, actor: 'Loretta Stewart' }), /Prosperity/);
 });

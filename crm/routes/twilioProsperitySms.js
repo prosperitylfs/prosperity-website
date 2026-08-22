@@ -1,15 +1,23 @@
-// Brand-aware Twilio inbound-SMS webhook for the Prosperity 414 number
-// (Prosperity Revenue MVP, Requirement 3). PUBLIC endpoint (no CRM API key
-// — Twilio can't attach one), protected instead by a required, verified
-// X-Twilio-Signature header (crm/lib/twilioSignature.js — the same,
-// already-tested verification used by the existing crm/routes/twilio.js).
+// Brand-aware Twilio inbound-SMS webhook for the Prosperity 414 number.
+// PUBLIC endpoint (no CRM API key — Twilio can't attach one), protected
+// instead by a required, verified X-Twilio-Signature header
+// (crm/lib/twilioSignature.js — the same, already-tested verification used
+// by the existing crm/routes/twilio.js).
 //
-// NOT wired to any real Twilio number yet — see the final checkpoint
-// report for the exact console configuration a controlled live test would
-// need. This route exists so that configuration is the ONLY remaining step
-// when live activation is approved; nothing here needs to change.
+// ALIAS, not the recommended production webhook. Per the Twilio/Render
+// configuration audit, the Prosperity 414 number's Messaging Service is set
+// to "defer to sender's webhook," which makes the already-configured
+// number-level URL — POST /api/twilio/sms/inbound
+// (crm/routes/twilio.js) — the one Twilio actually calls today, and the
+// one recommended to remain the single authoritative production webhook so
+// activation never requires reconfiguring Twilio. /sms/inbound here calls
+// the exact same shared handler (handleInboundSmsUnified,
+// crm/lib/inboundSmsService.js) so both endpoints are behaviorally
+// identical if either is ever hit — kept present for direct testing and as
+// a documented fallback path, not because it needs separate configuration.
+// NOT configured in any live Twilio console.
 //
-// All matching/idempotency/consent logic lives in
+// All matching/idempotency/consent/legacy-compatibility logic lives in
 // crm/lib/inboundSmsService.js (pure, unit-tested with fake signed
 // fixtures) — this file only verifies the request and calls in.
 
@@ -17,7 +25,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
 const { requireValidTwilioSignature } = require('../lib/twilioSignature');
-const { handleInboundProsperitySms } = require('../lib/inboundSmsService');
+const { handleInboundSmsUnified } = require('../lib/inboundSmsService');
 const { handleOutboundSmsStatusCallback } = require('../lib/smsStatusService');
 
 router.use((req, res, next) => {
@@ -28,9 +36,14 @@ router.use((req, res, next) => {
 router.use(requireValidTwilioSignature);
 
 router.post('/sms/inbound', (req, res) => {
-  const { From, To, Body, MessageSid } = req.body;
-  const result = handleInboundProsperitySms(db, { From, To, Body, MessageSid });
+  const { From, To, Body, MessageSid, MessageStatus } = req.body;
+  const result = handleInboundSmsUnified(db, { From, To, Body, MessageSid, MessageStatus });
   console.log(`[twilio-prosperity/sms/inbound] MessageSid=${MessageSid || 'none'} From=${From || 'none'} outcome=${result.outcome}`);
+
+  if (result.outcome === 'delivery_receipt_deflected') {
+    res.sendStatus(204);
+    return;
+  }
   res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
 });
 

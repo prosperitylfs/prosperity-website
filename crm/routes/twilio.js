@@ -8,6 +8,7 @@ const router  = express.Router();
 const db      = require('../db/database');
 const { createAutoTask, ctDueDateAndTime } = require('../lib/autoTasks');
 const { requireValidTwilioSignature } = require('../lib/twilioSignature');
+const { handleInboundSmsUnified } = require('../lib/inboundSmsService');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -593,76 +594,45 @@ router.post('/call-ended', (req, res) => {
 });
 
 // ─── POST /api/twilio/sms/inbound ────────────────────────────────────────────
-// Twilio Messaging webhook — configure this URL in Twilio console:
+// Twilio Messaging webhook — configured URL in Twilio console (per the
+// Twilio/Render configuration audit, this is the number-level webhook the
+// Prosperity 414 number's Messaging Service currently DEFERS TO, making it
+// the one authoritative production endpoint — see
+// crm/lib/inboundSmsService.js for the recommendation):
 //   Messaging → Phone Numbers → Active Numbers → your number → "A MESSAGE COMES IN"
 //   URL: https://prosperity-crm.onrender.com/api/twilio/sms/inbound
 //   HTTP: POST
 //
-// NOTE: if you previously used this URL as a status callback too, Twilio may
-// POST delivery receipts here (MessageStatus present, Body absent). Those are
-// deflected below to the status-update path so they cannot create duplicate rows.
+// The actual logic lives in handleInboundSmsUnified()
+// (crm/lib/inboundSmsService.js) — every legacy behavior this route used to
+// implement inline (delivery-receipt deflection, brand-agnostic contact
+// match-or-create, idempotent message storage, the deduplicated "reply to
+// this lead" follow-up task) is preserved there exactly, with brand-aware
+// Prosperity matching/consent/review layered on top ADDITIVELY. This route
+// is now a thin wrapper: pull the fields off the request, call the shared
+// handler, translate its outcome into the same two response shapes Twilio
+// always got from this URL before (204 for a deflected delivery receipt,
+// empty TwiML for everything else — never an auto-reply).
 router.post('/sms/inbound', (req, res) => {
   const { From, To, Body, MessageSid, MessageStatus } = req.body;
+  console.log(`[twilio/sms/inbound] MessageSid=${MessageSid || 'none'} From=${From || 'none'} To=${To || 'none'} body="${(Body || '').slice(0, 60)}"`);
 
-  // Delivery receipts arrive with MessageStatus instead of a real Body.
-  // Route them to the status-update logic so they UPDATE the existing row.
-  if (MessageStatus && !Body) {
-    console.log(`[twilio/sms/inbound] deflecting delivery receipt → MessageSid=${MessageSid} status=${MessageStatus}`);
-    if (MessageSid && MessageStatus) {
-      db.prepare('UPDATE sms_messages SET status = ? WHERE twilio_sid = ?')
-        .run(MessageStatus.toLowerCase(), MessageSid);
-    }
+  const result = handleInboundSmsUnified(db, { From, To, Body, MessageSid, MessageStatus });
+  console.log(`[twilio/sms/inbound] outcome=${result.outcome}` +
+    (result.contactId ? ` contact_id=${result.contactId}` : '') +
+    (result.contactCreated ? ' (new Unknown Caller contact)' : '') +
+    (result.contactBrandId ? ` contact_brand_id=${result.contactBrandId}` : '') +
+    (result.consentAction ? ` consentAction=${result.consentAction}` : '') +
+    (result.reviewStaged ? ` reviewStaged=${result.reviewStaged}` : ''));
+
+  if (result.outcome === 'delivery_receipt_deflected') {
     res.sendStatus(204);
     return;
   }
 
-  console.log(`[twilio/sms/inbound] MessageSid=${MessageSid} From=${From} To=${To} body="${(Body || '').slice(0, 60)}"`);
-
-  // Find or create contact by From number
-  let contact = findContactByPhone(From);
-  if (!contact && From) {
-    const digits    = From.replace(/\D/g, '');
-    const ten       = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
-    const dispPhone = ten.length === 10
-      ? `(${ten.slice(0,3)}) ${ten.slice(3,6)}-${ten.slice(6)}`
-      : From;
-    const e164Phone = ten.length === 10 ? `+1${ten}` : null;
-    const ins = db.prepare(`
-      INSERT INTO contacts
-        (first_name, last_name, phone, phone_e164, lead_type, lead_status, lead_source, updated_at)
-      VALUES (?, ?, ?, ?, 'Unknown Caller', 'New Lead', 'Inbound SMS', ?)
-    `).run('Unknown', dispPhone, dispPhone, e164Phone || From, new Date().toISOString());
-    contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(ins.lastInsertRowid);
-    console.log(`[twilio/sms/inbound] Created new contact id=${contact.id} for ${From}`);
-  } else if (contact) {
-    console.log(`[twilio/sms/inbound] Matched contact id=${contact.id} name="${contact.first_name} ${contact.last_name}"`);
-  } else {
-    console.warn('[twilio/sms/inbound] No From number — cannot match contact');
-  }
-
-  const contactId = contact ? contact.id : null;
-
-  // sms_messages is the sole authoritative store for SMS history.
-  // INSERT OR IGNORE deduplicates by the unique index on twilio_sid.
-  const smsInsertResult = db.prepare(`
-    INSERT OR IGNORE INTO sms_messages
-      (contact_id, direction, from_number, to_number, body, status, twilio_sid)
-    VALUES (?, 'inbound', ?, ?, ?, 'received', ?)
-  `).run(contactId, From || null, To || null, Body || '', MessageSid || null);
-
-  console.log(`[twilio/sms/inbound] Saved — contact_id=${contactId} MessageSid=${MessageSid}`);
-
-  // Auto follow-up task: remind to reply. Only fires for genuinely new messages
-  // (changes=0 means it was a duplicate twilio_sid — no task needed).
-  if (smsInsertResult.changes > 0 && contactId) {
-    createAutoTask(
-      contactId, 'SMS', 15,
-      'New inbound SMS received. Reply to this lead.',
-      'New inbound SMS'
-    );
-  }
-
-  // Respond with empty TwiML (no auto-reply to inbound SMS)
+  // Respond with empty TwiML (no auto-reply to inbound SMS) — matches the
+  // original inline implementation exactly, for both 'processed' and
+  // 'duplicate_ignored' outcomes.
   res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
 });
 

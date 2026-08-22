@@ -128,15 +128,25 @@ async function render() {
       <div style="margin-top:6px;">${CrmApp.escapeHtml(item.reason)}</div>
       <div class="sender-preview" style="margin-top:10px;">"${CrmApp.escapeHtml(item.body || '')}"</div>
       <div class="form-field" style="margin-top:12px;">
-        <label>Attach to which Prosperity client?</label>
+        <label>Attach to an existing active Prosperity client</label>
         <select class="input" data-unknown-sms-client="${item.intakeId}">
           <option value="">Choose a client…</option>
           ${clientOptions}
         </select>
       </div>
-      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn small" data-unknown-sms-resolve="${item.intakeId}">Attach to Client</button>
-        <button class="btn small ghost" data-archive-review="${item.intakeId}">Archive</button>
+      <div style="margin-top:8px; display:flex; gap:8px;">
+        <button class="btn small" data-unknown-sms-resolve="${item.intakeId}" data-action="attach_existing">Attach to Existing Prosperity Client</button>
+      </div>
+      <div class="form-field full" style="margin-top:14px; border-top:1px solid var(--border); padding-top:12px;">
+        <label>Or create a genuinely new Prosperity client</label>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <input class="input" style="flex:1; min-width:120px;" placeholder="First name" data-unknown-sms-firstname="${item.intakeId}">
+          <input class="input" style="flex:1; min-width:120px;" placeholder="Last name" data-unknown-sms-lastname="${item.intakeId}">
+        </div>
+      </div>
+      <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn small" data-unknown-sms-resolve="${item.intakeId}" data-action="create_new">Create New Prosperity Client</button>
+        <button class="btn small ghost" data-archive-review="${item.intakeId}">Archive / Test</button>
       </div>
     </div></div>`;
   }
@@ -240,17 +250,41 @@ async function render() {
       const unknownSmsBtn = e.target.closest('[data-unknown-sms-resolve]');
       if (unknownSmsBtn) {
         const intakeId = unknownSmsBtn.dataset.unknownSmsResolve;
-        const sel = document.querySelector(`[data-unknown-sms-client="${intakeId}"]`);
-        if (!sel || !sel.value) { CrmApp.toast('Choose a client to attach this message to first.', { error: true }); return; }
-        const clientLabel = sel.options[sel.selectedIndex].textContent;
-        const ok = await CrmApp.confirmAction(`Confirm: attach this text message to ${clientLabel}?`, { confirmLabel: 'Attach' });
-        if (!ok) return;
-        try {
-          await CrmApp.postJSON(`/api/app/review/unknown-sms/${intakeId}/resolve`, 'POST', { contactId: Number(sel.value) });
-          CrmApp.toast('Message attached.');
-          load();
-        } catch (err) { CrmApp.toast(err.message, { error: true }); }
-        return;
+        const action = unknownSmsBtn.dataset.action;
+
+        if (action === 'attach_existing') {
+          const sel = document.querySelector(`[data-unknown-sms-client="${intakeId}"]`);
+          if (!sel || !sel.value) { CrmApp.toast('Choose a client to attach this message to first.', { error: true }); return; }
+          const clientLabel = sel.options[sel.selectedIndex].textContent;
+          const ok = await CrmApp.confirmAction(`Confirm: attach this text message to ${clientLabel}?`, { confirmLabel: 'Attach' });
+          if (!ok) return;
+          try {
+            await CrmApp.postJSON(`/api/app/review/unknown-sms/${intakeId}/resolve`, 'POST', { action: 'attach_existing', contactId: Number(sel.value) });
+            CrmApp.toast('Message attached.');
+            load();
+          } catch (err) { CrmApp.toast(err.message, { error: true }); }
+          return;
+        }
+
+        if (action === 'create_new') {
+          const firstSel = document.querySelector(`[data-unknown-sms-firstname="${intakeId}"]`);
+          const lastSel = document.querySelector(`[data-unknown-sms-lastname="${intakeId}"]`);
+          const firstName = firstSel ? firstSel.value.trim() : '';
+          const lastName = lastSel ? lastSel.value.trim() : '';
+          if (!firstName && !lastName) { CrmApp.toast('Enter at least a first or last name for the new client.', { error: true }); return; }
+          const ok = await CrmApp.confirmAction(`Confirm: create a brand-new Prosperity client "${[firstName, lastName].filter(Boolean).join(' ')}" and attach this message to them?`, { confirmLabel: 'Create Client' });
+          if (!ok) return;
+          try {
+            const result = await CrmApp.postJSON(`/api/app/review/unknown-sms/${intakeId}/resolve`, 'POST', { action: 'create_new', firstName, lastName });
+            if (result.outcome === 'company_conflict') {
+              CrmApp.toast('This number already belongs to a client under a different company — resolve that conflict first.', { error: true });
+            } else {
+              CrmApp.toast('New Prosperity client created and message attached.');
+            }
+            load();
+          } catch (err) { CrmApp.toast(err.message, { error: true }); }
+          return;
+        }
       }
 
       const archiveBtn = e.target.closest('[data-archive-review]');

@@ -120,7 +120,10 @@ router.post('/review/company/:intakeId/resolve', handle(req => reviewResolution.
   intakeId: Number(req.params.intakeId), action: req.body.action, actor: ACTOR,
 })));
 router.post('/review/unknown-sms/:intakeId/resolve', handle(req => reviewResolution.resolveUnknownSmsReview(db, {
-  intakeId: Number(req.params.intakeId), contactId: req.body.contactId ? Number(req.body.contactId) : null, actor: ACTOR,
+  intakeId: Number(req.params.intakeId), action: req.body.action,
+  contactId: req.body.contactId ? Number(req.body.contactId) : null,
+  firstName: req.body.firstName, lastName: req.body.lastName,
+  actor: ACTOR,
 })));
 router.post('/review/:intakeId/archive', handle(req => reviewResolution.archiveReviewItem(db, {
   intakeId: Number(req.params.intakeId), actor: ACTOR,

@@ -12,6 +12,7 @@ const {
   dedupeContact, resolveContactBrand, matchOrCreateCase,
   findCaseByExternalRef, attachExternalRef, createCase,
 } = require('./caseMatching');
+const { createClient } = require('./clientService');
 
 // Archiving a case only ever touches that one case row — never the
 // contact, its other cases, or the contact_brands relationship.
@@ -223,52 +224,111 @@ function resolveCompanyConflict(db, { intakeId, action, actor }) {
   throw new Error(`resolveCompanyConflict: unknown action '${action}' (only 'keep_existing' and 'test_archive' are implemented)`);
 }
 
-// Attaches a staged unmatched-inbound-SMS review item (review_type
-// 'unknown_sms_sender', crm/lib/inboundSmsService.js) to a client the
-// reviewer chooses by hand — never a guess, never automatic. Only ever
-// attaches to a client whose ACTIVE company is Prosperity, matching "never
-// attach a reply to an Insurance Lady client." Preserves the original
-// intake row (raw_payload untouched) and inserts the message into
-// sms_messages using the same idempotent INSERT OR IGNORE on twilio_sid as
-// the webhook itself, so resolving the same review item twice can never
-// create two message rows.
-function resolveUnknownSmsReview(db, { intakeId, contactId, actor }) {
+// Resolves a staged unmatched-inbound-SMS review item (review_type
+// 'unknown_sms_sender', crm/lib/inboundSmsService.js) via one of two
+// explicit, human-triggered actions — never a guess, never automatic:
+//
+//   action: 'attach_existing' — attach to a client the reviewer chooses by
+//     hand. Only ever attaches to a client whose ACTIVE company is
+//     Prosperity, matching "never attach a reply to an Insurance Lady
+//     client." Preserves the original intake row (raw_payload untouched)
+//     and inserts the message into sms_messages using the same idempotent
+//     INSERT OR IGNORE on twilio_sid as the webhook itself, so resolving
+//     the same review item twice can never create two message rows.
+//
+//   action: 'create_new' — the reviewer has confirmed this is a genuinely
+//     new Prosperity client. Reuses crm/lib/clientService.js's
+//     createClient() (the SAME function "Add Client" uses) rather than
+//     inserting a contact directly, so the exact same permanent-company
+//     conflict detection applies here too: if this phone number actually
+//     already belongs to a DIFFERENT contact under an active brand (most
+//     notably an Insurance Lady client), createClient() stages a
+//     'company_conflict' review item instead of creating anything, and
+//     THIS unknown_sms_sender intake is left Pending rather than silently
+//     resolved — the reviewer must resolve the conflict first. Only on a
+//     genuine 'created' outcome does this attach the staged message
+//     (exactly once) and mark the original intake Resolved. Never creates
+//     or selects a case — that stays a separate, deliberate step.
+//
+// A third action, archiving, is handled by the generic archiveReviewItem()
+// below (shared across every review_type).
+function resolveUnknownSmsReview(db, { intakeId, action, contactId, firstName, lastName, actor }) {
   if (!actor) throw new Error('resolveUnknownSmsReview: actor is required for the audit trail');
   const intake = db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId);
   if (!intake) throw new Error(`resolveUnknownSmsReview: intake ${intakeId} does not exist`);
   if (intake.review_type !== 'unknown_sms_sender') throw new Error(`resolveUnknownSmsReview: intake ${intakeId} is not an unknown-SMS-sender item`);
   if (intake.status !== 'Pending') throw new Error(`resolveUnknownSmsReview: intake ${intakeId} is not pending (status: ${intake.status})`);
 
-  if (!contactId) {
-    throw new Error('resolveUnknownSmsReview: contactId is required to attach this message to a client');
-  }
-
-  const link = db.prepare(`
-    SELECT cb.id AS contact_brand_id, b.slug FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id
-    WHERE cb.contact_id = ? AND cb.status = 'Active'
-  `).get(contactId);
-  if (!link || link.slug !== 'prosperity') {
-    throw new Error('resolveUnknownSmsReview: this message can only be attached to a client whose active company is Prosperity');
-  }
-
   let payload = {};
   try { payload = JSON.parse(intake.raw_payload || '{}'); } catch { payload = {}; }
 
-  const insertResult = db.prepare(`
-    INSERT OR IGNORE INTO sms_messages (contact_id, contact_brand_id, direction, from_number, to_number, body, status, twilio_sid)
-    VALUES (?, ?, 'inbound', ?, ?, ?, 'received', ?)
-  `).run(contactId, link.contact_brand_id, payload.From || null, payload.To || null, payload.Body || '', payload.MessageSid || null);
+  if (action === 'attach_existing') {
+    if (!contactId) {
+      throw new Error('resolveUnknownSmsReview: contactId is required to attach this message to an existing client');
+    }
+    const link = db.prepare(`
+      SELECT cb.id AS contact_brand_id, b.slug FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id
+      WHERE cb.contact_id = ? AND cb.status = 'Active'
+    `).get(contactId);
+    if (!link || link.slug !== 'prosperity') {
+      throw new Error('resolveUnknownSmsReview: this message can only be attached to a client whose active company is Prosperity');
+    }
 
-  db.prepare(`
-    UPDATE unresolved_intake
-    SET status = 'Resolved', decision = 'attached_to_client', resolved_by = ?, resolved_at = CURRENT_TIMESTAMP, resolved_contact_brand_id = ?
-    WHERE id = ?
-  `).run(actor, link.contact_brand_id, intakeId);
+    const insertResult = db.prepare(`
+      INSERT OR IGNORE INTO sms_messages (contact_id, contact_brand_id, direction, from_number, to_number, body, status, twilio_sid)
+      VALUES (?, ?, 'inbound', ?, ?, ?, 'received', ?)
+    `).run(contactId, link.contact_brand_id, payload.From || null, payload.To || null, payload.Body || '', payload.MessageSid || null);
 
-  return {
-    outcome: 'attached', contactId, messageCreated: insertResult.changes > 0,
-    intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId),
-  };
+    db.prepare(`
+      UPDATE unresolved_intake
+      SET status = 'Resolved', decision = 'attached_to_client', resolved_by = ?, resolved_at = CURRENT_TIMESTAMP, resolved_contact_brand_id = ?
+      WHERE id = ?
+    `).run(actor, link.contact_brand_id, intakeId);
+
+    return {
+      outcome: 'attached', contactId, messageCreated: insertResult.changes > 0,
+      intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId),
+    };
+  }
+
+  if (action === 'create_new') {
+    const clientResult = createClient(db, {
+      firstName: firstName || null, lastName: lastName || null,
+      phone: payload.From || null, brandSlug: 'prosperity',
+    }, actor);
+
+    if (clientResult.outcome === 'company_conflict') {
+      // This number actually belongs to someone with a different active
+      // company (most notably Insurance Lady) — never silently create a
+      // second relationship. The conflict now has its own review item;
+      // this unknown_sms_sender intake is left Pending, untouched, so the
+      // reviewer can come back to it once the conflict is resolved.
+      return {
+        outcome: 'company_conflict',
+        conflictIntake: clientResult.unresolvedIntake,
+        intake,
+      };
+    }
+
+    const insertResult = db.prepare(`
+      INSERT OR IGNORE INTO sms_messages (contact_id, contact_brand_id, direction, from_number, to_number, body, status, twilio_sid)
+      VALUES (?, ?, 'inbound', ?, ?, ?, 'received', ?)
+    `).run(clientResult.contact.id, clientResult.contactBrand.id, payload.From || null, payload.To || null, payload.Body || '', payload.MessageSid || null);
+
+    db.prepare(`
+      UPDATE unresolved_intake
+      SET status = 'Resolved', decision = 'created_new_client', resolved_by = ?, resolved_at = CURRENT_TIMESTAMP, resolved_contact_brand_id = ?
+      WHERE id = ?
+    `).run(actor, clientResult.contactBrand.id, intakeId);
+
+    return {
+      outcome: 'created', contact: clientResult.contact, contactBrand: clientResult.contactBrand,
+      messageCreated: insertResult.changes > 0,
+      intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId),
+    };
+  }
+
+  throw new Error(`resolveUnknownSmsReview: unknown action '${action}' (must be 'attach_existing' or 'create_new')`);
 }
 
 // Generic "archive this review item" for any pending item regardless of

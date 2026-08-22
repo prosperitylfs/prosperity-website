@@ -1,22 +1,26 @@
-// Builds an in-memory better-sqlite3 database mirroring the CURRENT live
-// schema (mirrors crm/db/database.js's CREATE TABLE statements plus the
-// handful of addCol() columns exercised by these tests) — WITHOUT ever
-// requiring crm/db/database.js itself, which opens the live DB_PATH / a
-// crm.db file on disk as a side effect of being required. Tests must never
-// trigger that.
+// Builds a better-sqlite3 database mirroring the CURRENT live schema
+// (mirrors crm/db/database.js's CREATE TABLE statements plus the handful
+// of addCol() columns exercised by these tests) — WITHOUT ever requiring
+// crm/db/database.js itself, which opens the live DB_PATH / a crm.db file
+// on disk as a side effect of being required. Tests must never trigger
+// that.
 //
-// Always :memory: — never touches disk, never touches data/crm.db.
+// Defaults to :memory: — never touches disk, never touches data/crm.db —
+// unless a caller explicitly passes an absolute throwaway file path (used
+// by crm/test/migrationRunner.test.js, which needs a real file on disk to
+// exercise the production migration runner's dry-run file-copy behavior;
+// every other existing caller passes no argument and is unaffected).
 
 const Database = require('better-sqlite3');
 
-function createFreshDb() {
-  const db = new Database(':memory:');
+function createFreshDb(dbPath = ':memory:') {
+  const db = new Database(dbPath);
   db.pragma('foreign_keys = ON');
   return db;
 }
 
-function createLegacyDb() {
-  const db = createFreshDb();
+function createLegacyDb(dbPath = ':memory:') {
+  const db = createFreshDb(dbPath);
   db.exec(`
     CREATE TABLE contacts (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,

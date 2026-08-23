@@ -22,8 +22,8 @@ function createPolicy(db, fields, actor) {
   if (!actor) throw new Error('createPolicy: actor is required for the audit trail');
   requireCase(db, fields.caseId);
   const result = db.prepare(`
-    INSERT INTO policies (case_id, carrier, policy_number, policy_status, effective_date, premium, premium_frequency, coverage_amount, beneficiary, renewal_date, notes)
-    VALUES (@case_id, @carrier, @policy_number, @policy_status, @effective_date, @premium, @premium_frequency, @coverage_amount, @beneficiary, @renewal_date, @notes)
+    INSERT INTO policies (case_id, carrier, policy_number, policy_status, effective_date, premium, premium_frequency, coverage_amount, beneficiary, renewal_date, application_date, notes)
+    VALUES (@case_id, @carrier, @policy_number, @policy_status, @effective_date, @premium, @premium_frequency, @coverage_amount, @beneficiary, @renewal_date, @application_date, @notes)
   `).run(policyParams(fields));
   return db.prepare('SELECT * FROM policies WHERE id = ?').get(result.lastInsertRowid);
 }
@@ -40,6 +40,7 @@ function policyParams(fields) {
     coverage_amount: fields.coverageAmount != null && fields.coverageAmount !== '' ? Number(fields.coverageAmount) : null,
     beneficiary: toStringOrNull(fields.beneficiary),
     renewal_date: toStringOrNull(fields.renewalDate),
+    application_date: toStringOrNull(fields.applicationDate),
     notes: toStringOrNull(fields.notes),
   };
 }
@@ -60,6 +61,7 @@ function updatePolicy(db, policyId, fields) {
       coverage_amount   = COALESCE(@coverage_amount, coverage_amount),
       beneficiary       = COALESCE(@beneficiary, beneficiary),
       renewal_date      = COALESCE(@renewal_date, renewal_date),
+      application_date  = COALESCE(@application_date, application_date),
       notes             = COALESCE(@notes, notes),
       updated_at        = CURRENT_TIMESTAMP
     WHERE id = @id

@@ -80,7 +80,7 @@ test('4. the policy, case, and Prosperity company assignment remain intact', () 
   assert.equal(contact.lead_status, 'Existing Client');
 });
 
-test('5. re-importing a duplicate never creates another person, case, or policy (default skip decision)', () => {
+test('5. re-importing a duplicate never creates another person, case, or policy (exact policy already on file is skipped)', () => {
   const db = setup();
   const records = [{ 'First Name': 'Yolanda', 'Last Name': 'Pike', Phone: '414-555-2206', Company: 'Prosperity', Product: 'Life insurance', Carrier: 'Occidental Life', 'Policy Number': 'OCC-40026' }];
   const first = runImport(db, { records, columnMapping: OCCIDENTAL_MAPPING, dryRun: false, filename: 'first.csv', actor: 'Loretta Stewart' });
@@ -89,9 +89,11 @@ test('5. re-importing a duplicate never creates another person, case, or policy 
   const caseCountAfterFirst = db.prepare('SELECT COUNT(*) AS n FROM cases').get().n;
   const policyCountAfterFirst = db.prepare('SELECT COUNT(*) AS n FROM policies').get().n;
 
-  // Re-import the exact same row -- default decision is 'skip', never overwrite.
+  // Re-import the exact same row -- same carrier + policy number already on
+  // file for this client, so the policy-level dedup check skips it (never
+  // the whole client, and never a blanket "any duplicate contact = skip").
   const second = runImport(db, { records, columnMapping: OCCIDENTAL_MAPPING, dryRun: false, filename: 'second.csv', actor: 'Loretta Stewart' });
-  assert.equal(second.summary.skipped, 1);
+  assert.equal(second.summary.skipped_existing_policy, 1);
   assert.equal(second.summary.created, 0);
 
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contacts').get().n, contactCountAfterFirst);

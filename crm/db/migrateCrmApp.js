@@ -48,6 +48,7 @@ function runCrmAppMigrations(db) {
       coverage_amount    REAL,
       beneficiary        TEXT,
       renewal_date       TEXT,
+      application_date   TEXT,
       created_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE

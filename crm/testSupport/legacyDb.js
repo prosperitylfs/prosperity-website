@@ -26,6 +26,7 @@ function createLegacyDb(dbPath = ':memory:') {
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       first_name    TEXT,
       last_name     TEXT,
+      middle_name   TEXT,
       phone         TEXT,
       phone_e164    TEXT,
       alt_phone     TEXT,

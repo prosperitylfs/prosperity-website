@@ -74,10 +74,22 @@ function resolveRowBrandSlug(row, columnMapping, batchBrandSlug) {
   return batchBrandSlug || null;
 }
 
+// Mirrors resolveRowBrandSlug's per-row-column-wins-over-batch-value shape,
+// but carrier is free text (not a fixed set of known slugs like brand), so
+// there is no validity check here -- any non-empty string is accepted.
+function resolveRowCarrier(row, columnMapping, batchCarrier) {
+  if (columnMapping.carrier && row[columnMapping.carrier]) {
+    const raw = row[columnMapping.carrier].trim();
+    if (raw) return raw;
+  }
+  const batch = (batchCarrier || '').trim();
+  return batch || null;
+}
+
 function mapRow(row, columnMapping) {
   const get = (key) => (columnMapping[key] ? (row[columnMapping[key]] || '').trim() : '');
   return {
-    firstName: get('firstName'), lastName: get('lastName'), email: get('email'),
+    firstName: get('firstName'), lastName: get('lastName'), middleName: get('middleName'), email: get('email'),
     phone: get('phone'), address: get('address'), city: get('city'), state: get('state'),
     zip: get('zip'), dateOfBirth: get('dateOfBirth'), originalSource: get('originalSource'),
     generalNotes: get('generalNotes'),
@@ -85,10 +97,11 @@ function mapRow(row, columnMapping) {
     // from any carrier (Prosperity Revenue MVP, Requirement 1). Company is
     // still NEVER inferred from any of these — see resolveRowBrandSlug,
     // which never reads productName/carrier/etc. Carrier itself is always
-    // taken from the row's own data, never assumed or hard-coded.
+    // taken from the row's own data or the batch value (resolveRowCarrier),
+    // never assumed or hard-coded.
     productName: get('productName'), carrier: get('carrier'), policyNumber: get('policyNumber'),
-    effectiveDate: get('effectiveDate'), premium: get('premium'),
-    premiumFrequency: get('premiumFrequency'), policyStatus: get('policyStatus'),
+    effectiveDate: get('effectiveDate'), applicationDate: get('applicationDate'), premium: get('premium'),
+    premiumFrequency: get('premiumFrequency'), policyStatus: get('policyStatus'), faceAmount: get('faceAmount'),
   };
 }
 
@@ -102,7 +115,9 @@ function validateRow(mapped, brandSlug) {
   if (!email && !phoneE164) errors.push('email or phone is required');
   if (mapped.dateOfBirth && !DATE_RE.test(mapped.dateOfBirth)) errors.push('date of birth must be YYYY-MM-DD');
   if (mapped.effectiveDate && !DATE_RE.test(mapped.effectiveDate)) errors.push('effective date must be YYYY-MM-DD');
+  if (mapped.applicationDate && !DATE_RE.test(mapped.applicationDate)) errors.push('application date must be YYYY-MM-DD');
   if (mapped.premium && !/^\d+(\.\d{1,2})?$/.test(mapped.premium)) errors.push('premium must be a plain number');
+  if (mapped.faceAmount && !/^\d+(\.\d{1,2})?$/.test(mapped.faceAmount)) errors.push('face amount must be a plain number');
   if (!brandSlug) errors.push('company could not be determined for this row (no batch company and no valid company column value)');
   else if (!isKnownBrandId(brandSlug)) errors.push(`unknown company '${brandSlug}'`);
   return errors;
@@ -117,15 +132,42 @@ function validateRow(mapped, brandSlug) {
 // Lead', exactly as before.
 function hasPolicyData(mapped) {
   return !!(mapped.productName || mapped.carrier || mapped.policyNumber || mapped.premium
-    || mapped.effectiveDate || mapped.premiumFrequency || mapped.policyStatus);
+    || mapped.effectiveDate || mapped.premiumFrequency || mapped.policyStatus
+    || mapped.faceAmount || mapped.applicationDate);
+}
+
+// Policy identity for dedup purposes = carrier + policy number, scoped to
+// one specific client's relationship with one specific brand (never across
+// brands, and never just "this carrier+number exists somewhere" globally —
+// two different clients, or the same client under a different brand, could
+// legitimately share a policy number at another carrier's numbering scheme).
+// Only ever checked when both values are present -- "when available", per
+// the approved design; a row missing either simply can't be deduped at the
+// policy level and always proceeds to create.
+function findExistingPolicy(db, { contactId, brandId, carrier, policyNumber }) {
+  if (!carrier || !policyNumber) return null;
+  return db.prepare(`
+    SELECT p.* FROM policies p
+    JOIN cases c ON c.id = p.case_id
+    JOIN contact_brands cb ON cb.id = c.contact_brand_id
+    WHERE cb.contact_id = ? AND cb.brand_id = ?
+      AND LOWER(TRIM(p.carrier)) = LOWER(TRIM(?))
+      AND LOWER(TRIM(p.policy_number)) = LOWER(TRIM(?))
+  `).get(contactId, brandId, carrier, policyNumber);
 }
 
 // Product/carrier/policy number/effective date/premium are only ever used
 // to attach a case+policy to a client that was just created or explicitly
-// updated in THIS row — never inferred, never applied to a skipped
+// matched in THIS row — never inferred, never applied to a skipped
 // duplicate, and never used to determine which company the row belongs to
 // (see resolveRowBrandSlug above, which this function is never called by).
-function attachPolicyIfPresent(db, { contactId, rowBrandSlug, mapped, actor }) {
+//
+// One case per policy (never one shared case across a client's multiple
+// policies) — a case's single status/next-action/product fields can't
+// represent several independently-diverging already-issued policies. The
+// client/contact and their contact_brands relationship are what's shared
+// across all of a client's cases; a new case is created here every time.
+function attachPolicyIfPresent(db, { contactId, rowBrandSlug, mapped, actor, carrier }) {
   if (!hasPolicyData(mapped)) return null;
 
   const brandRow = db.prepare('SELECT id FROM brands WHERE slug = ?').get(rowBrandSlug);
@@ -141,12 +183,14 @@ function attachPolicyIfPresent(db, { contactId, rowBrandSlug, mapped, actor }) {
 
   const policy = createPolicy(db, {
     caseId: newCase.id,
-    carrier: mapped.carrier || null,
+    carrier: carrier || null,
     policyNumber: mapped.policyNumber || null,
     effectiveDate: mapped.effectiveDate || null,
+    applicationDate: mapped.applicationDate || null,
     premium: mapped.premium || null,
     premiumFrequency: mapped.premiumFrequency || null,
     policyStatus: mapped.policyStatus || null,
+    coverageAmount: mapped.faceAmount || null,
     notes: mapped.generalNotes || null,
   }, actor);
 
@@ -155,10 +199,28 @@ function attachPolicyIfPresent(db, { contactId, rowBrandSlug, mapped, actor }) {
 
 // Processes every row once, in either mode. Returns { batchId, results,
 // summary }. results[i]: { rowNumber, outcome, detail, contactId }.
-// outcome: 'would_create' | 'would_update' | 'likely_duplicate' | 'invalid'
-//   (dry run) or 'created' | 'updated' | 'skipped' | 'staged_for_review' |
-//   'failed' (commit).
-function runImport(db, { records, columnMapping, brandSlug, dryRun, filename, duplicateDecisions = {}, actor }) {
+//
+// outcome (dry run): 'would_create' | 'would_attach_policy' |
+//   'would_skip_existing_policy' | 'would_update' | 'likely_duplicate' | 'invalid'
+// outcome (commit): 'created' | 'attached_policy' | 'skipped_existing_policy' |
+//   'updated' | 'skipped' | 'staged_for_review' | 'failed'
+//
+// Two-level dedup for policy-bearing rows (client/policy book imports, e.g.
+// Occidental): a person is matched/reused by email or phone exactly like
+// any other row (never a second contact just because they have another
+// policy) -- see findExistingContact, and this also works correctly for
+// multiple rows of the same person within one CSV batch, since each row
+// commits before the next is read. A policy is matched by carrier + policy
+// number, scoped to that one client's relationship with the resolved brand
+// -- see findExistingPolicy. If the client exists but this exact policy
+// doesn't, a NEW case + policy is attached to the EXISTING contact (one
+// case per policy — see attachPolicyIfPresent's comment for why cases are
+// never shared across a client's multiple policies). If the exact policy
+// already exists, nothing is created and the row is flagged
+// "Existing Policy — Skip". Rows with no policy data at all keep the
+// original manual duplicateDecisions ('skip' | 'update') behavior,
+// unchanged, since there's nothing new to attach for a plain lead row.
+function runImport(db, { records, columnMapping, brandSlug, carrierSlug, dryRun, filename, duplicateDecisions = {}, actor }) {
   if (!actor) throw new Error('runImport: actor is required for the audit trail');
   if (!columnMapping || (!columnMapping.email && !columnMapping.phone)) {
     throw new Error('runImport: column mapping must map at least an email or phone column');
@@ -171,12 +233,16 @@ function runImport(db, { records, columnMapping, brandSlug, dryRun, filename, du
   const batchId = batchResult.lastInsertRowid;
 
   const results = [];
-  const summary = { created: 0, updated: 0, skipped: 0, staged_for_review: 0, failed: 0, would_create: 0, would_update: 0, likely_duplicate: 0, invalid: 0 };
+  const summary = {
+    created: 0, attached_policy: 0, skipped_existing_policy: 0, updated: 0, skipped: 0, staged_for_review: 0, failed: 0,
+    would_create: 0, would_attach_policy: 0, would_skip_existing_policy: 0, would_update: 0, likely_duplicate: 0, invalid: 0,
+  };
 
   records.forEach((row, idx) => {
     const rowNumber = idx + 1;
     const mapped = mapRow(row, columnMapping);
     const rowBrandSlug = resolveRowBrandSlug(row, columnMapping, brandSlug);
+    const rowCarrier = resolveRowCarrier(row, columnMapping, carrierSlug);
     const errors = validateRow(mapped, rowBrandSlug);
 
     if (errors.length) {
@@ -191,6 +257,55 @@ function runImport(db, { records, columnMapping, brandSlug, dryRun, filename, du
     const existing = findExistingContact(db, { email, phone_e164: phoneE164, phone: phoneDisplay });
 
     if (existing) {
+      const rowHasPolicyData = hasPolicyData(mapped);
+
+      if (rowHasPolicyData) {
+        const brandRow = db.prepare('SELECT id FROM brands WHERE slug = ?').get(rowBrandSlug);
+        const dupPolicy = findExistingPolicy(db, {
+          contactId: existing.id, brandId: brandRow.id, carrier: rowCarrier, policyNumber: mapped.policyNumber,
+        });
+        const clientLabel = `${existing.first_name || ''} ${existing.last_name || ''}`.trim() || `client #${existing.id}`;
+
+        if (dupPolicy) {
+          const outcome = dryRun ? 'would_skip_existing_policy' : 'skipped_existing_policy';
+          summary[outcome]++;
+          results.push(recordRow(db, batchId, rowNumber, row, outcome,
+            `Existing Policy — Skip: ${rowCarrier || 'this carrier'} ${mapped.policyNumber} is already on file for ${clientLabel} — nothing created`,
+            existing.id));
+          return;
+        }
+
+        if (dryRun) {
+          summary.would_attach_policy++;
+          results.push(recordRow(db, batchId, rowNumber, row, 'would_attach_policy',
+            `${clientLabel} already exists — would attach a new ${mapped.productName || 'policy'} case + policy, contact reused`,
+            existing.id));
+          return;
+        }
+
+        const conflict = findConflictingActiveBrand(db, existing.id, brandRow.id);
+        if (conflict) {
+          stageUnresolvedIntake(db, {
+            source: `csv_import:${filename || 'unnamed'}`, rawPayload: row, candidateContactId: existing.id,
+            reason: `CSV import row ${rowNumber} resolved to a different company than this client's existing active assignment — requires deliberate review`,
+            reviewType: 'company_conflict', contactBrandId: conflict.id, incomingBrandId: brandRow.id,
+          });
+          summary.staged_for_review++;
+          results.push(recordRow(db, batchId, rowNumber, row, 'staged_for_review', 'company conflict staged for review — client not modified', existing.id));
+          return;
+        }
+
+        resolveContactBrand(db, { contactId: existing.id, brandId: brandRow.id });
+        const attached = attachPolicyIfPresent(db, { contactId: existing.id, rowBrandSlug, mapped, actor, carrier: rowCarrier });
+        summary.attached_policy++;
+        results.push(recordRow(db, batchId, rowNumber, row, 'attached_policy',
+          `${clientLabel} already exists (contact reused) — attached new case + policy (case #${attached.case.id}, policy #${attached.policy.id})`,
+          existing.id));
+        return;
+      }
+
+      // No policy data on this row -- unchanged manual decision behavior
+      // (plain lead-style CSV import; nothing new to attach either way).
       const decision = duplicateDecisions[String(rowNumber)] || 'skip';
       if (dryRun) {
         summary.likely_duplicate++;
@@ -213,6 +328,7 @@ function runImport(db, { records, columnMapping, brandSlug, dryRun, filename, du
         db.prepare(`
           UPDATE contacts SET
             first_name = COALESCE(@first_name, first_name), last_name = COALESCE(@last_name, last_name),
+            middle_name = COALESCE(@middle_name, middle_name),
             street_address = COALESCE(@street_address, street_address), city = COALESCE(@city, city),
             state = COALESCE(@state, state), zip_code = COALESCE(@zip_code, zip_code),
             date_of_birth = COALESCE(@date_of_birth, date_of_birth), lead_source = COALESCE(@lead_source, lead_source),
@@ -220,16 +336,15 @@ function runImport(db, { records, columnMapping, brandSlug, dryRun, filename, du
           WHERE id = @id
         `).run({
           first_name: toStringOrNull(mapped.firstName), last_name: toStringOrNull(mapped.lastName),
+          middle_name: toStringOrNull(mapped.middleName),
           street_address: toStringOrNull(mapped.address), city: toStringOrNull(mapped.city),
           state: toStringOrNull(mapped.state), zip_code: toStringOrNull(mapped.zip),
           date_of_birth: toStringOrNull(mapped.dateOfBirth), lead_source: toStringOrNull(mapped.originalSource),
           general_notes: toStringOrNull(mapped.generalNotes), id: existing.id,
         });
         resolveContactBrand(db, { contactId: existing.id, brandId: brandRow.id });
-        const attached = attachPolicyIfPresent(db, { contactId: existing.id, rowBrandSlug, mapped, actor });
         summary.updated++;
-        results.push(recordRow(db, batchId, rowNumber, row, 'updated', `updated existing client #${existing.id}`
-          + (attached ? ` and attached a new case + policy (case #${attached.case.id}, policy #${attached.policy.id})` : ''), existing.id));
+        results.push(recordRow(db, batchId, rowNumber, row, 'updated', `updated existing client #${existing.id}`, existing.id));
         return;
       }
       // decision === 'skip' (default) or 'review' -- never silently overwrite.
@@ -254,10 +369,11 @@ function runImport(db, { records, columnMapping, brandSlug, dryRun, filename, du
     // on lead_status = 'New Lead' directly). A plain CSV import with no
     // policy columns mapped is unaffected and still becomes 'New Lead'.
     const insert = db.prepare(`
-      INSERT INTO contacts (first_name, last_name, email, phone, phone_e164, street_address, city, state, zip_code, date_of_birth, lead_source, general_notes, lead_status, updated_at)
-      VALUES (@first_name, @last_name, @email, @phone, @phone_e164, @street_address, @city, @state, @zip_code, @date_of_birth, @lead_source, @general_notes, @lead_status, CURRENT_TIMESTAMP)
+      INSERT INTO contacts (first_name, last_name, middle_name, email, phone, phone_e164, street_address, city, state, zip_code, date_of_birth, lead_source, general_notes, lead_status, updated_at)
+      VALUES (@first_name, @last_name, @middle_name, @email, @phone, @phone_e164, @street_address, @city, @state, @zip_code, @date_of_birth, @lead_source, @general_notes, @lead_status, CURRENT_TIMESTAMP)
     `).run({
       first_name: toStringOrNull(mapped.firstName), last_name: toStringOrNull(mapped.lastName),
+      middle_name: toStringOrNull(mapped.middleName),
       email: email || null, phone: phoneDisplay, phone_e164: phoneE164,
       street_address: toStringOrNull(mapped.address), city: toStringOrNull(mapped.city),
       state: toStringOrNull(mapped.state), zip_code: toStringOrNull(mapped.zip),
@@ -268,7 +384,7 @@ function runImport(db, { records, columnMapping, brandSlug, dryRun, filename, du
     const newContactId = insert.lastInsertRowid;
     const brandRow = db.prepare('SELECT id FROM brands WHERE slug = ?').get(rowBrandSlug);
     resolveContactBrand(db, { contactId: newContactId, brandId: brandRow.id });
-    const attached = attachPolicyIfPresent(db, { contactId: newContactId, rowBrandSlug, mapped, actor });
+    const attached = attachPolicyIfPresent(db, { contactId: newContactId, rowBrandSlug, mapped, actor, carrier: rowCarrier });
     summary.created++;
     results.push(recordRow(db, batchId, rowNumber, row, 'created', `created new client #${newContactId}`
       + (attached ? ` with a new case + policy (case #${attached.case.id}, policy #${attached.policy.id})` : ''), newContactId));
@@ -314,11 +430,11 @@ function generateSampleCsv() {
 // different carriers to make that explicit. Every name, number, and policy
 // detail below is invented for this download, never real client data.
 function generateClientPolicySampleCsv() {
-  const header = 'First Name,Last Name,Phone,Email,Address,City,State,Zip,Product,Carrier,Policy Number,Effective Date,Premium,Premium Frequency,Policy Status,Notes,Original Source';
+  const header = 'First Name,Last Name,Phone,Email,Address,City,State,Zip,Product,Carrier,Policy Number,Effective Date,Application Date,Premium,Premium Frequency,Policy Status,Face Amount,Notes,Original Source';
   const rows = [
-    'Harold,Voss,414-555-2201,harold.voss@example-mail.com,118 Maple Ct,Milwaukee,WI,53204,Life insurance,Occidental Life,OCC-40021,2019-06-01,54.00,Monthly,Active,Existing whole life policy — annual review due,Existing Client',
-    'Ines,Calloway,414-555-2202,ines.calloway@example-mail.com,872 Elm St,Greenfield,WI,53220,Annuities,Mutual of Omaha,MOO-77213,2021-02-15,,Annual,Active,Fixed annuity — client asked about withdrawal options,Existing Client',
-    'Deshawn,Priest,414-555-2203,deshawn.priest@example-mail.com,,,,,Life insurance,Foresters Financial,FF-90042,2016-09-10,88.50,Monthly,Active,,Existing Client',
+    'Harold,Voss,414-555-2201,harold.voss@example-mail.com,118 Maple Ct,Milwaukee,WI,53204,Life insurance,Occidental Life,OCC-40021,2019-06-01,2019-05-15,54.00,Monthly,Active,50000,Existing whole life policy — annual review due,Existing Client',
+    'Ines,Calloway,414-555-2202,ines.calloway@example-mail.com,872 Elm St,Greenfield,WI,53220,Annuities,Mutual of Omaha,MOO-77213,2021-02-15,2021-01-20,,Annual,Active,,Fixed annuity — client asked about withdrawal options,Existing Client',
+    'Deshawn,Priest,414-555-2203,deshawn.priest@example-mail.com,,,,,Life insurance,Foresters Financial,FF-90042,2016-09-10,2016-08-22,88.50,Monthly,Active,100000,,Existing Client',
   ];
   return [header, ...rows].join('\n') + '\n';
 }

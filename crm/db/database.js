@@ -306,4 +306,22 @@ try {
   if (!e.message.includes('already exists')) throw e;
 }
 
+// Middle name/initial — client/policy CSV import (e.g. an existing carrier's
+// book of business), for accurate legal-name records.
+addCol('contacts', 'middle_name', 'TEXT');
+
+// Application date, distinct from a policy's effective date — a per-POLICY
+// field (a contact can have several policies with different application
+// dates), so it belongs on `policies`, not `contacts`. Guarded: the
+// `policies` table only exists once crm/db/migrateCrmApp.js has run, which
+// (unlike this file) is not automatic on every boot — a fresh/test database
+// that hasn't run it yet must not crash trying to ALTER a table that
+// doesn't exist.
+function tableExists(name) {
+  return !!db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
+}
+if (tableExists('policies')) {
+  addCol('policies', 'application_date', 'TEXT');
+}
+
 module.exports = db;

@@ -10,15 +10,18 @@
 <div id="app-root"></div>
 <script src="../config.js"></script>
 <script src="shell.js"></script>
+<script src="columnAutoMap.js"></script>
 <script>
 const FIELD_KEYS = [
-  ['firstName', 'First name'], ['lastName', 'Last name'], ['email', 'Email'], ['phone', 'Phone'],
+  ['firstName', 'First name'], ['lastName', 'Last name'], ['middleName', 'Middle name / initial'],
+  ['email', 'Email'], ['phone', 'Phone'],
   ['address', 'Address'], ['city', 'City'], ['state', 'State'], ['zip', 'ZIP code'],
   ['dateOfBirth', 'Date of birth'], ['originalSource', 'Original source'], ['generalNotes', 'General notes'],
-  ['company', 'Company (per-row)'],
-  ['productName', 'Product / policy type'], ['carrier', 'Carrier'], ['policyNumber', 'Policy number'],
-  ['effectiveDate', 'Effective date'], ['premium', 'Premium'],
-  ['premiumFrequency', 'Premium frequency'], ['policyStatus', 'Policy status'],
+  ['company', 'Company (per-row)'], ['carrier', 'Carrier (per-row)'],
+  ['productName', 'Product / policy type'], ['policyNumber', 'Policy number'],
+  ['effectiveDate', 'Effective date'], ['applicationDate', 'Application date'],
+  ['premium', 'Premium'], ['premiumFrequency', 'Premium frequency'],
+  ['policyStatus', 'Policy status'], ['faceAmount', 'Face amount / death benefit'],
 ];
 
 async function render() {
@@ -28,6 +31,7 @@ async function render() {
   let parsed = null; // { headers, records }
   let mapping = {};
   let batchCompany = '';
+  let batchCarrier = '';
   let lastPreview = null;
 
   content.innerHTML = `
@@ -90,18 +94,11 @@ async function render() {
       CrmApp.toast(`Could not read this CSV: ${err.message}`, { error: true });
       return;
     }
-    mapping = {};
     // Best-effort auto-map by matching header names case-insensitively —
-    // tries the full label first, then just its first word, so a short CSV
-    // header like "Product" still matches a longer label like "Product /
-    // policy type" without requiring an exact match.
-    const norm = s => s.toLowerCase().replace(/[^a-z]/g, '');
-    for (const [key, label] of FIELD_KEYS) {
-      const full = norm(label).replace('perrow', '');
-      const firstWord = norm(label.split(/[\s/]/)[0]);
-      const found = parsed.headers.find(h => norm(h) === full) || parsed.headers.find(h => norm(h) === firstWord);
-      if (found) mapping[key] = found;
-    }
+    // see columnAutoMap.js for the exact (tested) algorithm, including the
+    // claim-once rule that stops two fields sharing a first word (e.g.
+    // "Policy number" / "Policy status") from both grabbing one column.
+    mapping = ColumnAutoMap.autoMapColumns(parsed.headers, FIELD_KEYS);
     renderMapping();
   });
 
@@ -118,6 +115,10 @@ async function render() {
               <option value="prosperity">All rows: Prosperity</option>
             </select>
           </div>
+          <div class="form-field full" style="margin-bottom:14px;">
+            <label>Carrier for this whole batch <span class="hint">(leave blank if your file has a per-row Carrier column — a per-row value always wins)</span></label>
+            <input class="input" id="batch-carrier" type="text" placeholder="e.g. Occidental Life" value="${CrmApp.escapeHtml(batchCarrier)}">
+          </div>
           <div class="form-grid">
             ${FIELD_KEYS.map(([key, label]) => `
               <div class="form-field">
@@ -129,7 +130,7 @@ async function render() {
               </div>`).join('')}
           </div>
           <div class="crmapp-modal-actions" style="justify-content:flex-start; margin-top:16px;">
-            <button class="btn primary" id="preview-btn">Preview (Dry Run — writes nothing)</button>
+            <button class="btn primary" id="preview-btn">Preview Import (Dry Run — writes nothing)</button>
           </div>
         </div>
       </div>`;
@@ -137,25 +138,35 @@ async function render() {
       sel.addEventListener('change', () => { mapping[sel.dataset.map] = sel.value || undefined; });
     });
     document.getElementById('batch-company').addEventListener('change', (e) => { batchCompany = e.target.value; });
+    document.getElementById('batch-carrier').addEventListener('input', (e) => { batchCarrier = e.target.value; });
     document.getElementById('preview-btn').addEventListener('click', runPreview);
   }
 
   function outcomeLabel(outcome) {
     const labels = {
-      would_create: 'Will create', would_update: 'Will update', likely_duplicate: 'Likely duplicate', invalid: 'Invalid',
-      created: 'Created', updated: 'Updated', skipped: 'Skipped', staged_for_review: 'Staged for review', failed: 'Failed',
+      would_create: 'New Contact + New Policy', would_attach_policy: 'Existing Contact — New Policy',
+      would_skip_existing_policy: 'Existing Policy — Skip',
+      would_update: 'Will update', likely_duplicate: 'Likely duplicate', invalid: 'Invalid',
+      created: 'New Contact + New Policy', attached_policy: 'Existing Contact — New Policy',
+      skipped_existing_policy: 'Existing Policy — Skip',
+      updated: 'Updated', skipped: 'Skipped', staged_for_review: 'Staged for review', failed: 'Failed',
     };
     return labels[outcome] || outcome;
   }
   function outcomeClass(outcome) {
-    if (['would_create', 'created'].includes(outcome)) return 'status-active';
+    if (['would_create', 'created', 'would_attach_policy', 'attached_policy'].includes(outcome)) return 'status-active';
     if (['would_update', 'updated', 'likely_duplicate', 'staged_for_review'].includes(outcome)) return 'status-pending';
     if (['invalid', 'failed'].includes(outcome)) return 'status-failed';
+    if (['would_skip_existing_policy', 'skipped_existing_policy'].includes(outcome)) return 'status-archived';
     return 'status-archived';
   }
 
   async function runPreview() {
-    const body = { records: parsed.records, columnMapping: mapping, brandSlug: batchCompany || undefined, filename: 'preview.csv' };
+    const body = {
+      records: parsed.records, columnMapping: mapping,
+      brandSlug: batchCompany || undefined, carrierSlug: batchCarrier || undefined,
+      filename: 'preview.csv',
+    };
     let result;
     try { result = await CrmApp.postJSON('/api/app/import/preview', 'POST', body); }
     catch (err) { CrmApp.toast(err.message, { error: true }); return; }
@@ -166,8 +177,8 @@ async function render() {
   function renderPreview(result, { committed }) {
     const s = result.summary;
     const summaryLine = committed
-      ? `Created ${s.created} · Updated ${s.updated} · Skipped ${s.skipped} · Staged for review ${s.staged_for_review} · Failed ${s.failed}`
-      : `Will create ${s.would_create} · Will update ${s.would_update} · Likely duplicates ${s.likely_duplicate} · Invalid ${s.invalid}`;
+      ? `Created ${s.created} · Policy attached ${s.attached_policy} · Existing policy skipped ${s.skipped_existing_policy} · Updated ${s.updated} · Skipped ${s.skipped} · Staged for review ${s.staged_for_review} · Failed ${s.failed}`
+      : `New contact ${s.would_create} · Attach to existing ${s.would_attach_policy} · Existing policy — skip ${s.would_skip_existing_policy} · Will update ${s.would_update} · Likely duplicates ${s.likely_duplicate} · Invalid ${s.invalid}`;
     document.getElementById('preview-area').innerHTML = `
       <div class="card" style="margin-top:16px;">
         <div class="card-header"><h2>${committed ? 'Import Summary' : 'Preview'}</h2><span class="card-header-sub">${summaryLine}</span></div>
@@ -182,17 +193,21 @@ async function render() {
           </table>
         </div>
         ${!committed ? `<div class="card-body">
-          <div class="text-faint" style="margin-bottom:10px;">Nothing has been created yet. Likely duplicates default to "Skip" — importing now will never overwrite an existing client.</div>
-          <button class="btn primary" id="commit-btn">Import Now</button>
+          <div class="text-faint" style="margin-bottom:10px;">Nothing has been created yet. A client who already exists will be reused and never duplicated; a policy already on file (same carrier + policy number) will be skipped, never duplicated.</div>
+          <button class="btn primary" id="commit-btn">Import Clients</button>
         </div>` : ''}
       </div>`;
     if (!committed) document.getElementById('commit-btn').addEventListener('click', runCommit);
   }
 
   async function runCommit() {
-    const ok = await CrmApp.confirmAction(`Import ${parsed.records.length} row(s) now? This will create/update real client records in this local database.`, { confirmLabel: 'Import' });
+    const ok = await CrmApp.confirmAction(`Import ${parsed.records.length} row(s) now? This will create/update real client records in this database.`, { confirmLabel: 'Import Clients' });
     if (!ok) return;
-    const body = { records: parsed.records, columnMapping: mapping, brandSlug: batchCompany || undefined, filename: 'import.csv' };
+    const body = {
+      records: parsed.records, columnMapping: mapping,
+      brandSlug: batchCompany || undefined, carrierSlug: batchCarrier || undefined,
+      filename: 'import.csv',
+    };
     let result;
     try { result = await CrmApp.postJSON('/api/app/import/commit', 'POST', body); }
     catch (err) { CrmApp.toast(err.message, { error: true }); return; }

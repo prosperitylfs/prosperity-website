@@ -130,6 +130,25 @@ test('a client with three distinct policies in one CSV batch gets one contact an
   assert.deepEqual(policies.map(p => p.policy_number), ['ABC123', 'LMN789', 'XYZ456']);
 });
 
+test('a dry run for a BRAND NEW client with three policies in one batch previews correctly (1 would_create + 2 would_attach), not three separate would_creates', () => {
+  const db = setup();
+  const records = [
+    { 'First Name': 'Mary', 'Last Name': 'Smith', Phone: '414-555-3005', Email: 'mary.dryrun@example-mail.com', Company: 'Prosperity', Product: 'Life insurance', Carrier: 'Occidental Life', 'Policy Number': 'ABC123' },
+    { 'First Name': 'Mary', 'Last Name': 'Smith', Phone: '414-555-3005', Email: 'mary.dryrun@example-mail.com', Company: 'Prosperity', Product: 'Annuities', Carrier: 'Occidental Life', 'Policy Number': 'XYZ456' },
+    { 'First Name': 'Mary', 'Last Name': 'Smith', Phone: '414-555-3005', Email: 'mary.dryrun@example-mail.com', Company: 'Prosperity', Product: 'Life insurance', Carrier: 'Occidental Life', 'Policy Number': 'ABC123' }, // same as row 1 -- exact repeat
+  ];
+  const before = { contacts: db.prepare('SELECT COUNT(*) AS n FROM contacts').get().n, cases: db.prepare('SELECT COUNT(*) AS n FROM cases').get().n, policies: db.prepare('SELECT COUNT(*) AS n FROM policies').get().n };
+  const { summary, results } = runImport(db, { records, columnMapping: OCCIDENTAL_MAPPING, dryRun: true, actor: 'Loretta Stewart' });
+  assert.equal(summary.would_create, 1, 'only the first occurrence would create a new contact');
+  assert.equal(summary.would_attach_policy, 1, 'the second, distinct policy would attach to that same not-yet-real contact');
+  assert.equal(summary.would_skip_existing_policy, 1, 'the third row repeats the first row\'s exact policy and is caught even though nothing has actually been written yet');
+  assert.equal(results[1].outcome, 'would_attach_policy');
+  assert.match(results[1].detail, /appears earlier in this same file/);
+  assert.equal(results[2].outcome, 'would_skip_existing_policy');
+  const after = { contacts: db.prepare('SELECT COUNT(*) AS n FROM contacts').get().n, cases: db.prepare('SELECT COUNT(*) AS n FROM cases').get().n, policies: db.prepare('SELECT COUNT(*) AS n FROM policies').get().n };
+  assert.deepEqual(after, before, 'a dry run must still write nothing at all, even with same-batch pending-contact tracking');
+});
+
 test('a contact that already existed before this import receives a new policy without creating a second contact', () => {
   const db = setup();
   const preExisting = db.prepare(`

@@ -179,9 +179,11 @@ async function render() {
     const summaryLine = committed
       ? `Created ${s.created} · Policy attached ${s.attached_policy} · Existing policy skipped ${s.skipped_existing_policy} · Updated ${s.updated} · Skipped ${s.skipped} · Staged for review ${s.staged_for_review} · Failed ${s.failed}`
       : `New contact ${s.would_create} · Attach to existing ${s.would_attach_policy} · Existing policy — skip ${s.would_skip_existing_policy} · Will update ${s.would_update} · Likely duplicates ${s.likely_duplicate} · Invalid ${s.invalid}`;
+    const contactInfoLine = `No email: ${s.rows_missing_email} · No phone: ${s.rows_missing_phone} · Neither email nor phone: ${s.rows_missing_both}`;
     document.getElementById('preview-area').innerHTML = `
       <div class="card" style="margin-top:16px;">
         <div class="card-header"><h2>${committed ? 'Import Summary' : 'Preview'}</h2><span class="card-header-sub">${summaryLine}</span></div>
+        <div class="card-body" style="padding-top:0; padding-bottom:12px;"><div class="text-faint">${contactInfoLine}</div></div>
         <div class="card-body no-pad table-scroll">
           <table class="data-table">
             <thead><tr><th>Row</th><th>Outcome</th><th>Detail</th></tr></thead>

@@ -55,6 +55,49 @@ function parseCsv(text) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const SLASH_DATE_RE = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/;
+
+// Two-digit-year resolution: same convention Excel itself uses for typed
+// two-digit years — 00-29 resolves to 2000-2029, 30-99 resolves to
+// 1930-1999. This is why a Date of Birth like "02/26/50" correctly becomes
+// 1950 (a plausible birth year) rather than 2050, while a Policy Date like
+// "11/03/24" correctly becomes 2024 (a plausible recent policy date) —
+// same fixed rule, no per-field guessing about which date type it is.
+const TWO_DIGIT_YEAR_PIVOT = 30;
+function resolveTwoDigitYear(yy) {
+  return yy < TWO_DIGIT_YEAR_PIVOT ? 2000 + yy : 1900 + yy;
+}
+
+// Accepts YYYY-MM-DD (passed through unchanged), MM/DD/YYYY, or MM/DD/YY
+// and normalizes all three to YYYY-MM-DD for storage. Anything else —
+// including a value SLASH_DATE_RE matches syntactically but that isn't a
+// real calendar date (e.g. 02/30/2020), or genuinely unrecognized text —
+// is returned UNCHANGED rather than guessed at, so validateRow's existing
+// strict YYYY-MM-DD check still correctly flags it as invalid. Never
+// throws; a malformed or empty value just passes through untouched.
+function normalizeDateField(raw) {
+  const s = String(raw || '').trim();
+  if (!s || DATE_RE.test(s)) return s;
+
+  const m = SLASH_DATE_RE.exec(s);
+  if (!m) return s;
+
+  const month = Number(m[1]);
+  const day = Number(m[2]);
+  const yearPart = m[3];
+  const year = yearPart.length === 2 ? resolveTwoDigitYear(Number(yearPart)) : Number(yearPart);
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) return s;
+
+  // Round-trip through Date.UTC to reject calendar-impossible combinations
+  // (e.g. 02/30/2020, 04/31/2019) instead of silently accepting them.
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) {
+    return s;
+  }
+
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
 
 function findExistingContact(db, { email, phone_e164, phone }) {
   let existing = null;
@@ -64,12 +107,49 @@ function findExistingContact(db, { email, phone_e164, phone }) {
   return existing || null;
 }
 
+// Same email -> phone_e164 -> phone lookup priority as findExistingContact,
+// but against the dry-run-only in-memory pendingContacts list in runImport
+// instead of the database.
+function findPendingContact(pending, { email, phone_e164, phone }) {
+  if (email) { const m = pending.find(p => p.email && p.email === email); if (m) return m; }
+  if (phone_e164) { const m = pending.find(p => p.phone_e164 && p.phone_e164 === phone_e164); if (m) return m; }
+  if (phone) { const m = pending.find(p => p.phone && p.phone === phone); if (m) return m; }
+  return null;
+}
+
+// Trim, collapse internal whitespace to single spaces, drop trailing
+// periods/commas, lowercase — so "Prosperity Life & Financial Solutions
+// LLC.", "prosperity  llc", and "Prosperity" all normalize the same way
+// before comparison.
+function normalizeCompanyValue(raw) {
+  return String(raw || '').trim().replace(/\s+/g, ' ').replace(/[.,]+$/g, '').toLowerCase();
+}
+
+// Built from the actual brand config (config/brands.js) rather than a
+// hand-guessed list, so every brand's slug, slug-with-space, short name,
+// and full legal name are all recognized — e.g. a CSV Company column
+// containing "Prosperity Life & Financial Solutions LLC" (the real legal
+// name) resolves exactly the same as one containing plain "Prosperity".
+const COMPANY_VALUE_ALIASES = (() => {
+  const map = {};
+  for (const [slug, cfg] of Object.entries(BRANDS)) {
+    for (const name of [slug, slug.replace(/-/g, ' '), cfg.shortName, cfg.legalName]) {
+      map[normalizeCompanyValue(name)] = slug;
+    }
+  }
+  return map;
+})();
+
+// Company is NEVER inferred — an unrecognized value returns null exactly
+// like before, and is treated as invalid by validateRow. The only change
+// from a plain lookup is recognizing more legitimate spellings of a real
+// brand name (via COMPANY_VALUE_ALIASES) and, in validateRow, surfacing
+// the raw value that failed to match so an unrecognized entry is
+// diagnosable instead of a silent, unexplained rejection.
 function resolveRowBrandSlug(row, columnMapping, batchBrandSlug) {
   if (columnMapping.company && row[columnMapping.company]) {
-    const raw = row[columnMapping.company].trim().toLowerCase();
-    if (raw === 'insurance lady' || raw === 'insurance-lady') return 'insurance-lady';
-    if (raw === 'prosperity') return 'prosperity';
-    return null; // unrecognized company value -- treated as invalid below
+    const normalized = normalizeCompanyValue(row[columnMapping.company]);
+    return COMPANY_VALUE_ALIASES[normalized] || null;
   }
   return batchBrandSlug || null;
 }
@@ -91,7 +171,7 @@ function mapRow(row, columnMapping) {
   return {
     firstName: get('firstName'), lastName: get('lastName'), middleName: get('middleName'), email: get('email'),
     phone: get('phone'), address: get('address'), city: get('city'), state: get('state'),
-    zip: get('zip'), dateOfBirth: get('dateOfBirth'), originalSource: get('originalSource'),
+    zip: get('zip'), dateOfBirth: normalizeDateField(get('dateOfBirth')), originalSource: get('originalSource'),
     generalNotes: get('generalNotes'),
     // Policy/case fields — used for importing an existing client's policy
     // from any carrier (Prosperity Revenue MVP, Requirement 1). Company is
@@ -100,12 +180,17 @@ function mapRow(row, columnMapping) {
     // taken from the row's own data or the batch value (resolveRowCarrier),
     // never assumed or hard-coded.
     productName: get('productName'), carrier: get('carrier'), policyNumber: get('policyNumber'),
-    effectiveDate: get('effectiveDate'), applicationDate: get('applicationDate'), premium: get('premium'),
+    effectiveDate: normalizeDateField(get('effectiveDate')), applicationDate: normalizeDateField(get('applicationDate')),
+    premium: get('premium'),
     premiumFrequency: get('premiumFrequency'), policyStatus: get('policyStatus'), faceAmount: get('faceAmount'),
   };
 }
 
-function validateRow(mapped, brandSlug) {
+// rawCompanyValue is the untouched CSV cell that resolveRowBrandSlug tried
+// to match, if a company column was mapped -- passed through purely so an
+// unrecognized value can be surfaced in the error instead of leaving the
+// row's rejection unexplained.
+function validateRow(mapped, brandSlug, rawCompanyValue) {
   const errors = [];
   if (!mapped.firstName && !mapped.lastName) errors.push('missing name');
   const email = normalizeEmail(mapped.email);
@@ -113,13 +198,16 @@ function validateRow(mapped, brandSlug) {
   if (mapped.email && !EMAIL_RE.test(mapped.email)) errors.push('invalid email format');
   if (mapped.phone && !phoneE164) errors.push('invalid phone number');
   if (!email && !phoneE164) errors.push('email or phone is required');
-  if (mapped.dateOfBirth && !DATE_RE.test(mapped.dateOfBirth)) errors.push('date of birth must be YYYY-MM-DD');
-  if (mapped.effectiveDate && !DATE_RE.test(mapped.effectiveDate)) errors.push('effective date must be YYYY-MM-DD');
-  if (mapped.applicationDate && !DATE_RE.test(mapped.applicationDate)) errors.push('application date must be YYYY-MM-DD');
+  if (mapped.dateOfBirth && !DATE_RE.test(mapped.dateOfBirth)) errors.push(`date of birth must be YYYY-MM-DD, MM/DD/YYYY, or MM/DD/YY (got "${mapped.dateOfBirth}")`);
+  if (mapped.effectiveDate && !DATE_RE.test(mapped.effectiveDate)) errors.push(`effective date must be YYYY-MM-DD, MM/DD/YYYY, or MM/DD/YY (got "${mapped.effectiveDate}")`);
+  if (mapped.applicationDate && !DATE_RE.test(mapped.applicationDate)) errors.push(`application date must be YYYY-MM-DD, MM/DD/YYYY, or MM/DD/YY (got "${mapped.applicationDate}")`);
   if (mapped.premium && !/^\d+(\.\d{1,2})?$/.test(mapped.premium)) errors.push('premium must be a plain number');
   if (mapped.faceAmount && !/^\d+(\.\d{1,2})?$/.test(mapped.faceAmount)) errors.push('face amount must be a plain number');
-  if (!brandSlug) errors.push('company could not be determined for this row (no batch company and no valid company column value)');
-  else if (!isKnownBrandId(brandSlug)) errors.push(`unknown company '${brandSlug}'`);
+  if (!brandSlug) {
+    errors.push(rawCompanyValue
+      ? `company value "${rawCompanyValue}" was not recognized (expected "Prosperity", "Insurance Lady", or their full legal names) — check for typos, or that this column really holds the CRM company, not the insurance carrier`
+      : 'company could not be determined for this row (no batch company and no valid company column value)');
+  } else if (!isKnownBrandId(brandSlug)) errors.push(`unknown company '${brandSlug}'`);
   return errors;
 }
 
@@ -236,14 +324,29 @@ function runImport(db, { records, columnMapping, brandSlug, carrierSlug, dryRun,
   const summary = {
     created: 0, attached_policy: 0, skipped_existing_policy: 0, updated: 0, skipped: 0, staged_for_review: 0, failed: 0,
     would_create: 0, would_attach_policy: 0, would_skip_existing_policy: 0, would_update: 0, likely_duplicate: 0, invalid: 0,
+    // Informational counts, computed for EVERY row regardless of outcome or
+    // dry-run/commit mode -- lets Preview answer "how many rows have no
+    // email, no phone, or neither" without weakening the existing "email or
+    // phone is required" rule in validateRow, which stays exactly as strict
+    // as before (this never affects which rows pass or fail).
+    rows_missing_email: 0, rows_missing_phone: 0, rows_missing_both: 0,
   };
+  // Dry-run-only, in-memory tracking of rows that "would create" a new
+  // contact this batch -- see the "No existing DB contact" branch below.
+  const pendingContacts = [];
 
   records.forEach((row, idx) => {
     const rowNumber = idx + 1;
     const mapped = mapRow(row, columnMapping);
     const rowBrandSlug = resolveRowBrandSlug(row, columnMapping, brandSlug);
     const rowCarrier = resolveRowCarrier(row, columnMapping, carrierSlug);
-    const errors = validateRow(mapped, rowBrandSlug);
+    const rawCompanyValue = columnMapping.company ? (row[columnMapping.company] || '').trim() : '';
+
+    if (!mapped.email) summary.rows_missing_email++;
+    if (!mapped.phone) summary.rows_missing_phone++;
+    if (!mapped.email && !mapped.phone) summary.rows_missing_both++;
+
+    const errors = validateRow(mapped, rowBrandSlug, rawCompanyValue);
 
     if (errors.length) {
       const outcome = dryRun ? 'invalid' : 'failed';
@@ -353,10 +456,49 @@ function runImport(db, { records, columnMapping, brandSlug, carrierSlug, dryRun,
       return;
     }
 
-    // No existing contact.
+    // No existing DB contact. In a dry run specifically, also check whether
+    // an EARLIER row in this same batch already "would create" this same
+    // person -- a dry run never writes, so without this check every
+    // repeat occurrence of the same person within one file would
+    // incorrectly preview as ANOTHER "would create" instead of correctly
+    // previewing as attaching to (or skipping a repeat policy for) the
+    // person their first row already covers. Commit mode needs no such
+    // tracking: each row's writes are already visible to the next row's
+    // normal DB lookup above.
+    if (dryRun) {
+      const pending = findPendingContact(pendingContacts, { email, phone_e164: phoneE164, phone: phoneDisplay });
+      if (pending) {
+        const rowHasPolicyData = hasPolicyData(mapped);
+        if (!rowHasPolicyData) {
+          summary.likely_duplicate++;
+          results.push(recordRow(db, batchId, rowNumber, row, 'likely_duplicate', `matches ${pending.label}, who appears earlier in this same file`, null));
+          return;
+        }
+        const dupPending = rowCarrier && mapped.policyNumber && pending.policies.find(p =>
+          p.carrier.toLowerCase() === rowCarrier.toLowerCase() && p.policyNumber.toLowerCase() === mapped.policyNumber.toLowerCase());
+        if (dupPending) {
+          summary.would_skip_existing_policy++;
+          results.push(recordRow(db, batchId, rowNumber, row, 'would_skip_existing_policy',
+            `Existing Policy — Skip: ${rowCarrier || 'this carrier'} ${mapped.policyNumber} already appears earlier in this same file for ${pending.label}`, null));
+          return;
+        }
+        if (rowCarrier && mapped.policyNumber) pending.policies.push({ carrier: rowCarrier, policyNumber: mapped.policyNumber });
+        summary.would_attach_policy++;
+        results.push(recordRow(db, batchId, rowNumber, row, 'would_attach_policy',
+          `${pending.label} appears earlier in this same file — would attach a new ${mapped.productName || 'policy'} case + policy`, null));
+        return;
+      }
+    }
+
+    // No existing contact, in the database or earlier in this batch.
     const rowHasPolicyData = hasPolicyData(mapped);
     if (dryRun) {
       summary.would_create++;
+      pendingContacts.push({
+        email, phone_e164: phoneE164, phone: phoneDisplay,
+        label: `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim() || 'this client',
+        policies: rowHasPolicyData && rowCarrier && mapped.policyNumber ? [{ carrier: rowCarrier, policyNumber: mapped.policyNumber }] : [],
+      });
       const policyNote = rowHasPolicyData ? ` as an Existing Client with a ${mapped.productName || 'policy'} case + policy` : '';
       results.push(recordRow(db, batchId, rowNumber, row, 'would_create', `would create a new ${BRANDS[rowBrandSlug].shortName} client${policyNote}`, null));
       return;
@@ -439,4 +581,7 @@ function generateClientPolicySampleCsv() {
   return [header, ...rows].join('\n') + '\n';
 }
 
-module.exports = { parseCsv, runImport, getImportBatch, generateSampleCsv, generateClientPolicySampleCsv, findExistingContact };
+module.exports = {
+  parseCsv, runImport, getImportBatch, generateSampleCsv, generateClientPolicySampleCsv, findExistingContact,
+  normalizeDateField, resolveRowBrandSlug,
+};

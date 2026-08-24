@@ -172,3 +172,104 @@ test('attachCallOutcome called twice on the same call updates it in place, still
   assert.equal(call.outcome, 'Spoke with client');
   assert.equal(call.summary, 'Reached them on retry');
 });
+
+// ── Regression: Edit Outcome blanking out follow-up date/time/task ────────
+
+test('follow-up date, time, and task text persist on the call and the linked task after saving', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Faye', lastName: 'Ortiz', phone: '4145551214', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const callId = insertAutoLoggedCall(db, { contactId: client.contact.id });
+
+  const { call, followUpTask } = attachCallOutcome(db, callId, {
+    outcome: 'Left voicemail', summary: 'Caller did not answer so I left a VM',
+    nextAction: 'Test call again', nextActionDueDate: '2026-08-24', nextActionDueTime: '14:30',
+  }, 'Loretta Stewart');
+
+  assert.equal(call.follow_up_task_id, followUpTask.id);
+  assert.equal(followUpTask.due_date, '2026-08-24');
+  assert.equal(followUpTask.due_time, '14:30');
+  assert.equal(followUpTask.notes, 'Test call again');
+
+  // What "Edit Outcome" reads back afterward: the same task, found by the
+  // call's own follow_up_task_id, with every field still intact.
+  const reloaded = db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(call.follow_up_task_id);
+  assert.equal(reloaded.due_date, '2026-08-24');
+  assert.equal(reloaded.due_time, '14:30');
+  assert.equal(reloaded.notes, 'Test call again');
+});
+
+test('editing the outcome a second time with new follow-up details UPDATES the same linked task, never creating a second one', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Gus', lastName: 'Pratt', phone: '4145551215', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const callId = insertAutoLoggedCall(db, { contactId: client.contact.id });
+
+  const first = attachCallOutcome(db, callId, {
+    outcome: 'Left voicemail', nextAction: 'Test call again', nextActionDueDate: '2026-08-24',
+  }, 'Loretta Stewart');
+  const second = attachCallOutcome(db, callId, {
+    outcome: 'Left voicemail', nextAction: 'Try a different number', nextActionDueDate: '2026-08-26', nextActionDueTime: '09:00',
+  }, 'Loretta Stewart');
+
+  assert.equal(second.followUpTask.id, first.followUpTask.id, 'the same task is reused, not duplicated');
+  assert.equal(second.followUpTask.due_date, '2026-08-26');
+  assert.equal(second.followUpTask.due_time, '09:00');
+  assert.equal(second.followUpTask.notes, 'Try a different number');
+
+  const taskCount = db.prepare('SELECT COUNT(*) AS n FROM follow_up_tasks WHERE contact_id = ?').get(client.contact.id).n;
+  assert.equal(taskCount, 1, 'exactly one follow-up task exists for this client');
+});
+
+test('editing unrelated fields (summary only) leaves the existing linked task completely untouched', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Hana', lastName: 'Ueda', phone: '4145551216', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const callId = insertAutoLoggedCall(db, { contactId: client.contact.id });
+
+  const first = attachCallOutcome(db, callId, {
+    outcome: 'Follow-up needed', nextAction: 'Send illustration', nextActionDueDate: '2026-09-01',
+  }, 'Loretta Stewart');
+
+  const second = attachCallOutcome(db, callId, { outcome: 'Follow-up needed', summary: 'Client wants written quote' }, 'Loretta Stewart');
+
+  assert.equal(second.call.follow_up_task_id, first.followUpTask.id, 'task link is preserved');
+  const task = db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(first.followUpTask.id);
+  assert.equal(task.due_date, '2026-09-01', 'due date untouched by an unrelated edit');
+  assert.equal(task.notes, 'Send illustration', 'task text untouched by an unrelated edit');
+  assert.equal(task.status, 'Pending', 'status untouched');
+});
+
+test('completing the linked task does not erase the call\'s historical follow-up information', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Ivo', lastName: 'Marsh', phone: '4145551217', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const callId = insertAutoLoggedCall(db, { contactId: client.contact.id });
+
+  const { call, followUpTask } = attachCallOutcome(db, callId, {
+    outcome: 'Follow-up needed', nextAction: 'Call back next week', nextActionDueDate: '2026-08-30',
+  }, 'Loretta Stewart');
+
+  // Simulate completing the task from the Tasks page (taskService.completeTask
+  // sets status + completed_at -- exercised here directly to keep this test
+  // scoped to callLogService's own contract, not re-testing taskService).
+  db.prepare(`UPDATE follow_up_tasks SET status = 'Completed', completed_at = ? WHERE id = ?`)
+    .run(new Date().toISOString(), followUpTask.id);
+
+  const callAfter = db.prepare('SELECT * FROM comm_calls WHERE id = ?').get(call.id);
+  const taskAfter = db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(callAfter.follow_up_task_id);
+  assert.equal(taskAfter.status, 'Completed');
+  assert.equal(taskAfter.due_date, '2026-08-30', 'original follow-up date still on record after completion');
+  assert.equal(taskAfter.notes, 'Call back next week', 'original follow-up task text still on record after completion');
+  assert.equal(callAfter.follow_up_task_id, followUpTask.id, 'call still linked to the (now completed) task');
+});
+
+// ── Regression: automatic Twilio call logging fields stay untouched ──────
+
+test('regression: attachCallOutcome never touches status/duration/ended_at — those come only from Twilio\'s own webhooks', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Jael', lastName: 'Combs', phone: '4145551218', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const callId = insertAutoLoggedCall(db, { contactId: client.contact.id });
+  db.prepare(`UPDATE comm_calls SET status = 'completed', duration_sec = 142, ended_at = '2026-08-24T10:02:22.000Z' WHERE id = ?`).run(callId);
+
+  const { call } = attachCallOutcome(db, callId, { outcome: 'Spoke with client', summary: 'Good call' }, 'Loretta Stewart');
+  assert.equal(call.status, 'completed');
+  assert.equal(call.duration_sec, 142);
+  assert.equal(call.ended_at, '2026-08-24T10:02:22.000Z');
+});

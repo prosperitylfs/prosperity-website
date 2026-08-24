@@ -462,6 +462,13 @@ async function render() {
   function callOutcomeModal(call) {
     const CALL_OUTCOMES = ['No answer', 'Left voicemail', 'Spoke with client', 'Appointment scheduled', 'Follow-up needed', 'Not interested', 'Wrong number'];
     const caseOptions = activeCases.map(cs => `<option value="${cs.caseId}" ${call.case_id === cs.caseId ? 'selected' : ''}>${CrmApp.escapeHtml(cs.productName || cs.title || ('Case #' + cs.caseId))}</option>`).join('');
+    // The call row itself has no follow-up columns -- due_date/due_time/
+    // notes live on the linked follow_up_tasks row (call.follow_up_task_id).
+    // detail.tasks already holds every task for this client regardless of
+    // status, so a completed task is still found here -- editing an
+    // outcome after its task is completed still shows what was originally
+    // asked for, never blank.
+    const linkedTask = call.follow_up_task_id ? (detail.tasks || []).find(t => t.id === call.follow_up_task_id) : null;
     const dialog = CrmApp.openModal({
       title: 'Call Outcome', wide: true,
       bodyHtml: `
@@ -479,9 +486,10 @@ async function render() {
             ${caseOptions ? `<div class="form-field"><label>Related case</label><select class="input" name="caseId"><option value="">None</option>${caseOptions}</select></div>` : ''}
             <div class="form-field full"><label>Summary</label><input class="input" name="summary" value="${CrmApp.escapeHtml(call.summary || '')}" placeholder="Short summary"></div>
             <div class="form-field full"><label>Detailed notes</label><textarea class="input" name="detailedNotes">${CrmApp.escapeHtml(call.notes || '')}</textarea></div>
-            <div class="form-field"><label>Next follow-up date</label><input class="input" name="nextActionDueDate" type="date"></div>
-            <div class="form-field"><label>Next follow-up time</label><input class="input" name="nextActionDueTime" type="time"></div>
-            <div class="form-field full"><label>Follow-up task</label><input class="input" name="nextAction" placeholder="What needs to happen next?"></div>
+            <div class="form-field"><label>Next follow-up date</label><input class="input" name="nextActionDueDate" type="date" value="${CrmApp.escapeHtml(linkedTask ? linkedTask.due_date || '' : '')}"></div>
+            <div class="form-field"><label>Next follow-up time</label><input class="input" name="nextActionDueTime" type="time" value="${CrmApp.escapeHtml(linkedTask ? linkedTask.due_time || '' : '')}"></div>
+            <div class="form-field full"><label>Follow-up task</label><input class="input" name="nextAction" placeholder="What needs to happen next?" value="${CrmApp.escapeHtml(linkedTask ? linkedTask.notes || '' : '')}"></div>
+            ${linkedTask ? `<div class="form-field full text-faint">Linked task status: ${CrmApp.escapeHtml(linkedTask.status)}${linkedTask.status === 'Completed' ? ' — editing these fields updates the historical record; it does not reopen the task.' : ''}</div>` : ''}
           </div>
           <div class="form-error" id="call-outcome-error"></div>
           <div class="crmapp-modal-actions">
@@ -498,7 +506,10 @@ async function render() {
       if (fields.caseId) fields.caseId = Number(fields.caseId);
       try {
         const result = await CrmApp.postJSON(`/api/app/calls/${call.id}`, 'PATCH', fields);
-        CrmApp.toast(result.followUpTask ? 'Outcome saved and follow-up task created.' : 'Outcome saved.');
+        const message = !result.followUpTask ? 'Outcome saved.'
+          : linkedTask ? 'Outcome saved and follow-up task updated.'
+          : 'Outcome saved and follow-up task created.';
+        CrmApp.toast(message);
         dialog.close();
         reloadPage();
       } catch (err) {

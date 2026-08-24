@@ -121,17 +121,43 @@ function attachCallOutcome(db, callId, fields, actor) {
     id: callId,
   });
 
-  let followUpTaskId = null;
-  if (toStringOrNull(fields.nextAction) && toStringOrNull(fields.nextActionDueDate)) {
-    const taskResult = db.prepare(`
-      INSERT INTO follow_up_tasks (contact_id, case_id, contact_brand_id, task_type, due_date, due_time, notes, priority, status)
-      VALUES (?, ?, ?, 'Follow-up', ?, ?, ?, 'Medium', 'Pending')
-    `).run(
-      call.contact_id, fields.caseId || call.case_id || null, call.contact_brand_id,
-      fields.nextActionDueDate, toStringOrNull(fields.nextActionDueTime), fields.nextAction
-    );
-    followUpTaskId = taskResult.lastInsertRowid;
-    db.prepare('UPDATE comm_calls SET follow_up_task_id = ? WHERE id = ?').run(followUpTaskId, callId);
+  // Follow-up: if this call already has a linked task (call.follow_up_task_id,
+  // set the first time an outcome was saved), an edit that supplies new
+  // follow-up details UPDATES that same task in place -- it never creates a
+  // second one. Only a call with NO linked task yet gets a new task
+  // inserted. An edit that doesn't mention a follow-up at all (e.g. only
+  // Summary/Notes changed) leaves any existing linked task completely
+  // untouched -- including its status, so completing a task later never
+  // erases what the call originally asked for, and this path never
+  // silently deletes a task just because these fields came back empty.
+  let followUpTaskId = call.follow_up_task_id || null;
+  const wantsFollowUp = toStringOrNull(fields.nextAction) && toStringOrNull(fields.nextActionDueDate);
+
+  if (wantsFollowUp) {
+    if (followUpTaskId) {
+      db.prepare(`
+        UPDATE follow_up_tasks SET
+          due_date = @due_date, due_time = @due_time, notes = @notes
+        WHERE id = @id
+      `).run({
+        due_date: fields.nextActionDueDate,
+        due_time: toStringOrNull(fields.nextActionDueTime),
+        notes: fields.nextAction,
+        id: followUpTaskId,
+      });
+    } else {
+      const taskResult = db.prepare(`
+        INSERT INTO follow_up_tasks (contact_id, case_id, contact_brand_id, task_type, due_date, due_time, notes, priority, status)
+        VALUES (?, ?, ?, 'Follow-up', ?, ?, ?, 'Medium', 'Pending')
+      `).run(
+        call.contact_id, fields.caseId || call.case_id || null, call.contact_brand_id,
+        fields.nextActionDueDate, toStringOrNull(fields.nextActionDueTime), fields.nextAction
+      );
+      followUpTaskId = taskResult.lastInsertRowid;
+    }
+    if (followUpTaskId !== call.follow_up_task_id) {
+      db.prepare('UPDATE comm_calls SET follow_up_task_id = ? WHERE id = ?').run(followUpTaskId, callId);
+    }
   }
 
   return {

@@ -132,4 +132,34 @@ function resolveSenderIdentity(db, context) {
   return { ...brandResult, channel };
 }
 
-module.exports = { resolveBrandContext, resolveSenderIdentity };
+// Resolves the outbound VOICE caller ID for a live call, brand-aware.
+// Mirrors the exact safety pattern already proven for SMS
+// (crm/lib/providers/liveTwilioAdapter.js): a brand-specific env var
+// (TWILIO_FROM_NUMBER_PROSPERITY / TWILIO_FROM_NUMBER_INSURANCE_LADY) is
+// required, trimmed to tolerate incidental whitespace from a pasted
+// dashboard value, and cross-checked against the number on file in
+// config/brands.js. A resolved brand with no configured number for it is
+// refused outright — it is never redirected to the other brand's number,
+// and never falls back to the legacy single TWILIO_FROM_NUMBER (that
+// fallback, for contacts with no brand relationship at all, is the
+// caller's responsibility — see crm/routes/calls.js).
+function resolveVoiceCallerId(db, context) {
+  const brandResult = resolveBrandContext(db, context);
+  if (brandResult.blocked) return brandResult;
+
+  const envVarName = brandResult.brandId === 'prosperity'
+    ? 'TWILIO_FROM_NUMBER_PROSPERITY' : 'TWILIO_FROM_NUMBER_INSURANCE_LADY';
+  const configured = (process.env[envVarName] || '').trim();
+  const expected = BRANDS[brandResult.brandId].phone.e164;
+
+  if (!configured) {
+    return blocked(`${brandResult.brand.shortName} calling is not configured — missing ${envVarName}.`);
+  }
+  if (configured !== expected) {
+    return blocked(`${envVarName} does not match the configured ${brandResult.brand.shortName} number — refusing to call.`);
+  }
+
+  return { blocked: false, brandId: brandResult.brandId, brand: brandResult.brand, fromNumber: configured };
+}
+
+module.exports = { resolveBrandContext, resolveSenderIdentity, resolveVoiceCallerId };

@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const { createLegacyDb } = require('../testSupport/legacyDb');
 const { runMigrations } = require('../db/migrateBrands');
 const { dedupeContact, resolveContactBrand, matchOrCreateCase } = require('../lib/caseMatching');
-const { resolveSenderIdentity, resolveBrandContext } = require('../lib/senderResolution');
+const { resolveSenderIdentity, resolveBrandContext, resolveVoiceCallerId } = require('../lib/senderResolution');
 
 function setup() {
   const db = createLegacyDb();
@@ -264,6 +264,111 @@ test('product choice cannot change case brand: resolution ignores product entire
     const result = resolveSenderIdentity(db, { caseId: created.case.id, productId: 999999, someProduct: 'Cash cancer insurance', channel: 'email' });
     assert.equal(result.brandId, 'prosperity');
   });
+});
+
+// ── resolveVoiceCallerId (live outbound calling, Revenue MVP) ──────────────
+
+test('a Prosperity case resolves the Prosperity Twilio number as caller ID', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'callpr@example-mail.com', first_name: 'Cara', last_name: 'Voss' });
+  const link = resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  const productId = getProductId(db, prosperityId, 'Life insurance');
+  const created = matchOrCreateCase(db, { contactBrandId: link.id, productId, externalRef: 'cal-call-pr', eventType: 'booking_created' });
+
+  withEnv(CONFIGURED_SMS_ENV, () => {
+    const result = resolveVoiceCallerId(db, { caseId: created.case.id });
+    assert.equal(result.blocked, false);
+    assert.equal(result.brandId, 'prosperity');
+    assert.equal(result.fromNumber, '+14144411177');
+  });
+});
+
+test('an Insurance Lady case resolves the Insurance Lady Twilio number as caller ID', () => {
+  const { db, insuranceLadyId } = setup();
+  const contact = dedupeContact(db, { email: 'callil@example-mail.com', first_name: 'Ida', last_name: 'Cruz' });
+  const link = resolveContactBrand(db, { contactId: contact.id, brandId: insuranceLadyId });
+  const productId = getProductId(db, insuranceLadyId, 'Whole life/final expense');
+  const created = matchOrCreateCase(db, { contactBrandId: link.id, productId, externalRef: 'cal-call-il', eventType: 'booking_created' });
+
+  withEnv(CONFIGURED_SMS_ENV, () => {
+    const result = resolveVoiceCallerId(db, { caseId: created.case.id });
+    assert.equal(result.blocked, false);
+    assert.equal(result.brandId, 'insurance-lady');
+    assert.equal(result.fromNumber, '+18559305239');
+  });
+});
+
+test('a resolved Prosperity case with no TWILIO_FROM_NUMBER_PROSPERITY configured is refused, never borrowing the Insurance Lady number', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'callprnofrom@example-mail.com', first_name: 'Cole', last_name: 'Pena' });
+  const link = resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  const productId = getProductId(db, prosperityId, 'Annuities');
+  const created = matchOrCreateCase(db, { contactBrandId: link.id, productId, externalRef: 'cal-call-pr-nofrom', eventType: 'booking_created' });
+
+  withEnv({
+    TWILIO_ACCOUNT_SID: 'unit-test', TWILIO_AUTH_TOKEN: 'unit-test',
+    TWILIO_FROM_NUMBER_PROSPERITY: undefined,
+    TWILIO_FROM_NUMBER_INSURANCE_LADY: '+18559305239',
+  }, () => {
+    const result = resolveVoiceCallerId(db, { caseId: created.case.id });
+    assert.equal(result.blocked, true);
+    assert.match(result.reason, /TWILIO_FROM_NUMBER_PROSPERITY/);
+    assert.notEqual(result.fromNumber, '+18559305239');
+  });
+});
+
+test('a resolved Insurance Lady case with no TWILIO_FROM_NUMBER_INSURANCE_LADY configured is refused, never borrowing the Prosperity number', () => {
+  const { db, insuranceLadyId } = setup();
+  const contact = dedupeContact(db, { email: 'callilnofrom@example-mail.com', first_name: 'Iris', last_name: 'Dean' });
+  const link = resolveContactBrand(db, { contactId: contact.id, brandId: insuranceLadyId });
+  const productId = getProductId(db, insuranceLadyId, 'Cash cancer insurance');
+  const created = matchOrCreateCase(db, { contactBrandId: link.id, productId, externalRef: 'cal-call-il-nofrom', eventType: 'booking_created' });
+
+  withEnv({
+    TWILIO_ACCOUNT_SID: 'unit-test', TWILIO_AUTH_TOKEN: 'unit-test',
+    TWILIO_FROM_NUMBER_INSURANCE_LADY: undefined,
+    TWILIO_FROM_NUMBER_PROSPERITY: '+14144411177',
+  }, () => {
+    const result = resolveVoiceCallerId(db, { caseId: created.case.id });
+    assert.equal(result.blocked, true);
+    assert.match(result.reason, /TWILIO_FROM_NUMBER_INSURANCE_LADY/);
+    assert.notEqual(result.fromNumber, '+14144411177');
+  });
+});
+
+test('leading/trailing whitespace around TWILIO_FROM_NUMBER_PROSPERITY does not block call routing', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'callprspace@example-mail.com', first_name: 'Wes', last_name: 'Marsh' });
+  const link = resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  const productId = getProductId(db, prosperityId, 'Life insurance');
+  const created = matchOrCreateCase(db, { contactBrandId: link.id, productId, externalRef: 'cal-call-pr-space', eventType: 'booking_created' });
+
+  withEnv({ ...CONFIGURED_SMS_ENV, TWILIO_FROM_NUMBER_PROSPERITY: '  +14144411177\n' }, () => {
+    const result = resolveVoiceCallerId(db, { caseId: created.case.id });
+    assert.equal(result.blocked, false);
+    assert.equal(result.fromNumber, '+14144411177');
+  });
+});
+
+test('a misconfigured Prosperity number that does not match brand config is refused rather than used', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'callprwrong@example-mail.com', first_name: 'Wren', last_name: 'Fox' });
+  const link = resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  const productId = getProductId(db, prosperityId, 'Life insurance');
+  const created = matchOrCreateCase(db, { contactBrandId: link.id, productId, externalRef: 'cal-call-pr-wrong', eventType: 'booking_created' });
+
+  withEnv({ ...CONFIGURED_SMS_ENV, TWILIO_FROM_NUMBER_PROSPERITY: '+19995550000' }, () => {
+    const result = resolveVoiceCallerId(db, { caseId: created.case.id });
+    assert.equal(result.blocked, true);
+    assert.match(result.reason, /does not match the configured Prosperity number/);
+  });
+});
+
+test('resolveVoiceCallerId with no resolvable brand context blocks, matching resolveSenderIdentity behavior', () => {
+  const { db } = setup();
+  const result = resolveVoiceCallerId(db, {});
+  assert.equal(result.blocked, true);
+  assert.match(result.reason, /no brand-resolution context/);
 });
 
 test('resolveBrandContext resolves identity without requiring a channel', () => {

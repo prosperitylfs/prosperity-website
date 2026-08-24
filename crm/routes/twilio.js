@@ -688,8 +688,13 @@ router.post('/transcription', (req, res) => {
 
 // ─── POST /api/twilio/twiml ───────────────────────────────────────────────────
 router.post('/twiml', (req, res) => {
-  const { call_id, to, name } = req.query;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER || '';
+  const { call_id, to, name, from } = req.query;
+  // Brand-aware caller ID for the bridged leg: routes/calls.js's /outbound
+  // resolves the correct Prosperity/Insurance Lady number and passes it
+  // here as `from` when the call has a resolvable brand relationship.
+  // Falls back to the legacy single number, unchanged, when absent (older
+  // call flows / contacts with no brand relationship at all).
+  const fromNumber = from || process.env.TWILIO_FROM_NUMBER || '';
   const publicUrl  = (process.env.CRM_PUBLIC_URL || '').replace(/\/$/, '');
 
   if (call_id) {

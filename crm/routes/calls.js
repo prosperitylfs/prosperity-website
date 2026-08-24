@@ -1,6 +1,7 @@
 const express  = require('express');
 const router   = express.Router();
 const db       = require('../db/database');
+const { resolveVoiceCallerId } = require('../lib/senderResolution');
 
 // ─── GET /api/calls/stats ────────────────────────────────────────────────────
 // Badge counts: unread voicemails + unreviewed missed inbound calls.
@@ -49,7 +50,7 @@ router.get('/', (req, res) => {
 // browser-based calling (no agent phone required). See routes/twilio.js for the
 // TwiML side. Twilio Client would call /api/twilio/client-token instead.
 router.post('/outbound', async (req, res) => {
-  const { contact_id } = req.body;
+  const { contact_id, case_id } = req.body;
   if (!contact_id) return res.status(400).json({ error: 'contact_id required' });
 
   const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contact_id);
@@ -59,8 +60,26 @@ router.post('/outbound', async (req, res) => {
     || (contact.phone ? '+1' + contact.phone.replace(/\D/g, '') : null);
   if (!toPhone) return res.status(400).json({ error: 'Contact has no phone number' });
 
+  // Brand-aware caller ID: prefer an explicit case_id, else the contact's
+  // own active brand relationship. A contact with NO resolvable brand
+  // relationship at all (a legacy, pre-two-brand contact) falls through
+  // to the original single-number behavior below, unchanged — this stays
+  // fully backward compatible for the old contact.js interface and any
+  // contact that predates the two-brand model. Once a brand IS resolved,
+  // its number is required and exact — never a silent fallback to the
+  // legacy number or the other brand's number.
+  let fromNumber = process.env.TWILIO_FROM_NUMBER;
+  const activeBrand = db.prepare(`SELECT id FROM contact_brands WHERE contact_id = ? AND status = 'Active'`).get(contact_id);
+  const brandContext = case_id ? { caseId: Number(case_id) } : (activeBrand ? { contactBrandId: activeBrand.id } : null);
+  if (brandContext) {
+    const callerId = resolveVoiceCallerId(db, brandContext);
+    if (callerId.blocked) {
+      return res.status(503).json({ error: callerId.reason });
+    }
+    fromNumber = callerId.fromNumber;
+  }
+
   const agentPhone = process.env.AGENT_PHONE_NUMBER;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
   const publicUrl  = (process.env.CRM_PUBLIC_URL || '').replace(/\/$/, '');
 
   if (!agentPhone || !fromNumber) {
@@ -88,7 +107,11 @@ router.post('/outbound', async (req, res) => {
     const twilio = require('twilio');
     const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-    const twimlUrl  = `${publicUrl}/api/twilio/twiml?call_id=${callId}&to=${encodeURIComponent(toPhone)}&name=${encodeURIComponent(contactName)}`;
+    // from= carries the brand-resolved caller ID through to /api/twilio/twiml
+    // (a stateless webhook) so the second, bridged leg to the lead uses the
+    // SAME number as the first leg — /twiml falls back to the legacy
+    // TWILIO_FROM_NUMBER when this param is absent, for old call flows.
+    const twimlUrl  = `${publicUrl}/api/twilio/twiml?call_id=${callId}&to=${encodeURIComponent(toPhone)}&name=${encodeURIComponent(contactName)}&from=${encodeURIComponent(fromNumber)}`;
     const statusUrl = `${publicUrl}/api/twilio/status/${callId}`;
 
     const call = await client.calls.create({

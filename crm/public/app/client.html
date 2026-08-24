@@ -710,19 +710,49 @@ async function render() {
     });
   }
 
+  // Shows the same sender-guardrail preview as before (brand + number this
+  // call would use), but now with a real "Call Now" action that places a
+  // live call through the existing agent-bridge mechanism
+  // (crm/routes/calls.js POST /outbound — Twilio calls this phone first,
+  // then bridges to the client once answered) instead of the old
+  // hard-coded "disabled" placeholder.
   async function callPreviewModal() {
     const caseId = activeCases[0] ? activeCases[0].caseId : null;
-    const { guardrail, providerResult } = await CrmApp.postJSON('/api/app/communications/call-preview', 'POST', { contactId: Number(contactId), caseId });
-    const message = guardrail.scenario === 'no_relationship' ? guardrail.message : guardrail.channels.call.message;
-    CrmApp.openModal({
+    const { guardrail } = await CrmApp.postJSON('/api/app/communications/call-preview', 'POST', { contactId: Number(contactId), caseId });
+    const relationshipBlocked = guardrail.scenario === 'no_relationship';
+    const channelBlocked = !relationshipBlocked && guardrail.channels.call.blocked;
+    const message = relationshipBlocked ? guardrail.message : guardrail.channels.call.message;
+    const canCall = !relationshipBlocked && !channelBlocked;
+
+    const dialog = CrmApp.openModal({
       title: 'Call',
       bodyHtml: `
-        <div class="sender-preview${guardrail.scenario === 'no_relationship' || guardrail.channels.call.blocked ? ' blocked' : ''}">${CrmApp.escapeHtml(message)}</div>
-        <div class="blocked-notice">Sending is disabled in this local checkpoint.</div>
-        <div class="crmapp-modal-actions"><button type="button" class="btn" id="call-close">Close</button></div>
+        <div class="sender-preview${canCall ? '' : ' blocked'}">${CrmApp.escapeHtml(message)}</div>
+        <div id="call-initiate-result"></div>
+        <div class="crmapp-modal-actions">
+          <button type="button" class="btn" id="call-close">Close</button>
+          ${canCall ? '<button type="button" class="btn primary" id="call-initiate">Call Now</button>' : ''}
+        </div>
       `,
     });
-    document.querySelector('#call-close').addEventListener('click', CrmApp.closeModal);
+    dialog.querySelector('#call-close').addEventListener('click', () => dialog.close());
+    const initiateBtn = dialog.querySelector('#call-initiate');
+    if (initiateBtn) {
+      initiateBtn.addEventListener('click', async () => {
+        initiateBtn.disabled = true;
+        initiateBtn.textContent = 'Calling…';
+        try {
+          await CrmApp.postJSON('/api/calls/outbound', 'POST', { contact_id: Number(contactId), case_id: caseId });
+          dialog.querySelector('#call-initiate-result').innerHTML = '<div class="confirm-message">Your phone is ringing — answer to connect to the client.</div>';
+          CrmApp.toast('Call placed — see the Call Log tab shortly.');
+          initiateBtn.remove();
+        } catch (err) {
+          dialog.querySelector('#call-initiate-result').innerHTML = `<div class="blocked-notice">${CrmApp.escapeHtml(err.message)}</div>`;
+          initiateBtn.disabled = false;
+          initiateBtn.textContent = 'Call Now';
+        }
+      });
+    }
   }
 
   // Manual call logging (Prosperity Revenue MVP, Requirement 5). No audio

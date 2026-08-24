@@ -65,8 +65,14 @@ async function sendText({ toNumber, fromNumber, brandId, body, hasConsent, isOpt
   // Deliberately TWILIO_FROM_NUMBER_PROSPERITY only — never the legacy
   // single-number TWILIO_FROM_NUMBER used by crm/routes/twilio.js, and
   // never any Insurance Lady variable. If this brand-specific var isn't
-  // set, there is no fallback; the send is blocked.
-  const configuredFromNumber = process.env.TWILIO_FROM_NUMBER_PROSPERITY;
+  // set, there is no fallback; the send is blocked. Trimmed because
+  // environment values pasted into a hosting dashboard routinely pick up
+  // incidental leading/trailing whitespace or a trailing newline, which
+  // would otherwise fail the exact-equality check below for a number that
+  // is, in every way that actually matters, correctly configured. Nothing
+  // else about the comparison is loosened — it's still exact equality on
+  // the number itself, just blind to whitespace noise around it.
+  const configuredFromNumber = (process.env.TWILIO_FROM_NUMBER_PROSPERITY || '').trim();
 
   const missing = [];
   if (!accountSid) missing.push('TWILIO_ACCOUNT_SID');
@@ -79,9 +85,15 @@ async function sendText({ toNumber, fromNumber, brandId, body, hasConsent, isOpt
   // The FROM number must match BOTH the server-side brand config and the
   // env-configured sending number exactly. A caller-supplied fromNumber
   // that differs from either — whatever the reason — is refused rather
-  // than silently corrected or substituted.
+  // than silently corrected or substituted. The specific values are
+  // included in the blocked message (a phone number, not a secret) so a
+  // real mismatch is immediately diagnosable instead of opaque.
   if (fromNumber !== configuredFromNumber || fromNumber !== BRANDS.prosperity.phone.e164) {
-    return blocked('Requested sender does not match the configured Prosperity number — refusing to send.');
+    return blocked(
+      `Requested sender does not match the configured Prosperity number — refusing to send. `
+      + `(requested: ${fromNumber || '(none)'}, TWILIO_FROM_NUMBER_PROSPERITY: ${configuredFromNumber || '(not set)'}, `
+      + `expected: ${BRANDS.prosperity.phone.e164})`
+    );
   }
 
   const getClient = deps.getTwilioClient || (() => require('twilio')(accountSid, authToken));

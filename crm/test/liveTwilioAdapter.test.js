@@ -153,6 +153,49 @@ test('a requested sender that differs from the configured Prosperity number is r
   });
 });
 
+test('a genuine mismatch names the actual requested and configured values in the blocked message, not just a generic refusal', async () => {
+  await withEnv(VALID_CONFIG, async () => {
+    const client = mockClient();
+    const result = await sendText({ ...VALID_PARAMS, fromNumber: '+14145550000' }, { getTwilioClient: () => client });
+    assert.match(result.message, /\+14145550000/, 'the wrong requested number should be visible in the message');
+    assert.match(result.message, new RegExp(PROSPERITY_NUMBER.replace('+', '\\+')), 'the expected Prosperity number should be visible in the message');
+  });
+});
+
+// Regression test for a real live-test failure: TWILIO_FROM_NUMBER_PROSPERITY
+// was correctly set on Render to the right number, but the send was still
+// refused with "Requested sender does not match" — caused by incidental
+// whitespace (a trailing newline/space from pasting into the dashboard)
+// making the stored env value fail exact-string comparison against the
+// clean number in config/brands.js, even though the number itself was
+// correct in every way that matters.
+test('leading/trailing whitespace around TWILIO_FROM_NUMBER_PROSPERITY does not block an otherwise-correct send', async () => {
+  await withEnv({ ...VALID_CONFIG, TWILIO_FROM_NUMBER_PROSPERITY: `  ${PROSPERITY_NUMBER}\n` }, async () => {
+    const client = mockClient();
+    const result = await sendText(VALID_PARAMS, { getTwilioClient: () => client });
+    assert.equal(result.status, 'sent', result.message);
+    assert.equal(client.calls.length, 1);
+    assert.equal(client.calls[0].from, PROSPERITY_NUMBER);
+  });
+});
+
+test('TWILIO_FROM_NUMBER_PROSPERITY that is only whitespace is treated as not set', async () => {
+  await withEnv({ ...VALID_CONFIG, TWILIO_FROM_NUMBER_PROSPERITY: '   ' }, async () => {
+    const result = await sendText(VALID_PARAMS);
+    assert.equal(result.status, 'blocked');
+    assert.match(result.message, /TWILIO_FROM_NUMBER_PROSPERITY/);
+  });
+});
+
+test('whitespace tolerance never allows a DIFFERENT (even if whitespace-padded) number through', async () => {
+  await withEnv({ ...VALID_CONFIG, TWILIO_FROM_NUMBER_PROSPERITY: '  +14145550000  ' }, async () => {
+    const client = mockClient();
+    const result = await sendText(VALID_PARAMS, { getTwilioClient: () => client });
+    assert.equal(result.status, 'blocked');
+    assert.equal(client.calls.length, 0, 'the brand-routing safeguard itself must still be exact once whitespace is stripped');
+  });
+});
+
 test('a valid Prosperity send uses exactly the 414 sender and makes exactly one mocked call', async () => {
   await withEnv(VALID_CONFIG, async () => {
     const client = mockClient();

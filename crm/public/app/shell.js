@@ -101,11 +101,29 @@
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: dStr.slice(0, 4) === today.slice(0, 4) ? undefined : 'numeric' });
   }
 
+  // hour12 is forced explicitly (display formatting only -- never affects
+  // what's stored or the timezone the value represents) rather than left to
+  // the browser's default locale, so this never depends on OS/browser
+  // settings: 15:00 always renders as "3:00 PM", never "15:00".
   function friendlyDateTime(iso) {
     if (!iso) return '—';
     const d = new Date(iso);
     if (isNaN(d)) return String(iso);
-    return `${friendlyDate(iso)} · ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+    return `${friendlyDate(iso)} · ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+  }
+
+  // Formats a plain "HH:MM" (24-hour) string -- e.g. a follow_up_tasks.due_time
+  // value straight out of the database -- as 12-hour AM/PM, without needing a
+  // full date. Never touches the stored value, only how it's displayed.
+  function friendlyTime(hhmm) {
+    if (!hhmm) return '';
+    const m = /^(\d{1,2}):(\d{2})/.exec(hhmm);
+    if (!m) return hhmm;
+    const hour24 = Number(m[1]);
+    const minute = m[2];
+    const period = hour24 >= 12 ? 'PM' : 'AM';
+    const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+    return `${hour12}:${minute} ${period}`;
   }
 
   function sidebarHtml(active) {
@@ -280,7 +298,7 @@
 
   window.CrmApp = {
     mount, getCompany, setCompany, companyBadge, escapeHtml, initials,
-    fetchJSON, postJSON, friendlyDate, friendlyDateTime, NAV_ITEMS,
+    fetchJSON, postJSON, friendlyDate, friendlyDateTime, friendlyTime, NAV_ITEMS,
     openModal, closeModal, confirmAction, toast,
   };
 })();

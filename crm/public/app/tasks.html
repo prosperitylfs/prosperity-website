@@ -50,7 +50,7 @@ async function render() {
       <td><a href="client.html?id=${t.contact_id}"><strong>${CrmApp.escapeHtml([t.first_name, t.last_name].filter(Boolean).join(' '))}</strong></a></td>
       <td>${CrmApp.escapeHtml(t.task_type)}</td>
       <td>${CrmApp.escapeHtml(t.notes || '—')}</td>
-      <td class="${overdue ? 'text-danger' : ''}">${overdue ? 'Overdue · ' : ''}${CrmApp.friendlyDate(t.due_date)}${t.due_time ? ' ' + t.due_time : ''}</td>
+      <td class="${overdue ? 'text-danger' : ''}">${overdue ? 'Overdue · ' : ''}${CrmApp.friendlyDate(t.due_date)}${t.due_time ? ' ' + CrmApp.friendlyTime(t.due_time) : ''}</td>
       <td>${CrmApp.escapeHtml(t.priority)}</td>
       <td><span class="pill status-${t.status.toLowerCase()}">${t.status}</span></td>
       <td class="field-row-actions">

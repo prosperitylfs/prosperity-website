@@ -176,6 +176,7 @@ async function render() {
             <div class="form-field"><label>ZIP code</label><input class="input" name="zip"></div>
             <div class="form-field"><label>Date of birth <span class="hint">(optional)</span></label><input class="input" name="dateOfBirth" type="date"></div>
             <div class="form-field"><label>Original source</label><input class="input" name="originalSource" placeholder="e.g. Referral, Website"></div>
+            <div class="form-field full"><label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" name="smsConsent" id="add-client-sms-consent" style="width:auto;"> SMS consent on file <span class="hint">(required before this client can be texted from the CRM)</span></label></div>
             <div class="form-field full"><label>General notes</label><textarea class="input" name="generalNotes"></textarea></div>
           </div>
           <div class="form-error" id="add-client-error"></div>
@@ -205,6 +206,10 @@ async function render() {
       const fd = new FormData(e.target);
       const fields = Object.fromEntries(fd.entries());
       fields.brandSlug = selectedCompany;
+      // Read the checkbox directly rather than trusting FormData, which
+      // omits an unchecked box entirely -- this keeps smsConsent an
+      // explicit true/false every time, never ambiguous with "not sent".
+      fields.smsConsent = dialog.querySelector('#add-client-sms-consent').checked;
       try {
         const result = await CrmApp.postJSON('/api/app/clients', 'POST', fields);
         if (result.outcome === 'company_conflict') {

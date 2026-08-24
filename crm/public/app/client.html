@@ -73,6 +73,7 @@ async function render() {
             <div class="form-field"><label>ZIP code</label><input class="input" name="zip" value="${CrmApp.escapeHtml(c.zip || '')}"></div>
             <div class="form-field"><label>Date of birth</label><input class="input" name="dateOfBirth" type="date" value="${CrmApp.escapeHtml(c.dateOfBirth || '')}"></div>
             <div class="form-field"><label>Original source</label><input class="input" name="originalSource" value="${CrmApp.escapeHtml(c.originalSource || '')}"></div>
+            <div class="form-field full"><label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" name="smsConsent" id="edit-client-sms-consent" style="width:auto;" ${c.smsConsent ? 'checked' : ''}> SMS consent on file <span class="hint">(required before this client can be texted from the CRM)</span></label></div>
             <div class="form-field full"><label>General notes</label><textarea class="input" name="generalNotes">${CrmApp.escapeHtml(c.generalNotes || '')}</textarea></div>
           </div>
           <div class="text-faint" style="margin-top:10px;">Permanent company (${primaryBrand ? CrmApp.escapeHtml(primaryBrand.brandShortName) : 'none'}) cannot be edited here — use "Request Company Change" instead.</div>
@@ -88,6 +89,11 @@ async function render() {
     dialog.querySelector('#edit-client-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fields = Object.fromEntries(new FormData(e.target).entries());
+      // Read the checkbox directly rather than trusting FormData, which
+      // omits an unchecked box entirely -- this keeps smsConsent an
+      // explicit true/false every time, so unchecking it actually revokes
+      // consent instead of silently leaving the old value in place.
+      fields.smsConsent = dialog.querySelector('#edit-client-sms-consent').checked;
       try {
         await CrmApp.postJSON(`/api/app/clients/${contactId}`, 'PATCH', fields);
         CrmApp.toast('Client updated.');
@@ -342,7 +348,8 @@ async function render() {
               </select>
             </div>
             <div class="form-field"><label>Effective date</label><input class="input" name="effectiveDate" type="date" value="${CrmApp.escapeHtml(p.effective_date || '')}"></div>
-            <div class="form-field"><label>Coverage / account value</label><input class="input" name="coverageAmount" type="number" value="${p.coverage_amount || ''}"></div>
+            <div class="form-field"><label>Application date</label><input class="input" name="applicationDate" type="date" value="${CrmApp.escapeHtml(p.application_date || '')}"></div>
+            <div class="form-field"><label>Coverage / account value (face amount)</label><input class="input" name="coverageAmount" type="number" value="${p.coverage_amount || ''}"></div>
             <div class="form-field"><label>Premium / contribution</label><input class="input" name="premium" type="number" value="${p.premium || ''}"></div>
             <div class="form-field"><label>Payment frequency</label>
               <select class="input" name="premiumFrequency">${['Monthly', 'Quarterly', 'Annual', 'One-time'].map(f => `<option ${p.premium_frequency === f ? 'selected' : ''}>${f}</option>`).join('')}</select>
@@ -679,10 +686,27 @@ async function render() {
     `;
     dialog.querySelector('#draft-back').addEventListener('click', () => { CrmApp.toast('Saved as draft.'); dialog.close(); });
     dialog.querySelector('#draft-confirm-send').addEventListener('click', async () => {
-      const result = await CrmApp.postJSON(`/api/app/communications/draft/${draft.id}/confirm-send`, 'POST');
-      dialog.querySelector('#draft-blocked-area').innerHTML = `<div class="blocked-notice">Sending is disabled in this local checkpoint.</div>`;
+      let result;
+      try {
+        result = await CrmApp.postJSON(`/api/app/communications/draft/${draft.id}/confirm-send`, 'POST');
+      } catch (err) {
+        dialog.querySelector('#draft-blocked-area').innerHTML = `<div class="blocked-notice">${CrmApp.escapeHtml(err.message)}</div>`;
+        return;
+      }
+      // Reflects the ACTUAL provider result (real Twilio send when
+      // COMMUNICATION_PROVIDER=twilio is configured server-side, or the
+      // specific reason it didn't go out) instead of a hard-coded message —
+      // this only ever came from the fake adapter's own returned text
+      // before, which would have gone stale the moment live sending was
+      // configured.
+      const sent = result.providerResult && result.providerResult.status === 'sent';
+      const message = result.providerResult ? result.providerResult.message : null;
+      dialog.querySelector('#draft-blocked-area').innerHTML = sent
+        ? `<div class="confirm-message">Sent.</div>`
+        : `<div class="blocked-notice">${CrmApp.escapeHtml(message || 'This message was not sent.')}</div>`;
       dialog.querySelector('#draft-confirm-send').disabled = true;
-      if (result.smsMessage) CrmApp.toast('Outbound text stored — see the Texts tab.');
+      if (sent) CrmApp.toast('Text sent — see the Texts tab.');
+      else if (result.smsMessage) CrmApp.toast('Not sent — see the Texts tab for details.', { error: true });
     });
   }
 

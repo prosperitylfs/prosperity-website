@@ -60,8 +60,27 @@ function createClient(db, fields, actor) {
   return { outcome: 'created', contact: db.prepare('SELECT * FROM contacts WHERE id = ?').get(contact.id), contactBrand };
 }
 
+// Explicit-tri-state boolean: undefined ("this field was never part of the
+// request") is distinguished from a real false, so COALESCE below only
+// overwrites sms_consent/email_consent when the caller actually meant to —
+// a caller that never mentions consent at all (e.g. an unrelated field
+// update) must never accidentally reset it.
+function toBoolIntOrNull(v) {
+  if (v === undefined) return null;
+  return v ? 1 : 0;
+}
+
 // Never accepts a brand/company field — structurally impossible to change
 // the permanent company through this function.
+//
+// sms_consent/email_consent ARE accepted here (Revenue MVP requirement: a
+// manually-added existing client must be markable as consented, or the
+// Text/Email actions in crm/lib/communicationDraftService.js can never be
+// used for them at all — there was previously no path to ever set this to
+// true for a manually-entered contact). Loretta is the one deciding
+// whether real consent exists (existing-business-relationship, verbal, a
+// prior opt-in reply, etc.) — this only gives the CRM a place to record
+// that decision, it never infers or assumes consent itself.
 function applyContactFields(db, contactId, fields, normalized) {
   db.prepare(`
     UPDATE contacts SET
@@ -77,6 +96,8 @@ function applyContactFields(db, contactId, fields, normalized) {
       date_of_birth    = COALESCE(@date_of_birth, date_of_birth),
       lead_source      = COALESCE(@lead_source, lead_source),
       general_notes    = COALESCE(@general_notes, general_notes),
+      sms_consent      = COALESCE(@sms_consent, sms_consent),
+      email_consent    = COALESCE(@email_consent, email_consent),
       updated_at       = CURRENT_TIMESTAMP
     WHERE id = @id
   `).run({
@@ -86,6 +107,7 @@ function applyContactFields(db, contactId, fields, normalized) {
     state: toStringOrNull(fields.state), zip_code: toStringOrNull(fields.zip),
     date_of_birth: toStringOrNull(fields.dateOfBirth), lead_source: toStringOrNull(fields.originalSource),
     general_notes: toStringOrNull(fields.generalNotes),
+    sms_consent: toBoolIntOrNull(fields.smsConsent), email_consent: toBoolIntOrNull(fields.emailConsent),
     id: contactId,
   });
 }

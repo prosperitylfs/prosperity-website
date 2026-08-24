@@ -80,6 +80,54 @@ test('a company change request is staged for review and changes nothing live', (
   assert.equal(links[0].brand_id, prosperityId);
 });
 
+// ── SMS/email consent recording (Revenue MVP: manually-added clients must
+//    be markable as consented, or Text/Email can never be used for them) ──
+
+test('a manually-created client defaults to no SMS consent', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Nora', email: 'nora@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  assert.equal(created.contact.sms_consent, 0);
+});
+
+test('sms_consent can be granted at creation time', () => {
+  const { db } = setup();
+  const created = createClient(db, {
+    firstName: 'Wes', email: 'wes@example.com', brandSlug: 'prosperity', smsConsent: true,
+  }, 'Loretta Stewart');
+  assert.equal(created.contact.sms_consent, 1);
+});
+
+test('sms_consent can be granted later via updateClient', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Bea', email: 'bea@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  assert.equal(created.contact.sms_consent, 0);
+  const updated = updateClient(db, created.contact.id, { smsConsent: true });
+  assert.equal(updated.sms_consent, 1);
+});
+
+test('sms_consent can be revoked via updateClient (explicit false, not just "not sent")', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Cole', email: 'cole@example.com', brandSlug: 'prosperity', smsConsent: true }, 'Loretta Stewart');
+  assert.equal(created.contact.sms_consent, 1);
+  const updated = updateClient(db, created.contact.id, { smsConsent: false });
+  assert.equal(updated.sms_consent, 0);
+});
+
+test('updateClient calls that never mention smsConsent leave the existing value untouched', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Dee', email: 'dee@example.com', brandSlug: 'prosperity', smsConsent: true }, 'Loretta Stewart');
+  const updated = updateClient(db, created.contact.id, { firstName: 'Deandra' });
+  assert.equal(updated.sms_consent, 1, 'an update that never mentions consent must not silently reset it');
+});
+
+test('email_consent follows the same explicit-tri-state rule as sms_consent', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Fay', email: 'fay@example.com', brandSlug: 'prosperity', emailConsent: true }, 'Loretta Stewart');
+  assert.equal(created.contact.email_consent, 1);
+  const updated = updateClient(db, created.contact.id, { emailConsent: false });
+  assert.equal(updated.email_consent, 0);
+});
+
 test('archiving a client preserves cases, policies, notes, and audit history', () => {
   const { db } = setup();
   const created = createClient(db, { firstName: 'Theo', email: 'theo@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');

@@ -8,7 +8,7 @@ const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
 const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
 const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
-const { logCall, CALL_OUTCOMES } = require('../lib/callLogService');
+const { logCall, attachCallOutcome, CALL_OUTCOMES } = require('../lib/callLogService');
 const { createClient } = require('../lib/clientService');
 const { createCaseForClient } = require('../lib/caseService');
 
@@ -81,4 +81,94 @@ test('logging one client\'s call never affects another client\'s tasks', () => {
   logCall(db, { contactId: a.contact.id, direction: 'outbound', date: '2026-08-20', outcome: 'Follow-up needed', nextAction: 'Call back', nextActionDueDate: '2026-08-22' }, 'Loretta Stewart');
   const bTasks = db.prepare('SELECT * FROM follow_up_tasks WHERE contact_id = ?').all(b.contact.id);
   assert.equal(bTasks.length, 0);
+});
+
+// ── attachCallOutcome (Revenue MVP: automatic call logging for CRM-placed
+//    calls) — mirrors exactly what crm/routes/calls.js POST /outbound
+//    inserts automatically when the CRM itself places a live call. ───────
+
+function insertAutoLoggedCall(db, { contactId, contactBrandId }) {
+  const result = db.prepare(`
+    INSERT INTO comm_calls
+      (contact_id, contact_name, contact_brand_id, direction, from_number, to_number, status, started_at, provider_call_uuid)
+    VALUES (?, 'Auto Test', ?, 'outbound', '+14144411177', '+14145559999', 'initiated', '2026-08-24T10:00:00.000Z', 'CA_fake_test_sid')
+  `).run(contactId, contactBrandId || null);
+  return result.lastInsertRowid;
+}
+
+test('attachCallOutcome updates the EXISTING auto-logged call, never inserting a second row', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Yara', lastName: 'Solis', phone: '4145551208', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const link = db.prepare(`SELECT id FROM contact_brands WHERE contact_id = ?`).get(client.contact.id);
+  const callId = insertAutoLoggedCall(db, { contactId: client.contact.id, contactBrandId: link.id });
+
+  const before = db.prepare('SELECT COUNT(*) AS n FROM comm_calls WHERE contact_id = ?').get(client.contact.id).n;
+  const { call } = attachCallOutcome(db, callId, { outcome: 'Spoke with client', summary: 'Went over options' }, 'Loretta Stewart');
+  const after = db.prepare('SELECT COUNT(*) AS n FROM comm_calls WHERE contact_id = ?').get(client.contact.id).n;
+
+  assert.equal(after, before, 'no new comm_calls row was created');
+  assert.equal(call.id, callId);
+  assert.equal(call.outcome, 'Spoke with client');
+  assert.equal(call.summary, 'Went over options');
+});
+
+test('attachCallOutcome never overwrites direction, start time, or the Twilio Call SID that were captured automatically', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Zane', lastName: 'Ruiz', phone: '4145551209', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const callId = insertAutoLoggedCall(db, { contactId: client.contact.id });
+  const { call } = attachCallOutcome(db, callId, { outcome: 'No answer' }, 'Loretta Stewart');
+  assert.equal(call.direction, 'outbound');
+  assert.equal(call.started_at, '2026-08-24T10:00:00.000Z');
+  assert.equal(call.provider_call_uuid, 'CA_fake_test_sid');
+});
+
+test('attachCallOutcome sets the related case chosen from the client\'s actual open cases, not a fixed list', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Amara', lastName: 'Kim', phone: '4145551210', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const lifeCase = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+  const rolloverCase = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Rollovers and safe-money solutions') }, 'Loretta Stewart');
+  const callId = insertAutoLoggedCall(db, { contactId: client.contact.id });
+
+  const { call } = attachCallOutcome(db, callId, { outcome: 'Spoke with client', caseId: rolloverCase.id }, 'Loretta Stewart');
+  assert.equal(call.case_id, rolloverCase.id);
+  assert.notEqual(call.case_id, lifeCase.id);
+});
+
+test('attachCallOutcome with a next action and due date creates a follow-up task attached to the call\'s client', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Ben', lastName: 'Ito', phone: '4145551211', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const callId = insertAutoLoggedCall(db, { contactId: client.contact.id });
+  const { call, followUpTask } = attachCallOutcome(db, callId, {
+    outcome: 'Follow-up needed', nextAction: 'Send illustration', nextActionDueDate: '2026-09-01',
+  }, 'Loretta Stewart');
+  assert.ok(followUpTask);
+  assert.equal(followUpTask.contact_id, client.contact.id);
+  assert.equal(followUpTask.due_date, '2026-09-01');
+  assert.equal(call.follow_up_task_id, followUpTask.id);
+});
+
+test('attachCallOutcome rejects an outcome not in the fixed list', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Cora', lastName: 'Diaz', phone: '4145551212', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const callId = insertAutoLoggedCall(db, { contactId: client.contact.id });
+  assert.throws(() => attachCallOutcome(db, callId, { outcome: 'Had a nice chat' }, 'Loretta Stewart'), /outcome/);
+});
+
+test('attachCallOutcome throws for a call id that does not exist', () => {
+  const { db } = setup();
+  assert.throws(() => attachCallOutcome(db, 999999, { outcome: 'No answer' }, 'Loretta Stewart'), /does not exist/);
+});
+
+test('attachCallOutcome called twice on the same call updates it in place, still never creating a duplicate', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Drew', lastName: 'Voss', phone: '4145551213', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const callId = insertAutoLoggedCall(db, { contactId: client.contact.id });
+
+  attachCallOutcome(db, callId, { outcome: 'No answer' }, 'Loretta Stewart');
+  const { call } = attachCallOutcome(db, callId, { outcome: 'Spoke with client', summary: 'Reached them on retry' }, 'Loretta Stewart');
+
+  const rows = db.prepare('SELECT * FROM comm_calls WHERE contact_id = ?').all(client.contact.id);
+  assert.equal(rows.length, 1, 'still exactly one call record after two outcome edits');
+  assert.equal(call.outcome, 'Spoke with client');
+  assert.equal(call.summary, 'Reached them on retry');
 });

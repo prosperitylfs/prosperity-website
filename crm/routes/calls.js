@@ -91,12 +91,18 @@ router.post('/outbound', async (req, res) => {
   const contactName = [contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'the lead';
   const now = new Date().toISOString();
 
-  // Insert call log before dialing so we have an ID for the TwiML callback URL
+  // Insert call log before dialing so we have an ID for the TwiML callback URL.
+  // This IS the automatic call-log record (Revenue MVP) -- direction, contact,
+  // brand, and start time are captured here at initiation time; case_id stays
+  // unset until the agent picks the related case afterward (see PATCH
+  // /api/app/calls/:id -> callLogService.attachCallOutcome). Twilio's own
+  // webhooks (below, and /api/twilio/twiml + /dial-result) update this SAME
+  // row by callId as the call progresses -- never insert a second row.
   const result = db.prepare(`
     INSERT INTO comm_calls
-      (contact_id, contact_name, direction, from_number, to_number, status, started_at)
-    VALUES (?, ?, 'outbound', ?, ?, 'initiated', ?)
-  `).run(contact_id, contactName, fromNumber, toPhone, now);
+      (contact_id, contact_name, contact_brand_id, direction, from_number, to_number, status, started_at)
+    VALUES (?, ?, ?, 'outbound', ?, ?, 'initiated', ?)
+  `).run(contact_id, contactName, activeBrand ? activeBrand.id : null, fromNumber, toPhone, now);
   const callId = result.lastInsertRowid;
 
   // Stamp contact so pipeline cards can show "Called Today"

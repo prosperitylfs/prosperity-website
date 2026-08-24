@@ -435,15 +435,76 @@ async function render() {
     const calls = detail.callLog || [];
     if (!calls.length) return '<div class="empty-state">No calls logged yet. Use the Log Call button above.</div>';
     return `<div class="card"><div class="card-body no-pad table-scroll">
-      <table class="data-table"><thead><tr><th>Direction</th><th>When</th><th>Duration</th><th>Outcome</th><th>Summary</th></tr></thead>
-      <tbody>${calls.map(c => `<tr>
+      <table class="data-table"><thead><tr><th>Direction</th><th>When</th><th>Status</th><th>Duration</th><th>Case</th><th>Outcome</th><th>Summary</th><th></th></tr></thead>
+      <tbody>${calls.map(c => {
+        const kase = allCases.find(cs => cs.caseId === c.case_id);
+        return `<tr>
         <td style="text-transform:capitalize;">${CrmApp.escapeHtml(c.direction || '—')}</td>
         <td>${CrmApp.friendlyDateTime(c.started_at || c.created_at)}</td>
+        <td><span class="pill status-${(c.status || '').toLowerCase()}">${CrmApp.escapeHtml(c.status || '—')}</span></td>
         <td>${c.duration_sec ? Math.round(c.duration_sec / 60) + ' min' : '—'}</td>
+        <td>${kase ? CrmApp.escapeHtml(kase.productName || kase.title || ('Case #' + kase.caseId)) : '—'}</td>
         <td>${CrmApp.escapeHtml(c.outcome || '—')}</td>
         <td>${CrmApp.escapeHtml(c.summary || c.notes || '—')}</td>
-      </tr>`).join('')}</tbody></table>
+        <td><button class="btn small ghost" data-call-outcome="${c.id}" data-json='${JSON.stringify(c).replace(/'/g, "&#39;")}'>${c.outcome ? 'Edit' : 'Add'} Outcome</button></td>
+      </tr>`;
+      }).join('')}</tbody></table>
     </div></div>`;
+  }
+
+  // Attaches business outcome/notes/related case/follow-up to a call the
+  // CRM already placed and auto-logged (direction, contact, brand, start
+  // time, and Twilio Call SID were all captured automatically when the
+  // call was initiated, and Twilio's own status webhooks kept it updated
+  // as the call progressed) — never creates a second call record. Uses the
+  // SAME dynamic list of this client's actual open cases as the manual
+  // Log Call form below, never a hard-coded product list.
+  function callOutcomeModal(call) {
+    const CALL_OUTCOMES = ['No answer', 'Left voicemail', 'Spoke with client', 'Appointment scheduled', 'Follow-up needed', 'Not interested', 'Wrong number'];
+    const caseOptions = activeCases.map(cs => `<option value="${cs.caseId}" ${call.case_id === cs.caseId ? 'selected' : ''}>${CrmApp.escapeHtml(cs.productName || cs.title || ('Case #' + cs.caseId))}</option>`).join('');
+    const dialog = CrmApp.openModal({
+      title: 'Call Outcome', wide: true,
+      bodyHtml: `
+        <dl class="kv-list" style="margin-bottom:14px;">
+          <dt>Direction</dt><dd style="text-transform:capitalize;">${CrmApp.escapeHtml(call.direction || '—')}</dd>
+          <dt>Started</dt><dd>${CrmApp.friendlyDateTime(call.started_at || call.created_at)}</dd>
+          <dt>Status</dt><dd>${CrmApp.escapeHtml(call.status || '—')}</dd>
+          <dt>Duration</dt><dd>${call.duration_sec ? Math.round(call.duration_sec / 60) + ' min' : '—'}</dd>
+        </dl>
+        <form id="call-outcome-form">
+          <div class="form-grid">
+            <div class="form-field"><label>Outcome</label>
+              <select class="input" name="outcome" required>${CALL_OUTCOMES.map(o => `<option ${call.outcome === o ? 'selected' : ''}>${o}</option>`).join('')}</select>
+            </div>
+            ${caseOptions ? `<div class="form-field"><label>Related case</label><select class="input" name="caseId"><option value="">None</option>${caseOptions}</select></div>` : ''}
+            <div class="form-field full"><label>Summary</label><input class="input" name="summary" value="${CrmApp.escapeHtml(call.summary || '')}" placeholder="Short summary"></div>
+            <div class="form-field full"><label>Detailed notes</label><textarea class="input" name="detailedNotes">${CrmApp.escapeHtml(call.notes || '')}</textarea></div>
+            <div class="form-field"><label>Next follow-up date</label><input class="input" name="nextActionDueDate" type="date"></div>
+            <div class="form-field"><label>Next follow-up time</label><input class="input" name="nextActionDueTime" type="time"></div>
+            <div class="form-field full"><label>Follow-up task</label><input class="input" name="nextAction" placeholder="What needs to happen next?"></div>
+          </div>
+          <div class="form-error" id="call-outcome-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="call-outcome-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Outcome</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#call-outcome-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#call-outcome-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      if (fields.caseId) fields.caseId = Number(fields.caseId);
+      try {
+        const result = await CrmApp.postJSON(`/api/app/calls/${call.id}`, 'PATCH', fields);
+        CrmApp.toast(result.followUpTask ? 'Outcome saved and follow-up task created.' : 'Outcome saved.');
+        dialog.close();
+        reloadPage();
+      } catch (err) {
+        dialog.querySelector('#call-outcome-error').textContent = err.message;
+      }
+    });
   }
 
   function communicationsHtml() {
@@ -604,6 +665,8 @@ async function render() {
     if (e.target.closest('#add-note-btn')) return noteFormModal();
     const editNoteBtn = e.target.closest('[data-edit-note]');
     if (editNoteBtn) return noteFormModal({ noteId: editNoteBtn.dataset.editNote, currentBody: editNoteBtn.dataset.body });
+    const callOutcomeBtn = e.target.closest('[data-call-outcome]');
+    if (callOutcomeBtn) return callOutcomeModal(JSON.parse(callOutcomeBtn.dataset.json));
   });
 
   // Overflow indication for the scrollable tab bar (correction #2): show

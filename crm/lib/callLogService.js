@@ -88,4 +88,56 @@ function listCallsForContact(db, contactId) {
   return db.prepare('SELECT * FROM comm_calls WHERE contact_id = ? ORDER BY COALESCE(started_at, created_at) DESC').all(contactId);
 }
 
-module.exports = { CALL_OUTCOMES, logCall, listCallsForContact };
+// Attaches business outcome/disposition, notes, related case, and an
+// optional follow-up task to an EXISTING comm_calls row — never creates a
+// new one. Used for a call the CRM itself placed (crm/routes/calls.js POST
+// /outbound already created the row automatically, with direction/contact/
+// brand/start-time/Twilio SID captured at initiation, and Twilio's own
+// status webhooks keep it updated as the call progresses) — this is only
+// ever the "what happened, what's next" step afterward. date/startTime/
+// duration/direction are deliberately NOT accepted here; those came from
+// the CRM-initiated call itself (or, for a call logged via logCall() above,
+// were already entered once at creation) — never re-enterable.
+function attachCallOutcome(db, callId, fields, actor) {
+  if (!actor) throw new Error('attachCallOutcome: actor is required for the audit trail');
+  const call = db.prepare('SELECT * FROM comm_calls WHERE id = ?').get(callId);
+  if (!call) throw new Error(`attachCallOutcome: call ${callId} does not exist`);
+  if (fields.outcome && !CALL_OUTCOMES.includes(fields.outcome)) {
+    throw new Error(`attachCallOutcome: outcome must be one of ${CALL_OUTCOMES.join(', ')}`);
+  }
+
+  db.prepare(`
+    UPDATE comm_calls SET
+      outcome = COALESCE(@outcome, outcome),
+      summary = COALESCE(@summary, summary),
+      notes   = COALESCE(@notes, notes),
+      case_id = COALESCE(@case_id, case_id)
+    WHERE id = @id
+  `).run({
+    outcome: toStringOrNull(fields.outcome),
+    summary: toStringOrNull(fields.summary),
+    notes: toStringOrNull(fields.detailedNotes),
+    case_id: fields.caseId || null,
+    id: callId,
+  });
+
+  let followUpTaskId = null;
+  if (toStringOrNull(fields.nextAction) && toStringOrNull(fields.nextActionDueDate)) {
+    const taskResult = db.prepare(`
+      INSERT INTO follow_up_tasks (contact_id, case_id, contact_brand_id, task_type, due_date, due_time, notes, priority, status)
+      VALUES (?, ?, ?, 'Follow-up', ?, ?, ?, 'Medium', 'Pending')
+    `).run(
+      call.contact_id, fields.caseId || call.case_id || null, call.contact_brand_id,
+      fields.nextActionDueDate, toStringOrNull(fields.nextActionDueTime), fields.nextAction
+    );
+    followUpTaskId = taskResult.lastInsertRowid;
+    db.prepare('UPDATE comm_calls SET follow_up_task_id = ? WHERE id = ?').run(followUpTaskId, callId);
+  }
+
+  return {
+    call: db.prepare('SELECT * FROM comm_calls WHERE id = ?').get(callId),
+    followUpTask: followUpTaskId ? db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(followUpTaskId) : null,
+  };
+}
+
+module.exports = { CALL_OUTCOMES, logCall, attachCallOutcome, listCallsForContact };

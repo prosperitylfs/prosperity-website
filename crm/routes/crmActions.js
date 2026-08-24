@@ -131,6 +131,11 @@ router.post('/review/:intakeId/archive', handle(req => reviewResolution.archiveR
 
 // ── Manual call logging (Prosperity Revenue MVP, Requirement 5) ────────
 router.post('/calls', handle((req, res) => { created(res); return callLogService.logCall(db, req.body, ACTOR); }));
+// Attaches outcome/notes/related case/follow-up to an EXISTING call record
+// (one the CRM itself placed via /api/calls/outbound, auto-logged with
+// direction/contact/brand/start-time/Twilio SID already captured, and kept
+// updated by Twilio's own status webhooks) -- never creates a new row.
+router.patch('/calls/:id', handle(req => callLogService.attachCallOutcome(db, Number(req.params.id), req.body, ACTOR)));
 
 // ── Communications (draft-and-confirm; sending is always blocked) ──────
 router.post('/communications/draft', handle((req, res) => { created(res); return draftService.createDraft(db, req.body, ACTOR); }));

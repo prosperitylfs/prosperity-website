@@ -212,6 +212,15 @@ app.use('/api/email', (req, res, next) => {
   requireApiKey(req, res, next);
 }, require('./routes/email'));
 
+// Google Calendar OAuth setup (separate from Gmail above — see
+// crm/routes/googleCalendarAuth.js's own header comment). Same
+// /auth + /callback exemption pattern: no API key header is possible on a
+// browser OAuth redirect, but both remain behind dashboardAuth.
+app.use('/api/calendar', (req, res, next) => {
+  if (req.path === '/auth' || req.path === '/callback') return next();
+  requireApiKey(req, res, next);
+}, require('./routes/googleCalendarAuth'));
+
 // ─── Dashboard config — served dynamically so the API key comes from the server
 // environment rather than requiring manual localStorage setup in every browser.
 // This route takes priority over the static config.js in public/.

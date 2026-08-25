@@ -214,10 +214,13 @@ app.use('/api/email', (req, res, next) => {
 
 // Google Calendar OAuth setup (separate from Gmail above — see
 // crm/routes/googleCalendarAuth.js's own header comment). Same
-// /auth + /callback exemption pattern: no API key header is possible on a
-// browser OAuth redirect, but both remain behind dashboardAuth.
+// /auth + /callback exemption pattern as Gmail: no API key header is
+// possible on a plain browser visit/OAuth redirect, but all three remain
+// behind dashboardAuth. /verify is a read-only connection check (lists
+// calendar names only, never creates/edits/deletes anything) meant to be
+// opened directly in a browser the same way /auth already is.
 app.use('/api/calendar', (req, res, next) => {
-  if (req.path === '/auth' || req.path === '/callback') return next();
+  if (req.path === '/auth' || req.path === '/callback' || req.path === '/verify') return next();
   requireApiKey(req, res, next);
 }, require('./routes/googleCalendarAuth'));
 

@@ -37,6 +37,15 @@ function isConfigured() {
   return !!(process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET);
 }
 
+function authedClient() {
+  if (!process.env.GOOGLE_CALENDAR_REFRESH_TOKEN) {
+    throw new Error('Google Calendar not authorized yet. Visit /api/calendar/auth to complete setup.');
+  }
+  const client = makeClient();
+  client.setCredentials({ refresh_token: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN });
+  return client;
+}
+
 // ─── GET /api/calendar/status ──────────────────────────────────────────────
 
 router.get('/status', (req, res) => {
@@ -44,6 +53,45 @@ router.get('/status', (req, res) => {
     oauth_client_configured: isConfigured(),
     calendar_authorized: !!process.env.GOOGLE_CALENDAR_REFRESH_TOKEN,
   });
+});
+
+// ─── GET /api/calendar/verify — read-only connection check ────────────────
+// Lists the calendars visible to this connection (calendarList.list is a
+// pure read call -- creates, updates, or deletes nothing) and confirms
+// "CRM Tasks & Follow-Ups" is among them. This is the connection test
+// itself, not the task-sync feature -- no CRM task or event is touched.
+
+router.get('/verify', async (req, res) => {
+  let auth;
+  try {
+    auth = authedClient();
+  } catch (err) {
+    return res.status(400).send(page('Not authorized yet',
+      `<p>${escHtml(err.message)}</p><p><a href="/api/calendar/auth">Start authorization</a></p>`));
+  }
+
+  try {
+    const calendar = google.calendar({ version: 'v3', auth });
+    const result = await calendar.calendarList.list();
+    const items = result.data.items || [];
+    const names = items.map(c => c.summary || c.id);
+    const found = items.some(c => (c.summary || '').trim() === 'CRM Tasks & Follow-Ups');
+
+    return res.send(page(found ? 'Connection verified!' : 'Connected, but calendar not found', `
+      <div class="${found ? 'success' : 'warning'}">
+        ${found
+          ? '"CRM Tasks &amp; Follow-Ups" was found in the calendars this connection can see. The connection works.'
+          : 'The connection works (calendars could be listed), but "CRM Tasks &amp; Follow-Ups" was not among them &mdash; double-check the calendar name.'}
+      </div>
+      <div class="step">
+        <strong>Calendars visible to this connection:</strong>
+        <ul>${names.map(n => `<li>${escHtml(n)}</li>`).join('')}</ul>
+      </div>
+      <p style="margin-top:2rem"><a href="/">← Back to CRM</a></p>
+    `));
+  } catch (err) {
+    return res.status(500).send(page('Verification failed', `<p>${escHtml(err.message)}</p>`));
+  }
 });
 
 // ─── GET /api/calendar/auth — start one-time OAuth flow ───────────────────
@@ -131,6 +179,7 @@ function page(title, body) {
   h2{color:#3a1f70}
   code{background:#f5f4f8;padding:2px 6px;border-radius:4px;font-size:.9em}
   .success{background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:12px 16px;color:#065f46;margin:16px 0}
+  .warning{background:#fff3cd;border:1px solid #ffe08a;border-radius:8px;padding:12px 16px;color:#7a5b00;margin:16px 0}
   .token-box{background:#f5f4f8;border:1px solid #e4e1ec;border-radius:8px;padding:14px;font-family:monospace;font-size:13px;word-break:break-all;margin:10px 0;user-select:all}
   .step{margin:24px 0}
   button{padding:8px 18px;background:#4e2c94;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;margin-top:8px}

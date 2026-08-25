@@ -19,6 +19,13 @@ const { google } = require('googleapis');
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
 
+// The "CRM Tasks & Follow-Ups" shared calendar (created manually in Google
+// Calendar; ID captured directly from its Settings -> Integrate calendar
+// page). Not a secret -- a calendar ID is an address, not a credential --
+// but hardcoded here rather than read from an env var for now, since this
+// route is only the connection *check*, not the real sync feature.
+const TASKS_CALENDAR_ID = 'c_15317c7b5e7d42313e006440677940859b268810ed008c2c6b69152bfe7c059e@group.calendar.google.com';
+
 function makeClient() {
   const redirectUri =
     process.env.GOOGLE_CALENDAR_REDIRECT_URI ||
@@ -56,10 +63,17 @@ router.get('/status', (req, res) => {
 });
 
 // ─── GET /api/calendar/verify — read-only connection check ────────────────
-// Lists the calendars visible to this connection (calendarList.list is a
-// pure read call -- creates, updates, or deletes nothing) and confirms
-// "CRM Tasks & Follow-Ups" is among them. This is the connection test
-// itself, not the task-sync feature -- no CRM task or event is touched.
+// Reads events from the specific, already-known "CRM Tasks & Follow-Ups"
+// calendar (events.list against TASKS_CALENDAR_ID, maxResults 1) -- a pure
+// read call that creates, updates, or deletes nothing. Uses events.list
+// rather than calendarList.list() deliberately: the calendar.events scope
+// this connection was authorized with covers the Events resource on a
+// calendar you already have the ID for, but does NOT cover the CalendarList
+// resource (enumerating calendars by name) -- calling calendarList.list()
+// here previously failed with "insufficient authentication scopes" for
+// exactly that reason. This checks the one calendar the real feature will
+// actually use, which is a more accurate test than listing all calendars
+// ever was.
 
 router.get('/verify', async (req, res) => {
   let auth;
@@ -72,20 +86,18 @@ router.get('/verify', async (req, res) => {
 
   try {
     const calendar = google.calendar({ version: 'v3', auth });
-    const result = await calendar.calendarList.list();
-    const items = result.data.items || [];
-    const names = items.map(c => c.summary || c.id);
-    const found = items.some(c => (c.summary || '').trim() === 'CRM Tasks & Follow-Ups');
+    const result = await calendar.events.list({ calendarId: TASKS_CALENDAR_ID, maxResults: 1 });
 
-    return res.send(page(found ? 'Connection verified!' : 'Connected, but calendar not found', `
-      <div class="${found ? 'success' : 'warning'}">
-        ${found
-          ? '"CRM Tasks &amp; Follow-Ups" was found in the calendars this connection can see. The connection works.'
-          : 'The connection works (calendars could be listed), but "CRM Tasks &amp; Follow-Ups" was not among them &mdash; double-check the calendar name.'}
+    return res.send(page('Connection verified!', `
+      <div class="success">
+        Successfully read from the "CRM Tasks &amp; Follow-Ups" calendar using the authorized
+        <code>calendar.events</code> scope. The connection works for this exact calendar.
       </div>
       <div class="step">
-        <strong>Calendars visible to this connection:</strong>
-        <ul>${names.map(n => `<li>${escHtml(n)}</li>`).join('')}</ul>
+        <strong>Calendar summary reported by Google:</strong> ${escHtml(result.data.summary || TASKS_CALENDAR_ID)}
+      </div>
+      <div class="step">
+        <strong>Existing events found on this calendar:</strong> ${(result.data.items || []).length}
       </div>
       <p style="margin-top:2rem"><a href="/">← Back to CRM</a></p>
     `));

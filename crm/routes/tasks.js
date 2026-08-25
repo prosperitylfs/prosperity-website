@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db/database');
+const taskCalendarSync = require('../lib/taskCalendarSync');
 
 // ─── GET /api/tasks/stats ────────────────────────────────────────────────────
 router.get('/stats', (req, res) => {
@@ -28,7 +29,7 @@ router.get('/contact/:contact_id', (req, res) => {
 });
 
 // ─── POST /api/tasks ─────────────────────────────────────────────────────────
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { contact_id, task_type, due_date, due_time, notes, priority } = req.body;
   if (!contact_id) return res.status(400).json({ error: 'contact_id required' });
   if (!due_date)   return res.status(400).json({ error: 'due_date required' });
@@ -42,11 +43,12 @@ router.post('/', (req, res) => {
      VALUES (?, ?, ?, ?, ?, ?)`
   ).run(Number(contact_id), task_type, due_date, due_time || null, notes || null, priority || 'Medium');
 
-  res.status(201).json(db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(r.lastInsertRowid));
+  const synced = await taskCalendarSync.syncTaskToCalendar(db, r.lastInsertRowid);
+  res.status(201).json(synced.task || db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(r.lastInsertRowid));
 });
 
 // ─── PATCH /api/tasks/:id ────────────────────────────────────────────────────
-router.patch('/:id', (req, res) => {
+router.patch('/:id', async (req, res) => {
   const task = db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(req.params.id);
   if (!task) return res.status(404).json({ error: 'Not found' });
 
@@ -67,13 +69,15 @@ router.patch('/:id', (req, res) => {
   const set = Object.keys(updates).filter(k => k !== 'id').map(k => `${k} = @${k}`).join(', ');
   db.prepare(`UPDATE follow_up_tasks SET ${set} WHERE id = @id`).run(updates);
 
-  res.json(db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(task.id));
+  const synced = await taskCalendarSync.syncTaskToCalendar(db, task.id);
+  res.json(synced.task || db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(task.id));
 });
 
 // ─── DELETE /api/tasks/:id ───────────────────────────────────────────────────
-router.delete('/:id', (req, res) => {
-  const task = db.prepare('SELECT id FROM follow_up_tasks WHERE id = ?').get(req.params.id);
+router.delete('/:id', async (req, res) => {
+  const task = db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(req.params.id);
   if (!task) return res.status(404).json({ error: 'Not found' });
+  await taskCalendarSync.removeCalendarEvent(db, task, {});
   db.prepare('DELETE FROM follow_up_tasks WHERE id = ?').run(task.id);
   res.json({ ok: true });
 });

@@ -7,7 +7,7 @@ const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
 const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
-const { createClient, updateClient, archiveClient, restoreClient, requestCompanyChange } = require('../lib/clientService');
+const { createClient, updateClient, archiveClient, restoreClient, requestCompanyChange, RELATIONSHIP_TYPES } = require('../lib/clientService');
 const { resolveContactBrand } = require('../lib/caseMatching');
 
 function setup() {
@@ -93,6 +93,7 @@ test('sms_consent can be granted at creation time', () => {
   const { db } = setup();
   const created = createClient(db, {
     firstName: 'Wes', email: 'wes@example.com', brandSlug: 'prosperity', smsConsent: true,
+    smsConsentSource: 'Website Form',
   }, 'Loretta Stewart');
   assert.equal(created.contact.sms_consent, 1);
 });
@@ -107,7 +108,10 @@ test('sms_consent can be granted later via updateClient', () => {
 
 test('sms_consent can be revoked via updateClient (explicit false, not just "not sent")', () => {
   const { db } = setup();
-  const created = createClient(db, { firstName: 'Cole', email: 'cole@example.com', brandSlug: 'prosperity', smsConsent: true }, 'Loretta Stewart');
+  const created = createClient(db, {
+    firstName: 'Cole', email: 'cole@example.com', brandSlug: 'prosperity', smsConsent: true,
+    smsConsentSource: 'Verbal Consent',
+  }, 'Loretta Stewart');
   assert.equal(created.contact.sms_consent, 1);
   const updated = updateClient(db, created.contact.id, { smsConsent: false });
   assert.equal(updated.sms_consent, 0);
@@ -115,9 +119,135 @@ test('sms_consent can be revoked via updateClient (explicit false, not just "not
 
 test('updateClient calls that never mention smsConsent leave the existing value untouched', () => {
   const { db } = setup();
-  const created = createClient(db, { firstName: 'Dee', email: 'dee@example.com', brandSlug: 'prosperity', smsConsent: true }, 'Loretta Stewart');
+  const created = createClient(db, {
+    firstName: 'Dee', email: 'dee@example.com', brandSlug: 'prosperity', smsConsent: true,
+    smsConsentSource: 'Website Form',
+  }, 'Loretta Stewart');
   const updated = updateClient(db, created.contact.id, { firstName: 'Deandra' });
   assert.equal(updated.sms_consent, 1, 'an update that never mentions consent must not silently reset it');
+});
+
+// ── relationship_type (Lead/Prospect, Active/Former Client, Prior/Declined
+//    Applicant) ───────────────────────────────────────────────────────────
+// Independent of lead_type, which is untouched by this feature and keeps
+// its existing source/history role. Stored as free TEXT (no CHECK
+// constraint — crm/db/database.js) specifically so this list can keep
+// growing without ever requiring a schema change.
+
+test('relationship_type defaults to null (no relationship asserted) and can be set to active_client at creation', () => {
+  const { db } = setup();
+  const noRelationship = createClient(db, { firstName: 'Ivy', email: 'ivy@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  assert.equal(noRelationship.contact.relationship_type, null);
+
+  const client = createClient(db, {
+    firstName: 'Jon', email: 'jon@example.com', brandSlug: 'prosperity', relationshipType: 'active_client',
+  }, 'Loretta Stewart');
+  assert.equal(client.contact.relationship_type, 'active_client');
+});
+
+test('every approved relationship_type value round-trips through createClient', () => {
+  const { db } = setup();
+  for (const value of RELATIONSHIP_TYPES) {
+    const created = createClient(db, {
+      firstName: 'Val', email: `val-${value}@example.com`, brandSlug: 'prosperity', relationshipType: value,
+    }, 'Loretta Stewart');
+    assert.equal(created.contact.relationship_type, value);
+  }
+});
+
+test('an unknown relationshipType value is rejected', () => {
+  const { db } = setup();
+  assert.throws(
+    () => createClient(db, { firstName: 'Bad', email: 'badrel@example.com', brandSlug: 'prosperity', relationshipType: 'vip' }, 'Loretta Stewart'),
+    /unknown relationshipType/
+  );
+});
+
+test('marking a contact as Active Client does NOT itself grant SMS consent', () => {
+  const { db } = setup();
+  const created = createClient(db, {
+    firstName: 'Kim', email: 'kim@example.com', brandSlug: 'prosperity', relationshipType: 'active_client',
+  }, 'Loretta Stewart');
+  assert.equal(created.contact.relationship_type, 'active_client');
+  assert.equal(created.contact.sms_consent, 0, 'relationship_type and sms_consent must stay fully independent');
+  assert.equal(created.contact.sms_consent_source, null);
+});
+
+test('RELATIONSHIP_TYPES exposes exactly the five approved values, in order', () => {
+  assert.deepEqual(RELATIONSHIP_TYPES, ['lead', 'active_client', 'former_client', 'prior_applicant', 'declined_applicant']);
+});
+
+// ── SMS consent audit trail (source / at / notes) ────────────────────────
+
+test('creating a client with SMS consent checked requires a consent source', () => {
+  const { db } = setup();
+  assert.throws(
+    () => createClient(db, { firstName: 'No', lastName: 'Source', email: 'nosource@example.com', brandSlug: 'prosperity', smsConsent: true }, 'Loretta Stewart'),
+    /sms_consent_source is required/
+  );
+});
+
+test('creating a client with SMS consent unchecked never requires a consent source', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Off', email: 'off@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  assert.equal(created.contact.sms_consent, 0);
+  assert.equal(created.contact.sms_consent_source, null);
+  assert.equal(created.contact.sms_consent_at, null);
+});
+
+test('granting SMS consent at creation stores the source and auto-stamps sms_consent_at to now (never client-supplied)', () => {
+  const { db } = setup();
+  const before = new Date();
+  const created = createClient(db, {
+    firstName: 'Amy', email: 'amyconsent@example.com', brandSlug: 'prosperity',
+    smsConsent: true, smsConsentSource: 'Phone – Renee', smsConsentNotes: 'Verbally confirmed on inbound call',
+  }, 'Loretta Stewart');
+  assert.equal(created.contact.sms_consent, 1);
+  assert.equal(created.contact.sms_consent_source, 'Phone – Renee');
+  assert.equal(created.contact.sms_consent_notes, 'Verbally confirmed on inbound call');
+  assert.ok(created.contact.sms_consent_at, 'sms_consent_at must be auto-stamped');
+  const stamped = new Date(created.contact.sms_consent_at.replace(' ', 'T') + 'Z');
+  assert.ok(stamped.getTime() >= before.getTime() - 5000, 'consent date must be "now", never fabricated/backdated');
+});
+
+test('updateClient can grant SMS consent WITHOUT a source (existing Edit Client modal has no source field yet)', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Gus', email: 'gus@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const updated = updateClient(db, created.contact.id, { smsConsent: true });
+  assert.equal(updated.sms_consent, 1);
+  assert.equal(updated.sms_consent_source, null, 'no source was supplied and none is fabricated');
+  assert.ok(updated.sms_consent_at, 'the transition is still auto-stamped even without a source');
+});
+
+test('sms_consent_at is stamped only on a genuine false->true transition, never on an unrelated update or a resend of the same true value', () => {
+  const { db } = setup();
+  const created = createClient(db, {
+    firstName: 'Tia', email: 'tia@example.com', brandSlug: 'prosperity', smsConsent: true, smsConsentSource: 'Inbound SMS',
+  }, 'Loretta Stewart');
+  const firstStamp = created.contact.sms_consent_at;
+  assert.ok(firstStamp);
+
+  // Resubmitting smsConsent: true (already true) must not move the stamp.
+  const resent = updateClient(db, created.contact.id, { smsConsent: true, smsConsentSource: 'Inbound SMS' });
+  assert.equal(resent.sms_consent_at, firstStamp, 're-sending an already-true consent must not re-stamp the date');
+
+  // An unrelated field update must not touch it either.
+  const unrelated = updateClient(db, created.contact.id, { firstName: 'Tiana' });
+  assert.equal(unrelated.sms_consent_at, firstStamp);
+});
+
+test('an existing pre-migration contact (sms_consent already 1, no source/date on file) is never backfilled by an unrelated update', () => {
+  const { db, prosperityId } = setup();
+  // Simulate a contact that existed before this feature shipped: sms_consent
+  // is already 1 but sms_consent_source/_at are NULL, exactly like a real
+  // production row would look immediately after the new columns are added.
+  const created = createClient(db, { firstName: 'Old', lastName: 'Record', email: 'oldrecord@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  db.prepare('UPDATE contacts SET sms_consent = 1, sms_consent_source = NULL, sms_consent_at = NULL WHERE id = ?').run(created.contact.id);
+
+  const updated = updateClient(db, created.contact.id, { firstName: 'Oldest' });
+  assert.equal(updated.sms_consent, 1);
+  assert.equal(updated.sms_consent_source, null, 'must not fabricate a source for a pre-existing record');
+  assert.equal(updated.sms_consent_at, null, 'must not backdate/fabricate a consent date for a pre-existing record');
 });
 
 test('email_consent follows the same explicit-tri-state rule as sms_consent', () => {

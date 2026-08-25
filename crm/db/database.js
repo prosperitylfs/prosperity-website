@@ -334,4 +334,17 @@ if (tableExists('policies')) {
 addCol('follow_up_tasks', 'calendar_event_id',    'TEXT');
 addCol('follow_up_tasks', 'calendar_sync_status', 'TEXT');
 
+// Manual contact/client entry: relationship type (Lead/Prospect vs Existing
+// Client, independent of lead_type's source-tracking role -- see
+// crm/lib/clientService.js's RELATIONSHIP_TYPES) and an SMS consent audit
+// trail (source/date/notes) alongside the existing sms_consent flag. All
+// nullable/additive -- sms_consent, sms_opted_out_at, and email_consent are
+// unchanged. sms_consent_at is only ever set server-side when sms_consent
+// transitions from false to true (crm/lib/clientService.js), never
+// backfilled for existing rows.
+addCol('contacts', 'relationship_type',   'TEXT');
+addCol('contacts', 'sms_consent_source',  'TEXT');
+addCol('contacts', 'sms_consent_at',      'DATETIME');
+addCol('contacts', 'sms_consent_notes',   'TEXT');
+
 module.exports = db;

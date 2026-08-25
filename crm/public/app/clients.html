@@ -176,7 +176,30 @@ async function render() {
             <div class="form-field"><label>ZIP code</label><input class="input" name="zip"></div>
             <div class="form-field"><label>Date of birth <span class="hint">(optional)</span></label><input class="input" name="dateOfBirth" type="date"></div>
             <div class="form-field"><label>Original source</label><input class="input" name="originalSource" placeholder="e.g. Referral, Website"></div>
+            <div class="form-field"><label>Relationship</label>
+              <select class="input" name="relationshipType" id="add-client-relationship">
+                <option value="">— Select —</option>
+                <option value="lead">Lead / Prospect</option>
+                <option value="active_client">Active Client</option>
+                <option value="former_client">Former Client</option>
+                <option value="prior_applicant">Prior Applicant</option>
+                <option value="declined_applicant">Declined Applicant</option>
+              </select>
+            </div>
             <div class="form-field full"><label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" name="smsConsent" id="add-client-sms-consent" style="width:auto;"> SMS consent on file <span class="hint">(required before this client can be texted from the CRM)</span></label></div>
+            <div class="form-field"><label>Consent source <span class="hint">(required if SMS consent is checked)</span></label>
+              <select class="input" name="smsConsentSource" id="add-client-consent-source">
+                <option value="">— Select —</option>
+                <option>Website Form</option>
+                <option>Phone – Renee</option>
+                <option>Phone – Jennifer</option>
+                <option>Existing Client – Prior Documented Consent</option>
+                <option>Inbound SMS</option>
+                <option>Verbal Consent</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="form-field full"><label>Consent notes <span class="hint">(optional)</span></label><textarea class="input" name="smsConsentNotes" id="add-client-consent-notes"></textarea></div>
             <div class="form-field full"><label>General notes</label><textarea class="input" name="generalNotes"></textarea></div>
           </div>
           <div class="form-error" id="add-client-error"></div>
@@ -210,6 +233,10 @@ async function render() {
       // omits an unchecked box entirely -- this keeps smsConsent an
       // explicit true/false every time, never ambiguous with "not sent".
       fields.smsConsent = dialog.querySelector('#add-client-sms-consent').checked;
+      if (fields.smsConsent && !fields.smsConsentSource) {
+        errorEl.textContent = 'Choose how SMS consent was obtained before saving.';
+        return;
+      }
       try {
         const result = await CrmApp.postJSON('/api/app/clients', 'POST', fields);
         if (result.outcome === 'company_conflict') {

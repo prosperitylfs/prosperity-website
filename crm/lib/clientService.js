@@ -21,6 +21,19 @@ function getBrandRow(db, slug) {
   return db.prepare('SELECT * FROM brands WHERE slug = ?').get(slug);
 }
 
+// Independent of lead_type (which stays a source/history field — "Retirement
+// Guide Lead", "Referral Partner", etc. — and is never removed or
+// repurposed). relationship_type answers one question only: what is this
+// person's current relationship to the business? A book of business is
+// larger than "lead vs. client" — this stores a free TEXT column
+// (crm/db/database.js) with no CHECK constraint, so this list is the ONLY
+// place the allowed set lives; adding another category later (e.g. a future
+// status beyond these five) is purely additive here plus a matching
+// <option> in the two Add Contact UIs — never a schema change. No category
+// here may ever imply or grant SMS consent — that stays fully independent
+// (enforced below, in applyContactFields).
+const RELATIONSHIP_TYPES = ['lead', 'active_client', 'former_client', 'prior_applicant', 'declined_applicant'];
+
 // brandSlug is REQUIRED and must be a known brand — there is no default,
 // matching "No company may be preselected when adding a client manually."
 function createClient(db, fields, actor) {
@@ -39,7 +52,11 @@ function createClient(db, fields, actor) {
     email, phone: phoneDisplay, phone_e164: phoneE164,
     first_name: toStringOrNull(fields.firstName), last_name: toStringOrNull(fields.lastName),
   });
-  applyContactFields(db, contact.id, fields, { email, phoneDisplay, phoneE164 });
+  // requireConsentSource: true -- manual creation is the one path where a
+  // human is actively asserting "SMS consent = yes" for the first time, so
+  // it's the one place we insist on knowing how that consent was obtained.
+  // updateClient (below) does NOT pass this -- see its own comment.
+  applyContactFields(db, contact.id, fields, { email, phoneDisplay, phoneE164 }, { requireConsentSource: true });
 
   const brandRow = getBrandRow(db, brandSlug);
   const conflict = findConflictingActiveBrand(db, contact.id, brandRow.id);
@@ -81,24 +98,62 @@ function toBoolIntOrNull(v) {
 // whether real consent exists (existing-business-relationship, verbal, a
 // prior opt-in reply, etc.) — this only gives the CRM a place to record
 // that decision, it never infers or assumes consent itself.
-function applyContactFields(db, contactId, fields, normalized) {
+//
+// relationship_type is fully independent of sms_consent — selecting any
+// relationship category (e.g. "Active Client") must never itself grant or
+// imply consent (a business requirement, not an oversight); the two are
+// validated and written separately below with no interaction between them.
+//
+// SMS consent audit trail (sms_consent_source/_at/_notes): sms_consent_at
+// is only ever stamped here, server-side, at the exact moment sms_consent
+// transitions from false to true — never client-supplied, never backdated,
+// never touched on any other save (including a save that merely re-sends
+// smsConsent: true unchanged, or one that turns it back off). This is
+// deliberate: it is impossible to fabricate a consent date for a
+// pre-existing record through this function.
+//
+// opts.requireConsentSource (createClient only, see below) hard-blocks a
+// *new* consent grant with no source. It is intentionally NOT enforced for
+// updateClient, so the pre-existing, already-live "Edit Client" modal
+// (crm/public/app/client.html), which has no consent-source field yet, is
+// left completely unaffected by this change.
+function applyContactFields(db, contactId, fields, normalized, opts = {}) {
+  if (
+    fields.relationshipType !== undefined && fields.relationshipType !== null && fields.relationshipType !== '' &&
+    !RELATIONSHIP_TYPES.includes(fields.relationshipType)
+  ) {
+    throw new Error(`applyContactFields: unknown relationshipType '${fields.relationshipType}' — must be one of ${RELATIONSHIP_TYPES.join(', ')}`);
+  }
+
+  const existing = db.prepare('SELECT sms_consent FROM contacts WHERE id = ?').get(contactId);
+  const previouslyConsented = !!(existing && existing.sms_consent);
+  const isNewConsentGrant = fields.smsConsent === true && !previouslyConsented;
+
+  if (isNewConsentGrant && opts.requireConsentSource && !toStringOrNull(fields.smsConsentSource)) {
+    throw new Error('applyContactFields: sms_consent_source is required when granting SMS consent');
+  }
+
   db.prepare(`
     UPDATE contacts SET
-      first_name       = COALESCE(@first_name, first_name),
-      last_name        = COALESCE(@last_name, last_name),
-      email            = COALESCE(@email, email),
-      phone            = COALESCE(@phone, phone),
-      phone_e164       = COALESCE(@phone_e164, phone_e164),
-      street_address   = COALESCE(@street_address, street_address),
-      city             = COALESCE(@city, city),
-      state            = COALESCE(@state, state),
-      zip_code         = COALESCE(@zip_code, zip_code),
-      date_of_birth    = COALESCE(@date_of_birth, date_of_birth),
-      lead_source      = COALESCE(@lead_source, lead_source),
-      general_notes    = COALESCE(@general_notes, general_notes),
-      sms_consent      = COALESCE(@sms_consent, sms_consent),
-      email_consent    = COALESCE(@email_consent, email_consent),
-      updated_at       = CURRENT_TIMESTAMP
+      first_name         = COALESCE(@first_name, first_name),
+      last_name          = COALESCE(@last_name, last_name),
+      email              = COALESCE(@email, email),
+      phone              = COALESCE(@phone, phone),
+      phone_e164         = COALESCE(@phone_e164, phone_e164),
+      street_address     = COALESCE(@street_address, street_address),
+      city               = COALESCE(@city, city),
+      state              = COALESCE(@state, state),
+      zip_code           = COALESCE(@zip_code, zip_code),
+      date_of_birth      = COALESCE(@date_of_birth, date_of_birth),
+      lead_source        = COALESCE(@lead_source, lead_source),
+      general_notes      = COALESCE(@general_notes, general_notes),
+      relationship_type  = COALESCE(@relationship_type, relationship_type),
+      sms_consent        = COALESCE(@sms_consent, sms_consent),
+      sms_consent_source = COALESCE(@sms_consent_source, sms_consent_source),
+      sms_consent_notes  = COALESCE(@sms_consent_notes, sms_consent_notes),
+      sms_consent_at     = CASE WHEN @is_new_consent_grant = 1 THEN CURRENT_TIMESTAMP ELSE sms_consent_at END,
+      email_consent      = COALESCE(@email_consent, email_consent),
+      updated_at         = CURRENT_TIMESTAMP
     WHERE id = @id
   `).run({
     first_name: toStringOrNull(fields.firstName), last_name: toStringOrNull(fields.lastName),
@@ -107,7 +162,11 @@ function applyContactFields(db, contactId, fields, normalized) {
     state: toStringOrNull(fields.state), zip_code: toStringOrNull(fields.zip),
     date_of_birth: toStringOrNull(fields.dateOfBirth), lead_source: toStringOrNull(fields.originalSource),
     general_notes: toStringOrNull(fields.generalNotes),
+    relationship_type: toStringOrNull(fields.relationshipType),
     sms_consent: toBoolIntOrNull(fields.smsConsent), email_consent: toBoolIntOrNull(fields.emailConsent),
+    sms_consent_source: toStringOrNull(fields.smsConsentSource),
+    sms_consent_notes: toStringOrNull(fields.smsConsentNotes),
+    is_new_consent_grant: isNewConsentGrant ? 1 : 0,
     id: contactId,
   });
 }
@@ -117,6 +176,7 @@ function updateClient(db, contactId, fields) {
   if (!existing) throw new Error(`updateClient: contact ${contactId} does not exist`);
   const email = fields.email !== undefined ? normalizeEmail(fields.email) : null;
   const phone = fields.phone !== undefined ? normalizePhone(fields.phone) : { display: null, e164: null };
+  // No requireConsentSource here — see applyContactFields' header comment.
   applyContactFields(db, contactId, fields, { email, phoneDisplay: phone.display, phoneE164: phone.e164 });
   return db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
 }
@@ -176,4 +236,4 @@ function requestCompanyChange(db, { contactId, requestedBrandSlug, reason, actor
   return unresolvedIntake;
 }
 
-module.exports = { createClient, updateClient, archiveClient, restoreClient, requestCompanyChange };
+module.exports = { createClient, updateClient, archiveClient, restoreClient, requestCompanyChange, RELATIONSHIP_TYPES };

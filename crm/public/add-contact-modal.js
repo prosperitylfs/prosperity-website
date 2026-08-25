@@ -20,6 +20,18 @@
 
           <div class="email-modal-body ac-modal-body">
 
+            <div class="ac-section-title">Company (required — cannot be changed casually after saving)</div>
+            <div class="crm-grid">
+              <div class="crm-field crm-field-full">
+                <label class="crm-label" for="ac-brand_slug">Company</label>
+                <select id="ac-brand_slug" class="crm-select">
+                  <option value="">— Select —</option>
+                  <option value="prosperity">Prosperity Life &amp; Financial Solutions</option>
+                  <option value="insurance-lady">Insurance Lady LLC</option>
+                </select>
+              </div>
+            </div>
+
             <div class="ac-section-title">Basic Information</div>
             <div class="crm-grid">
               <div class="crm-field">
@@ -157,6 +169,17 @@
                 <label class="crm-label" for="ac-best_time_to_contact">Best Time To Contact</label>
                 <input id="ac-best_time_to_contact" type="text" class="crm-input" placeholder="e.g. Weekday mornings">
               </div>
+              <div class="crm-field">
+                <label class="crm-label" for="ac-relationship_type">Relationship</label>
+                <select id="ac-relationship_type" class="crm-select">
+                  <option value="">— Select —</option>
+                  <option value="lead">Lead / Prospect</option>
+                  <option value="active_client">Active Client</option>
+                  <option value="former_client">Former Client</option>
+                  <option value="prior_applicant">Prior Applicant</option>
+                  <option value="declined_applicant">Declined Applicant</option>
+                </select>
+              </div>
             </div>
 
             <div class="ac-section-title">Marketing Permissions</div>
@@ -169,6 +192,25 @@
                 <input id="ac-email_consent" type="checkbox">
                 <span>Email Consent</span>
               </label>
+            </div>
+            <div class="crm-grid">
+              <div class="crm-field">
+                <label class="crm-label" for="ac-sms_consent_source">Consent Source <span class="hint">(required if SMS Consent is checked)</span></label>
+                <select id="ac-sms_consent_source" class="crm-select">
+                  <option value="">— Select —</option>
+                  <option>Website Form</option>
+                  <option>Phone – Renee</option>
+                  <option>Phone – Jennifer</option>
+                  <option>Existing Client – Prior Documented Consent</option>
+                  <option>Inbound SMS</option>
+                  <option>Verbal Consent</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="crm-field crm-field-full">
+                <label class="crm-label" for="ac-sms_consent_notes">Consent Notes <span class="hint">(optional)</span></label>
+                <textarea id="ac-sms_consent_notes" class="crm-input" rows="2"></textarea>
+              </div>
             </div>
 
             <div class="ac-section-title">Notes</div>
@@ -207,12 +249,14 @@
     ensureModal();
     // Clear every field — modal instance is reused across opens
     [
+      'brand_slug',
       'first_name', 'last_name', 'email', 'phone', 'home_phone', 'preferred_contact_method',
       'street_address', 'city', 'state', 'zip_code',
       'date_of_birth', 'age', 'marital_status', 'spouse_name', 'spouse_date_of_birth',
       'number_of_children', 'number_of_grandchildren', 'occupation', 'employer',
       'retirement_date_goal', 'family_notes',
-      'lead_type', 'lead_source', 'referred_by', 'best_time_to_contact', 'general_notes',
+      'lead_type', 'lead_source', 'referred_by', 'best_time_to_contact', 'relationship_type', 'general_notes',
+      'sms_consent_source', 'sms_consent_notes',
     ].forEach(key => {
       const el = document.getElementById('ac-' + key);
       if (el) el.value = '';
@@ -253,6 +297,7 @@
     const val = key => (document.getElementById('ac-' + key)?.value || '').trim();
 
     const payload = {
+      brand_slug:                val('brand_slug'),
       first_name:               val('first_name'),
       last_name:                val('last_name'),
       email:                    val('email'),
@@ -278,13 +323,28 @@
       lead_source:              val('lead_source'),
       referred_by:              val('referred_by'),
       best_time_to_contact:     val('best_time_to_contact'),
+      relationship_type:        val('relationship_type'),
       general_notes:            val('general_notes'),
       sms_consent:   document.getElementById('ac-sms_consent').checked,
       email_consent: document.getElementById('ac-email_consent').checked,
+      sms_consent_source: val('sms_consent_source'),
+      sms_consent_notes:  val('sms_consent_notes'),
     };
 
     if (!payload.first_name && !payload.last_name && !payload.email && !payload.phone) {
       errEl.textContent = 'Enter at least a name, email, or phone number.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    if (!payload.brand_slug) {
+      errEl.textContent = 'Choose a company before saving.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    if (payload.sms_consent && !payload.sms_consent_source) {
+      errEl.textContent = 'Choose how SMS consent was obtained before saving.';
       errEl.classList.remove('hidden');
       return;
     }

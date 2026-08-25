@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
+const { isKnownBrandId } = require('../config/brands');
+const { resolveContactBrand } = require('../lib/caseMatching');
+const { RELATIONSHIP_TYPES } = require('../lib/clientService');
 
 function normalizePhone(raw) {
   if (!raw) return { display: null, e164: null };
@@ -157,6 +160,20 @@ router.post('/', (req, res) => {
       return res.status(400).json({ error: 'At least a name, email, or phone number is required.' });
     }
 
+    // Brand is required for every manually-created contact, with no
+    // default — matches the same rule already enforced for the new
+    // interface's Add Client flow (crm/lib/clientService.js's createClient),
+    // so both manual Add Contact UIs behave consistently.
+    if (!body.brand_slug || !isKnownBrandId(body.brand_slug)) {
+      return res.status(400).json({ error: 'A company (brand) is required and must be explicitly selected.' });
+    }
+    if (body.relationship_type && !RELATIONSHIP_TYPES.includes(body.relationship_type)) {
+      return res.status(400).json({ error: `relationship_type must be one of ${RELATIONSHIP_TYPES.join(', ')}` });
+    }
+    if (body.sms_consent && !body.sms_consent_source) {
+      return res.status(400).json({ error: 'A consent source is required when SMS consent is granted.' });
+    }
+
     if (email) {
       const existing = db.prepare('SELECT id FROM contacts WHERE email = ?').get(email);
       if (existing) {
@@ -207,6 +224,9 @@ router.post('/', (req, res) => {
       sms_consent:              body.sms_consent   ? 1 : 0,
       email_consent:            body.email_consent ? 1 : 0,
       general_notes:            body.general_notes || null,
+      relationship_type:        body.relationship_type   || null,
+      sms_consent_source:       body.sms_consent ? (body.sms_consent_source || null) : null,
+      sms_consent_notes:        body.sms_consent_notes   || null,
     };
 
     const cols = Object.keys(fields);
@@ -214,8 +234,27 @@ router.post('/', (req, res) => {
       `INSERT INTO contacts (${cols.join(', ')}) VALUES (${cols.map(c => '@' + c).join(', ')})`
     );
     const result = insert.run(fields);
+    const contactId = result.lastInsertRowid;
 
-    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
+    // sms_consent_at is stamped here (not in the `fields` insert above) so
+    // it always uses SQLite's own CURRENT_TIMESTAMP, exactly matching the
+    // format/behavior of crm/lib/clientService.js's applyContactFields for
+    // the new interface -- a brand-new row's "previous" consent is always
+    // false, so any sms_consent=true here is by definition a fresh grant,
+    // never fabricated/backdated.
+    if (body.sms_consent) {
+      db.prepare('UPDATE contacts SET sms_consent_at = CURRENT_TIMESTAMP WHERE id = ?').run(contactId);
+    }
+
+    // Brand relationship — the manual-entry counterpart to
+    // crm/lib/clientService.js's createClient. This route rejects (409,
+    // above) rather than merges on a duplicate email/phone, so a contact
+    // reaching this point is always genuinely new and can never already
+    // have a conflicting active brand — no conflict-staging needed here.
+    const brandRow = db.prepare('SELECT * FROM brands WHERE slug = ?').get(body.brand_slug);
+    resolveContactBrand(db, { contactId, brandId: brandRow.id });
+
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
     console.log(`[contacts] Created contact #${contact.id}: ${[first_name, last_name].filter(Boolean).join(' ') || '(no name)'}`);
     res.status(201).json(contact);
   } catch (err) {

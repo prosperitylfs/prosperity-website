@@ -45,6 +45,10 @@ function createLegacyDb(dbPath = ':memory:') {
       zip_code         TEXT,
       date_of_birth    TEXT,
       general_notes    TEXT,
+      relationship_type    TEXT,
+      sms_consent_source   TEXT,
+      sms_consent_at       DATETIME,
+      sms_consent_notes    TEXT,
       archived_at      DATETIME,
       created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP

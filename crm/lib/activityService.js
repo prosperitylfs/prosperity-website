@@ -43,13 +43,19 @@ function addActivity(db, fields, actor) {
   // Follow-through: an activity with a next action + due date creates a
   // real pending task, so it surfaces on the Dashboard/Tasks screen instead
   // of being buried in the timeline.
+  let followUpTaskId = null;
   if (fields.nextAction && fields.nextActionDueDate) {
-    db.prepare(`
+    const taskResult = db.prepare(`
       INSERT INTO follow_up_tasks (contact_id, case_id, task_type, due_date, notes, priority, status)
       VALUES (?, ?, 'Follow-up', ?, ?, 'Medium', 'Pending')
     `).run(fields.contactId, fields.caseId || null, fields.nextActionDueDate, fields.nextAction);
+    followUpTaskId = taskResult.lastInsertRowid;
   }
-  return activity;
+  // Additive only -- every existing field on `activity` is unchanged, so
+  // this is backward compatible with any caller that only reads the
+  // activity's own fields. followUpTaskId lets the route layer trigger
+  // calendar sync (crm/lib/taskCalendarSync.js) without a second query.
+  return { ...activity, followUpTaskId };
 }
 
 function editActivity(db, activityId, fields, actor) {

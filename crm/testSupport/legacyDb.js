@@ -133,16 +133,18 @@ function createLegacyDb(dbPath = ':memory:') {
     );
 
     CREATE TABLE follow_up_tasks (
-      id           INTEGER PRIMARY KEY AUTOINCREMENT,
-      contact_id   INTEGER NOT NULL,
-      task_type    TEXT NOT NULL DEFAULT 'Call',
-      due_date     TEXT NOT NULL,
-      due_time     TEXT,
-      notes        TEXT,
-      priority     TEXT NOT NULL DEFAULT 'Medium',
-      status       TEXT NOT NULL DEFAULT 'Pending',
-      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
-      completed_at DATETIME,
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id            INTEGER NOT NULL,
+      task_type             TEXT NOT NULL DEFAULT 'Call',
+      due_date              TEXT NOT NULL,
+      due_time              TEXT,
+      notes                 TEXT,
+      priority              TEXT NOT NULL DEFAULT 'Medium',
+      status                TEXT NOT NULL DEFAULT 'Pending',
+      created_at            DATETIME DEFAULT CURRENT_TIMESTAMP,
+      completed_at          DATETIME,
+      calendar_event_id     TEXT,
+      calendar_sync_status  TEXT,
       FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
     );
   `);

@@ -324,4 +324,14 @@ if (tableExists('policies')) {
   addCol('policies', 'application_date', 'TEXT');
 }
 
+// Google Calendar task/follow-up sync (crm/lib/taskCalendarSync.js). No
+// guard needed -- follow_up_tasks is created unconditionally above, in
+// this same file. calendar_event_id ties a task to the ONE calendar event
+// it owns (never more than one, per the duplicate-prevention design);
+// calendar_sync_status ('synced' | 'failed' | 'not_applicable' | 'removed')
+// is purely informational -- a failed or missing sync never blocks any
+// task operation.
+addCol('follow_up_tasks', 'calendar_event_id',    'TEXT');
+addCol('follow_up_tasks', 'calendar_sync_status', 'TEXT');
+
 module.exports = db;

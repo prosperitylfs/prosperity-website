@@ -25,6 +25,7 @@ const importService = require('../lib/importService');
 const draftService = require('../lib/communicationDraftService');
 const reviewResolution = require('../lib/reviewResolution');
 const callLogService = require('../lib/callLogService');
+const taskCalendarSync = require('../lib/taskCalendarSync');
 
 function handle(fn) {
   return (req, res) => {
@@ -81,14 +82,48 @@ router.post('/policies/:id/archive', handle(req => policyService.archivePolicy(d
 router.post('/policies/:id/restore', handle(req => policyService.restorePolicy(db, Number(req.params.id), ACTOR)));
 
 // ── Tasks ────────────────────────────────────────────────────────────────
-router.post('/tasks', handle((req, res) => { created(res); return taskService.createTask(db, req.body, ACTOR); }));
-router.patch('/tasks/:id', handle(req => taskService.updateTask(db, Number(req.params.id), req.body)));
-router.post('/tasks/:id/complete', handle(req => taskService.completeTask(db, Number(req.params.id), ACTOR)));
-router.post('/tasks/:id/reopen', handle(req => taskService.reopenTask(db, Number(req.params.id), ACTOR)));
-router.post('/tasks/:id/archive', handle(req => taskService.archiveTask(db, Number(req.params.id), ACTOR)));
+// Every mutation here is followed by a best-effort Google Calendar sync
+// (crm/lib/taskCalendarSync.js) -- the underlying taskService call is
+// unchanged and already fully committed by the time sync is even
+// attempted, and syncTaskToCalendar() itself never throws, so a Calendar
+// API problem can never affect the task response below it.
+router.post('/tasks', handle(async (req, res) => {
+  created(res);
+  const task = taskService.createTask(db, req.body, ACTOR);
+  const synced = await taskCalendarSync.syncTaskToCalendar(db, task.id);
+  return synced.task || task;
+}));
+router.patch('/tasks/:id', handle(async req => {
+  const task = taskService.updateTask(db, Number(req.params.id), req.body);
+  const synced = await taskCalendarSync.syncTaskToCalendar(db, task.id);
+  return synced.task || task;
+}));
+router.post('/tasks/:id/complete', handle(async req => {
+  const task = taskService.completeTask(db, Number(req.params.id), ACTOR);
+  const synced = await taskCalendarSync.syncTaskToCalendar(db, task.id);
+  return synced.task || task;
+}));
+router.post('/tasks/:id/reopen', handle(async req => {
+  const task = taskService.reopenTask(db, Number(req.params.id), ACTOR);
+  const synced = await taskCalendarSync.syncTaskToCalendar(db, task.id);
+  return synced.task || task;
+}));
+router.post('/tasks/:id/archive', handle(async req => {
+  const task = taskService.archiveTask(db, Number(req.params.id), ACTOR);
+  const synced = await taskCalendarSync.syncTaskToCalendar(db, task.id);
+  return synced.task || task;
+}));
 
 // ── Activities / notes ───────────────────────────────────────────────────
-router.post('/activities', handle((req, res) => { created(res); return activityService.addActivity(db, req.body, ACTOR); }));
+// addActivity itself is unchanged and still fully synchronous -- it only
+// additionally returns followUpTaskId (null when no task was created) so
+// this route can trigger calendar sync without a second lookup.
+router.post('/activities', handle(async (req, res) => {
+  created(res);
+  const activity = activityService.addActivity(db, req.body, ACTOR);
+  if (activity.followUpTaskId) await taskCalendarSync.syncTaskToCalendar(db, activity.followUpTaskId);
+  return activity;
+}));
 router.patch('/activities/:id', handle(req => activityService.editActivity(db, Number(req.params.id), req.body, ACTOR)));
 router.post('/activities/:id/archive', handle(req => activityService.archiveActivity(db, Number(req.params.id), ACTOR)));
 router.get('/activities/:id/history', handle(req => activityService.listActivityHistory(db, Number(req.params.id))));
@@ -130,12 +165,24 @@ router.post('/review/:intakeId/archive', handle(req => reviewResolution.archiveR
 })));
 
 // ── Manual call logging (Prosperity Revenue MVP, Requirement 5) ────────
-router.post('/calls', handle((req, res) => { created(res); return callLogService.logCall(db, req.body, ACTOR); }));
+// logCall/attachCallOutcome are unchanged -- both already return
+// { call, followUpTask }, so the follow-up task's own calendar sync just
+// hooks on here, same best-effort/never-blocking pattern as Tasks above.
+router.post('/calls', handle(async (req, res) => {
+  created(res);
+  const result = callLogService.logCall(db, req.body, ACTOR);
+  if (result.followUpTask) await taskCalendarSync.syncTaskToCalendar(db, result.followUpTask.id);
+  return result;
+}));
 // Attaches outcome/notes/related case/follow-up to an EXISTING call record
 // (one the CRM itself placed via /api/calls/outbound, auto-logged with
 // direction/contact/brand/start-time/Twilio SID already captured, and kept
 // updated by Twilio's own status webhooks) -- never creates a new row.
-router.patch('/calls/:id', handle(req => callLogService.attachCallOutcome(db, Number(req.params.id), req.body, ACTOR)));
+router.patch('/calls/:id', handle(async req => {
+  const result = callLogService.attachCallOutcome(db, Number(req.params.id), req.body, ACTOR);
+  if (result.followUpTask) await taskCalendarSync.syncTaskToCalendar(db, result.followUpTask.id);
+  return result;
+}));
 
 // ── Communications (draft-and-confirm; sending is always blocked) ──────
 router.post('/communications/draft', handle((req, res) => { created(res); return draftService.createDraft(db, req.body, ACTOR); }));

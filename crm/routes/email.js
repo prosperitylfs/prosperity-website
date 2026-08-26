@@ -5,6 +5,7 @@ const router       = express.Router();
 const db           = require('../db/database');
 const { google }   = require('googleapis');
 const { createAutoTask } = require('../lib/autoTasks');
+const { syncContactEmailReplies } = require('../lib/emailReplySync');
 
 const SCOPES    = [
   'https://www.googleapis.com/auth/gmail.send',
@@ -232,8 +233,10 @@ router.get('/contact/:id', (req, res) => {
 });
 
 // ─── POST /api/email/sync ─────────────────────────────────────────────────────
-// Fetches recent inbound messages from Gmail for a specific contact and saves
-// any new replies to the emails table (direction='inbound').
+// Imports replies for a specific contact from Gmail threads the CRM already
+// knows belong to them (see crm/lib/emailReplySync.js) and saves any new
+// ones to the emails table (direction='inbound'). Never a mailbox-wide
+// search by the contact's email address.
 // Requires GMAIL_REFRESH_TOKEN to have been issued with gmail.readonly scope.
 // If the existing token lacks that scope, returns reauth_required:true.
 
@@ -249,52 +252,10 @@ router.post('/sync', async (req, res) => {
     const auth  = authedClient();
     const gmail = google.gmail({ version: 'v1', auth });
 
-    // Search inbox for messages sent by this contact
-    const listRes = await gmail.users.messages.list({
-      userId:     'me',
-      q:          `from:${contact.email}`,
-      maxResults: 50,
-    });
+    const { imported, skipped, scanned, threadsChecked } =
+      await syncContactEmailReplies(db, contact, { getGmailClient: () => gmail });
 
-    const msgList = listRes.data.messages || [];
-    let imported = 0;
-    let skipped  = 0;
-
-    for (const { id: msgId } of msgList) {
-      // Skip already-imported messages (UNIQUE index on gmail_message_id)
-      const exists = db.prepare('SELECT id FROM emails WHERE gmail_message_id = ?').get(msgId);
-      if (exists) { skipped++; continue; }
-
-      const msgRes = await gmail.users.messages.get({ userId: 'me', id: msgId, format: 'full' });
-      const msg    = msgRes.data;
-      const hdrs   = msg.payload.headers || [];
-      const hdr    = (name) => hdrs.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || '';
-
-      const fromEmail = hdr('From');
-      const toEmail   = hdr('To');
-      const subject   = hdr('Subject');
-      const threadId  = msg.threadId || null;
-
-      let receivedAt;
-      try { receivedAt = new Date(hdr('Date')).toISOString(); } catch { /* fall through */ }
-      if (!receivedAt || receivedAt === 'Invalid Date') {
-        receivedAt = new Date(parseInt(msg.internalDate, 10)).toISOString();
-      }
-
-      const bodyText = extractGmailBody(msg.payload);
-      const preview  = bodyText.slice(0, 500).trim();
-
-      db.prepare(`
-        INSERT OR IGNORE INTO emails
-          (contact_id, from_email, to_email, subject, body, status,
-           gmail_message_id, thread_id, direction, sent_at)
-        VALUES (?, ?, ?, ?, ?, 'received', ?, ?, 'inbound', ?)
-      `).run(contact.id, fromEmail, toEmail, subject, preview, msgId, threadId, receivedAt);
-
-      imported++;
-    }
-
-    console.log(`[email/sync] contact #${contact_id} (${contact.email}): ${imported} imported, ${skipped} already existed`);
+    console.log(`[email/sync] contact #${contact_id} (${contact.email}): ${imported} imported, ${skipped} already existed, ${scanned} scanned across ${threadsChecked} known thread(s)`);
 
     // Auto follow-up task: remind to reply to inbound email(s).
     // One task per sync batch regardless of how many messages were imported.
@@ -307,7 +268,7 @@ router.post('/sync', async (req, res) => {
       );
     }
 
-    res.json({ ok: true, imported, skipped, total: msgList.length });
+    res.json({ ok: true, imported, skipped, total: scanned });
 
   } catch (err) {
     // Google returns 403 when the token was issued without gmail.readonly scope
@@ -323,34 +284,8 @@ router.post('/sync', async (req, res) => {
 });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
-
-// Recursively extract plain-text body from a Gmail MIME payload tree.
-function extractGmailBody(payload) {
-  if (!payload) return '';
-  if (payload.body?.data) {
-    return Buffer.from(payload.body.data, 'base64url').toString('utf-8');
-  }
-  if (payload.parts) {
-    // Prefer text/plain; fall back to text/html (stripped)
-    for (const part of payload.parts) {
-      if (part.mimeType === 'text/plain' && part.body?.data) {
-        return Buffer.from(part.body.data, 'base64url').toString('utf-8');
-      }
-    }
-    for (const part of payload.parts) {
-      if (part.mimeType === 'text/html' && part.body?.data) {
-        return Buffer.from(part.body.data, 'base64url').toString('utf-8')
-          .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      }
-    }
-    // Recurse into nested multipart (multipart/alternative, multipart/mixed, etc.)
-    for (const part of payload.parts) {
-      const text = extractGmailBody(part);
-      if (text) return text;
-    }
-  }
-  return '';
-}
+// extractGmailBody moved to crm/lib/emailReplySync.js -- it was only ever
+// used by POST /sync, which now delegates to that module entirely.
 
 function escHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');

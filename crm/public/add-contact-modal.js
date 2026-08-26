@@ -153,7 +153,6 @@
                   <option>Roth Conversion Lead</option>
                   <option>Life Insurance Lead</option>
                   <option>Contact Form Lead</option>
-                  <option>Existing Client</option>
                   <option>Referral Partner</option>
                 </select>
               </div>

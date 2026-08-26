@@ -42,9 +42,23 @@ router.post('/send', async (req, res) => {
     if (isNaN(cid)) return res.status(400).json({ error: 'Invalid contact_id' });
 
     const contact = db.prepare(
-      'SELECT id, phone, phone_e164 FROM contacts WHERE id = ?'
+      'SELECT id, phone, phone_e164, sms_consent, sms_opted_out_at FROM contacts WHERE id = ?'
     ).get(cid);
     if (!contact) return res.status(404).json({ error: 'Contact not found' });
+
+    // SMS consent enforcement -- server-side, before anything else happens
+    // (no sms_messages row inserted, Twilio never required/called below).
+    // STOP/opt-out is checked FIRST and is always authoritative: a contact
+    // who has texted STOP must stay blocked even if sms_consent is somehow
+    // still 1 on their record. sms_opted_out_at/sms_consent themselves are
+    // untouched here -- this route only reads them; crm/lib/inboundSmsService.js
+    // remains the sole place STOP/START ever writes these columns.
+    if (contact.sms_opted_out_at) {
+      return res.status(403).json({ error: 'This contact has opted out of SMS (STOP) and cannot be texted.' });
+    }
+    if (!contact.sms_consent) {
+      return res.status(403).json({ error: 'This contact does not have SMS consent on file. Add a consent source on the Contact Detail page before texting.' });
+    }
 
     // Resolve destination: prefer stored E.164, otherwise derive from display phone
     let toNumber = contact.phone_e164;

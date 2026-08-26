@@ -293,12 +293,43 @@ function wireCallButton(contact) {
 function wireSmsCompose(contact) {
   const area = document.getElementById('sms-compose-area');
   if (!area) return;
-  // Show only when Twilio is enabled and the contact has a phone number
-  if (window.CRM_TWILIO_ENABLED && (contact.phone || contact.phone_e164)) {
-    area.classList.remove('hidden');
-  } else {
-    area.classList.add('hidden');
+
+  const hasPhone   = !!(window.CRM_TWILIO_ENABLED && (contact.phone || contact.phone_e164));
+  // Mirrors the server-side gate in POST /api/sms/send exactly (STOP/opt-out
+  // is authoritative even over a stale sms_consent=1): this is UX only --
+  // the real enforcement lives server-side, so a stale/incorrect value here
+  // can never let a send through, only ever show/hide the compose box.
+  const hasConsent = !!contact.sms_consent && !contact.sms_opted_out_at;
+  const canText     = hasPhone && hasConsent;
+
+  area.classList.toggle('hidden', !canText);
+
+  const noConsentEl = document.getElementById('sms-consent-required');
+  if (noConsentEl) {
+    if (hasPhone && !hasConsent) {
+      noConsentEl.textContent = contact.sms_opted_out_at
+        ? 'This contact has opted out of SMS (STOP) and cannot be texted.'
+        : 'SMS consent is required before this contact can be texted. Add a consent source in Marketing Permissions above.';
+      noConsentEl.classList.remove('hidden');
+    } else {
+      noConsentEl.classList.add('hidden');
+    }
   }
+
+  // Top action-bar "Send SMS" button: jumps to the SMS History card so the
+  // user can either compose (consent valid) or see exactly why they can't
+  // (consent missing/opted-out, per the message above) -- it never calls
+  // /api/sms/send itself and only focuses the compose textarea when
+  // canText is true, so it can never open a path to sending that the
+  // compose box itself doesn't already allow.
+  const action = document.getElementById('sms-action');
+  const btn    = document.getElementById('detail-sms-btn');
+  if (!action || !btn) return;
+  action.classList.toggle('hidden', !hasPhone);
+  btn.onclick = () => {
+    document.getElementById('sms-history-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (canText) document.getElementById('sms-compose-body')?.focus();
+  };
 }
 
 async function sendManualSms() {

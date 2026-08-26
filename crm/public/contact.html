@@ -77,6 +77,9 @@
           <div id="call-action" class="hidden">
             <button id="detail-call-btn" class="btn btn-call" title="Start click-to-call">☎ Call</button>
           </div>
+          <div id="sms-action" class="hidden">
+            <button id="detail-sms-btn" class="btn-email" title="Send SMS">💬 Send SMS</button>
+          </div>
           <div id="email-action" class="hidden">
             <button id="detail-email-btn" class="btn-email" title="Send email">✉ Send Email</button>
           </div>
@@ -490,24 +493,6 @@
           <div id="calls-list" class="timeline"></div>
         </div>
 
-        <!-- desktop col 1, mobile row 5 -->
-        <div class="card card-sms-history" id="sms-history-card">
-          <h2 class="card-title">SMS History</h2>
-          <div id="sms-history-list">
-            <p class="text-muted">No SMS messages yet.</p>
-          </div>
-          <div class="sms-compose-area hidden" id="sms-compose-area">
-            <textarea id="sms-compose-body" class="sms-compose-textarea"
-              placeholder="Type a message… (Ctrl+Enter to send)"
-              rows="2" maxlength="1600"></textarea>
-            <div class="sms-compose-footer">
-              <span class="sms-char-count" id="sms-char-count">0 / 160</span>
-              <button id="sms-send-btn" class="btn btn-primary btn-sm">Send SMS</button>
-            </div>
-            <div id="sms-send-error" class="sms-send-error hidden"></div>
-          </div>
-        </div>
-
         <!-- desktop col 1, mobile row 6 -->
         <div class="card card-email-history" id="email-history-card">
           <div class="card-section-header">
@@ -542,6 +527,33 @@
 
         <!-- ── Right column ────────────────────────────────────────── -->
         <div class="detail-col">
+
+        <!-- Moved to the top of the right column so SMS is visible without
+             scrolling (Retirement Information, below, moved down to make
+             room) -- same card, same ids, nothing duplicated. -->
+        <div class="card card-sms-history" id="sms-history-card">
+          <h2 class="card-title">SMS History</h2>
+          <div id="sms-history-list">
+            <p class="text-muted">No SMS messages yet.</p>
+          </div>
+          <div class="sms-compose-area hidden" id="sms-compose-area">
+            <textarea id="sms-compose-body" class="sms-compose-textarea"
+              placeholder="Type a message… (Ctrl+Enter to send)"
+              rows="2" maxlength="1600"></textarea>
+            <div class="sms-compose-footer">
+              <span class="sms-char-count" id="sms-char-count">0 / 160</span>
+              <button id="sms-send-btn" class="btn btn-primary btn-sm">Send SMS</button>
+            </div>
+            <div id="sms-send-error" class="sms-send-error hidden"></div>
+          </div>
+          <!-- Shown instead of the compose box whenever this contact has a
+               phone number but cannot currently be texted (no SMS consent
+               on file, or opted out via STOP) -- server-side enforcement is
+               the real guard (POST /api/sms/send); this is purely the
+               explanation shown here so the restriction is never a silent
+               disappearing button. -->
+          <div class="sms-send-error hidden" id="sms-consent-required"></div>
+        </div>
 
         <div class="card card-retirement crm-card">
           <h2 class="card-title">Retirement Information</h2>

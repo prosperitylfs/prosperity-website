@@ -71,6 +71,82 @@ function fmtCT(iso) {
   }) + ' CT';
 }
 
+// ── Life Insurance custom-question capture ──────────────────────────────
+//
+// There is no captured sample of a real Cal.com webhook payload for this
+// event to build against, and no existing test coverage of this route's
+// business logic at all (only crm/lib/calcomSignature.js's HMAC check was
+// previously tested) — so this deliberately does NOT hardcode against
+// guessed field/identifier names. Instead it relies on the one part of
+// Cal.com's webhook payload shape this codebase already depends on and has
+// working code for: `payload.responses` is an object whose values are
+// `{ label, value, ... }` (the built-in name/email/phone/notes extraction
+// above already reads `.value` off entries like `responses.name`,
+// `responses.email`) — so questions are matched by their human-readable
+// `label` text (the exact wording Loretta provided for each Cal.com
+// question), never by an internal identifier/slug that could differ from
+// what's actually configured in Cal.com.
+//
+// Matching by label is inherently best-effort — if Cal.com's question
+// wording changes, a label may stop matching. To guarantee no data is ever
+// silently lost even then, extractLifeInsuranceAnswers also returns the
+// complete raw `responses` object (minus the fields already handled
+// elsewhere: name/email/phone/notes/message/description) for inclusion in
+// the appointment notes, and the route logs the full raw payload for any
+// Life Insurance booking so the actual shape is directly visible in
+// Render's logs the first time this runs against a real booking —
+// satisfying "inspect/log the actual structure" without needing dashboard
+// access to Cal.com from here.
+const LIFE_INSURANCE_QUESTIONS = [
+  { key: 'help_with',       label: 'What they need help with',              patterns: ['what would you like help with'] },
+  { key: 'applicant',       label: 'Who is applying for coverage',          patterns: ['who will be applying for coverage'] },
+  { key: 'ages',            label: 'Age(s) of person(s) needing coverage',  patterns: ['age of each person', 'what is the age'] },
+  { key: 'timeline',        label: 'Coverage timeline',                     patterns: ['how soon are you hoping to have coverage'] },
+  { key: 'health',          label: 'Self-described health',                 patterns: ['overall health today', 'how would you describe'] },
+  { key: 'declined_before', label: 'Previously declined for life insurance', patterns: ['ever been declined for life insurance'] },
+  { key: 'tobacco',         label: 'Nicotine/tobacco use',                  patterns: ['nicotine or tobacco'] },
+];
+// Response object keys Cal.com uses for the fields this route already
+// extracts by other means -- excluded from the raw-answers fallback dump
+// below so it isn't a redundant re-listing of name/email/phone/notes.
+const ALREADY_HANDLED_RESPONSE_KEYS = new Set(['name', 'email', 'phone', 'phoneNumber', 'notes', 'message', 'description']);
+
+function extractLifeInsuranceAnswers(payload) {
+  const responses = payload.responses || {};
+  const matched = [];
+  const consumedResponseKeys = new Set();
+
+  for (const { label, patterns } of LIFE_INSURANCE_QUESTIONS) {
+    const found = Object.entries(responses).find(([, r]) => {
+      const l = String((r && r.label) || '').toLowerCase();
+      return patterns.some(p => l.includes(p));
+    });
+    if (!found) continue;
+    const [respKey, entry] = found;
+    if (entry.value === undefined || entry.value === null || entry.value === '') continue;
+    matched.push({ label, value: entry.value });
+    consumedResponseKeys.add(respKey);
+  }
+
+  // Everything else Cal.com sent back, so a wording change that breaks a
+  // label match above still shows up here instead of vanishing.
+  const rawExtras = [];
+  for (const [respKey, entry] of Object.entries(responses)) {
+    if (ALREADY_HANDLED_RESPONSE_KEYS.has(respKey) || consumedResponseKeys.has(respKey)) continue;
+    if (!entry || entry.value === undefined || entry.value === null || entry.value === '') continue;
+    rawExtras.push(entry.label ? `${entry.label}: ${entry.value}` : `${respKey}: ${entry.value}`);
+  }
+
+  return { matched, rawExtras };
+}
+
+function buildLifeInsuranceNote({ matched, rawExtras }) {
+  const parts = [];
+  if (matched.length) parts.push('Life Insurance Qualification Answers:\n' + matched.map(m => `${m.label}: ${m.value}`).join('\n'));
+  if (rawExtras.length) parts.push('Additional Cal.com responses:\n' + rawExtras.join('\n'));
+  return parts.length ? parts.join('\n\n') : null;
+}
+
 // ── Event handlers ────────────────────────────────────────────────────────────
 
 function handleCreatedOrRescheduled(event, payload) {
@@ -100,11 +176,23 @@ function handleCreatedOrRescheduled(event, payload) {
     || null;
   const { display: phoneDisplay, e164: phoneE164 } = normalizePhone(rawPhone);
 
-  const notes = payload.additionalNotes
+  const baseNotes = payload.additionalNotes
     || responses.notes?.value
     || responses.message?.value
     || responses.description?.value
     || null;
+
+  // Life Insurance qualification answers -- see extractLifeInsuranceAnswers'
+  // own comment above for why this matches by question label rather than a
+  // guessed internal identifier, and always preserves anything it can't
+  // confidently label.
+  let notes = baseNotes;
+  if (inferLeadType(eventType.title) === 'Life Insurance Lead') {
+    console.log(`Cal.com webhook: Life Insurance booking ${uid} — raw responses:`, JSON.stringify(responses));
+    const lifeInsuranceAnswers = extractLifeInsuranceAnswers(payload);
+    const qualificationNote = buildLifeInsuranceNote(lifeInsuranceAnswers);
+    notes = [baseNotes, qualificationNote].filter(Boolean).join('\n\n') || null;
+  }
 
   const location   = normalizeLocation(payload.location);
   const apptType   = eventType.title || 'Consultation';

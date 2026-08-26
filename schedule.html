@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Schedule Your Appointment — Prosperity Life &amp; Financial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css?v=2">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Tell us how we can help and we'll take you straight to the right calendar — Life Insurance or Safe Money & Retirement — with Loretta Stewart at Prosperity Life & Financial Solutions.">
+  <style>
+    /* Subset of book.html's step-flow styles this page needs — kept
+       page-local exactly like book.html/life-insurance.html/
+       life-insurance-qualifier.html already do (none of this lives in the
+       shared assets/css/style.css). */
+    .schedule-layout { max-width: 620px; margin: 0 auto; }
+
+    .funnel-progress { display: flex; align-items: center; gap: 0; margin-bottom: 28px; }
+    .funnel-bar-wrap { flex: 1; height: 6px; background: #e4dff0; border-radius: 99px; overflow: hidden; }
+    .funnel-bar { height: 100%; background: var(--purple, #4e2c94); border-radius: 99px; transition: width 0.35s ease; }
+    .funnel-step-label { font-size: 0.78rem; font-weight: 600; color: var(--purple, #4e2c94); white-space: nowrap; margin-left: 12px; }
+
+    .form-step { animation: fadeStep 0.25s ease; }
+    @keyframes fadeStep { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .step-heading { font-size: 1.18rem; font-weight: 700; color: var(--purple-dark, #3a1f70); margin: 0 0 6px; }
+    .step-sub { font-size: 0.88rem; color: #666; margin: 0 0 20px; }
+    .step-error { color: #c0392b; font-size: 0.85rem; margin-top: 10px; display: none; }
+    .req { color: #c0392b; }
+
+    .topic-cat-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--purple, #4e2c94); background: #ede8f7; display: inline-block;
+      padding: 4px 10px; border-radius: 4px; margin-bottom: 10px;
+    }
+
+    .survey-choices { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+    .survey-btn {
+      display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px;
+      background: #fff; border: 2px solid #ddd; border-radius: 10px; font-size: 0.95rem;
+      font-weight: 500; color: #333; cursor: pointer; text-align: left;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+    }
+    .survey-btn:hover { border-color: var(--purple, #4e2c94); background: #f7f4fd; }
+    .survey-btn.selected { border-color: var(--purple, #4e2c94); background: var(--purple, #4e2c94); color: #fff; }
+
+    .step-nav { margin-top: 24px; }
+    .step-nav-row { display: flex; gap: 12px; align-items: center; }
+    .btn-back {
+      background: none; border: 1.5px solid #ccc; color: #666; padding: 11px 20px;
+      border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      transition: border-color 0.2s, color 0.2s; white-space: nowrap;
+    }
+    .btn-back:hover { border-color: var(--purple, #4e2c94); color: var(--purple, #4e2c94); }
+    .btn-next-step {
+      flex: 1; padding: 13px 20px; background: var(--green, #38bf72); border: none;
+      border-radius: 8px; color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-next-step:hover { background: var(--green-dark, #2a9a5a); }
+    .btn-next-step:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .sms-consent-group { margin-top: 16px; }
+    .sms-consent { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5; color: #444; cursor: pointer; }
+    .sms-consent input[type="checkbox"] {
+      appearance: checkbox; -webkit-appearance: checkbox; width: 14px !important; height: 14px !important;
+      min-width: 14px !important; max-width: 14px !important; margin-top: 2px; flex-shrink: 0;
+      opacity: 1 !important; position: static !important; cursor: pointer;
+    }
+    .sms-consent span { display: inline; }
+
+    .book-form-wrap {
+      padding: 18px 18px 14px; background: #fff; border: 1.5px solid rgba(0,0,0,0.08);
+      border-top: 3px solid #4e2c94; border-radius: 20px; box-shadow: 0 16px 38px rgba(0,0,0,0.08);
+      box-sizing: border-box;
+    }
+    .book-calendar-card { display: flex; flex-direction: column; gap: 10px; padding: 0; background: transparent; border-radius: 0; box-shadow: none; }
+    .ghl-card-header { padding: 0; margin: 0; }
+    .ghl-card-header h2 { margin: 0 0 6px; font-size: 1.5rem; line-height: 1.15; color: var(--purple-dark, #3a1f70); }
+    .ghl-card-header p { margin: 0; color: #5a5a5a; font-size: 1rem; line-height: 1.6; }
+
+    @media (max-width: 640px) {
+      .book-form-wrap { padding: 14px !important; box-shadow: 0 10px 28px rgba(0,0,0,0.06) !important; }
+    }
+  </style>
+</head>
+<body>
+
+    <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="assets/images/prosperity-logo.png" alt="Prosperity Life &amp; Financial Solutions">
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Strategies <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="annuities.html">Annuities &amp; Guaranteed Income</a>
+            <a href="roth-conversion.html">Roth Conversions</a>
+            <a href="life-insurance.html">Life Insurance &amp; Living Benefits</a>
+            <a href="savings-cd-alternatives.html">Safe Money &amp; CD Alternatives</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-toggle" aria-expanded="false">Resources <span class="nav-caret">&#9662;</span></button>
+          <div class="nav-dropdown-menu">
+            <a href="calculators.html">Retirement Calculators</a>
+            <a href="retirement-readiness-quiz.html">Retirement Readiness Quiz</a>
+          </div>
+        </div>
+      </nav>
+      <a class="phone-btn" href="tel:+14144411177" style="display:inline-flex;align-items:center;gap:7px;"><i class="fa-solid fa-phone" aria-hidden="true"></i><span class="phone-btn-number">(414) 441-1177</span></a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="retirement-planning.html">Retirement Planning</a>
+      <a href="rollovers.html">Rollovers</a>
+      <span class="mobile-nav-label">Strategies</span>
+      <a href="annuities.html">&nbsp;&nbsp;Annuities &amp; Guaranteed Income</a>
+      <a href="roth-conversion.html">&nbsp;&nbsp;Roth Conversions</a>
+      <a href="life-insurance.html">&nbsp;&nbsp;Life Insurance &amp; Living Benefits</a>
+      <a href="savings-cd-alternatives.html">&nbsp;&nbsp;Safe Money &amp; CD Alternatives</a>
+      <span class="mobile-nav-label">Resources</span>
+      <a href="calculators.html">&nbsp;&nbsp;Retirement Calculators</a>
+      <a href="retirement-readiness-quiz.html">&nbsp;&nbsp;Retirement Readiness Quiz</a>
+      <a class="mobile-cta" href="schedule.html">Schedule an Appointment</a>
+    </nav>
+  </header>
+
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <div class="page-hero-tag">Schedule an Appointment</div>
+      <h1>Tell Us How We Can Help</h1>
+      <p>Answer a couple of quick questions and we&rsquo;ll take you straight to the right calendar &mdash; no long form to fill out.</p>
+    </div>
+  </section>
+
+  <main>
+    <div class="container schedule-layout">
+
+      <div class="book-form-wrap">
+        <div class="book-calendar-card">
+
+          <div class="ghl-card-header">
+            <h2>Get Started</h2>
+            <p>Takes about 30 seconds.</p>
+          </div>
+
+          <div class="funnel-progress">
+            <div class="funnel-bar-wrap"><div class="funnel-bar" id="sch-bar" style="width:50%;"></div></div>
+            <span class="funnel-step-label" id="sch-step-label">Step 1 of 2</span>
+          </div>
+
+          <form class="book-form" novalidate onsubmit="return false;">
+
+            <!-- ══ STEP 1: Contact Info + What do you need help with? ══ -->
+            <div id="sch-step-1" class="form-step">
+              <h3 class="step-heading">Your Information</h3>
+              <p class="step-sub">We&rsquo;ll use these details to confirm your appointment.</p>
+
+              <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+                <div style="flex:1; min-width:120px;">
+                  <label class="form-label" for="sch-fname">First Name <span class="req">*</span></label>
+                  <input type="text" id="sch-fname" placeholder="Jane" autocomplete="given-name">
+                </div>
+                <div style="flex:1; min-width:120px;">
+                  <label class="form-label" for="sch-lname">Last Name <span class="req">*</span></label>
+                  <input type="text" id="sch-lname" placeholder="Smith" autocomplete="family-name">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="sch-email">Email Address <span class="req">*</span></label>
+                <input type="email" id="sch-email" placeholder="jane@example.com" autocomplete="email">
+                <p id="sch-email-err" class="form-error-message" style="display:none;"></p>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="sch-phone">Phone Number <span class="req">*</span></label>
+                <input type="tel" id="sch-phone" placeholder="(414) 555-0100" autocomplete="tel">
+              </div>
+
+              <div style="margin-top:18px;">
+                <span class="topic-cat-label">What would you like help with? <span class="req">*</span></span>
+                <div class="survey-choices" id="sch-service-group">
+                  <button type="button" class="survey-btn" data-group="sch-service" data-value="Life Insurance" onclick="schSelectSurvey(this)">🛡️&nbsp; Life Insurance</button>
+                  <button type="button" class="survey-btn" data-group="sch-service" data-value="Safe Money &amp; Retirement" onclick="schSelectSurvey(this)">💰&nbsp; Safe Money &amp; Retirement</button>
+                </div>
+                <input type="hidden" id="sch-service" value="">
+              </div>
+
+              <!-- Cloudflare Turnstile — same widget/pattern as book.html,
+                   life-insurance.html, life-insurance-qualifier.html.
+                   renderTurnstileWidgets() (assets/js/main.v2.js) renders it
+                   and unlocks the Continue button once verification
+                   succeeds. -->
+              <div class="cf-turnstile-widget" data-turnstile data-turnstile-button="#sch-next-1-btn" style="margin-top:16px;"></div>
+
+              <div class="sms-consent-group">
+                <label class="sms-consent">
+                  <input type="checkbox" id="sch-terms-consent">
+                  <span>I agree to the <a href="/privacy-policy">Privacy Policy</a> and <a href="/terms-and-conditions">Terms &amp; Conditions</a> and consent to being contacted by Prosperity Life &amp; Financial Solutions regarding my request or appointment.</span>
+                </label>
+              </div>
+
+              <div class="sms-consent-group">
+                <label class="sms-consent">
+                  <input type="checkbox" id="sch-sms-consent">
+                  <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding appointment scheduling, reminders, and occasional updates. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out.</span>
+                </label>
+              </div>
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" id="sch-next-1-btn" class="btn-next-step" onclick="schContinueStep1()" disabled>Continue &rarr;</button>
+                </div>
+              </div>
+              <p id="sch-err-1" class="step-error"></p>
+            </div><!-- /step-1 -->
+
+            <!-- ══ STEP 2a: Retirement/savings asset amount (Safe Money & Retirement only) ══ -->
+            <div id="sch-step-amount" class="form-step" style="display:none;">
+              <h3 class="step-heading">One Quick Question</h3>
+              <p class="step-sub">This helps us make sure we connect you with the right next step.</p>
+
+              <div class="form-group">
+                <label class="form-label" for="sch-amount">Approximately how much do you currently have in retirement or savings assets that you would like help reviewing? <span class="req">*</span></label>
+                <input type="text" inputmode="decimal" id="sch-amount" placeholder="$15,000" autocomplete="off">
+                <p class="step-sub" style="margin:6px 0 0;">This may include a 401(k), 403(b), TSP, IRA, CDs, annuities, savings, or other retirement funds. An estimate is fine.</p>
+              </div>
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-back" onclick="schBackToStep1()">&larr; Back</button>
+                  <button type="button" id="sch-amount-next-btn" class="btn-next-step" onclick="schContinueAmount()">Continue &rarr;</button>
+                </div>
+              </div>
+              <p id="sch-err-amount" class="step-error"></p>
+            </div><!-- /step-amount -->
+
+            <!-- ══ STEP 2b: Cash-building follow-up (only shown under $15,000) ══ -->
+            <div id="sch-step-cashbuilding" class="form-step" style="display:none;">
+              <h3 class="step-heading">One More Quick Question</h3>
+
+              <span class="topic-cat-label">Would you be interested in learning about strategies that can help you build additional cash for your future through regular contributions? <span class="req">*</span></span>
+              <div class="survey-choices">
+                <button type="button" class="survey-btn" onclick="schCashBuildingAnswer('yes')">✅&nbsp; Yes</button>
+                <button type="button" class="survey-btn" onclick="schCashBuildingAnswer('not_sure')">🤔&nbsp; I&rsquo;m not sure &mdash; I&rsquo;d like to learn more</button>
+                <button type="button" class="survey-btn" onclick="schCashBuildingAnswer('no')">➡️&nbsp; No</button>
+              </div>
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-back" onclick="schBackToAmount()">&larr; Back</button>
+                </div>
+              </div>
+              <p id="sch-err-cashbuilding" class="step-error"></p>
+            </div><!-- /step-cashbuilding -->
+
+            <!-- ══ STEP 2c: Not currently eligible (under $15,000 + No) ══ -->
+            <div id="sch-step-not-eligible" class="form-step" style="display:none;">
+              <div style="text-align:center; padding:28px 20px; background:#f9f7fd; border-radius:12px; border:1.5px solid #e4dff0;">
+                <h3 class="step-heading" style="text-align:center;">Thank You</h3>
+                <p style="font-size:0.9rem; color:#555; line-height:1.7; margin:0;">
+                  Thank you for your interest. Based on the information you&rsquo;ve provided, we don&rsquo;t currently have a service that would be a good fit for your needs. We appreciate you considering Prosperity Life &amp; Financial Solutions.
+                </p>
+              </div>
+            </div><!-- /step-not-eligible -->
+
+            <!-- ══ STEP 3: Redirecting to Cal.com ══ -->
+            <div id="sch-step-redirect" class="form-step" style="display:none;">
+              <div style="text-align:center; padding:32px 20px; background:#f9f7fd; border-radius:12px; border:1.5px solid #e4dff0;">
+                <div style="width:56px; height:56px; background:#e6f7ee; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:1.4rem; color:#1a7a4a;">&#10003;</div>
+                <h3 class="step-heading" style="text-align:center; font-size:1.25rem; margin-bottom:10px;">Your Information Has Been Received</h3>
+                <p style="font-size:0.9rem; color:#555; margin:0; line-height:1.7;">Taking you to schedule your free consultation&hellip;</p>
+              </div>
+            </div><!-- /step-redirect -->
+
+          </form>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+                  <div class="footer-brand">
+        <div class="footer-logo">Prosperity Life &amp; Financial Solutions</div>
+        <p class="footer-tagline"><i class="fa-solid fa-phone" aria-hidden="true"></i> 414-441-1177</p>
+        <p class="footer-tagline">Safe Money &amp; Protection Strategies for Retirement</p>
+        <p class="footer-tagline">Serving clients in: Wisconsin &bull; Nevada &bull; Texas &bull; Michigan &bull; North Carolina</p>
+        <p class="footer-disclaimer">Insurance products and services provided by Loretta Stewart. Not a bank or credit union. Insurance products are not FDIC insured. Guarantees are backed by the financial strength of the issuing insurance company.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>Services</h4>
+        <a href="retirement-planning.html">Retirement Planning</a>
+        <a href="rollovers.html">Rollovers</a>
+        <a href="annuities.html">Strategies</a>
+        <a href="resources.html">Resources</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Company</h4>
+        <a href="about.html">About Loretta</a>
+        <a href="calculators.html">Calculators</a>
+        <a href="resources.html">Resources</a>
+        <a href="schedule.html">Schedule an Appointment</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+        <div class="footer-bottom">
+      <div class="container">
+        <span>&copy; <span id="year"></span> Prosperity Life &amp; Financial Solutions. All rights reserved.</span>
+        <div class="policy-links">
+          <a href="privacy-policy.html">Privacy Policy</a> |
+          <a href="terms-and-conditions.html">Terms &amp; Conditions</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>window.CRM_API_BASE = 'https://prosperity-crm.onrender.com';</script>
+  <script src="assets/js/main.v2.js"></script>
+  <script src="assets/js/scheduleQualification.js"></script>
+  <!-- Cloudflare Turnstile — onload calls renderTurnstileWidgets() (defined in
+       main.v2.js, loaded above) once the widget script is ready. -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=renderTurnstileWidgets" async defer></script>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (toggle && mobileNav) {
+      toggle.addEventListener('click', function() {
+        const isOpen = mobileNav.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen);
+        mobileNav.setAttribute('aria-hidden', !isOpen);
+      });
+    }
+  </script>
+  <script>
+    (function () {
+      // Cal.com event URLs — the same, already-corrected slugs confirmed
+      // and deployed for /book (retirement) and pending for the Life
+      // Insurance forms. Kept as named constants so both are easy to spot
+      // and update in one place if Cal.com's slugs ever change again.
+      var CALCOM_LIFE_INSURANCE_URL = 'https://cal.com/lorettastewart/life-insurance-consultation-prosperitylfs';
+      var CALCOM_RETIREMENT_URL     = 'https://cal.com/lorettastewart/retirement-safemoney-consultation-prosperitylfs';
+
+      var schContact = {}; // { fname, lname, phone (E.164), email, sms, terms, turnstileToken, service }
+      var SCH_STEP_IDS = ['sch-step-1', 'sch-step-amount', 'sch-step-cashbuilding', 'sch-step-not-eligible', 'sch-step-redirect'];
+
+      function schShowStep(id) {
+        SCH_STEP_IDS.forEach(function (stepId) {
+          var el = document.getElementById(stepId);
+          if (el) el.style.display = (stepId === id) ? 'block' : 'none';
+        });
+        var bar = document.getElementById('sch-bar');
+        var lbl = document.getElementById('sch-step-label');
+        if (bar) bar.style.width = (id === 'sch-step-1') ? '50%' : '100%';
+        if (lbl) lbl.textContent = (id === 'sch-step-1') ? 'Step 1 of 2' : 'Step 2 of 2';
+        var card = document.querySelector('.book-calendar-card');
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      function showErr(id, msg) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = 'block';
+      }
+      function clearErr(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+
+      window.schSelectSurvey = function (btn) {
+        var groupId = btn.dataset.group;
+        document.querySelectorAll('.survey-btn[data-group="' + groupId + '"]').forEach(function (b) { b.classList.remove('selected'); });
+        btn.classList.add('selected');
+        var hidden = document.getElementById(groupId);
+        if (hidden) hidden.value = btn.dataset.value;
+      };
+
+      window.schBackToStep1 = function () { schShowStep('sch-step-1'); };
+      window.schBackToAmount = function () { schShowStep('sch-step-amount'); };
+
+      window.schContinueStep1 = async function () {
+        var fname = document.getElementById('sch-fname').value.trim();
+        var lname = document.getElementById('sch-lname').value.trim();
+        var email = document.getElementById('sch-email').value.trim();
+        var phone = document.getElementById('sch-phone').value.trim();
+        var service = document.getElementById('sch-service').value;
+        var emailErr = document.getElementById('sch-email-err');
+        clearErr('sch-err-1');
+        if (emailErr) { emailErr.textContent = ''; emailErr.style.display = 'none'; }
+
+        if (!fname || !lname) { showErr('sch-err-1', 'Please enter your first and last name.'); return; }
+        if (!phone) { showErr('sch-err-1', 'Please enter your phone number.'); return; }
+        var e164 = toE164(phone);
+        if (!e164) { showErr('sch-err-1', 'Please enter a valid 10-digit US phone number.'); document.getElementById('sch-phone').focus(); return; }
+        document.getElementById('sch-phone').value = e164;
+        if (!isValidEmail(email)) {
+          if (emailErr) { emailErr.textContent = 'Please enter a valid email address.'; emailErr.style.display = 'block'; }
+          document.getElementById('sch-email').focus();
+          return;
+        }
+        if (!service) { showErr('sch-err-1', 'Please let us know what you would like help with.'); return; }
+        if (!document.getElementById('sch-terms-consent').checked) { showErr('sch-err-1', 'Please accept the Privacy Policy and Terms & Conditions to continue.'); return; }
+
+        var schForm = document.querySelector('.book-form');
+        var turnstileToken = schForm ? schForm.dataset.turnstileToken : '';
+        if (!turnstileToken) { showErr('sch-err-1', 'Please complete the verification check above.'); return; }
+
+        schContact = {
+          fname: fname, lname: lname, phone: e164, email: email,
+          sms: document.getElementById('sch-sms-consent').checked,
+          turnstileToken: turnstileToken,
+          service: service,
+        };
+
+        if (service === 'Life Insurance') {
+          await schSubmitLead('Life Insurance Lead', {}, CALCOM_LIFE_INSURANCE_URL);
+        } else {
+          schShowStep('sch-step-amount');
+        }
+      };
+
+      // parseDollarAmount / formatDollar / isRetirementEligibleAmount /
+      // RETIREMENT_MIN_AMOUNT come from assets/js/scheduleQualification.js
+      // (loaded above, before this script) -- kept in a separate file
+      // specifically so that logic has real unit test coverage; see that
+      // file's own header comment.
+      window.schContinueAmount = function () {
+        clearErr('sch-err-amount');
+        var amount = parseDollarAmount(document.getElementById('sch-amount').value);
+        if (amount === null) {
+          showErr('sch-err-amount', 'Please enter a valid dollar amount (numbers only, e.g. 15,000).');
+          return;
+        }
+        schContact.retirementAmount = amount;
+
+        if (isRetirementEligibleAmount(amount)) {
+          // $15,000+ is eligible outright -- no cash-building follow-up,
+          // no detailed retirement questions on this page (those live in
+          // the future post-booking Retirement Intake Form).
+          schSubmitLead('Retirement Lead', {
+            retirement_amount: formatDollar(amount),
+            retirement_eligibility: 'Eligible - $15,000 or more',
+          }, CALCOM_RETIREMENT_URL);
+        } else {
+          schShowStep('sch-step-cashbuilding');
+        }
+      };
+
+      // Under $15,000: Yes and "I'm not sure" are both treated as eligible
+      // (per spec, identically to each other except for which exact answer
+      // is recorded) -- neither one causes the website to choose a
+      // specific product; that stays entirely Loretta's call during the
+      // consultation. No is not eligible and never reaches Cal.com.
+      window.schCashBuildingAnswer = function (answer) {
+        clearErr('sch-err-cashbuilding');
+        var amountStr = formatDollar(schContact.retirementAmount);
+
+        if (answer === 'yes' || answer === 'not_sure') {
+          schSubmitLead('Retirement Lead', {
+            retirement_amount: amountStr,
+            retirement_eligibility: 'Eligible - Under $15,000, interested in cash-building strategies',
+            cash_building_interest: answer === 'yes' ? 'Yes' : 'Not sure - wants to learn more',
+          }, CALCOM_RETIREMENT_URL);
+        } else {
+          schSubmitLead('Retirement Lead', {
+            retirement_amount: amountStr,
+            retirement_eligibility: 'Safe Money & Retirement — Not Appointment Eligible\nUnder $15,000\nDeclined cash-building/regular-contribution option',
+            cash_building_interest: 'No',
+          }, null);
+        }
+      };
+
+      // Shared by the Life Insurance path and every Safe Money & Retirement
+      // outcome (eligible by amount, eligible by cash-building interest,
+      // and not-eligible). CRM lead capture is attempted, but its outcome
+      // NEVER changes what happens next -- capture is always a side
+      // effect, never a gate. This intentionally goes further than the
+      // fail-safe already shipped for /book (which only tolerates the CRM
+      // itself failing): here, even if the /submit-lead request never
+      // reaches the server at all (e.g. the visitor is offline), the
+      // visitor still proceeds to whatever this page's qualification logic
+      // already decided. The one thing that ALWAYS gates first is this
+      // page's own required-field/consent/Turnstile validation in
+      // schContinueStep1() above, which has already passed by the time
+      // this runs.
+      //
+      // calcomUrl: a URL redirects to Cal.com after capture (with the same
+      // name/email/attendeePhoneNumber prefill used by the Life Insurance
+      // path); null shows the not-eligible closing message instead -- no
+      // appointment, no Cal.com, and (per the current approved design) no
+      // automatic guide offer from this page.
+      async function schSubmitLead(leadType, extraFields, calcomUrl) {
+        var btn = document.activeElement && document.activeElement.tagName === 'BUTTON' ? document.activeElement : null;
+        var origLabel = btn ? btn.textContent : '';
+        if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+
+        try {
+          var payload = Object.assign({
+            first_name: schContact.fname,
+            last_name: schContact.lname,
+            phone: schContact.phone,
+            email: schContact.email,
+            sms_consent: schContact.sms ? 'yes' : 'no',
+            terms_accepted: 'yes',
+            lead_type: leadType,
+            lead_source: 'Universal Schedule Page',
+            turnstile_token: schContact.turnstileToken,
+          }, extraFields);
+
+          await fetch('/submit-lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } catch (err) {
+          // Deliberately swallowed — see function comment above. Logged to
+          // the console only, purely for local debugging; never shown to
+          // the visitor and never blocks what happens next.
+          console.warn('[schedule] /submit-lead did not complete, proceeding anyway:', err);
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = origLabel; }
+        }
+
+        if (calcomUrl) {
+          schShowStep('sch-step-redirect');
+          var qs = new URLSearchParams({
+            name: schContact.fname + ' ' + schContact.lname,
+            email: schContact.email,
+            attendeePhoneNumber: schContact.phone,
+          }).toString();
+          setTimeout(function () {
+            window.location.href = calcomUrl + '?' + qs;
+          }, 1200);
+        } else {
+          schShowStep('sch-step-not-eligible');
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        var ph = document.getElementById('sch-phone');
+        if (ph && typeof attachPhoneFormatting === 'function') attachPhoneFormatting(ph);
+      });
+    })();
+  </script>
+
+</body>
+</html>

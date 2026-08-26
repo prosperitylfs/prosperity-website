@@ -128,6 +128,107 @@
         <div class="card card-contact-info">
           <h2 class="card-title">Contact Info</h2>
           <div id="contact-info" class="info-grid"></div>
+          <button type="button" class="tl-toggle-btn" id="edit-permissions-toggle-btn">Edit Permissions</button>
+          <!-- Moved from the old standalone Marketing Permissions card --
+               same ids, same saveCrmSection(event,'marketing') save path,
+               nothing rebuilt. Collapsed by default; only the position and
+               the show/hide toggle are new. -->
+          <div class="crm-grid hidden" id="marketing-edit-panel" style="margin-top:.75rem">
+            <div class="crm-field crm-field-full">
+              <div class="crm-checks">
+                <label class="crm-check-label">
+                  <input id="f-sms_consent" type="checkbox">
+                  <span>SMS Consent</span>
+                </label>
+                <label class="crm-check-label">
+                  <input id="f-email_consent" type="checkbox">
+                  <span>Email Consent</span>
+                </label>
+              </div>
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-sms_consent_source">SMS Consent Source <span class="hint">(required to turn SMS Consent on)</span></label>
+              <select id="f-sms_consent_source" class="crm-select">
+                <option value="">— Select —</option>
+                <option>Website Form</option>
+                <option>Phone – Renee</option>
+                <option>Phone – Jennifer</option>
+                <option>Existing Client – Prior Documented Consent</option>
+                <option>Inbound SMS</option>
+                <option>Verbal Consent</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="crm-field">
+              <label class="crm-label">SMS Consent Date</label>
+              <input id="f-sms_consent_at-display" type="text" class="crm-input" disabled placeholder="Not yet granted">
+            </div>
+            <div class="crm-field crm-field-full">
+              <label class="crm-label" for="f-sms_consent_notes">SMS Consent Notes</label>
+              <textarea id="f-sms_consent_notes" class="crm-input" rows="2"></textarea>
+            </div>
+            <div class="crm-field crm-field-full crm-footer" style="margin-top:0">
+              <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'marketing')">Save Changes</button>
+              <span class="crm-saved hidden" id="saved-marketing">Saved!</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Moved directly below Contact Info so actionable follow-ups are
+             visible without scrolling past Basic Information/Address/etc.
+             -- same card, same ids, nothing duplicated or rebuilt. -->
+        <div class="card card-tasks" id="tasks-card">
+          <div class="card-section-header">
+            <h2 class="card-title" style="margin-bottom:0">Follow-Up Tasks</h2>
+            <button id="add-task-btn" class="btn btn-primary btn-sm" onclick="toggleTaskForm()">+ Add Task</button>
+          </div>
+          <div id="task-form" class="task-form hidden">
+            <div class="task-form-grid">
+              <div class="crm-field">
+                <label class="crm-label" for="task-type">Task Type</label>
+                <select id="task-type" class="crm-select">
+                  <option value="">— Select —</option>
+                  <option>Call</option>
+                  <option>Email</option>
+                  <option>Text</option>
+                  <option>Send Document</option>
+                  <option>Follow-Up</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="crm-field">
+                <label class="crm-label" for="task-priority">Priority</label>
+                <select id="task-priority" class="crm-select">
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
+              <div class="crm-field">
+                <label class="crm-label" for="task-due-date">Due Date</label>
+                <input id="task-due-date" type="date" class="crm-input">
+              </div>
+              <div class="crm-field">
+                <label class="crm-label" for="task-due-time">Due Time (optional)</label>
+                <input id="task-due-time" type="time" class="crm-input">
+              </div>
+              <div class="crm-field crm-field-full">
+                <label class="crm-label" for="task-notes">Notes (optional)</label>
+                <textarea id="task-notes" class="crm-input" rows="2" placeholder="Details about this task…"></textarea>
+              </div>
+            </div>
+            <div class="task-form-footer">
+              <button id="task-save-btn" class="btn btn-primary" onclick="saveTask()">Save Task</button>
+              <button class="btn-section-cancel" onclick="toggleTaskForm(false)">Cancel</button>
+            </div>
+          </div>
+          <div id="tasks-pending" class="tasks-section"><p class="text-muted">No tasks yet.</p></div>
+          <div id="tasks-completed-toggle" class="tasks-completed-toggle hidden">
+            <button class="tasks-toggle-btn" onclick="toggleCompletedTasks()">
+              <span id="tasks-completed-toggle-label">Show Completed</span>
+            </button>
+          </div>
+          <div id="tasks-completed" class="hidden"></div>
         </div>
 
         <!-- ── Basic Information ──────────────────────────────────────── -->
@@ -313,49 +414,6 @@
         </div>
 
         <!-- ── Marketing Permissions ──────────────────────────────────── -->
-        <div class="card crm-card card-marketing">
-          <h2 class="crm-card-title">Marketing Permissions</h2>
-          <div class="crm-grid">
-            <div class="crm-field crm-field-full">
-              <div class="crm-checks">
-                <label class="crm-check-label">
-                  <input id="f-sms_consent" type="checkbox">
-                  <span>SMS Consent</span>
-                </label>
-                <label class="crm-check-label">
-                  <input id="f-email_consent" type="checkbox">
-                  <span>Email Consent</span>
-                </label>
-              </div>
-            </div>
-            <div class="crm-field">
-              <label class="crm-label" for="f-sms_consent_source">SMS Consent Source <span class="hint">(required to turn SMS Consent on)</span></label>
-              <select id="f-sms_consent_source" class="crm-select">
-                <option value="">— Select —</option>
-                <option>Website Form</option>
-                <option>Phone – Renee</option>
-                <option>Phone – Jennifer</option>
-                <option>Existing Client – Prior Documented Consent</option>
-                <option>Inbound SMS</option>
-                <option>Verbal Consent</option>
-                <option>Other</option>
-              </select>
-            </div>
-            <div class="crm-field">
-              <label class="crm-label">SMS Consent Date</label>
-              <input id="f-sms_consent_at-display" type="text" class="crm-input" disabled placeholder="Not yet granted">
-            </div>
-            <div class="crm-field crm-field-full">
-              <label class="crm-label" for="f-sms_consent_notes">SMS Consent Notes</label>
-              <textarea id="f-sms_consent_notes" class="crm-input" rows="2"></textarea>
-            </div>
-          </div>
-          <div class="crm-footer">
-            <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'marketing')">Save Changes</button>
-            <span class="crm-saved hidden" id="saved-marketing">Saved!</span>
-          </div>
-        </div>
-
         <!-- ── Activity Timeline ──────────────────────────────────────── -->
         <div class="card card-timeline" id="timeline-card">
           <h2 class="card-title">Activity Timeline</h2>
@@ -374,61 +432,6 @@
             <p class="text-muted tl-empty">Loading activity…</p>
           </div>
           <button type="button" class="tl-toggle-btn hidden" id="timeline-toggle-btn"></button>
-        </div>
-
-        <!-- ── Follow-Up Tasks ─────────────────────────────────────────── -->
-        <div class="card card-tasks" id="tasks-card">
-          <div class="card-section-header">
-            <h2 class="card-title" style="margin-bottom:0">Follow-Up Tasks</h2>
-            <button id="add-task-btn" class="btn btn-primary btn-sm" onclick="toggleTaskForm()">+ Add Task</button>
-          </div>
-          <div id="task-form" class="task-form hidden">
-            <div class="task-form-grid">
-              <div class="crm-field">
-                <label class="crm-label" for="task-type">Task Type</label>
-                <select id="task-type" class="crm-select">
-                  <option value="">— Select —</option>
-                  <option>Call</option>
-                  <option>Email</option>
-                  <option>Text</option>
-                  <option>Send Document</option>
-                  <option>Follow-Up</option>
-                  <option>Other</option>
-                </select>
-              </div>
-              <div class="crm-field">
-                <label class="crm-label" for="task-priority">Priority</label>
-                <select id="task-priority" class="crm-select">
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="Low">Low</option>
-                </select>
-              </div>
-              <div class="crm-field">
-                <label class="crm-label" for="task-due-date">Due Date</label>
-                <input id="task-due-date" type="date" class="crm-input">
-              </div>
-              <div class="crm-field">
-                <label class="crm-label" for="task-due-time">Due Time (optional)</label>
-                <input id="task-due-time" type="time" class="crm-input">
-              </div>
-              <div class="crm-field crm-field-full">
-                <label class="crm-label" for="task-notes">Notes (optional)</label>
-                <textarea id="task-notes" class="crm-input" rows="2" placeholder="Details about this task…"></textarea>
-              </div>
-            </div>
-            <div class="task-form-footer">
-              <button id="task-save-btn" class="btn btn-primary" onclick="saveTask()">Save Task</button>
-              <button class="btn-section-cancel" onclick="toggleTaskForm(false)">Cancel</button>
-            </div>
-          </div>
-          <div id="tasks-pending" class="tasks-section"><p class="text-muted">No tasks yet.</p></div>
-          <div id="tasks-completed-toggle" class="tasks-completed-toggle hidden">
-            <button class="tasks-toggle-btn" onclick="toggleCompletedTasks()">
-              <span id="tasks-completed-toggle-label">Show Completed</span>
-            </button>
-          </div>
-          <div id="tasks-completed" class="hidden"></div>
         </div>
 
         <!-- desktop col 1, mobile row 2 -->
@@ -476,28 +479,22 @@
           </div>
         </div>
 
-        <!-- desktop col 1, mobile row 3 -->
-        <div class="card crm-card card-followup">
-          <h2 class="crm-card-title">Follow-Up Information</h2>
-          <div class="crm-grid">
-            <div class="crm-field">
-              <label class="crm-label" for="f-next_follow_up_date">Next Follow-Up Date</label>
-              <input id="f-next_follow_up_date" type="date" class="crm-input">
-            </div>
-            <div class="crm-field">
-              <label class="crm-label" for="f-last_contact_date">Last Contact Date</label>
-              <input id="f-last_contact_date" type="date" class="crm-input">
-            </div>
-            <div class="crm-field crm-field-full">
-              <label class="crm-label" for="f-commission_estimate">Commission Estimate</label>
-              <input id="f-commission_estimate" type="text" class="crm-input" placeholder="$0">
-            </div>
-          </div>
-          <div class="crm-footer">
-            <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'followup')">Save Changes</button>
-            <span class="crm-saved hidden" id="saved-followup">Saved!</span>
-          </div>
-        </div>
+        <!--
+          Follow-Up Information card removed from view (per Contact Detail
+          usability cleanup): next_follow_up_date, last_contact_date, and
+          commission_estimate remain untouched in the database and in
+          crm/routes/contacts.js's PATCH allowlist -- only this card's
+          markup was removed, so no data was deleted and this can be
+          redesigned/reintroduced later without any schema work. See
+          contact.js's SECTIONS.followup, which is also left in place
+          (its populateSections()/saveCrmSection() lookups already no-op
+          safely on a missing element).
+
+          FUTURE ENHANCEMENT (not implemented in this pass): automatically
+          derive/update Last Contact from actual call, SMS, email, and
+          appointment activity, rather than the current manually-typed
+          last_contact_date field.
+        -->
 
         <!-- desktop col 1, mobile row 4 -->
         <div class="card card-recent-calls" id="recent-calls-card">

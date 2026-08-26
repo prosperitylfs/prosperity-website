@@ -262,6 +262,16 @@ async function saveCrmSection(event, key) {
       wireEmailButton(updated);
       wireSmsCompose(updated);
     }
+    // Marketing's edit panel now sits directly inside the Contact Info
+    // card, right next to the read-only SMS/Email Consent summary rows --
+    // refresh those too so they never look stale right after a save, and
+    // refresh the SMS composer's own consent gate (crm/public/contact.js's
+    // wireSmsCompose) since a consent change here can flip whether texting
+    // is currently allowed.
+    if (key === 'marketing') {
+      renderInfo(updated);
+      wireSmsCompose(updated);
+    }
     savedEl.classList.remove('hidden');
     setTimeout(() => savedEl.classList.add('hidden'), 2500);
   } catch (err) {
@@ -732,6 +742,7 @@ function renderInfo(contact) {
     ['Phone',          contact.phone     ? formatPhone(contact.phone)     : null, null],
     ['Alt Phone',      contact.alt_phone ? formatPhone(contact.alt_phone) : null, null],
     ['Lead Source',    contact.lead_source, null],
+    ['Email Consent',      contact.email_consent ? 'Yes' : 'No', null],
     ['SMS Consent',        contact.sms_consent ? 'Yes' : null, null],
     ['SMS Consent Source', contact.sms_consent_source, null],
     ['SMS Consent Date',   contact.sms_consent_at ? formatDate(contact.sms_consent_at, true) : null, null],
@@ -1456,6 +1467,19 @@ function renderTimelineView() {
     }
   }
 }
+
+// Compact edit-on-demand consent controls, now living inside the Contact
+// Info card (replaces the old standalone Marketing Permissions card).
+// Purely a show/hide toggle -- the panel's fields, ids, and Save Changes
+// button are unchanged, so saveCrmSection(event,'marketing') and
+// populateSections() (which already fill these same ids) require no
+// changes at all.
+document.getElementById('edit-permissions-toggle-btn')?.addEventListener('click', function () {
+  const panel = document.getElementById('marketing-edit-panel');
+  if (!panel) return;
+  const nowHidden = panel.classList.toggle('hidden');
+  this.textContent = nowHidden ? 'Edit Permissions' : 'Hide Permissions';
+});
 
 document.getElementById('timeline-toggle-btn')?.addEventListener('click', () => {
   timelineExpanded = !timelineExpanded;

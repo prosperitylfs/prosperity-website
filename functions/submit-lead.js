@@ -106,9 +106,17 @@ export async function onRequestPost(context) {
     return json({ error: 'Verification failed. Please refresh the page and try again.' }, 400);
   }
 
+  // CRM lead capture is important but must never become a revenue-blocking
+  // failure: a qualified prospect must always be able to reach scheduling.
+  // saveLeadToCRM() already logs the specific cause of a failure (missing
+  // credentials / a non-OK CRM response / a network error) above -- this is
+  // an additional, caller-level log line noting that the fail-safe kicked
+  // in, so a failed capture is still fully diagnosable later. The response
+  // to the browser is success either way, so the calling form (e.g.
+  // book.html) always proceeds to scheduling.
   const saved = await saveLeadToCRM(env, lead);
   if (!saved) {
-    return json({ error: 'Something went wrong. Please try again or call us at 414-441-1177.' }, 502);
+    console.error('[submit-lead] CRM lead save failed -- returning success to the browser anyway so scheduling is never blocked.');
   }
 
   return json({ ok: true }, 200);

@@ -359,9 +359,21 @@
         <!-- ── Activity Timeline ──────────────────────────────────────── -->
         <div class="card card-timeline" id="timeline-card">
           <h2 class="card-title">Activity Timeline</h2>
+          <!-- Filters only ever change what this SAME feed displays -- they
+               never call an API, and never touch stored activity. Shown
+               only once expanded. -->
+          <div class="calls-tabs hidden" id="timeline-filters">
+            <button type="button" class="calls-tab active" data-filter="all">All</button>
+            <button type="button" class="calls-tab" data-filter="calls">Calls</button>
+            <button type="button" class="calls-tab" data-filter="sms">SMS</button>
+            <button type="button" class="calls-tab" data-filter="email">Email</button>
+            <button type="button" class="calls-tab" data-filter="appointments">Appointments</button>
+            <button type="button" class="calls-tab" data-filter="tasks">Tasks</button>
+          </div>
           <div id="timeline-feed" class="tl-feed">
             <p class="text-muted tl-empty">Loading activity…</p>
           </div>
+          <button type="button" class="tl-toggle-btn hidden" id="timeline-toggle-btn"></button>
         </div>
 
         <!-- ── Follow-Up Tasks ─────────────────────────────────────────── -->

@@ -3717,6 +3717,20 @@ body {
 .tl-feed  { display: flex; flex-direction: column; gap: .375rem; }
 .tl-empty { padding: .5rem 0; }
 
+.tl-toggle-btn {
+  display: block;
+  margin-top: .625rem;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--purple);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.tl-toggle-btn:hover { text-decoration: underline; }
+
 /* Base card row */
 .tl-item {
   display: flex;

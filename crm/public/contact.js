@@ -1382,24 +1382,35 @@ const TL_META = {
   form:           { icon: '📋', cls: 'tl-form' },
 };
 
-function renderTimeline(items) {
-  const feed = document.getElementById('timeline-feed');
-  if (!feed) return;
-  if (!items || !items.length) {
-    feed.innerHTML = '<p class="text-muted tl-empty">No activity recorded yet.</p>';
-    return;
-  }
-  feed.innerHTML = items.map(item => {
-    const meta = TL_META[item.type] || { icon: '•', cls: 'tl-note' };
-    // Only calls, SMS, and email carry meaningful inbound/outbound color distinction.
-    // All other types use their own fixed color via CSS class.
-    const useDirCls = ['call', 'sms', 'email'].includes(item.type);
-    const dirCls = useDirCls
-      ? (item.direction === 'inbound' ? 'tl-inbound' : 'tl-outbound')
-      : '';
-    const desc = item.description
-      ? `<div class="tl-desc">${escHtml(item.description)}</div>` : '';
-    return `<div class="tl-item ${meta.cls} ${dirCls}">
+// Show only the 5 most recent entries by default; "View All Activity (X)"
+// expands to the full (already newest-first) list fetched from the server,
+// with optional type filters. Both the collapse/expand and the filter are
+// purely client-side view state over the SAME fetched array -- neither one
+// ever calls an API, and neither can modify, delete, or duplicate any
+// stored activity.
+const TL_FILTER_TYPES = {
+  all: null,
+  calls: ['call', 'missed_call', 'voicemail'],
+  sms: ['sms'],
+  email: ['email'],
+  appointments: ['appointment'],
+  tasks: ['task', 'task_completed'],
+};
+let timelineItems = [];
+let timelineExpanded = false;
+let timelineFilter = 'all';
+
+function renderTimelineItem(item) {
+  const meta = TL_META[item.type] || { icon: '•', cls: 'tl-note' };
+  // Only calls, SMS, and email carry meaningful inbound/outbound color distinction.
+  // All other types use their own fixed color via CSS class.
+  const useDirCls = ['call', 'sms', 'email'].includes(item.type);
+  const dirCls = useDirCls
+    ? (item.direction === 'inbound' ? 'tl-inbound' : 'tl-outbound')
+    : '';
+  const desc = item.description
+    ? `<div class="tl-desc">${escHtml(item.description)}</div>` : '';
+  return `<div class="tl-item ${meta.cls} ${dirCls}">
   <div class="tl-icon">${meta.icon}</div>
   <div class="tl-body">
     <div class="tl-row1">
@@ -1408,8 +1419,63 @@ function renderTimeline(items) {
     </div>${desc}
   </div>
 </div>`;
-  }).join('');
 }
+
+function renderTimeline(items) {
+  timelineItems = items || [];
+  renderTimelineView();
+}
+
+function renderTimelineView() {
+  const feed       = document.getElementById('timeline-feed');
+  const toggleBtn  = document.getElementById('timeline-toggle-btn');
+  const filtersEl  = document.getElementById('timeline-filters');
+  if (!feed) return;
+
+  const total = timelineItems.length;
+  const allowedTypes = TL_FILTER_TYPES[timelineFilter];
+  // Already newest-first (server-side ORDER BY timestamp DESC) -- filtering
+  // and slicing both preserve that order, never re-sort.
+  const filtered = allowedTypes ? timelineItems.filter(i => allowedTypes.includes(i.type)) : timelineItems;
+  const visible = timelineExpanded ? filtered : filtered.slice(0, 5);
+
+  if (!visible.length) {
+    feed.innerHTML = `<p class="text-muted tl-empty">${total ? 'No activity matches this filter.' : 'No activity recorded yet.'}</p>`;
+  } else {
+    feed.innerHTML = visible.map(renderTimelineItem).join('');
+  }
+
+  if (filtersEl) filtersEl.classList.toggle('hidden', !timelineExpanded);
+
+  if (toggleBtn) {
+    if (total > 5) {
+      toggleBtn.classList.remove('hidden');
+      toggleBtn.textContent = timelineExpanded ? 'Show Recent Activity' : `View All Activity (${total})`;
+    } else {
+      toggleBtn.classList.add('hidden');
+    }
+  }
+}
+
+document.getElementById('timeline-toggle-btn')?.addEventListener('click', () => {
+  timelineExpanded = !timelineExpanded;
+  // Collapsing back to "recent" always means the unfiltered 5 most recent
+  // entries, not "top 5 of whatever filter happened to be selected" --
+  // matches the required default behavior every time it collapses.
+  if (!timelineExpanded) {
+    timelineFilter = 'all';
+    document.querySelectorAll('#timeline-filters .calls-tab').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
+  }
+  renderTimelineView();
+});
+
+document.getElementById('timeline-filters')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.calls-tab');
+  if (!btn) return;
+  timelineFilter = btn.dataset.filter;
+  document.querySelectorAll('#timeline-filters .calls-tab').forEach(b => b.classList.toggle('active', b === btn));
+  renderTimelineView();
+});
 
 async function loadTimeline() {
   try {

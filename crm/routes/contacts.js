@@ -419,15 +419,36 @@ router.get('/:id', (req, res) => {
     console.log(`[contacts/:id] contact #${contact.id}: excluded ${emailExcluded} email record(s) from activity feed`);
   }
 
+  // Brand/company — read-only here; contact_brands remains the sole source
+  // of truth (no brand_slug/brand_name column exists on contacts itself).
+  // Only the ACTIVE relationship is surfaced, matching every other brand
+  // lookup in this codebase (e.g. crm/lib/taskCalendarSync.js's
+  // resolveTaskBrand). This route has no way to change it — see
+  // crm/lib/clientService.js's requestCompanyChange for the one approved,
+  // staged-review change path (not wired to this legacy page).
+  const brandRow = db.prepare(`
+    SELECT b.slug AS brand_slug, b.name AS brand_name
+    FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id
+    WHERE cb.contact_id = ? AND cb.status = 'Active'
+  `).get(contact.id);
+
   // Exclude the legacy contacts.notes TEXT column so it never collides with
   // the contact_notes array. Old records may have "[object Object]" stored there.
   const { notes: _legacyNotes, ...contactFields } = contact;
-  res.json({ ...contactFields, notes, communications });
+  res.json({
+    ...contactFields,
+    brand_slug: brandRow ? brandRow.brand_slug : null,
+    brand_name: brandRow ? brandRow.brand_name : null,
+    notes, communications,
+  });
 });
 
 // PATCH /api/contacts/:id — update contact fields
 router.patch('/:id', (req, res) => {
-  const contact = db.prepare('SELECT id FROM contacts WHERE id = ?').get(req.params.id);
+  // sms_consent is selected explicitly (not just id) so the consent-grant
+  // transition below can be detected against its value BEFORE this update
+  // applies — mirrors crm/lib/clientService.js's applyContactFields.
+  const contact = db.prepare('SELECT id, sms_consent FROM contacts WHERE id = ?').get(req.params.id);
   if (!contact) return res.status(404).json({ error: 'Not found' });
 
   const allowed = [
@@ -449,6 +470,14 @@ router.patch('/:id', (req, res) => {
     'number_of_children', 'number_of_grandchildren', 'family_notes',
     'occupation', 'employer', 'retirement_date_goal',
     'referred_by', 'best_time_to_contact', 'general_notes',
+    // relationship_type is intentionally separate from lead_type — see
+    // crm/lib/clientService.js's RELATIONSHIP_TYPES. brand/company is
+    // deliberately NOT in this list — it is never editable through this
+    // route (see the GET /:id comment above); sms_consent_at is also
+    // deliberately NOT in this list — it is only ever server-stamped below,
+    // never client-supplied, so an ordinary edit can never fabricate or
+    // silently overwrite the historical consent date.
+    'relationship_type', 'sms_consent_source', 'sms_consent_notes',
   ];
   const updates = {};
   for (const key of allowed) {
@@ -458,6 +487,29 @@ router.patch('/:id', (req, res) => {
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'No valid fields to update' });
   }
+
+  if (updates.relationship_type && !RELATIONSHIP_TYPES.includes(updates.relationship_type)) {
+    return res.status(400).json({ error: `relationship_type must be one of ${RELATIONSHIP_TYPES.join(', ')}` });
+  }
+
+  // SMS consent audit trail: sms_consent_at is stamped only at the exact
+  // moment sms_consent transitions from false to true through THIS request
+  // — never on a resend of an already-true value, never on an unrelated
+  // save that doesn't mention sms_consent at all (that key is simply absent
+  // from `updates`, per the tri-state allowed-field loop above), and never
+  // client-supplied. A consent source is required at that same transition,
+  // exactly as required for brand-new manual contacts.
+  const previouslyConsented = !!contact.sms_consent;
+  const grantingConsentNow = updates.sms_consent !== undefined && !!Number(updates.sms_consent) && !previouslyConsented;
+  if (grantingConsentNow && !updates.sms_consent_source) {
+    return res.status(400).json({ error: 'A consent source is required when SMS consent is granted.' });
+  }
+  // better-sqlite3 cannot bind a JS boolean directly — the existing frontend
+  // (public/contact.js) already sends 1/0 for these, but this route accepts
+  // whatever JSON a caller sends, so both are normalized the same way the
+  // POST handler above already does.
+  if (updates.sms_consent !== undefined)   updates.sms_consent   = updates.sms_consent   ? 1 : 0;
+  if (updates.email_consent !== undefined) updates.email_consent = updates.email_consent ? 1 : 0;
 
   if (updates.phone !== undefined) {
     const { display, e164 } = normalizePhone(updates.phone);
@@ -489,6 +541,14 @@ router.patch('/:id', (req, res) => {
 
   const setClauses = Object.keys(updates).filter(k => k !== 'id').map(k => `${k} = @${k}`).join(', ');
   db.prepare(`UPDATE contacts SET ${setClauses} WHERE id = @id`).run(updates);
+
+  // Separate statement (not folded into the dynamic SET above) so it always
+  // uses SQLite's own CURRENT_TIMESTAMP, matching the exact format/behavior
+  // already used by this route's POST handler and by
+  // crm/lib/clientService.js's applyContactFields for the new interface.
+  if (grantingConsentNow) {
+    db.prepare('UPDATE contacts SET sms_consent_at = CURRENT_TIMESTAMP WHERE id = ?').run(contact.id);
+  }
 
   res.json(db.prepare('SELECT * FROM contacts WHERE id = ?').get(contact.id));
 });

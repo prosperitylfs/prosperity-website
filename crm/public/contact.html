@@ -291,6 +291,17 @@
               <label class="crm-label" for="f-best_time_to_contact">Best Time To Contact</label>
               <input id="f-best_time_to_contact" type="text" class="crm-input" placeholder="e.g. Weekday mornings">
             </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-relationship_type">Relationship</label>
+              <select id="f-relationship_type" class="crm-select">
+                <option value="">— Select —</option>
+                <option value="lead">Lead / Prospect</option>
+                <option value="active_client">Active Client</option>
+                <option value="former_client">Former Client</option>
+                <option value="prior_applicant">Prior Applicant</option>
+                <option value="declined_applicant">Declined Applicant</option>
+              </select>
+            </div>
           </div>
           <div class="crm-footer">
             <button class="btn btn-primary crm-save-btn" onclick="saveCrmSection(event,'lead')">Save Changes</button>
@@ -313,6 +324,27 @@
                   <span>Email Consent</span>
                 </label>
               </div>
+            </div>
+            <div class="crm-field">
+              <label class="crm-label" for="f-sms_consent_source">SMS Consent Source <span class="hint">(required to turn SMS Consent on)</span></label>
+              <select id="f-sms_consent_source" class="crm-select">
+                <option value="">— Select —</option>
+                <option>Website Form</option>
+                <option>Phone – Renee</option>
+                <option>Phone – Jennifer</option>
+                <option>Existing Client – Prior Documented Consent</option>
+                <option>Inbound SMS</option>
+                <option>Verbal Consent</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="crm-field">
+              <label class="crm-label">SMS Consent Date</label>
+              <input id="f-sms_consent_at-display" type="text" class="crm-input" disabled placeholder="Not yet granted">
+            </div>
+            <div class="crm-field crm-field-full">
+              <label class="crm-label" for="f-sms_consent_notes">SMS Consent Notes</label>
+              <textarea id="f-sms_consent_notes" class="crm-input" rows="2"></textarea>
             </div>
           </div>
           <div class="crm-footer">

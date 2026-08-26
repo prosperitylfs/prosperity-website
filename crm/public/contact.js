@@ -144,11 +144,31 @@ const SECTIONS = {
     { id: 'f-lead_source',          key: 'lead_source',          type: 'text' },
     { id: 'f-referred_by',          key: 'referred_by',          type: 'text' },
     { id: 'f-best_time_to_contact', key: 'best_time_to_contact', type: 'text' },
+    // Separate from lead_type on purpose -- see crm/lib/clientService.js's
+    // RELATIONSHIP_TYPES. Never repurposes/removes lead_type.
+    { id: 'f-relationship_type',    key: 'relationship_type',    type: 'select' },
   ],
   marketing: [
-    { id: 'f-sms_consent',   key: 'sms_consent',   type: 'bool' },
-    { id: 'f-email_consent', key: 'email_consent', type: 'bool' },
+    { id: 'f-sms_consent',        key: 'sms_consent',        type: 'bool' },
+    { id: 'f-email_consent',      key: 'email_consent',      type: 'bool' },
+    { id: 'f-sms_consent_source', key: 'sms_consent_source', type: 'select' },
+    { id: 'f-sms_consent_notes',  key: 'sms_consent_notes',  type: 'text' },
+    // sms_consent_at is deliberately NOT listed here -- it is read-only
+    // (see f-sms_consent_at-display in contact.html, a disabled input with
+    // no `f-<key>` id match), server-stamped only, and populated separately
+    // in populateSections() below so it can never be part of a PATCH
+    // payload from this page.
   ],
+};
+
+// Human-readable labels for relationship_type -- must stay in sync with
+// crm/lib/clientService.js's RELATIONSHIP_TYPES and both Add Contact UIs.
+const RELATIONSHIP_LABELS = {
+  lead: 'Lead / Prospect',
+  active_client: 'Active Client',
+  former_client: 'Former Client',
+  prior_applicant: 'Prior Applicant',
+  declined_applicant: 'Declined Applicant',
 };
 
 // ─── Populate all section fields from a contact object ────────────────────────
@@ -171,6 +191,13 @@ function populateSections(contact) {
       }
     }
   }
+
+  // Read-only display only -- never part of any SECTIONS array, so it can
+  // never be sent back in a PATCH payload from this page. Reflects exactly
+  // what the server has stamped; blank/"Not yet granted" for a contact that
+  // has never had sms_consent turned on.
+  const consentAtEl = document.getElementById('f-sms_consent_at-display');
+  if (consentAtEl) consentAtEl.value = contact.sms_consent_at ? formatDate(contact.sms_consent_at, true) : '';
 }
 
 // ─── Personal & Family: live age preview while editing ────────────────────────
@@ -668,11 +695,16 @@ function renderInfo(contact) {
     : null;
 
   const fields = [
+    ['Company',        contact.brand_name,  null],
+    ['Relationship',   RELATIONSHIP_LABELS[contact.relationship_type] || null, null],
     ['Email',          contact.email,       emailGmailUrl],
     ['Phone',          contact.phone     ? formatPhone(contact.phone)     : null, null],
     ['Alt Phone',      contact.alt_phone ? formatPhone(contact.alt_phone) : null, null],
     ['Lead Source',    contact.lead_source, null],
-    ['SMS Consent',    contact.sms_consent        ? 'Yes' : null, null],
+    ['SMS Consent',        contact.sms_consent ? 'Yes' : null, null],
+    ['SMS Consent Source', contact.sms_consent_source, null],
+    ['SMS Consent Date',   contact.sms_consent_at ? formatDate(contact.sms_consent_at, true) : null, null],
+    ['SMS Consent Notes',  contact.sms_consent_notes, null],
     ['Appt Booked',    contact.appointment_booked ? 'Yes' : null, null],
     ['Appt Date',      contact.appointment_date,  null],
     ['Last Contacted', contact.last_contacted,    null],

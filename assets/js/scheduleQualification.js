@@ -36,6 +36,18 @@ function isRetirementEligibleAmount(amount) {
   return typeof amount === 'number' && isFinite(amount) && amount >= RETIREMENT_MIN_AMOUNT;
 }
 
+// Cal.com's "Attendee phone number" LOCATION field already applies the
+// selected country code (+1 for a US-configured event) on its own side --
+// prefilling optionValue with the full +1E.164 string double-applies it,
+// displaying "+1 1 414 688 7619". optionValue must receive just the
+// 10-digit national number instead. This ONLY affects what's sent to
+// Cal.com's location payload -- the +1E.164 value itself (schContact.phone,
+// CRM storage/submission, etc.) is untouched; this function only strips a
+// leading "+1" from its own local copy when building optionValue.
+function stripUsCountryCodeForCalcomLocation(e164Phone) {
+  return String(e164Phone || '').replace(/^\+1(\d{10})$/, '$1');
+}
+
 // Builds the query string appended to a Cal.com event URL for the
 // name/email/phone prefill schedule.html uses on every redirect (Life
 // Insurance and both Safe Money & Retirement outcomes alike).
@@ -47,15 +59,18 @@ function isRetirementEligibleAmount(amount) {
 // attendeePhoneNumber only prefills the latter, so it silently did nothing
 // on this page. Cal.com's documented mechanism for a phone-type location
 // (cal.com/help/bookings/prefill-fields) is a single JSON-encoded
-// `location` parameter: {"value":"phone","optionValue":"<E.164 number>"}.
+// `location` parameter: {"value":"phone","optionValue":"<national number>"}
+// -- see stripUsCountryCodeForCalcomLocation() above for why optionValue is
+// the 10-digit number, not the full +1E.164 string.
 //
 // `phone` must already be a normalized +1E.164 string (see toE164() in
-// assets/js/main.v2.js) -- this function does not validate or reformat it.
+// assets/js/main.v2.js) -- this function does not validate or reformat it
+// beyond stripping the country code for the location payload specifically.
 function buildCalcomPrefillQuery(fields) {
   return new URLSearchParams({
     name: fields.firstName + ' ' + fields.lastName,
     email: fields.email,
-    location: JSON.stringify({ value: 'phone', optionValue: fields.phone }),
+    location: JSON.stringify({ value: 'phone', optionValue: stripUsCountryCodeForCalcomLocation(fields.phone) }),
   }).toString();
 }
 
@@ -65,10 +80,11 @@ if (typeof window !== 'undefined') {
   window.isRetirementEligibleAmount = isRetirementEligibleAmount;
   window.RETIREMENT_MIN_AMOUNT = RETIREMENT_MIN_AMOUNT;
   window.buildCalcomPrefillQuery = buildCalcomPrefillQuery;
+  window.stripUsCountryCodeForCalcomLocation = stripUsCountryCodeForCalcomLocation;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     parseDollarAmount, formatDollar, isRetirementEligibleAmount, RETIREMENT_MIN_AMOUNT,
-    buildCalcomPrefillQuery,
+    buildCalcomPrefillQuery, stripUsCountryCodeForCalcomLocation,
   };
 }

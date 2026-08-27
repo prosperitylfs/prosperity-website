@@ -504,10 +504,11 @@
       // this runs.
       //
       // calcomUrl: a URL redirects to Cal.com after capture (with the same
-      // name/email/attendeePhoneNumber prefill used by the Life Insurance
-      // path); null shows the not-eligible closing message instead -- no
-      // appointment, no Cal.com, and (per the current approved design) no
-      // automatic guide offer from this page.
+      // name/email/phone prefill built by buildCalcomPrefillQuery(), used
+      // for both the Life Insurance and Retirement paths); null shows the
+      // not-eligible closing message instead -- no appointment, no
+      // Cal.com, and (per the current approved design) no automatic guide
+      // offer from this page.
       async function schSubmitLead(leadType, extraFields, calcomUrl) {
         var btn = document.activeElement && document.activeElement.tagName === 'BUTTON' ? document.activeElement : null;
         var origLabel = btn ? btn.textContent : '';
@@ -542,11 +543,16 @@
 
         if (calcomUrl) {
           schShowStep('sch-step-redirect');
-          var qs = new URLSearchParams({
-            name: schContact.fname + ' ' + schContact.lname,
+          // buildCalcomPrefillQuery() comes from
+          // assets/js/scheduleQualification.js (loaded above) -- see that
+          // file's own comment for why phone is passed via `location`
+          // rather than `attendeePhoneNumber`.
+          var qs = buildCalcomPrefillQuery({
+            firstName: schContact.fname,
+            lastName: schContact.lname,
             email: schContact.email,
-            attendeePhoneNumber: schContact.phone,
-          }).toString();
+            phone: schContact.phone,
+          });
           setTimeout(function () {
             window.location.href = calcomUrl + '?' + qs;
           }, 1200);

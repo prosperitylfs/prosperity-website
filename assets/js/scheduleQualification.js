@@ -36,12 +36,39 @@ function isRetirementEligibleAmount(amount) {
   return typeof amount === 'number' && isFinite(amount) && amount >= RETIREMENT_MIN_AMOUNT;
 }
 
+// Builds the query string appended to a Cal.com event URL for the
+// name/email/phone prefill schedule.html uses on every redirect (Life
+// Insurance and both Safe Money & Retirement outcomes alike).
+//
+// Phone is passed via the `location` parameter, not `attendeePhoneNumber`:
+// both Prosperity Cal.com events use "Attendee phone number" as the event
+// LOCATION (confirmed identical to the working Insurance Lady reference),
+// not the separate, toggled-off "Phone number" booking question --
+// attendeePhoneNumber only prefills the latter, so it silently did nothing
+// on this page. Cal.com's documented mechanism for a phone-type location
+// (cal.com/help/bookings/prefill-fields) is a single JSON-encoded
+// `location` parameter: {"value":"phone","optionValue":"<E.164 number>"}.
+//
+// `phone` must already be a normalized +1E.164 string (see toE164() in
+// assets/js/main.v2.js) -- this function does not validate or reformat it.
+function buildCalcomPrefillQuery(fields) {
+  return new URLSearchParams({
+    name: fields.firstName + ' ' + fields.lastName,
+    email: fields.email,
+    location: JSON.stringify({ value: 'phone', optionValue: fields.phone }),
+  }).toString();
+}
+
 if (typeof window !== 'undefined') {
   window.parseDollarAmount = parseDollarAmount;
   window.formatDollar = formatDollar;
   window.isRetirementEligibleAmount = isRetirementEligibleAmount;
   window.RETIREMENT_MIN_AMOUNT = RETIREMENT_MIN_AMOUNT;
+  window.buildCalcomPrefillQuery = buildCalcomPrefillQuery;
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { parseDollarAmount, formatDollar, isRetirementEligibleAmount, RETIREMENT_MIN_AMOUNT };
+  module.exports = {
+    parseDollarAmount, formatDollar, isRetirementEligibleAmount, RETIREMENT_MIN_AMOUNT,
+    buildCalcomPrefillQuery,
+  };
 }

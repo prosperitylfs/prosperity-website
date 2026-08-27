@@ -1,333 +1,90 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Book a Free Consultation — Prosperity Life &amp; Financial Solutions</title>
+  <title>Schedule Your Free Consultation — Prosperity Life &amp; Financial Solutions</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css?v=2">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <meta name="description" content="Schedule a free, no-obligation Financial Clarity Review with Loretta Stewart. Retirement planning, annuities, life insurance, and rollovers for adults 45+.">
+  <meta name="description" content="Schedule a free consultation with Loretta Stewart at Prosperity Life & Financial Solutions — Life Insurance or Safe Money & Retirement strategies.">
   <style>
-    /* ── 7-step survey funnel ── */
-    .funnel-progress {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      margin-bottom: 28px;
-    }
-    .funnel-bar-wrap {
-      flex: 1;
-      height: 6px;
-      background: #e4dff0;
-      border-radius: 99px;
-      overflow: hidden;
-    }
-    .funnel-bar {
-      height: 100%;
-      background: var(--purple, #4e2c94);
-      border-radius: 99px;
-      transition: width 0.35s ease;
-    }
-    .funnel-step-label {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--purple, #4e2c94);
-      white-space: nowrap;
-      margin-left: 12px;
-    }
+    /* Subset of schedule.html's step-flow styles this page needs — kept
+       page-local exactly like schedule.html/life-insurance.html/
+       life-insurance-qualifier.html already do (none of this lives in the
+       shared assets/css/style.css). */
+    .funnel-progress { display: flex; align-items: center; gap: 0; margin-bottom: 28px; }
+    .funnel-bar-wrap { flex: 1; height: 6px; background: #e4dff0; border-radius: 99px; overflow: hidden; }
+    .funnel-bar { height: 100%; background: var(--purple, #4e2c94); border-radius: 99px; transition: width 0.35s ease; }
+    .funnel-step-label { font-size: 0.78rem; font-weight: 600; color: var(--purple, #4e2c94); white-space: nowrap; margin-left: 12px; }
 
     .form-step { animation: fadeStep 0.25s ease; }
     @keyframes fadeStep { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-    .step-heading {
-      font-size: 1.18rem;
-      font-weight: 700;
-      color: var(--purple-dark, #3a1f70);
-      margin: 0 0 6px;
-    }
-    .step-sub {
-      font-size: 0.88rem;
-      color: #666;
-      margin: 0 0 20px;
-    }
-
-    /* Survey choice buttons (single-select) */
-    .survey-choices {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 4px;
-    }
-    .survey-btn {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      width: 100%;
-      padding: 13px 16px;
-      background: #fff;
-      border: 2px solid #ddd;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      font-weight: 500;
-      color: #333;
-      cursor: pointer;
-      text-align: left;
-      transition: border-color 0.2s, background 0.2s, color 0.2s;
-    }
-    .survey-btn:hover {
-      border-color: var(--purple, #4e2c94);
-      background: #f7f4fd;
-    }
-    .survey-btn.selected {
-      border-color: var(--purple, #4e2c94);
-      background: var(--purple, #4e2c94);
-      color: #fff;
-    }
-    .survey-btn .btn-icon {
-      font-size: 1.1rem;
-      flex-shrink: 0;
-    }
-
-    /* Multi-select pills (step 5) */
-    .survey-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 4px;
-    }
-    .survey-pill {
-      padding: 9px 16px;
-      background: #fff;
-      border: 2px solid #ddd;
-      border-radius: 99px;
-      font-size: 0.88rem;
-      font-weight: 500;
-      color: #333;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s, color 0.2s;
-      user-select: none;
-    }
-    .survey-pill:hover { border-color: var(--purple, #4e2c94); background: #f7f4fd; }
-    .survey-pill.selected {
-      border-color: var(--purple, #4e2c94);
-      background: var(--purple, #4e2c94);
-      color: #fff;
-    }
-
-    /* Step nav */
-    .step-nav { margin-top: 24px; }
-    .step-nav-row { display: flex; gap: 12px; align-items: center; }
-    .btn-back {
-      background: none;
-      border: 1.5px solid #ccc;
-      color: #666;
-      padding: 11px 20px;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: border-color 0.2s, color 0.2s;
-      white-space: nowrap;
-    }
-    .btn-back:hover { border-color: var(--purple, #4e2c94); color: var(--purple, #4e2c94); }
-    .btn-next-step {
-      flex: 1;
-      padding: 13px 20px;
-      background: var(--green, #38bf72);
-      border: none;
-      border-radius: 8px;
-      color: #fff;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .btn-next-step:hover { background: var(--green-dark, #2a9a5a); }
-
+    .step-heading { font-size: 1.18rem; font-weight: 700; color: var(--purple-dark, #3a1f70); margin: 0 0 6px; }
+    .step-sub { font-size: 0.88rem; color: #666; margin: 0 0 20px; }
     .step-error { color: #c0392b; font-size: 0.85rem; margin-top: 10px; display: none; }
     .req { color: #c0392b; }
 
-    /* Step 1 contact fields */
-    .sms-consent-group { margin-top: 16px; }
-    .sms-consent {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      font-size: 12px;
-      line-height: 1.5;
-      color: #444;
-      cursor: pointer;
+    .topic-cat-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--purple, #4e2c94); background: #ede8f7; display: inline-block;
+      padding: 4px 10px; border-radius: 4px; margin-bottom: 10px;
     }
+
+    .survey-choices { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+    .survey-btn {
+      display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px;
+      background: #fff; border: 2px solid #ddd; border-radius: 10px; font-size: 0.95rem;
+      font-weight: 500; color: #333; cursor: pointer; text-align: left;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+    }
+    .survey-btn:hover { border-color: var(--purple, #4e2c94); background: #f7f4fd; }
+    .survey-btn.selected { border-color: var(--purple, #4e2c94); background: var(--purple, #4e2c94); color: #fff; }
+
+    .step-nav { margin-top: 24px; }
+    .step-nav-row { display: flex; gap: 12px; align-items: center; }
+    .btn-back {
+      background: none; border: 1.5px solid #ccc; color: #666; padding: 11px 20px;
+      border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      transition: border-color 0.2s, color 0.2s; white-space: nowrap;
+    }
+    .btn-back:hover { border-color: var(--purple, #4e2c94); color: var(--purple, #4e2c94); }
+    .btn-next-step {
+      flex: 1; padding: 13px 20px; background: var(--green, #38bf72); border: none;
+      border-radius: 8px; color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-next-step:hover { background: var(--green-dark, #2a9a5a); }
+    .btn-next-step:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .sms-consent-group { margin-top: 16px; }
+    .sms-consent { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5; color: #444; cursor: pointer; }
     .sms-consent input[type="checkbox"] {
-      appearance: checkbox;
-      -webkit-appearance: checkbox;
-      width: 14px !important;
-      height: 14px !important;
-      min-width: 14px !important;
-      max-width: 14px !important;
-      margin-top: 2px;
-      flex-shrink: 0;
-      opacity: 1 !important;
-      position: static !important;
-      cursor: pointer;
+      appearance: checkbox; -webkit-appearance: checkbox; width: 14px !important; height: 14px !important;
+      min-width: 14px !important; max-width: 14px !important; margin-top: 2px; flex-shrink: 0;
+      opacity: 1 !important; position: static !important; cursor: pointer;
     }
     .sms-consent span { display: inline; }
 
-    /* Multi-question step layout */
-    .step-section-label {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--purple, #4e2c94);
-      background: #ede8f7;
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 4px;
-      margin-bottom: 20px;
-    }
-    .step-question { margin-top: 28px; padding-top: 24px; border-top: 1px solid #ede9f6; }
-    .step-question:first-child { margin-top: 0; padding-top: 0; border-top: none; }
-    .step-question .step-heading { margin-bottom: 14px; }
-    .step-optional {
-      display: inline-block;
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: #888;
-      background: #f0f0f0;
-      border-radius: 4px;
-      padding: 2px 7px;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-
-    /* Height selects */
-    .height-selects { display: flex; gap: 10px; }
-    .height-selects select { flex: 1; }
-
-    /* Topic multi-select checkboxes (Step 2) */
-    .topic-check-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
-    .topic-check-sub { display: block; font-size: 0.78rem; font-weight: 400; opacity: 0.82; margin-top: 3px; line-height: 1.4; }
-    .topic-check-label {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      width: 100%;
-      padding: 13px 16px;
-      background: #fff;
-      border: 2px solid #ddd;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      font-weight: 500;
-      color: #333;
-      cursor: pointer;
-      text-align: left;
-      transition: border-color 0.2s, background 0.2s, color 0.2s;
-      user-select: none;
-      box-sizing: border-box;
-    }
-    .topic-check-label:hover { border-color: var(--purple, #4e2c94); background: #f7f4fd; }
-    .topic-check-label.selected {
-      border-color: var(--purple, #4e2c94);
-      background: var(--purple, #4e2c94);
-      color: #fff;
-    }
-    .topic-check-label input[type="checkbox"] {
-      position: absolute;
-      opacity: 0;
-      width: 0;
-      height: 0;
-      pointer-events: none;
-    }
-    .topic-check-mark {
-      margin-left: auto;
-      width: 20px;
-      height: 20px;
-      border-radius: 4px;
-      border: 2px solid #ccc;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: border-color 0.2s, background 0.2s;
-      font-size: 0.75rem;
-      color: transparent;
-    }
-    .topic-check-label.selected .topic-check-mark {
-      border-color: rgba(255,255,255,0.6);
-      background: rgba(255,255,255,0.2);
-      color: #fff;
-    }
-    .topic-cat-label {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--purple, #4e2c94);
-      background: #ede8f7;
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 4px;
-      margin-bottom: 10px;
-    }
-
-    /* GoHighLevel survey card styling */
     .book-form-wrap {
-      padding: 18px 18px 14px;
-      background: #fff;
-      border: 1.5px solid rgba(0,0,0,0.08);
-      border-top: 3px solid #4e2c94;
-      border-radius: 20px;
-      box-shadow: 0 16px 38px rgba(0,0,0,0.08);
+      padding: 18px 18px 14px; background: #fff; border: 1.5px solid rgba(0,0,0,0.08);
+      border-top: 3px solid #4e2c94; border-radius: 20px; box-shadow: 0 16px 38px rgba(0,0,0,0.08);
       box-sizing: border-box;
     }
-    .book-calendar-card {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 0;
-      background: transparent;
-      border-radius: 0;
-      box-shadow: none;
-    }
-    .ghl-card-header {
-      padding: 0;
-      margin: 0;
-    }
-    .ghl-card-header h2 {
-      margin: 0 0 6px;
-      font-size: 1.65rem;
-      line-height: 1.15;
-      color: var(--purple-dark, #3a1f70);
-    }
-    .ghl-card-header p {
-      margin: 0;
-      color: #5a5a5a;
-      font-size: 1rem;
-      line-height: 1.75;
-    }
-    @media (max-width: 960px) {
-      .book-layout {
-        grid-template-columns: 1fr !important;
-      }
-      .book-form-wrap {
-        position: static !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 18px 0 0 !important;
-        padding: 14px !important;
-        box-shadow: 0 10px 28px rgba(0,0,0,0.06) !important;
-      }
-      .book-calendar-card {
-        gap: 10px !important;
-      }
-    }
+    .book-calendar-card { display: flex; flex-direction: column; gap: 10px; padding: 0; background: transparent; border-radius: 0; box-shadow: none; }
+    .ghl-card-header { padding: 0; margin: 0; }
+    .ghl-card-header h2 { margin: 0 0 6px; font-size: 1.5rem; line-height: 1.15; color: var(--purple-dark, #3a1f70); }
+    .ghl-card-header p { margin: 0; color: #5a5a5a; font-size: 1rem; line-height: 1.6; }
 
+    .book-dynamic-content { display: none; }
+    .book-dynamic-content.active { display: block; }
+
+    @media (max-width: 640px) {
+      .book-form-wrap { padding: 14px !important; box-shadow: 0 10px 28px rgba(0,0,0,0.06) !important; }
+    }
   </style>
 </head>
 <body>
@@ -386,216 +143,247 @@
   <section class="page-hero">
     <div class="container page-hero-inner">
       <div class="page-hero-tag">Free Consultation</div>
-      <h1>Schedule Your 30-Minute Retirement Consultation</h1>
-      <p>In this brief 30-minute consultation, we&rsquo;ll discuss your current retirement situation, your goals, and the questions you&rsquo;d like to address.</p>
+      <h1>Schedule Your Free Consultation</h1>
+      <p>Let us know what you&rsquo;d like help with, answer a few brief questions, and we&rsquo;ll help you schedule a time to talk if it&rsquo;s a good fit.</p>
     </div>
   </section>
 
   <main>
     <div class="container book-layout">
 
-      <!-- Left: Info sections -->
+      <!-- Left: dynamic supporting content, switches based on the service
+           chosen in the form on the right. All three blocks are always in
+           the DOM; book-content-general is a fallback if no group is
+           active AND the general one is left visible by default. -->
       <div class="book-why">
 
-        <div class="content-section">
-          <p>This is a relaxed, no-pressure 30-minute conversation designed to understand your retirement situation and answer your most pressing questions. There is no sales pitch and no obligation to take any action afterward.</p>
-          <p>If it looks like there are strategies that could help you, we can schedule a more detailed full strategy review at no cost.</p>
-        </div>
-
-        <div class="content-section">
-          <h2>Who This Is For</h2>
-          <ul class="check-list">
-            <li>Adults planning for retirement or already retired who want clear, professional guidance</li>
-            <li>Individuals with at least $25,000 in retirement accounts, savings, CDs, or other assets they are willing to review for long-term planning</li>
-            <li>People considering rollovers from 401(k), 403(b), 457, TSP, or IRA, or other retirement accounts</li>
-            <li>Anyone wanting a second opinion before making an important retirement decision</li>
-          </ul>
-        </div>
-
-        <div class="content-section">
-          <h2>What to Expect During the Consultation</h2>
-          <ul class="check-list">
-            <li>A brief review of your current retirement accounts, savings, or income sources</li>
-            <li>A conversation about your goals, concerns, and the topic you selected</li>
-            <li>General discussion of possible options and whether further review may be appropriate</li>
-            <li>A decision about whether working together makes sense</li>
-          </ul>
-          <div class="highlight-box" style="margin-top:20px;">
-            <p><strong>Second Opinion Reviews:</strong> If you are currently working with another advisor and would like a formal second opinion, a separate paid review may be required.</p>
+        <div id="book-content-general" class="book-dynamic-content active">
+          <div class="content-section">
+            <p>This is a relaxed, no-pressure conversation to help you understand your options. Let us know what you&rsquo;d like help with, and we&rsquo;ll walk you through what your consultation will cover.</p>
           </div>
         </div>
 
-        <div class="content-section">
-          <h2>Before Scheduling</h2>
-          <p>You don&rsquo;t need to prepare anything formal. It helps to have a general sense of:</p>
-          <ul class="check-list">
-            <li>What retirement accounts or savings you currently have</li>
-            <li>Roughly when you plan to retire (or when you did)</li>
-            <li>Any specific questions or concerns you&rsquo;d like to address</li>
-          </ul>
-          <p style="margin-top:14px;">If you don&rsquo;t have all of this ready, that&rsquo;s completely fine &mdash; we can work with whatever information you have.</p>
+        <div id="book-content-life" class="book-dynamic-content">
+          <div class="content-section">
+            <h2>Who Would Benefit From a Life Insurance Consultation?</h2>
+            <ul class="check-list">
+              <li>Families who want to make sure their loved ones are financially protected</li>
+              <li>People who need Final Expense or Whole Life coverage</li>
+              <li>Individuals interested in cash-building life insurance strategies</li>
+              <li>People interested in Living Benefits</li>
+              <li>Individuals with health concerns or a previous decline who want to explore available options</li>
+              <li>People who already have coverage but want to make sure it still fits their needs</li>
+              <li>Parents or grandparents interested in coverage for children or grandchildren</li>
+            </ul>
+          </div>
+
+          <div class="content-section">
+            <h2>What to Expect During Your Consultation</h2>
+            <ul class="check-list">
+              <li>Who or what you want to protect</li>
+              <li>Your coverage goals</li>
+              <li>Your budget</li>
+              <li>Any coverage you currently have</li>
+              <li>Some basic, relevant health information</li>
+              <li>A discussion of coverage options that may fit your situation</li>
+              <li>An opportunity to determine whether there&rsquo;s a good fit and whether it makes sense to work together</li>
+            </ul>
+          </div>
+
+          <div class="content-section">
+            <h2>You May Not Need an Appointment</h2>
+            <p>Prefer to shop online? Shop, compare, and apply online through Insurance Lady LLC with Loretta Stewart &mdash; The Insurance Lady herself. You&rsquo;ll still receive the same trusted guidance, just with the convenience of shopping online.</p>
+            <a class="btn btn-amber" href="https://www.insuranceladyllc.com/shop-compare-apply-online" target="_blank" rel="noopener" style="margin-top:8px;">Shop, Compare &amp; Apply Online &rarr;</a>
+          </div>
+        </div>
+
+        <div id="book-content-retirement" class="book-dynamic-content">
+          <div class="content-section">
+            <h2>Who Would Benefit From a Safe Money &amp; Retirement Consultation?</h2>
+            <ul class="check-list">
+              <li>People approaching retirement, or already retired, who are seriously considering their options</li>
+              <li>Individuals with money in a 401(k), 403(b), TSP, IRA, CD, savings, annuity, or other retirement account</li>
+              <li>People considering a rollover after retiring, changing jobs, or leaving an employer</li>
+              <li>Individuals concerned about protecting their savings from market losses</li>
+              <li>People interested in reliable retirement income</li>
+              <li>Individuals exploring annuities or other safe-money strategies</li>
+              <li>People ready to evaluate whether one of these strategies may be right for them</li>
+            </ul>
+          </div>
+
+          <div class="content-section">
+            <h2>What to Expect During Your Consultation</h2>
+            <ul class="check-list">
+              <li>A discussion of your current retirement situation</li>
+              <li>Your goals, concerns, and timeframe</li>
+              <li>A review of the funds you&rsquo;re considering protecting or repositioning</li>
+              <li>An explanation of strategies that may be appropriate for your situation</li>
+              <li>An opportunity to determine whether there&rsquo;s a good fit and whether it makes sense to work together</li>
+            </ul>
+          </div>
+
+          <div class="content-section">
+            <h2>Before Scheduling</h2>
+            <ol style="margin:0; padding-left:20px; display:flex; flex-direction:column; gap:14px; color:var(--text-muted,#555); font-size:0.97rem; line-height:1.65;">
+              <li><strong>Recent Statement.</strong> Have a recent statement available for the retirement account, savings, CD, annuity, or other funds you&rsquo;d like to discuss, so you know the current amount rather than guessing. You don&rsquo;t need to upload anything when scheduling &mdash; just have it available for your consultation.</li>
+              <li><strong>Retirement Timeframe.</strong> Know when you plan to retire, or when you retired if you&rsquo;re already retired.</li>
+              <li><strong>Goal.</strong> Be ready to discuss what you&rsquo;d like the money to accomplish &mdash; for example, protecting principal, creating retirement income, reducing market exposure, or long-term growth.</li>
+            </ol>
+          </div>
+
+          <div class="content-section">
+            <h2>Complete Your Online Retirement Intake Form</h2>
+            <p>After you book your appointment, you&rsquo;ll receive a link to a brief online Retirement Intake Form. It&rsquo;s completed electronically &mdash; there&rsquo;s nothing to print, download, mail, or email. Your information goes directly into our system so Loretta can review it and prepare for your consultation.</p>
+            <div class="highlight-box" style="margin-top:16px;">
+              <p><strong>Please submit your completed intake form at least 2 hours before your scheduled appointment.</strong> If it hasn&rsquo;t been received by then, we&rsquo;ll need to reschedule your appointment so there&rsquo;s enough time to prepare.</p>
+            </div>
+          </div>
+
+          <p style="font-size:0.85rem; color:#777; font-style:italic; margin:4px 0 0;">This consultation is intended for individuals actively exploring retirement or safe-money solutions. It is not intended for general financial-information requests.</p>
         </div>
 
       </div>
 
-      <!-- Right: Multi-step booking form -->
+      <!-- Right: universal scheduler, reused verbatim (ids/functions) from
+           the already-tested schedule.html so this page never re-implements
+           the approved qualification/CRM/Cal.com behavior. -->
       <div class="book-form-wrap">
         <div class="book-calendar-card">
 
-          <!-- Card header -->
           <div class="ghl-card-header">
-            <h2>Get Started With Your Free Review</h2>
-            <p>Three quick steps &mdash; takes about 60 seconds.</p>
+            <h2>Get Started</h2>
+            <p>Takes about 30 seconds.</p>
           </div>
 
-          <!-- Progress bar -->
           <div class="funnel-progress">
-            <div class="funnel-bar-wrap"><div class="funnel-bar" id="book-bar" style="width:33%;"></div></div>
-            <span class="funnel-step-label" id="book-step-label">Step 1 of 3</span>
+            <div class="funnel-bar-wrap"><div class="funnel-bar" id="sch-bar" style="width:50%;"></div></div>
+            <span class="funnel-step-label" id="sch-step-label">Step 1 of 2</span>
           </div>
 
           <form class="book-form" novalidate onsubmit="return false;">
 
-            <!-- ══ STEP 1: Contact Info + SMS Consent ══ -->
-            <div id="book-step-1" class="form-step">
-              <h3 class="step-heading">Your Contact Information</h3>
+            <!-- ══ STEP 1: Contact Info + What do you need help with? ══ -->
+            <div id="sch-step-1" class="form-step">
+              <h3 class="step-heading">Your Information</h3>
               <p class="step-sub">We&rsquo;ll use these details to confirm your appointment.</p>
 
               <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
                 <div style="flex:1; min-width:120px;">
-                  <label class="form-label" for="bk-fname">First Name <span class="req">*</span></label>
-                  <input type="text" id="bk-fname" placeholder="Jane" autocomplete="given-name">
+                  <label class="form-label" for="sch-fname">First Name <span class="req">*</span></label>
+                  <input type="text" id="sch-fname" placeholder="Jane" autocomplete="given-name">
                 </div>
                 <div style="flex:1; min-width:120px;">
-                  <label class="form-label" for="bk-lname">Last Name <span class="req">*</span></label>
-                  <input type="text" id="bk-lname" placeholder="Smith" autocomplete="family-name">
+                  <label class="form-label" for="sch-lname">Last Name <span class="req">*</span></label>
+                  <input type="text" id="sch-lname" placeholder="Smith" autocomplete="family-name">
                 </div>
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="bk-phone">Phone Number <span class="req">*</span></label>
-                <input type="tel" id="bk-phone" placeholder="(414) 555-0100" autocomplete="tel">
+                <label class="form-label" for="sch-email">Email Address <span class="req">*</span></label>
+                <input type="email" id="sch-email" placeholder="jane@example.com" autocomplete="email">
+                <p id="sch-email-err" class="form-error-message" style="display:none;"></p>
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="bk-email">Email Address <span class="req">*</span></label>
-                <input type="email" id="bk-email" placeholder="jane@example.com" autocomplete="email">
-                <p id="bk-email-err" class="form-error-message" style="display:none;"></p>
+                <label class="form-label" for="sch-phone">Phone Number <span class="req">*</span></label>
+                <input type="tel" id="sch-phone" placeholder="(414) 555-0100" autocomplete="tel">
               </div>
 
-              <!-- Cloudflare Turnstile bot-check widget. renderTurnstileWidgets()
-                   (assets/js/main.v2.js) renders it and unlocks the "Next"
-                   button below once verification succeeds. data-turnstile-button
-                   is needed here because this page has no native form submit —
-                   navigation is button-driven. -->
-              <div class="cf-turnstile-widget" data-turnstile data-turnstile-button="#bk-next-1-btn"></div>
+              <div style="margin-top:18px;">
+                <span class="topic-cat-label">What would you like help with? <span class="req">*</span></span>
+                <div class="survey-choices" id="sch-service-group">
+                  <button type="button" class="survey-btn" data-group="sch-service" data-value="Life Insurance" onclick="schSelectSurvey(this); bookUpdateSupportingContent(this.dataset.value);">Life Insurance</button>
+                  <button type="button" class="survey-btn" data-group="sch-service" data-value="Safe Money &amp; Retirement" onclick="schSelectSurvey(this); bookUpdateSupportingContent(this.dataset.value);">Safe Money &amp; Retirement</button>
+                </div>
+                <input type="hidden" id="sch-service" value="">
+              </div>
+
+              <!-- Cloudflare Turnstile — same widget/pattern as schedule.html,
+                   life-insurance.html, life-insurance-qualifier.html.
+                   renderTurnstileWidgets() (assets/js/main.v2.js) renders it
+                   and unlocks the Continue button once verification
+                   succeeds. -->
+              <div class="cf-turnstile-widget" data-turnstile data-turnstile-button="#sch-next-1-btn" style="margin-top:16px;"></div>
 
               <div class="sms-consent-group">
                 <label class="sms-consent">
-                  <input type="checkbox" id="bk-terms-consent">
+                  <input type="checkbox" id="sch-terms-consent">
                   <span>I agree to the <a href="/privacy-policy">Privacy Policy</a> and <a href="/terms-and-conditions">Terms &amp; Conditions</a> and consent to being contacted by Prosperity Life &amp; Financial Solutions regarding my request or appointment.</span>
                 </label>
               </div>
 
               <div class="sms-consent-group">
                 <label class="sms-consent">
-                  <input type="checkbox" id="bk-sms-consent">
+                  <input type="checkbox" id="sch-sms-consent">
                   <span>I agree to receive SMS messages from Prosperity Life &amp; Financial Solutions regarding appointment scheduling, reminders, and occasional updates. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out.</span>
                 </label>
               </div>
 
               <div class="step-nav">
                 <div class="step-nav-row">
-                  <button type="button" id="bk-next-1-btn" class="btn-next-step" onclick="bookNext(1)" disabled>Next: Your Retirement Goals &rarr;</button>
+                  <button type="button" id="sch-next-1-btn" class="btn-next-step" onclick="schContinueStep1()" disabled>Continue &rarr;</button>
                 </div>
               </div>
-              <p id="bk-err-1" class="step-error"></p>
+              <p id="sch-err-1" class="step-error"></p>
             </div><!-- /step-1 -->
 
-            <!-- ══ STEP 2: Retirement Questions ══ -->
-            <div id="book-step-2" class="form-step" style="display:none;">
-              <h3 class="step-heading">A Few Quick Questions</h3>
-              <p class="step-sub">This helps Loretta prepare for your consultation.</p>
+            <!-- ══ STEP 2a: Retirement/savings asset amount (Safe Money & Retirement only) ══ -->
+            <div id="sch-step-amount" class="form-step" style="display:none;">
+              <h3 class="step-heading">One Quick Question</h3>
+              <p class="step-sub">This helps us make sure we connect you with the right next step.</p>
 
-              <!-- Topics: multi-select checkboxes -->
-              <span class="topic-cat-label">What would you like to discuss? <span class="req">*</span></span>
-              <div class="topic-check-group" id="bk-topic-group">
-                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
-                  <span>🏦&nbsp; Retirement income planning</span>
-                  <input type="checkbox" class="bk-topic-cb" value="Retirement income planning">
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
-                  <span>🔄&nbsp; 401(k), 403(b), TSP, or IRA rollover</span>
-                  <input type="checkbox" class="bk-topic-cb" value="401k/403b/TSP/IRA rollover">
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
-                  <span>📈&nbsp; Annuities &amp; guaranteed income</span>
-                  <input type="checkbox" class="bk-topic-cb" value="Annuities &amp; guaranteed income">
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
-                  <span>💱&nbsp; Roth conversion strategy</span>
-                  <input type="checkbox" class="bk-topic-cb" value="Roth conversion strategy">
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
-                  <span>🛡️&nbsp; Life insurance / living benefits</span>
-                  <input type="checkbox" class="bk-topic-cb" value="Life insurance / living benefits">
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-                <label class="topic-check-label" onclick="toggleBookTopic(event,this)">
-                  <span>💰&nbsp; Safe money &amp; CD alternatives</span>
-                  <input type="checkbox" class="bk-topic-cb" value="Safe money &amp; CD alternatives">
-                  <span class="topic-check-mark">&#10003;</span>
-                </label>
-              </div>
-
-              <!-- Retirement timeline: single-select -->
-              <div style="margin-top:22px;">
-                <span class="topic-cat-label">When do you plan to retire? <span class="req">*</span></span>
-                <div class="survey-choices" id="bk-timeline-group">
-                  <button type="button" class="survey-btn" data-group="bk-timeline" data-value="Already retired" onclick="selectBookSurvey(this)">✅&nbsp; Already retired</button>
-                  <button type="button" class="survey-btn" data-group="bk-timeline" data-value="Within 1–2 years" onclick="selectBookSurvey(this)">⏰&nbsp; Within 1&ndash;2 years</button>
-                  <button type="button" class="survey-btn" data-group="bk-timeline" data-value="3–5 years" onclick="selectBookSurvey(this)">📅&nbsp; 3&ndash;5 years</button>
-                  <button type="button" class="survey-btn" data-group="bk-timeline" data-value="6–10 years" onclick="selectBookSurvey(this)">🗓️&nbsp; 6&ndash;10 years</button>
-                  <button type="button" class="survey-btn" data-group="bk-timeline" data-value="Not sure / planning ahead" onclick="selectBookSurvey(this)">🤔&nbsp; Not sure / planning ahead</button>
-                </div>
-                <input type="hidden" id="bk-timeline" value="">
-              </div>
-
-              <!-- Approximate assets: optional single-select -->
-              <div style="margin-top:22px;">
-                <span class="topic-cat-label">Approximate retirement savings <span class="step-optional">Optional</span></span>
-                <div class="survey-choices" id="bk-assets-group">
-                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="Under $25,000" onclick="selectBookSurvey(this)">Under $25,000</button>
-                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="$25,000–$100,000" onclick="selectBookSurvey(this)">$25,000 &ndash; $100,000</button>
-                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="$100,000–$250,000" onclick="selectBookSurvey(this)">$100,000 &ndash; $250,000</button>
-                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="$250,000–$500,000" onclick="selectBookSurvey(this)">$250,000 &ndash; $500,000</button>
-                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="Over $500,000" onclick="selectBookSurvey(this)">Over $500,000</button>
-                  <button type="button" class="survey-btn" data-group="bk-assets" data-value="Prefer not to say" onclick="selectBookSurvey(this)">Prefer not to say</button>
-                </div>
-                <input type="hidden" id="bk-assets" value="">
+              <div class="form-group">
+                <label class="form-label" for="sch-amount">Approximately how much do you currently have in retirement or savings assets that you would like help reviewing? <span class="req">*</span></label>
+                <input type="text" inputmode="decimal" id="sch-amount" placeholder="$15,000" autocomplete="off">
+                <p class="step-sub" style="margin:6px 0 0;">This may include a 401(k), 403(b), TSP, IRA, CDs, annuities, savings, or other retirement funds. An estimate is fine.</p>
               </div>
 
               <div class="step-nav">
                 <div class="step-nav-row">
-                  <button type="button" class="btn-back" onclick="bookBack(2)">&larr; Back</button>
-                  <button type="button" id="bk-next-2-btn" class="btn-next-step" onclick="bookNext(2)">Next: Schedule &rarr;</button>
+                  <button type="button" class="btn-back" onclick="schBackToStep1()">&larr; Back</button>
+                  <button type="button" id="sch-amount-next-btn" class="btn-next-step" onclick="schContinueAmount()">Continue &rarr;</button>
                 </div>
               </div>
-              <p id="bk-err-2" class="step-error"></p>
-            </div><!-- /step-2 -->
+              <p id="sch-err-amount" class="step-error"></p>
+            </div><!-- /step-amount -->
+
+            <!-- ══ STEP 2b: Cash-building follow-up (only shown under $15,000) ══ -->
+            <div id="sch-step-cashbuilding" class="form-step" style="display:none;">
+              <h3 class="step-heading">One More Quick Question</h3>
+
+              <span class="topic-cat-label">Would you be interested in learning about strategies that can help you build additional cash for your future through regular contributions? <span class="req">*</span></span>
+              <div class="survey-choices">
+                <button type="button" class="survey-btn" onclick="schCashBuildingAnswer('yes')">✅&nbsp; Yes</button>
+                <button type="button" class="survey-btn" onclick="schCashBuildingAnswer('not_sure')">🤔&nbsp; I&rsquo;m not sure &mdash; I&rsquo;d like to learn more</button>
+                <button type="button" class="survey-btn" onclick="schCashBuildingAnswer('no')">➡️&nbsp; No</button>
+              </div>
+
+              <div class="step-nav">
+                <div class="step-nav-row">
+                  <button type="button" class="btn-back" onclick="schBackToAmount()">&larr; Back</button>
+                </div>
+              </div>
+              <p id="sch-err-cashbuilding" class="step-error"></p>
+            </div><!-- /step-cashbuilding -->
+
+            <!-- ══ STEP 2c: Not currently eligible (under $15,000 + No) ══ -->
+            <div id="sch-step-not-eligible" class="form-step" style="display:none;">
+              <div style="text-align:center; padding:28px 20px; background:#f9f7fd; border-radius:12px; border:1.5px solid #e4dff0;">
+                <h3 class="step-heading" style="text-align:center;">Thank You</h3>
+                <p style="font-size:0.9rem; color:#555; line-height:1.7; margin:0;">
+                  Thank you for your interest. Based on the information you&rsquo;ve provided, we don&rsquo;t currently have a service that would be a good fit for your needs. We appreciate you considering Prosperity Life &amp; Financial Solutions.
+                </p>
+              </div>
+            </div><!-- /step-not-eligible -->
 
             <!-- ══ STEP 3: Redirecting to Cal.com ══ -->
-            <div id="book-step-3" class="form-step" style="display:none;">
+            <div id="sch-step-redirect" class="form-step" style="display:none;">
               <div style="text-align:center; padding:32px 20px; background:#f9f7fd; border-radius:12px; border:1.5px solid #e4dff0;">
                 <div style="width:56px; height:56px; background:#e6f7ee; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:1.4rem; color:#1a7a4a;">&#10003;</div>
                 <h3 class="step-heading" style="text-align:center; font-size:1.25rem; margin-bottom:10px;">Your Information Has Been Received</h3>
-                <p style="font-size:0.9rem; color:#555; margin:0; line-height:1.7;">Taking you to schedule your free retirement consultation&hellip;</p>
+                <p style="font-size:0.9rem; color:#555; margin:0; line-height:1.7;">Taking you to schedule your free consultation&hellip;</p>
               </div>
-            </div><!-- /step-3 -->
+            </div><!-- /step-redirect -->
 
           </form>
 
@@ -643,6 +431,7 @@
 
   <script>window.CRM_API_BASE = 'https://prosperity-crm.onrender.com';</script>
   <script src="assets/js/main.v2.js"></script>
+  <script src="assets/js/scheduleQualification.js"></script>
   <!-- Cloudflare Turnstile — onload calls renderTurnstileWidgets() (defined in
        main.v2.js, loaded above) once the widget script is ready. -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=renderTurnstileWidgets" async defer></script>
@@ -659,19 +448,47 @@
     }
   </script>
   <script>
+    // Left-column supporting content: switches between the general,
+    // Life Insurance, and Safe Money & Retirement blocks based on which
+    // service button is selected in the form. Kept as a small,
+    // book.html-specific function (separate from schSelectSurvey, which
+    // stays exactly as tested on schedule.html) so this page's own
+    // presentation logic never touches the shared qualification flow.
+    window.bookUpdateSupportingContent = function (service) {
+      var blocks = {
+        general: document.getElementById('book-content-general'),
+        life: document.getElementById('book-content-life'),
+        retirement: document.getElementById('book-content-retirement'),
+      };
+      var activeKey = service === 'Life Insurance' ? 'life'
+        : service === 'Safe Money & Retirement' ? 'retirement'
+        : 'general';
+      Object.keys(blocks).forEach(function (key) {
+        if (blocks[key]) blocks[key].classList.toggle('active', key === activeKey);
+      });
+    };
+  </script>
+  <script>
     (function () {
-      var bkContact = {};
+      // Cal.com event URLs — the same, already-corrected slugs already
+      // confirmed and deployed on schedule.html. Kept as named constants so
+      // both are easy to spot and update in one place if Cal.com's slugs
+      // ever change again.
+      var CALCOM_LIFE_INSURANCE_URL = 'https://cal.com/lorettastewart/life-insurance-consultation-prosperitylfs';
+      var CALCOM_RETIREMENT_URL     = 'https://cal.com/lorettastewart/retirement-safemoney-consultation-prosperitylfs';
 
-      function bookShowStep(n) {
-        [1, 2, 3].forEach(function (i) {
-          var el = document.getElementById('book-step-' + i);
-          if (el) el.style.display = (i === n) ? 'block' : 'none';
+      var schContact = {}; // { fname, lname, phone (E.164), email, sms, terms, turnstileToken, service }
+      var SCH_STEP_IDS = ['sch-step-1', 'sch-step-amount', 'sch-step-cashbuilding', 'sch-step-not-eligible', 'sch-step-redirect'];
+
+      function schShowStep(id) {
+        SCH_STEP_IDS.forEach(function (stepId) {
+          var el = document.getElementById(stepId);
+          if (el) el.style.display = (stepId === id) ? 'block' : 'none';
         });
-        var pcts = { 1: '33%', 2: '66%', 3: '100%' };
-        var bar = document.getElementById('book-bar');
-        var lbl = document.getElementById('book-step-label');
-        if (bar) bar.style.width = pcts[n];
-        if (lbl) lbl.textContent = 'Step ' + n + ' of 3';
+        var bar = document.getElementById('sch-bar');
+        var lbl = document.getElementById('sch-step-label');
+        if (bar) bar.style.width = (id === 'sch-step-1') ? '50%' : '100%';
+        if (lbl) lbl.textContent = (id === 'sch-step-1') ? 'Step 1 of 2' : 'Step 2 of 2';
         var card = document.querySelector('.book-calendar-card');
         if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -689,115 +506,7 @@
         el.style.display = 'none';
       }
 
-      window.bookNext = async function (step) {
-        if (step === 1) {
-          var fname = document.getElementById('bk-fname').value.trim();
-          var lname = document.getElementById('bk-lname').value.trim();
-          var phone = document.getElementById('bk-phone').value.trim();
-          var email = document.getElementById('bk-email').value.trim();
-          var emailErr = document.getElementById('bk-email-err');
-          clearErr('bk-err-1');
-          if (emailErr) { emailErr.textContent = ''; emailErr.style.display = 'none'; }
-
-          if (!fname || !lname) { showErr('bk-err-1', 'Please enter your first and last name.'); return; }
-          if (!phone) { showErr('bk-err-1', 'Please enter your phone number.'); return; }
-          var e164 = toE164(phone);
-          if (!e164) { showErr('bk-err-1', 'Please enter a valid 10-digit US phone number.'); document.getElementById('bk-phone').focus(); return; }
-          document.getElementById('bk-phone').value = e164;
-          if (!isValidEmail(email)) {
-            if (emailErr) { emailErr.textContent = 'Please enter a valid email address.'; emailErr.style.display = 'block'; }
-            document.getElementById('bk-email').focus();
-            return;
-          }
-          if (!document.getElementById('bk-terms-consent').checked) { showErr('bk-err-1', 'Please accept the Privacy Policy and Terms & Conditions to continue.'); return; }
-
-          // Turnstile check — the "Next" button is disabled until the widget
-          // succeeds, but this guards the rare case of a token expiring
-          // between verification and click.
-          var bookFormStep1 = document.querySelector('.book-form');
-          var turnstileToken1 = bookFormStep1 ? bookFormStep1.dataset.turnstileToken : '';
-          if (!turnstileToken1) { showErr('bk-err-1', 'Please complete the verification check above.'); return; }
-
-          bkContact = { fname: fname, lname: lname, phone: e164, email: email, sms: document.getElementById('bk-sms-consent').checked, terms: true };
-          bookShowStep(2);
-
-        } else if (step === 2) {
-          var topics = Array.from(document.querySelectorAll('.bk-topic-cb:checked')).map(function (cb) { return cb.value; });
-          var timeline = document.getElementById('bk-timeline').value;
-          clearErr('bk-err-2');
-          if (!topics.length) { showErr('bk-err-2', 'Please select at least one topic to discuss.'); return; }
-          if (!timeline) { showErr('bk-err-2', 'Please select your retirement timeline.'); return; }
-
-          // Turnstile check — verification happens in Step 1, but this guards
-          // the case of the token expiring while the user fills out Step 2
-          // (Turnstile tokens are time-limited). Sends the user back to
-          // re-verify rather than letting a stale/empty token through.
-          var bookForm = document.querySelector('.book-form');
-          var turnstileToken = bookForm ? bookForm.dataset.turnstileToken : '';
-          if (!turnstileToken) { showErr('bk-err-2', 'Verification expired — please go back to Step 1 and verify again.'); return; }
-
-          // Submitted via /submit-lead (same-origin Cloudflare Pages
-          // Function, same pattern as the guide form's /send-guide) rather
-          // than a direct cross-origin postToCRM() call to the CRM, so this
-          // never depends on the CRM's CORS allowlist.
-          var bkNextBtn = document.getElementById('bk-next-2-btn');
-          var bkNextBtnLabel = bkNextBtn ? bkNextBtn.textContent : '';
-          if (bkNextBtn) { bkNextBtn.disabled = true; bkNextBtn.textContent = 'Submitting…'; }
-
-          try {
-            var bkRes = await fetch('/submit-lead', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                first_name:          bkContact.fname,
-                last_name:           bkContact.lname,
-                phone:               bkContact.phone,
-                email:               bkContact.email,
-                sms_consent:         bkContact.sms ? 'yes' : 'no',
-                terms_accepted:      'yes',
-                lead_type:           'Retirement Lead',
-                topics:              topics.join(', '),
-                retirement_timeline: timeline,
-                assets:              document.getElementById('bk-assets').value || '',
-                turnstile_token:     turnstileToken,
-              }),
-            });
-
-            if (!bkRes.ok) {
-              var bkErrData = await bkRes.json().catch(function () { return {}; });
-              showErr('bk-err-2', bkErrData.error || 'Something went wrong. Please try again or call us at 414-441-1177.');
-              if (bkNextBtn) { bkNextBtn.disabled = false; bkNextBtn.textContent = bkNextBtnLabel; }
-              return;
-            }
-          } catch (bkErr) {
-            showErr('bk-err-2', 'Something went wrong. Please try again or call us at 414-441-1177.');
-            if (bkNextBtn) { bkNextBtn.disabled = false; bkNextBtn.textContent = bkNextBtnLabel; }
-            return;
-          }
-
-          bookShowStep(3);
-
-          // Booking has now submitted — clear the guide-lead handoff so it
-          // can't silently prefill a later, unrelated visit to /book.
-          try { sessionStorage.removeItem('prosperityGuideLead'); } catch (storageErr) {}
-
-          setTimeout(function () {
-            window.location.href = 'https://cal.com/lorettastewart/retirement-safemoney-consultation-prosperitylfs';
-          }, 1500);
-        }
-      };
-
-      window.bookBack = function (step) { bookShowStep(step - 1); };
-
-      window.toggleBookTopic = function (e, label) {
-        e.preventDefault();
-        var cb = label.querySelector('input[type="checkbox"]');
-        if (!cb) return;
-        cb.checked = !cb.checked;
-        label.classList.toggle('selected', cb.checked);
-      };
-
-      window.selectBookSurvey = function (btn) {
+      window.schSelectSurvey = function (btn) {
         var groupId = btn.dataset.group;
         document.querySelectorAll('.survey-btn[data-group="' + groupId + '"]').forEach(function (b) { b.classList.remove('selected'); });
         btn.classList.add('selected');
@@ -805,25 +514,196 @@
         if (hidden) hidden.value = btn.dataset.value;
       };
 
-      // Init phone formatting on the booking phone input
+      window.schBackToStep1 = function () { schShowStep('sch-step-1'); };
+      window.schBackToAmount = function () { schShowStep('sch-step-amount'); };
+
+      window.schContinueStep1 = async function () {
+        var fname = document.getElementById('sch-fname').value.trim();
+        var lname = document.getElementById('sch-lname').value.trim();
+        var email = document.getElementById('sch-email').value.trim();
+        var phone = document.getElementById('sch-phone').value.trim();
+        var service = document.getElementById('sch-service').value;
+        var emailErr = document.getElementById('sch-email-err');
+        clearErr('sch-err-1');
+        if (emailErr) { emailErr.textContent = ''; emailErr.style.display = 'none'; }
+
+        if (!fname || !lname) { showErr('sch-err-1', 'Please enter your first and last name.'); return; }
+        if (!phone) { showErr('sch-err-1', 'Please enter your phone number.'); return; }
+        var e164 = toE164(phone);
+        if (!e164) { showErr('sch-err-1', 'Please enter a valid 10-digit US phone number.'); document.getElementById('sch-phone').focus(); return; }
+        document.getElementById('sch-phone').value = e164;
+        if (!isValidEmail(email)) {
+          if (emailErr) { emailErr.textContent = 'Please enter a valid email address.'; emailErr.style.display = 'block'; }
+          document.getElementById('sch-email').focus();
+          return;
+        }
+        if (!service) { showErr('sch-err-1', 'Please let us know what you would like help with.'); return; }
+        if (!document.getElementById('sch-terms-consent').checked) { showErr('sch-err-1', 'Please accept the Privacy Policy and Terms & Conditions to continue.'); return; }
+
+        var schForm = document.querySelector('.book-form');
+        var turnstileToken = schForm ? schForm.dataset.turnstileToken : '';
+        if (!turnstileToken) { showErr('sch-err-1', 'Please complete the verification check above.'); return; }
+
+        schContact = {
+          fname: fname, lname: lname, phone: e164, email: email,
+          sms: document.getElementById('sch-sms-consent').checked,
+          turnstileToken: turnstileToken,
+          service: service,
+        };
+
+        if (service === 'Life Insurance') {
+          await schSubmitLead('Life Insurance Lead', {}, CALCOM_LIFE_INSURANCE_URL);
+        } else {
+          schShowStep('sch-step-amount');
+        }
+      };
+
+      // parseDollarAmount / formatDollar / isRetirementEligibleAmount /
+      // RETIREMENT_MIN_AMOUNT come from assets/js/scheduleQualification.js
+      // (loaded above, before this script) -- kept in a separate file
+      // specifically so that logic has real unit test coverage; see that
+      // file's own header comment.
+      window.schContinueAmount = function () {
+        clearErr('sch-err-amount');
+        var amount = parseDollarAmount(document.getElementById('sch-amount').value);
+        if (amount === null) {
+          showErr('sch-err-amount', 'Please enter a valid dollar amount (numbers only, e.g. 15,000).');
+          return;
+        }
+        schContact.retirementAmount = amount;
+
+        if (isRetirementEligibleAmount(amount)) {
+          // $15,000+ is eligible outright -- no cash-building follow-up,
+          // no detailed retirement questions on this page (those live in
+          // the future post-booking Retirement Intake Form).
+          schSubmitLead('Retirement Lead', {
+            retirement_amount: formatDollar(amount),
+            retirement_eligibility: 'Eligible - $15,000 or more',
+          }, CALCOM_RETIREMENT_URL);
+        } else {
+          schShowStep('sch-step-cashbuilding');
+        }
+      };
+
+      // Under $15,000: Yes and "I'm not sure" are both treated as eligible
+      // (per spec, identically to each other except for which exact answer
+      // is recorded) -- neither one causes the website to choose a
+      // specific product; that stays entirely Loretta's call during the
+      // consultation. No is not eligible and never reaches Cal.com.
+      window.schCashBuildingAnswer = function (answer) {
+        clearErr('sch-err-cashbuilding');
+        var amountStr = formatDollar(schContact.retirementAmount);
+
+        if (answer === 'yes' || answer === 'not_sure') {
+          schSubmitLead('Retirement Lead', {
+            retirement_amount: amountStr,
+            retirement_eligibility: 'Eligible - Under $15,000, interested in cash-building strategies',
+            cash_building_interest: answer === 'yes' ? 'Yes' : 'Not sure - wants to learn more',
+          }, CALCOM_RETIREMENT_URL);
+        } else {
+          schSubmitLead('Retirement Lead', {
+            retirement_amount: amountStr,
+            retirement_eligibility: 'Safe Money & Retirement — Not Appointment Eligible\nUnder $15,000\nDeclined cash-building/regular-contribution option',
+            cash_building_interest: 'No',
+          }, null);
+        }
+      };
+
+      // Shared by the Life Insurance path and every Safe Money & Retirement
+      // outcome (eligible by amount, eligible by cash-building interest,
+      // and not-eligible). CRM lead capture is attempted, but its outcome
+      // NEVER changes what happens next -- capture is always a side
+      // effect, never a gate. Even if the /submit-lead request never
+      // reaches the server at all (e.g. the visitor is offline), the
+      // visitor still proceeds to whatever this page's qualification logic
+      // already decided. The one thing that ALWAYS gates first is this
+      // page's own required-field/consent/Turnstile validation in
+      // schContinueStep1() above, which has already passed by the time
+      // this runs.
+      //
+      // calcomUrl: a URL redirects to Cal.com after capture (with the same
+      // name/email/phone prefill built by buildCalcomPrefillQuery(), used
+      // for both the Life Insurance and Retirement paths); null shows the
+      // not-eligible closing message instead -- no appointment, no
+      // Cal.com, and (per the current approved design) no automatic guide
+      // offer from this page.
+      async function schSubmitLead(leadType, extraFields, calcomUrl) {
+        var btn = document.activeElement && document.activeElement.tagName === 'BUTTON' ? document.activeElement : null;
+        var origLabel = btn ? btn.textContent : '';
+        if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+
+        try {
+          var payload = Object.assign({
+            first_name: schContact.fname,
+            last_name: schContact.lname,
+            phone: schContact.phone,
+            email: schContact.email,
+            sms_consent: schContact.sms ? 'yes' : 'no',
+            terms_accepted: 'yes',
+            lead_type: leadType,
+            lead_source: 'Prosperity Booking Page',
+            turnstile_token: schContact.turnstileToken,
+          }, extraFields);
+
+          await fetch('/submit-lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } catch (err) {
+          // Deliberately swallowed — see function comment above. Logged to
+          // the console only, purely for local debugging; never shown to
+          // the visitor and never blocks what happens next.
+          console.warn('[book] /submit-lead did not complete, proceeding anyway:', err);
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = origLabel; }
+        }
+
+        // Booking has now submitted — clear the guide-lead handoff so it
+        // can't silently prefill a later, unrelated visit to this page.
+        try { sessionStorage.removeItem('prosperityGuideLead'); } catch (storageErr) {}
+
+        if (calcomUrl) {
+          schShowStep('sch-step-redirect');
+          // buildCalcomPrefillQuery() comes from
+          // assets/js/scheduleQualification.js (loaded above) -- see that
+          // file's own comment for why phone is passed via `location`
+          // rather than `attendeePhoneNumber`.
+          var qs = buildCalcomPrefillQuery({
+            firstName: schContact.fname,
+            lastName: schContact.lname,
+            email: schContact.email,
+            phone: schContact.phone,
+          });
+          setTimeout(function () {
+            window.location.href = calcomUrl + '?' + qs;
+          }, 1200);
+        } else {
+          schShowStep('sch-step-not-eligible');
+        }
+      }
+
       document.addEventListener('DOMContentLoaded', function () {
-        var ph = document.getElementById('bk-phone');
+        var ph = document.getElementById('sch-phone');
         if (ph && typeof attachPhoneFormatting === 'function') attachPhoneFormatting(ph);
 
-        // Prefill Step 1 from a guide-form submission earlier in this browser
-        // session (set by index.html's guide-form handler before redirecting
-        // through /thank-you-guide). Left in sessionStorage (not cleared here)
-        // so a page refresh on /book before submitting doesn't lose the
-        // prefill — it's cleared in bookNext(2) once booking actually
-        // completes. Never overwrites a field the user already typed into.
+        // Prefill Step 1 from a guide-form submission earlier in this
+        // browser session (set by index.html's guide-form handler before
+        // redirecting through /thank-you-guide) -- the one existing
+        // prefill handoff into this page, carried over from the previous
+        // book.html unchanged. Left in sessionStorage (not cleared here)
+        // so a page refresh here before submitting doesn't lose the
+        // prefill -- it's cleared inside schSubmitLead() once booking
+        // actually completes. Never overwrites a field the visitor already
+        // typed into.
         try {
           var saved = sessionStorage.getItem('prosperityGuideLead');
           if (saved) {
             var data = JSON.parse(saved);
-            var fEl = document.getElementById('bk-fname');
-            var lEl = document.getElementById('bk-lname');
-            var eEl = document.getElementById('bk-email');
-            var pEl = document.getElementById('bk-phone');
+            var fEl = document.getElementById('sch-fname');
+            var lEl = document.getElementById('sch-lname');
+            var eEl = document.getElementById('sch-email');
+            var pEl = document.getElementById('sch-phone');
             if (fEl && !fEl.value && data.firstName) fEl.value = data.firstName;
             if (lEl && !lEl.value && data.lastName)  lEl.value = data.lastName;
             if (eEl && !eEl.value && data.email)     eEl.value = data.email;

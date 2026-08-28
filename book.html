@@ -85,9 +85,57 @@
     @media (max-width: 640px) {
       .book-form-wrap { padding: 14px !important; box-shadow: 0 10px 28px rgba(0,0,0,0.06) !important; }
     }
+
+    /* ── Scoped visual tweaks for THIS page only (book.html) ──
+       Both rules target elements via the body.book-page ancestor selector
+       so nothing in the shared assets/css/style.css is touched and no
+       other page is affected. */
+
+    /* Header logo: ~40% larger (85px -> 120px max-height, proportional
+       385px max-width). .header-inner's fixed height is bumped from
+       100px to 126px -- the minimum needed so the larger logo doesn't
+       clip against the header's top/bottom edge (a 120px-tall logo does
+       not fit inside a 100px-tall header). */
+    body.book-page .logo-img { max-height: 120px; max-width: 385px; }
+    body.book-page .header-inner { height: 126px; }
+
+    /* Hero text block: align its left edge with .book-layout's left edge
+       below. The shared .page-hero-inner rule caps max-width at 740px,
+       which (combined with the inherited margin:0 auto from .container)
+       centers the hero text within the full-width page-hero section
+       instead of aligning it to the site's standard container edge.
+       Mirroring .container's own max-width (1280px, 1400px above
+       1440px) makes .page-hero-inner's box match .book-layout's box
+       exactly, so both end up flush at the same left edge. */
+    body.book-page .page-hero-inner { max-width: 1280px; }
+    @media (min-width: 1440px) {
+      body.book-page .page-hero-inner { max-width: 1400px; }
+    }
+
+    /* Shop/Compare/Apply video (Life Insurance "You May Not Need an
+       Appointment" section) — a self-contained, capped-width player so it
+       supports the section instead of dominating the page. 16:9 native
+       source; aspect-ratio keeps the space reserved before metadata
+       loads, avoiding layout shift. */
+    .book-video-wrap {
+      max-width: 420px;
+      width: 100%;
+      margin: 4px 0 18px;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+      background: #000;
+    }
+    .book-video-wrap video {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16 / 9;
+      object-fit: contain;
+    }
   </style>
 </head>
-<body>
+<body class="book-page">
 
     <header class="site-header">
     <div class="container header-inner">
@@ -159,7 +207,7 @@
 
         <div id="book-content-general" class="book-dynamic-content active">
           <div class="content-section">
-            <p>This is a relaxed, no-pressure conversation to help you understand your options. Let us know what you&rsquo;d like help with, and we&rsquo;ll walk you through what your consultation will cover.</p>
+            <p>Choose the type of consultation you need. We&rsquo;ll ask a few questions so Loretta can understand your situation and determine the appropriate next steps.</p>
           </div>
         </div>
 
@@ -178,21 +226,27 @@
           </div>
 
           <div class="content-section">
-            <h2>What to Expect During Your Consultation</h2>
+            <h2>How to Prepare for Your Appointment</h2>
             <ul class="check-list">
-              <li>Who or what you want to protect</li>
-              <li>Your coverage goals</li>
-              <li>Your budget</li>
-              <li>Any coverage you currently have</li>
-              <li>Some basic, relevant health information</li>
-              <li>A discussion of coverage options that may fit your situation</li>
-              <li>An opportunity to determine whether there&rsquo;s a good fit and whether it makes sense to work together</li>
+              <li>Know approximately how much life insurance coverage you&rsquo;re looking for.</li>
+              <li>Know how much you&rsquo;re comfortable spending per month.</li>
+              <li>Have copies of any current life insurance policies available so we can review exactly what coverage you already own.</li>
+              <li>Be prepared to discuss basic, relevant health information, including current medications.</li>
+              <li>Think about who or what you want the coverage to protect.</li>
+              <li>Have any questions or concerns you&rsquo;d like addressed.</li>
             </ul>
+            <p>If you decide to move forward with an application, additional information may be needed to complete the application.</p>
           </div>
 
           <div class="content-section">
             <h2>You May Not Need an Appointment</h2>
-            <p>Prefer to shop online? Shop, compare, and apply online through Insurance Lady LLC with Loretta Stewart &mdash; The Insurance Lady herself. You&rsquo;ll still receive the same trusted guidance, just with the convenience of shopping online.</p>
+            <p><strong style="color:var(--green, #389F72);">Looking for term life insurance for income replacement or mortgage protection?</strong></p>
+            <p><strong style="color:var(--green, #389F72);">Shop and compare options from multiple highly rated insurance carriers in minutes</strong>, then apply online through Insurance Lady LLC &mdash; right from the comfort of your home.</p>
+            <div class="book-video-wrap">
+              <video controls preload="metadata" playsinline>
+                <source src="assets/video/shop-compare-apply.mp4" type="video/mp4">
+              </video>
+            </div>
             <a class="btn btn-amber" href="https://www.insuranceladyllc.com/shop-compare-apply-online" target="_blank" rel="noopener" style="margin-top:8px;">Shop, Compare &amp; Apply Online &rarr;</a>
           </div>
         </div>
@@ -212,30 +266,22 @@
           </div>
 
           <div class="content-section">
-            <h2>What to Expect During Your Consultation</h2>
+            <h2>How to Prepare for Your Consultation</h2>
             <ul class="check-list">
-              <li>A discussion of your current retirement situation</li>
-              <li>Your goals, concerns, and timeframe</li>
-              <li>A review of the funds you&rsquo;re considering protecting or repositioning</li>
-              <li>An explanation of strategies that may be appropriate for your situation</li>
-              <li>An opportunity to determine whether there&rsquo;s a good fit and whether it makes sense to work together</li>
+              <li>Have your most recent retirement or account statement available so we can work from your actual current balance rather than an estimate.</li>
+              <li>Know when you plan to retire, or when you retired if you are already retired.</li>
+              <li>Be prepared to discuss what you want this money to accomplish &mdash; such as protecting principal, creating retirement income, reducing market exposure, or pursuing long-term growth.</li>
+              <li>Have information available about other retirement accounts or assets that may be relevant to the discussion.</li>
+              <li>Think about whether you expect to need income from this money and approximately when you would need it.</li>
+              <li>Have any specific questions or concerns you would like addressed.</li>
             </ul>
-          </div>
-
-          <div class="content-section">
-            <h2>Before Scheduling</h2>
-            <ol style="margin:0; padding-left:20px; display:flex; flex-direction:column; gap:14px; color:var(--text-muted,#555); font-size:0.97rem; line-height:1.65;">
-              <li><strong>Recent Statement.</strong> Have a recent statement available for the retirement account, savings, CD, annuity, or other funds you&rsquo;d like to discuss, so you know the current amount rather than guessing. You don&rsquo;t need to upload anything when scheduling &mdash; just have it available for your consultation.</li>
-              <li><strong>Retirement Timeframe.</strong> Know when you plan to retire, or when you retired if you&rsquo;re already retired.</li>
-              <li><strong>Goal.</strong> Be ready to discuss what you&rsquo;d like the money to accomplish &mdash; for example, protecting principal, creating retirement income, reducing market exposure, or long-term growth.</li>
-            </ol>
           </div>
 
           <div class="content-section">
             <h2>Complete Your Online Retirement Intake Form</h2>
             <p>After you book your appointment, you&rsquo;ll receive a link to a brief online Retirement Intake Form. It&rsquo;s completed electronically &mdash; there&rsquo;s nothing to print, download, mail, or email. Your information goes directly into our system so Loretta can review it and prepare for your consultation.</p>
             <div class="highlight-box" style="margin-top:16px;">
-              <p><strong>Please submit your completed intake form at least 2 hours before your scheduled appointment.</strong> If it hasn&rsquo;t been received by then, we&rsquo;ll need to reschedule your appointment so there&rsquo;s enough time to prepare.</p>
+              <p><strong style="color:var(--green, #389F72);">Please submit your completed intake form at least 2 hours before your scheduled appointment.</strong> If it hasn&rsquo;t been received by then, we&rsquo;ll need to reschedule your appointment so there&rsquo;s enough time to prepare.</p>
             </div>
           </div>
 

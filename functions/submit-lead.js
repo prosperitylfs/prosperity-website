@@ -106,20 +106,28 @@ export async function onRequestPost(context) {
     return json({ error: 'Verification failed. Please refresh the page and try again.' }, 400);
   }
 
-  // CRM lead capture is important but must never become a revenue-blocking
-  // failure: a qualified prospect must always be able to reach scheduling.
   // saveLeadToCRM() already logs the specific cause of a failure (missing
   // credentials / a non-OK CRM response / a network error) above -- this is
-  // an additional, caller-level log line noting that the fail-safe kicked
-  // in, so a failed capture is still fully diagnosable later. The response
-  // to the browser is success either way, so the calling form (e.g.
-  // book.html) always proceeds to scheduling.
+  // an additional, caller-level log line noting that this submission's CRM
+  // save did not succeed, so a failed capture is still fully diagnosable.
+  //
+  // HTTP status and `ok` stay 200/true unconditionally -- every other
+  // caller of this same-origin Function (schedule.html, life-insurance.html,
+  // life-insurance-qualifier.html, contact.html) reads only `ok` and is
+  // completely unaffected by this change. The new `crm_saved` field is
+  // purely additive: book.html's schSubmitLead() is the only caller that
+  // checks it, to block the Cal.com redirect and show a friendly error
+  // when the CRM save genuinely failed, rather than silently proceeding as
+  // though the visitor's consent/contact info had been saved when it
+  // wasn't (a real production booking created a CRM contact with no real
+  // phone and sms_consent=0 despite the visitor entering both correctly,
+  // traced back to exactly this silent-failure path).
   const saved = await saveLeadToCRM(env, lead);
   if (!saved) {
-    console.error('[submit-lead] CRM lead save failed -- returning success to the browser anyway so scheduling is never blocked.');
+    console.error('[submit-lead] CRM lead save failed for this submission.');
   }
 
-  return json({ ok: true }, 200);
+  return json({ ok: true, crm_saved: saved }, 200);
 }
 
 function json(body, status) {

@@ -57,12 +57,72 @@ function normalizeLocation(raw) {
   return loc;
 }
 
-function inferLeadType(eventTypeTitle) {
-  const t = (eventTypeTitle || '').toLowerCase();
-  if (t.includes('roth'))                          return 'Roth Conversion Lead';
-  if (t.includes('retire') || t.includes('rollover')) return 'Retirement Lead';
-  if (t.includes('life') || t.includes('insurance')) return 'Life Insurance Lead';
+// Fallback phone source: the site prefills the attendee phone via the
+// `location` query param (JSON-encoded {value:'phone', optionValue:
+// '<E.164 number>'} -- see assets/js/scheduleQualification.js's
+// buildCalcomPrefillQuery), not through attendeePhoneNumber or a booking-
+// question response. Confirmed via live production testing that Cal.com
+// echoes the attendee's phone back through this same field on the
+// webhook, which the phone-extraction chain below did not previously
+// check at all.
+function extractLocationPhone(rawLocation) {
+  if (!rawLocation || typeof rawLocation !== 'object') return null;
+  if (rawLocation.value !== 'phone') return null;
+  return rawLocation.optionValue || null;
+}
+
+// Known Cal.com event slugs (Cal.com's documented top-level BOOKING_CREATED
+// field `payload.type` -- https://cal.com/docs/developing/guides/automation/webhooks,
+// NOT nested under an `eventType` object). Kept in sync with
+// CALCOM_RETIREMENT_URL / CALCOM_LIFE_INSURANCE_URL in book.html and
+// schedule.html -- each URL's final path segment is the slug listed here.
+//
+// Preferred over any title-based matching: a real production webhook
+// confirmed `payload.eventType` is not populated at all (logged as
+// `undefined` by the temporary [DIAG] line this replaces), so the earlier
+// eventType.title-based detection silently classified every real Retirement
+// booking as a generic "Contact Form Lead" and no retirement_intakes record
+// or SMS was ever created. The slug is a stable identifier Cal.com actually
+// sends; a display title is not.
+const RETIREMENT_EVENT_SLUGS = ['retirement-safemoney-consultation-prosperitylfs'];
+const LIFE_INSURANCE_EVENT_SLUGS = ['life-insurance-consultation-prosperitylfs'];
+
+function inferLeadTypeFromSlug(slug) {
+  const s = (slug || '').toLowerCase();
+  if (RETIREMENT_EVENT_SLUGS.includes(s)) return 'Retirement Lead';
+  if (LIFE_INSURANCE_EVENT_SLUGS.includes(s)) return 'Life Insurance Lead';
+  return null;
+}
+
+// Fallback only -- used when payload.type is missing or doesn't match a
+// known slug (e.g. a new event type not yet added above). Preserves the
+// original title-substring behavior for anything not explicitly listed, so
+// existing Life Insurance/Roth/other detection keeps working even if a
+// title-like field is all that's available.
+function inferLeadTypeFromTitle(titleText) {
+  const t = (titleText || '').toLowerCase();
+  if (t.includes('roth'))                             return 'Roth Conversion Lead';
+  if (t.includes('retire') || t.includes('rollover'))  return 'Retirement Lead';
+  if (t.includes('life') || t.includes('insurance'))   return 'Life Insurance Lead';
   return 'Contact Form Lead';
+}
+
+// payload.eventTitle is Cal.com's documented top-level field for the event
+// type's own name (distinct from payload.title, which is the specific
+// booking's generated display name, e.g. "30 Min Meeting between X and Y").
+// payload.eventType?.title is checked last purely for forward/backward
+// compatibility in case Cal.com ever does send that shape for some event.
+function inferLeadType(payload) {
+  const fromSlug = inferLeadTypeFromSlug(payload.type);
+  if (fromSlug) return fromSlug;
+
+  const titleText = payload.eventTitle || payload.title || (payload.eventType && payload.eventType.title) || '';
+  const fromTitle = inferLeadTypeFromTitle(titleText);
+
+  if (fromTitle === 'Contact Form Lead' && payload.type) {
+    console.warn(`Cal.com webhook: booking ${payload.uid} did not match a known event slug (type="${payload.type}") or any title pattern (title="${titleText}") -- classified as generic Contact Form Lead. If this is a new Prosperity event type, add its slug to RETIREMENT_EVENT_SLUGS/LIFE_INSURANCE_EVENT_SLUGS in crm/routes/calcom.js.`);
+  }
+  return fromTitle;
 }
 
 function fmtCT(iso) {
@@ -161,9 +221,6 @@ async function handleCreatedOrRescheduled(event, payload) {
   const attendee      = (payload.attendees || [])[0] || {};
   const responses     = payload.responses || {};
 
-  // TEMPORARY DIAGNOSTIC — remove after root cause is confirmed
-  console.log('[DIAG] eventType:', JSON.stringify(payload.eventType));
-
   // ── Extract attendee details ───────────────────────────────────────────────
   const fullName  = attendee.name || responses.name?.value || '';
   const nameParts = fullName.trim().split(/\s+/);
@@ -188,6 +245,7 @@ async function handleCreatedOrRescheduled(event, payload) {
     || responses.phoneNumber?.value
     || responses.cell?.value
     || responses.mobile?.value
+    || extractLocationPhone(payload.location)
     || null;
   const { display: phoneDisplay, e164: phoneE164 } = normalizePhone(rawPhone);
 
@@ -197,12 +255,18 @@ async function handleCreatedOrRescheduled(event, payload) {
     || responses.description?.value
     || null;
 
+  // Computed once, from the payload directly (slug-first, see
+  // inferLeadType's own comment) -- reused below both for the Life
+  // Insurance qualification-answer capture and the Retirement Intake
+  // gating, so the two can never resolve to different classifications.
+  const leadType = inferLeadType(payload);
+
   // Life Insurance qualification answers -- see extractLifeInsuranceAnswers'
   // own comment above for why this matches by question label rather than a
   // guessed internal identifier, and always preserves anything it can't
   // confidently label.
   let notes = baseNotes;
-  if (inferLeadType(eventType.title) === 'Life Insurance Lead') {
+  if (leadType === 'Life Insurance Lead') {
     console.log(`Cal.com webhook: Life Insurance booking ${uid} — raw responses:`, JSON.stringify(responses));
     const lifeInsuranceAnswers = extractLifeInsuranceAnswers(payload);
     const qualificationNote = buildLifeInsuranceNote(lifeInsuranceAnswers);
@@ -210,7 +274,13 @@ async function handleCreatedOrRescheduled(event, payload) {
   }
 
   const location   = normalizeLocation(payload.location);
-  const apptType   = eventType.title || 'Consultation';
+  // payload.eventTitle is Cal.com's documented field for the event type's
+  // own name; payload.title is the specific booking's generated display
+  // name (e.g. "30 Min Meeting between X and Y") and eventType.title is
+  // checked last only for forward/backward compatibility -- see
+  // inferLeadType's own comment for why none of these are used for
+  // CLASSIFICATION, only for this display/storage value.
+  const apptType   = payload.eventTitle || payload.title || eventType.title || 'Consultation';
   const durationMin = eventType.length
     || (startTime && endTime
         ? Math.round((new Date(endTime) - new Date(startTime)) / 60000)
@@ -229,7 +299,6 @@ async function handleCreatedOrRescheduled(event, payload) {
     contact = db.prepare('SELECT * FROM contacts WHERE phone_e164 = ?').get(phoneE164);
 
   const now      = new Date().toISOString();
-  const leadType = inferLeadType(apptType);
 
   // BOOKING_RESCHEDULED sets "Appointment Rescheduled"; BOOKING_CREATED sets "Appointment Scheduled"
   const targetLeadStatus = event === 'BOOKING_RESCHEDULED'

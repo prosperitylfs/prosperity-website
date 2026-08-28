@@ -119,6 +119,35 @@ function getAppointment(uid) {
   return db.prepare('SELECT * FROM appointments WHERE cal_booking_uid = ?').get(uid);
 }
 
+// Mirrors the ACTUAL production BOOKING_CREATED payload shape, confirmed via
+// live testing and Cal.com's own documentation
+// (https://cal.com/docs/developing/guides/automation/webhooks): the event
+// type slug is the top-level `type` field, the event type's own name is
+// `eventTitle`, and there is NO `eventType` object at all (a real webhook
+// logged it as `undefined`) -- unlike basePayload() above, which uses the
+// OLD, incorrect assumed shape (a nested eventType.title) that every
+// earlier test in this file was written against and still must keep
+// passing (see the fallback chain in inferLeadType()).
+function realProductionPayload({ uid = 'real-uid-' + Math.random().toString(36).slice(2), type, eventTitle, title, email, phone, startTime = '2026-09-15T18:00:00.000Z', endTime = '2026-09-15T18:30:00.000Z' } = {}) {
+  return {
+    triggerEvent: 'BOOKING_CREATED',
+    payload: {
+      uid,
+      startTime,
+      endTime,
+      type,
+      eventTitle,
+      title,
+      attendees: [{ name: 'Real Prospect', email, timeZone: 'America/Chicago' }],
+      responses: { name: { label: 'Name', value: 'Real Prospect' }, email: { label: 'Email', value: email } },
+      // The site's own phone-as-location prefill (assets/js/scheduleQualification.js's
+      // buildCalcomPrefillQuery) -- confirmed this is where Cal.com echoes
+      // the attendee's phone back on the real webhook.
+      location: phone ? { value: 'phone', optionValue: phone } : undefined,
+    },
+  };
+}
+
 // ── Signature verification (route-level, not just the lib) ──────────────
 
 test('a webhook with a valid signature is processed', async () => {
@@ -402,4 +431,98 @@ test('rescheduling a retirement appointment keeps the same intake record (same t
     1,
   );
   assert.ok(totalIntakes >= 1);
+});
+
+// ── Slug-based event detection against the REAL production payload shape ──
+
+test('the Safe Money & Retirement event slug is classified as Retirement Lead even with no eventType object at all', async () => {
+  const email = 'slug-retirement-' + Date.now() + '@example.com';
+  const uid = 'slug-retirement-' + Date.now();
+  await postWebhook(realProductionPayload({
+    uid, type: 'retirement-safemoney-consultation-prosperitylfs',
+    eventTitle: 'Safe Money & Retirement Consultation', email,
+  }));
+  const appt = getAppointment(uid);
+  assert.ok(appt, 'appointment must still be created even with the real (eventType-less) payload shape');
+  assert.equal(appt.appt_type, 'Safe Money & Retirement Consultation', 'apptType should use eventTitle, not the "Consultation" fallback');
+  const intake = db.prepare('SELECT * FROM retirement_intakes WHERE appointment_id = ?').get(appt.id);
+  assert.ok(intake, 'a retirement_intakes record must be created — this is the exact case that silently failed in production');
+});
+
+test('the Life Insurance event slug is classified as Life Insurance Lead with the real payload shape', async () => {
+  const email = 'slug-li-' + Date.now() + '@example.com';
+  const uid = 'slug-li-' + Date.now();
+  await postWebhook(realProductionPayload({
+    uid, type: 'life-insurance-consultation-prosperitylfs',
+    eventTitle: 'Life Insurance Consultation', email,
+  }));
+  const appt = getAppointment(uid);
+  assert.ok(appt);
+  assert.equal(db.prepare('SELECT * FROM retirement_intakes WHERE appointment_id = ?').get(appt.id), undefined, 'a Life Insurance booking must never get a retirement intake record, slug-based or not');
+});
+
+test('a missing eventType/type does NOT cause a real Safe Money & Retirement booking to silently fall back to generic "Consultation" classification when eventTitle is present', async () => {
+  // Reproduces the exact production bug: payload.eventType was undefined,
+  // and the OLD code only ever looked at eventType.title, so apptType
+  // always resolved to the literal fallback string "Consultation" and
+  // inferLeadType('Consultation') always returned the generic
+  // 'Contact Form Lead' -- never 'Retirement Lead'. This test omits `type`
+  // (the slug) entirely to prove the eventTitle-based fallback alone is
+  // now sufficient.
+  const email = 'no-slug-fallback-' + Date.now() + '@example.com';
+  const uid = 'no-slug-fallback-' + Date.now();
+  await postWebhook(realProductionPayload({
+    uid, type: undefined, eventTitle: 'Safe Money & Retirement Consultation', email,
+  }));
+  const appt = getAppointment(uid);
+  assert.notEqual(appt.appt_type, 'Consultation', 'must not silently fall back to the generic default when eventTitle is available');
+  const intake = db.prepare('SELECT * FROM retirement_intakes WHERE appointment_id = ?').get(appt.id);
+  assert.ok(intake, 'title-based fallback must still classify this as Retirement Lead');
+});
+
+test('an unrelated/unknown event (no matching slug or title pattern) is never misclassified as retirement', async () => {
+  const email = 'unrelated-event-' + Date.now() + '@example.com';
+  const uid = 'unrelated-event-' + Date.now();
+  await postWebhook(realProductionPayload({
+    uid, type: 'general-contact-form-prosperitylfs', eventTitle: 'General Contact Form', email,
+  }));
+  const appt = getAppointment(uid);
+  assert.ok(appt);
+  assert.equal(db.prepare('SELECT * FROM retirement_intakes WHERE appointment_id = ?').get(appt.id), undefined);
+});
+
+// ── Phone extraction fallback: payload.location.optionValue ──────────────
+
+test('the phone-location fallback (payload.location.optionValue) is used for contact matching when no other phone field is present', async () => {
+  const email = 'location-phone-' + Date.now() + '@example.com';
+  const uid = 'location-phone-' + Date.now();
+  await postWebhook(realProductionPayload({
+    uid, type: 'retirement-safemoney-consultation-prosperitylfs',
+    eventTitle: 'Safe Money & Retirement Consultation', email, phone: '+14143676486',
+  }));
+  const appt = getAppointment(uid);
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(appt.contact_id);
+  assert.equal(contact.phone_e164, '+14143676486', 'the real phone number must be stored, extracted from payload.location.optionValue');
+});
+
+test('a non-phone location (e.g. Google Meet) is not mistaken for a phone number', async () => {
+  const email = 'meet-location-' + Date.now() + '@example.com';
+  const uid = 'meet-location-' + Date.now();
+  const payload = realProductionPayload({
+    uid, type: 'retirement-safemoney-consultation-prosperitylfs',
+    eventTitle: 'Safe Money & Retirement Consultation', email,
+  });
+  payload.payload.location = 'integrations:google:meet';
+  const raw = JSON.stringify(payload);
+  const res = await fetch(`${baseUrl}/webhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-cal-signature-256': sign(raw) },
+    body: raw,
+  });
+  await res.json();
+  await new Promise(r => setTimeout(r, 20));
+  const appt = getAppointment(uid);
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(appt.contact_id);
+  assert.equal(contact.phone_e164, null);
+  assert.equal(appt.location, 'Google Meet', 'location display value must still resolve normally');
 });

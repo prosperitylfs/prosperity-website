@@ -135,12 +135,7 @@ async function handleLeadSubmission(db, { headers, body, ip }, deps = {}) {
     }
 
     const sourceId = resolveSourceId(isTrustedInternalCall);
-
-    // TEMPORARY DIAGNOSTIC — remove after root cause is confirmed
-    console.log('[DIAG] /api/leads received email=%s sms_consent=%s sms=%s', email, body?.sms_consent, body?.sms);
     const result = processLeadIntake(db, { sourceId, payload: body });
-    // TEMPORARY DIAGNOSTIC — remove after root cause is confirmed
-    console.log('[DIAG] /api/leads resolved contact #%s sms_consent=%s', result.contact.id, result.contact.sms_consent);
 
     return { status: 201, body: { ok: true, contact_id: result.contact.id } };
 

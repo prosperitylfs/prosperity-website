@@ -217,6 +217,82 @@ test('an unexpected internal error is caught and returns the exact legacy 500 sh
   assert.deepEqual(res.body, { error: 'Server error' });
 });
 
+// ── sms_consent mapping through the full /api/leads pipeline ─────────────
+//
+// Earlier tests in this file assert only status/ok on these payload shapes
+// -- none of them checked the resulting DB row. Added specifically to
+// close that gap: the SMS consent checkbox on /book must reliably persist
+// through to a matched/created contact's sms_consent column.
+
+function bookLikeBody(overrides = {}) {
+  return {
+    first_name: 'Renee', last_name: 'Jones', email: 'renee.jones@example.com', phone: '4143676486',
+    lead_type: 'Retirement Lead', lead_source: 'Prosperity Booking Page', terms_accepted: 'yes',
+    ...overrides,
+  };
+}
+
+test('sms_consent=yes in the /book-shaped payload results in sms_consent=1 on the created contact', async () => {
+  await withEnv({ CRM_INTERNAL_KEY: 'test-internal-key', CRM_API_KEY: undefined }, async () => {
+    const db = setup();
+    const res = await handleLeadSubmission(db, {
+      headers: { 'x-internal-key': 'test-internal-key' }, ip: '127.0.0.1',
+      body: bookLikeBody({ sms_consent: 'yes' }),
+    }, ALWAYS_PASS_TURNSTILE);
+    assert.equal(res.status, 201);
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(res.body.contact_id);
+    assert.equal(contact.sms_consent, 1);
+  });
+});
+
+test('sms_consent=no in the /book-shaped payload results in sms_consent=0 on the created contact', async () => {
+  await withEnv({ CRM_INTERNAL_KEY: 'test-internal-key', CRM_API_KEY: undefined }, async () => {
+    const db = setup();
+    const res = await handleLeadSubmission(db, {
+      headers: { 'x-internal-key': 'test-internal-key' }, ip: '127.0.0.1',
+      body: bookLikeBody({ sms_consent: 'no' }),
+    }, ALWAYS_PASS_TURNSTILE);
+    assert.equal(res.status, 201);
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(res.body.contact_id);
+    assert.equal(contact.sms_consent, 0);
+  });
+});
+
+test('the real phone number from a /book-shaped payload is stored on the contact', async () => {
+  await withEnv({ CRM_INTERNAL_KEY: 'test-internal-key', CRM_API_KEY: undefined }, async () => {
+    const db = setup();
+    const res = await handleLeadSubmission(db, {
+      headers: { 'x-internal-key': 'test-internal-key' }, ip: '127.0.0.1',
+      body: bookLikeBody({ sms_consent: 'yes' }),
+    }, ALWAYS_PASS_TURNSTILE);
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(res.body.contact_id);
+    assert.equal(contact.phone_e164, '+14143676486');
+  });
+});
+
+test('a repeated submission with the same normalized email updates the SAME contact (no duplicate) and consent is not lost', async () => {
+  await withEnv({ CRM_INTERNAL_KEY: 'test-internal-key', CRM_API_KEY: undefined }, async () => {
+    const db = setup();
+    const first = await handleLeadSubmission(db, {
+      headers: { 'x-internal-key': 'test-internal-key' }, ip: '127.0.0.1',
+      body: bookLikeBody({ sms_consent: 'no' }),
+    }, ALWAYS_PASS_TURNSTILE);
+
+    // A second, later submission for the same person now WITH consent --
+    // e.g. the visitor books again after initially declining.
+    const second = await handleLeadSubmission(db, {
+      headers: { 'x-internal-key': 'test-internal-key' }, ip: '127.0.0.1',
+      body: bookLikeBody({ sms_consent: 'yes' }),
+    }, ALWAYS_PASS_TURNSTILE);
+
+    assert.equal(second.body.contact_id, first.body.contact_id, 'must match the same contact, not create a duplicate');
+    const count = db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE email = ?').get('renee.jones@example.com').n;
+    assert.equal(count, 1);
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(first.body.contact_id);
+    assert.equal(contact.sms_consent, 1, 'consent must upgrade from 0 to 1 on the resubmission, never lost or ignored');
+  });
+});
+
 test('no test in this file ever asserts against a real secret value -- all credentials here are synthetic test literals', () => {
   // Documentation-as-test: every credential string used above
   // ('test-internal-key', 'test-public-key', 'the-real-internal-key',

@@ -148,8 +148,8 @@ function withCapturedConsoleError(fn) {
   return fn(calls).finally(() => { console.error = original; });
 }
 
-// A. CRM save succeeds -> normal successful response remains successful.
-test('A: CRM save succeeds -> 200 {ok:true}, unchanged from before this fix', async () => {
+// A. CRM save succeeds -> normal successful response, crm_saved:true.
+test('A: CRM save succeeds -> 200 {ok:true, crm_saved:true}', async () => {
   await withMockedFetch({ crmOk: true }, async (getCaptured) => {
     const body = {
       first_name: 'Pat', last_name: 'Retiree', email: 'pat@example.com', phone: '+14144411177',
@@ -159,14 +159,21 @@ test('A: CRM save succeeds -> 200 {ok:true}, unchanged from before this fix', as
     const res = await onRequestPost({ request: fakeRequest(body), env: FAKE_ENV });
     assert.equal(res.status, 200);
     const json = await res.json();
-    assert.deepEqual(json, { ok: true });
+    assert.deepEqual(json, { ok: true, crm_saved: true });
     assert.ok(getCaptured().crmBody, 'the CRM must still have been called on the success path');
   });
 });
 
-// B. CRM save fails -> logged, browser still gets a non-blocking response,
-//    qualified prospect is not blocked from scheduling.
-test('B: CRM save fails -> logged server-side, but the browser still receives 200 {ok:true} so book.html proceeds to Step 3', async () => {
+// B. CRM save fails -> logged, and now HONESTLY reported via crm_saved:false
+//    (HTTP status/ok stay 200/true unconditionally -- see the file-level
+//    comment in functions/submit-lead.js for why: every OTHER caller of this
+//    same-origin Function, schedule.html/life-insurance.html/
+//    life-insurance-qualifier.html/contact.html, reads only `ok` and must
+//    stay completely unaffected by this change. book.html's schSubmitLead()
+//    is the only caller that inspects crm_saved, to block its own next step
+//    and show a friendly error -- that blocking behavior lives in book.html
+//    itself, not in this shared Function).
+test('B: CRM save fails -> logged server-side, HTTP stays 200/ok:true (unchanged for other callers), but crm_saved:false now honestly reports the failure', async () => {
   await withCapturedConsoleError(async (logCalls) => {
     await withMockedFetch({ crmOk: false }, async (getCaptured) => {
       const body = {
@@ -176,17 +183,14 @@ test('B: CRM save fails -> logged server-side, but the browser still receives 20
       };
       const res = await onRequestPost({ request: fakeRequest(body), env: FAKE_ENV });
 
-      // This is the exact regression from the live bug: previously this was
-      // status 502 with an error body, which book.html treated as !bkRes.ok
-      // and never advanced past Step 2 -- Cal.com was never reached.
-      assert.equal(res.status, 200, 'must NOT be the old 502 -- a qualified prospect must never be blocked by a CRM failure');
+      assert.equal(res.status, 200, 'HTTP status stays 200 -- other callers that only check res.ok are unaffected');
       const json = await res.json();
-      assert.deepEqual(json, { ok: true });
+      assert.deepEqual(json, { ok: true, crm_saved: false }, 'crm_saved must honestly reflect the failure -- this is the exact field book.html now checks to avoid the Renee Jones production bug (a CRM save that silently failed while the visitor was told nothing was wrong)');
 
       assert.ok(getCaptured().crmBody, 'the CRM save must still have been attempted, not skipped');
       assert.ok(
         logCalls.some(line => line.includes('CRM lead save failed')),
-        'the failure must be logged server-side for later diagnosis, even though the browser sees success'
+        'the failure must be logged server-side for later diagnosis'
       );
     });
   });

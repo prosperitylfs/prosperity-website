@@ -413,7 +413,7 @@
 
               <div class="form-group">
                 <label class="form-label form-label-sentence-case" for="sch-amount">Approximately how much do you currently have in retirement or savings assets that you would like help reviewing? <span class="req">*</span></label>
-                <input type="text" inputmode="decimal" id="sch-amount" placeholder="Example: $15,000" autocomplete="off">
+                <input type="text" inputmode="decimal" id="sch-amount" placeholder="Example: $100,000" autocomplete="off">
                 <p class="step-sub" style="margin:6px 0 0;">This may include a 401(k), 403(b), TSP, IRA, CDs, annuities, savings, or other retirement funds. An estimate is fine.</p>
               </div>
 
@@ -679,7 +679,7 @@
         };
 
         if (service === 'Life Insurance') {
-          await schSubmitLead('Life Insurance Lead', {}, CALCOM_LIFE_INSURANCE_URL);
+          await schSubmitLead('Life Insurance Lead', {}, CALCOM_LIFE_INSURANCE_URL, 'sch-err-1');
         } else {
           schShowStep('sch-step-amount');
         }
@@ -706,7 +706,7 @@
           schSubmitLead('Retirement Lead', {
             retirement_amount: formatDollar(amount),
             retirement_eligibility: 'Eligible - $15,000 or more',
-          }, CALCOM_RETIREMENT_URL);
+          }, CALCOM_RETIREMENT_URL, 'sch-err-amount');
         } else {
           schShowStep('sch-step-cashbuilding');
         }
@@ -726,39 +726,47 @@
             retirement_amount: amountStr,
             retirement_eligibility: 'Eligible - Under $15,000, interested in cash-building strategies',
             cash_building_interest: answer === 'yes' ? 'Yes' : 'Not sure - wants to learn more',
-          }, CALCOM_RETIREMENT_URL);
+          }, CALCOM_RETIREMENT_URL, 'sch-err-cashbuilding');
         } else {
           schSubmitLead('Retirement Lead', {
             retirement_amount: amountStr,
             retirement_eligibility: 'Safe Money & Retirement — Not Appointment Eligible\nUnder $15,000\nDeclined cash-building/regular-contribution option',
             cash_building_interest: 'No',
-          }, null);
+          }, null, 'sch-err-cashbuilding');
         }
       };
 
       // Shared by the Life Insurance path and every Safe Money & Retirement
       // outcome (eligible by amount, eligible by cash-building interest,
-      // and not-eligible). CRM lead capture is attempted, but its outcome
-      // NEVER changes what happens next -- capture is always a side
-      // effect, never a gate. Even if the /submit-lead request never
-      // reaches the server at all (e.g. the visitor is offline), the
-      // visitor still proceeds to whatever this page's qualification logic
-      // already decided. The one thing that ALWAYS gates first is this
-      // page's own required-field/consent/Turnstile validation in
-      // schContinueStep1() above, which has already passed by the time
-      // this runs.
+      // and not-eligible). CRM lead capture now GATES what happens next --
+      // a real production booking (Renee Jones) proved that silently
+      // continuing to Cal.com on a failed save let a visitor complete a
+      // real appointment while the CRM record they were actually matched
+      // to on the Cal.com side never received their real phone number or
+      // SMS consent, since /submit-lead unconditionally reported success
+      // regardless of whether the CRM save behind it worked. The one thing
+      // that ALWAYS gates first is this page's own required-field/consent/
+      // Turnstile validation in schContinueStep1() above, which has
+      // already passed by the time this runs; this is a SECOND gate, for
+      // the CRM save itself.
       //
-      // calcomUrl: a URL redirects to Cal.com after capture (with the same
-      // name/email/phone prefill built by buildCalcomPrefillQuery(), used
-      // for both the Life Insurance and Retirement paths); null shows the
-      // not-eligible closing message instead -- no appointment, no
-      // Cal.com, and (per the current approved design) no automatic guide
-      // offer from this page.
-      async function schSubmitLead(leadType, extraFields, calcomUrl) {
+      // errorElementId: which of this page's step-error <p> elements to
+      // show a failure message in -- must match whichever step is visible
+      // when this call happens (Step 1, the amount step, or the
+      // cash-building step), since schSubmitLead is called from all three.
+      //
+      // calcomUrl: a URL redirects to Cal.com after a successful capture
+      // (with the same name/email/phone prefill built by
+      // buildCalcomPrefillQuery(), used for both the Life Insurance and
+      // Retirement paths); null shows the not-eligible closing message
+      // instead -- no appointment, no Cal.com, and (per the current
+      // approved design) no automatic guide offer from this page.
+      async function schSubmitLead(leadType, extraFields, calcomUrl, errorElementId) {
         var btn = document.activeElement && document.activeElement.tagName === 'BUTTON' ? document.activeElement : null;
         var origLabel = btn ? btn.textContent : '';
         if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
 
+        var crmSaved = false;
         try {
           var payload = Object.assign({
             first_name: schContact.fname,
@@ -772,22 +780,33 @@
             turnstile_token: schContact.turnstileToken,
           }, extraFields);
 
-          await fetch('/submit-lead', {
+          var res = await fetch('/submit-lead', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
+          // crm_saved is the new field functions/submit-lead.js reports
+          // (res.ok/HTTP 200 alone is not enough -- that Function itself
+          // always returns 200 for backward compatibility with every other
+          // caller; crm_saved is the actual signal for whether the CRM
+          // write succeeded).
+          var resBody = await res.json().catch(function () { return {}; });
+          crmSaved = res.ok && resBody && resBody.crm_saved !== false;
         } catch (err) {
-          // Deliberately swallowed — see function comment above. Logged to
-          // the console only, purely for local debugging; never shown to
-          // the visitor and never blocks what happens next.
-          console.warn('[book] /submit-lead did not complete, proceeding anyway:', err);
+          console.error('[book] /submit-lead request failed:', err);
+          crmSaved = false;
         } finally {
           if (btn) { btn.disabled = false; btn.textContent = origLabel; }
         }
 
-        // Booking has now submitted — clear the guide-lead handoff so it
-        // can't silently prefill a later, unrelated visit to this page.
+        if (!crmSaved) {
+          showErr(errorElementId || 'sch-err-1', 'We’re having trouble saving your information. Please try again in a moment.');
+          return;
+        }
+
+        // Booking has now successfully submitted — clear the guide-lead
+        // handoff so it can't silently prefill a later, unrelated visit to
+        // this page.
         try { sessionStorage.removeItem('prosperityGuideLead'); } catch (storageErr) {}
 
         if (calcomUrl) {

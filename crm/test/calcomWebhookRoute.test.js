@@ -209,6 +209,39 @@ test('contact matching: email first, phone second', async () => {
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE email = ?').get(email).n, 1);
 });
 
+test('contact matching is case-insensitive on email -- a mixed-case webhook attendee email matches the existing lowercase-stored contact, preserving its sms_consent', async () => {
+  // Reproduces the real production bug: /submit-lead always stores emails
+  // lowercased (crm/lib/leadNormalize.js's normalizeEmail(), used by
+  // crm/lib/leadIntake.js), but Cal.com's booking page is prefilled from a
+  // query param built from the visitor's AS-TYPED, un-lowercased email
+  // (book.html/schedule.html's buildCalcomPrefillQuery()) -- so the
+  // webhook's attendee.email can legitimately arrive in a different case
+  // than what's stored. Before the fix, this WHERE email = ? lookup was
+  // case-sensitive and silently created a second, sms_consent=0 contact.
+  const lower = 'case-sensitive-' + Date.now() + '@example.com';
+  const existing = db.prepare(`
+    INSERT INTO contacts (first_name, last_name, email, phone_e164, sms_consent)
+    VALUES ('Janet', 'Jackson', ?, '+14145550177', 1)
+  `).run(lower);
+
+  const uid = 'case-insensitive-' + Date.now();
+  const webhookEmail = lower.charAt(0).toUpperCase() + lower.slice(1); // e.g. "Case-sensitive-...@example.com"
+  await postWebhook(basePayload({
+    uid, eventTitle: 'Safe Money & Retirement Consultation',
+    responses: { name: responseEntry('Name', 'Janet Jackson'), email: responseEntry('Email', webhookEmail), phone: responseEntry('Phone', '+14145550177') },
+  }));
+
+  const appt = getAppointment(uid);
+  assert.equal(appt.contact_id, existing.lastInsertRowid, 'must match the existing contact despite the case difference, not create a duplicate');
+
+  const rows = db.prepare('SELECT * FROM contacts WHERE lower(email) = lower(?)').all(lower);
+  assert.equal(rows.length, 1, 'exactly one contact must exist for this email regardless of case');
+  assert.equal(rows[0].sms_consent, 1, 'the original sms_consent must be preserved, never reset by the webhook match');
+
+  const intake = db.prepare('SELECT * FROM retirement_intakes WHERE appointment_id = ?').get(appt.id);
+  assert.ok(intake, 'a retirement intake record must be created for this correctly-matched appointment');
+});
+
 test('a brand-new contact is created when no email/phone match exists, with lead_source Cal.com', async () => {
   const email = 'brandnew-' + Date.now() + '@example.com';
   const uid = 'new-' + Date.now();

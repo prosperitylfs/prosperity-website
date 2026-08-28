@@ -743,7 +743,13 @@ function renderInfo(contact) {
     ['Alt Phone',      contact.alt_phone ? formatPhone(contact.alt_phone) : null, null],
     ['Lead Source',    contact.lead_source, null],
     ['Email Consent',      contact.email_consent ? 'Yes' : 'No', null],
-    ['SMS Consent',        contact.sms_consent ? 'Yes' : null, null],
+    // Always renders (Yes/No/Opted Out), matching Email Consent's row
+    // above -- previously this showed 'Yes' or was OMITTED ENTIRELY when
+    // false (falsy values are filtered out of this list below), making a
+    // contact with no SMS consent look identical to one this row simply
+    // never existed for. Opt-out is authoritative and checked first here,
+    // same precedence as crm/lib/legacySmsSend.js's checkConsentGate().
+    ['SMS Consent',        contact.sms_opted_out_at ? 'Opted Out' : (contact.sms_consent ? 'Yes' : 'No'), null],
     ['SMS Consent Source', contact.sms_consent_source, null],
     ['SMS Consent Date',   contact.sms_consent_at ? formatDate(contact.sms_consent_at, true) : null, null],
     ['SMS Consent Notes',  contact.sms_consent_notes, null],

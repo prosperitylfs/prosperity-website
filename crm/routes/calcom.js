@@ -19,6 +19,7 @@ const db      = require('../db/database');
 const { isValidCalcomSignature } = require('../lib/calcomSignature');
 const { createIntakeForAppointment } = require('../lib/retirementIntakeService');
 const { sendRetirementIntakeSms } = require('../lib/retirementIntakeSms');
+const { normalizeEmail } = require('../lib/leadNormalize');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -166,9 +167,18 @@ async function handleCreatedOrRescheduled(event, payload) {
   const firstName = nameParts[0]         || null;
   const lastName  = nameParts.slice(1).join(' ') || null;
 
-  const email = attendee.email
-    || responses.email?.value
-    || null;
+  // Normalized (trimmed + lowercased) via the SAME normalizeEmail() the
+  // /api/leads pipeline (crm/lib/leadIntake.js) already uses to store every
+  // contact's email -- without this, a webhook whose attendee email arrives
+  // in a different case than what was submitted through /book (Cal.com's
+  // booking page is prefilled from a query param that was never lowercased
+  // client-side) fails the WHERE email = ? lookup below (SQLite's default
+  // text comparison is case-sensitive; contacts.email has no COLLATE
+  // NOCASE), silently creating a second, separate contact instead of
+  // matching the one /submit-lead already created -- and that new contact's
+  // INSERT never sets sms_consent, so it defaults to 0 even when the
+  // visitor genuinely consented on the original contact record.
+  const email = normalizeEmail(attendee.email || responses.email?.value || null);
 
   const rawPhone = attendee.phoneNumber
     || responses.phone?.value

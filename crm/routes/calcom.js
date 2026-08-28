@@ -161,6 +161,9 @@ async function handleCreatedOrRescheduled(event, payload) {
   const attendee      = (payload.attendees || [])[0] || {};
   const responses     = payload.responses || {};
 
+  // TEMPORARY DIAGNOSTIC — remove after root cause is confirmed
+  console.log('[DIAG] eventType:', JSON.stringify(payload.eventType));
+
   // ── Extract attendee details ───────────────────────────────────────────────
   const fullName  = attendee.name || responses.name?.value || '';
   const nameParts = fullName.trim().split(/\s+/);

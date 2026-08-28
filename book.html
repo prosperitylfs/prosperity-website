@@ -145,6 +145,15 @@
       padding-top: 20px;
       border-top: 1px solid #ede9f6;
     }
+
+    /* Overrides .form-label's sitewide text-transform:uppercase (shared
+       assets/css/style.css) for this one label only -- that rule is meant
+       for short field labels (First Name, Email, etc.) and reads poorly
+       applied to a full question sentence. Every other .form-label on this
+       page and sitewide is untouched. */
+    .form-label-sentence-case {
+      text-transform: none;
+    }
   </style>
 </head>
 <body class="book-page">
@@ -328,11 +337,11 @@
               <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
                 <div style="flex:1; min-width:120px;">
                   <label class="form-label" for="sch-fname">First Name <span class="req">*</span></label>
-                  <input type="text" id="sch-fname" placeholder="Jane" autocomplete="given-name">
+                  <input type="text" id="sch-fname" autocomplete="given-name">
                 </div>
                 <div style="flex:1; min-width:120px;">
                   <label class="form-label" for="sch-lname">Last Name <span class="req">*</span></label>
-                  <input type="text" id="sch-lname" placeholder="Smith" autocomplete="family-name">
+                  <input type="text" id="sch-lname" autocomplete="family-name">
                 </div>
               </div>
 
@@ -403,8 +412,8 @@
               <p class="step-sub">This helps us make sure we connect you with the right next step.</p>
 
               <div class="form-group">
-                <label class="form-label" for="sch-amount">Approximately how much do you currently have in retirement or savings assets that you would like help reviewing? <span class="req">*</span></label>
-                <input type="text" inputmode="decimal" id="sch-amount" placeholder="$15,000" autocomplete="off">
+                <label class="form-label form-label-sentence-case" for="sch-amount">Approximately how much do you currently have in retirement or savings assets that you would like help reviewing? <span class="req">*</span></label>
+                <input type="text" inputmode="decimal" id="sch-amount" placeholder="Example: $15,000" autocomplete="off">
                 <p class="step-sub" style="margin:6px 0 0;">This may include a 401(k), 403(b), TSP, IRA, CDs, annuities, savings, or other retirement funds. An estimate is fine.</p>
               </div>
 

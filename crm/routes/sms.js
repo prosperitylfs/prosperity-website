@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db/database');
+const { sendLegacySms } = require('../lib/legacySmsSend');
 
 // GET /api/sms/contact/:id — SMS history for a contact
 // sms_messages is the sole authoritative source. The communications table is
@@ -30,7 +31,12 @@ router.get('/contact/:id', (req, res) => {
   }
 });
 
-// POST /api/sms/send — send a manual outbound SMS to a contact
+// POST /api/sms/send — send a manual outbound SMS to a contact.
+// The actual consent-gate -> resolve-phone -> insert-queued -> call-Twilio
+// -> update-status logic lives in crm/lib/legacySmsSend.js (shared with the
+// automatic Retirement Intake SMS in crm/lib/retirementIntakeSms.js) — this
+// route is now a thin adapter from that shared result shape to this
+// endpoint's existing HTTP contract, unchanged from before the extraction.
 router.post('/send', async (req, res) => {
   try {
     const { contact_id, message } = req.body;
@@ -41,80 +47,12 @@ router.post('/send', async (req, res) => {
     const cid = parseInt(contact_id, 10);
     if (isNaN(cid)) return res.status(400).json({ error: 'Invalid contact_id' });
 
-    const contact = db.prepare(
-      'SELECT id, phone, phone_e164, sms_consent, sms_opted_out_at FROM contacts WHERE id = ?'
-    ).get(cid);
-    if (!contact) return res.status(404).json({ error: 'Contact not found' });
+    const result = await sendLegacySms(db, { contactId: cid, body });
 
-    // SMS consent enforcement -- server-side, before anything else happens
-    // (no sms_messages row inserted, Twilio never required/called below).
-    // STOP/opt-out is checked FIRST and is always authoritative: a contact
-    // who has texted STOP must stay blocked even if sms_consent is somehow
-    // still 1 on their record. sms_opted_out_at/sms_consent themselves are
-    // untouched here -- this route only reads them; crm/lib/inboundSmsService.js
-    // remains the sole place STOP/START ever writes these columns.
-    if (contact.sms_opted_out_at) {
-      return res.status(403).json({ error: 'This contact has opted out of SMS (STOP) and cannot be texted.' });
+    if (!result.ok) {
+      return res.status(result.status).json({ error: result.error, code: result.code });
     }
-    if (!contact.sms_consent) {
-      return res.status(403).json({ error: 'This contact does not have SMS consent on file. Add a consent source on the Contact Detail page before texting.' });
-    }
-
-    // Resolve destination: prefer stored E.164, otherwise derive from display phone
-    let toNumber = contact.phone_e164;
-    if (!toNumber && contact.phone) {
-      const digits = String(contact.phone).replace(/\D/g, '');
-      const ten = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
-      if (ten.length === 10) toNumber = `+1${ten}`;
-    }
-    if (!toNumber) return res.status(400).json({ error: 'Contact has no valid phone number for SMS' });
-
-    const fromNumber = process.env.TWILIO_FROM_NUMBER;
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken  = process.env.TWILIO_AUTH_TOKEN;
-    const publicUrl  = (process.env.CRM_PUBLIC_URL || '').replace(/\/$/, '');
-
-    if (!fromNumber || !accountSid || !authToken) {
-      return res.status(503).json({ error: 'Twilio is not configured — check TWILIO_FROM_NUMBER, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN' });
-    }
-
-    // Pre-insert with status=queued so it appears in SMS History immediately
-    const ins = db.prepare(`
-      INSERT INTO sms_messages (contact_id, direction, from_number, to_number, body, status)
-      VALUES (?, 'outbound', ?, ?, ?, 'queued')
-    `).run(cid, fromNumber, toNumber, body);
-    const smsId = ins.lastInsertRowid;
-
-    console.log(`[sms/send] contact_id=${cid} sms_id=${smsId} to=${toNumber}`);
-
-    try {
-      const client = require('twilio')(accountSid, authToken);
-      const msgParams = { body, from: fromNumber, to: toNumber };
-      if (publicUrl) msgParams.statusCallback = `${publicUrl}/api/twilio/sms/status`;
-
-      const msg = await client.messages.create(msgParams);
-      console.log(`[sms/send] sent sid=${msg.sid} status=${msg.status}`);
-
-      db.prepare('UPDATE sms_messages SET twilio_sid = ?, status = ? WHERE id = ?')
-        .run(msg.sid, msg.status || 'sent', smsId);
-
-      res.json({ ok: true, sms: db.prepare('SELECT * FROM sms_messages WHERE id = ?').get(smsId) });
-
-    } catch (twilioErr) {
-      console.error(`[sms/send] Twilio error: ${twilioErr.message}  code=${twilioErr.code || 'none'}`);
-      if (twilioErr.moreInfo) console.error(`[sms/send] info: ${twilioErr.moreInfo}`);
-
-      const errDetail = [
-        twilioErr.message,
-        twilioErr.code     ? `Code: ${twilioErr.code}`      : null,
-        twilioErr.moreInfo ? `Info: ${twilioErr.moreInfo}` : null,
-      ].filter(Boolean).join(' | ');
-
-      db.prepare('UPDATE sms_messages SET status = ?, body = ? WHERE id = ?')
-        .run('failed', `[FAILED] ${errDetail}\n\nOriginal message: ${body}`, smsId);
-
-      res.status(500).json({ error: twilioErr.message, code: twilioErr.code || null });
-    }
+    res.json({ ok: true, sms: result.sms });
 
   } catch (err) {
     console.error('[sms/send] error:', err.message);

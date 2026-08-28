@@ -122,6 +122,34 @@ db.exec(`
     FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
   );
 
+  -- Retirement Intake Form (crm/lib/retirementIntakeService.js). One row per
+  -- Safe Money & Retirement appointment, created automatically by
+  -- crm/routes/calcom.js when a new such appointment is booked. 'token' is
+  -- the sole public-facing identifier (a secure random string) -- the public
+  -- retirement-intake.html page and its API routes never see or accept a
+  -- raw contact_id/appointment_id from the browser. 'status' is one of
+  -- 'Not Sent' | 'Sent' | 'Completed' only ('Overdue' is a DISPLAY-ONLY
+  -- value computed at read time from status='Sent' plus the linked
+  -- appointment's current appt_datetime minus 2 hours -- never stored, and
+  -- nothing in this codebase acts on it automatically yet). responses_json
+  -- holds the full structured intake answers (all ten form sections) as one
+  -- organized JSON object; core status/date fields stay real columns so
+  -- they are directly queryable/sortable without parsing JSON.
+  CREATE TABLE IF NOT EXISTS retirement_intakes (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    contact_id     INTEGER NOT NULL,
+    appointment_id INTEGER NOT NULL,
+    token          TEXT NOT NULL,
+    status         TEXT NOT NULL DEFAULT 'Not Sent',
+    sent_at        DATETIME,
+    completed_at   DATETIME,
+    responses_json TEXT,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (contact_id)     REFERENCES contacts(id)     ON DELETE CASCADE,
+    FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+  );
+
   CREATE INDEX IF NOT EXISTS idx_sms_contact         ON sms_messages(contact_id);
   CREATE INDEX IF NOT EXISTS idx_contacts_email      ON contacts(email);
   CREATE INDEX IF NOT EXISTS idx_contacts_phone_e164 ON contacts(phone_e164);
@@ -132,6 +160,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_emails_contact      ON emails(contact_id);
   CREATE INDEX IF NOT EXISTS idx_appts_contact       ON appointments(contact_id);
   CREATE INDEX IF NOT EXISTS idx_appts_datetime      ON appointments(appt_datetime);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_retirement_intakes_token       ON retirement_intakes(token);
+  CREATE INDEX IF NOT EXISTS idx_retirement_intakes_contact     ON retirement_intakes(contact_id);
+  CREATE INDEX IF NOT EXISTS idx_retirement_intakes_appointment ON retirement_intakes(appointment_id);
 `);
 
 // ─── Follow-up tasks table ────────────────────────────────────────────────────
@@ -166,6 +197,15 @@ function addCol(table, col, def) {
 addCol('contacts', 'lead_status',            "TEXT DEFAULT 'New Lead'");
 addCol('contacts', 'sms_consent',            'INTEGER DEFAULT 0');
 addCol('contacts', 'email_consent',          'INTEGER DEFAULT 0');
+// Also added by crm/db/migrateRevenueMvp.js (kept there for that
+// checkpoint's own bookkeeping) -- also added here, unconditionally on
+// every boot, because crm/lib/legacySmsSend.js's consent gate (used by both
+// the manual SMS composer and the automatic Retirement Intake SMS
+// triggered from crm/routes/calcom.js) now depends on this column existing
+// in every environment, not only after the separate production migration
+// script has been run. addCol() is idempotent, so having it in both places
+// is safe -- whichever runs first wins, the other is a no-op.
+addCol('contacts', 'sms_opted_out_at',       'DATETIME');
 addCol('contacts', 'appointment_booked',     'INTEGER DEFAULT 0');
 addCol('contacts', 'appointment_date',       'TEXT');
 addCol('contacts', 'last_contacted',         'TEXT');

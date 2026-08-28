@@ -147,6 +147,11 @@ app.use('/api/twilio-prosperity', require('./routes/twilioProsperitySms'));
 // Optional HMAC protection via CALCOM_WEBHOOK_SECRET env var
 app.use('/api/calcom', require('./routes/calcom'));
 
+// Retirement Intake Form — PUBLIC (a prospect filling this out has no CRM
+// login; the unguessable per-appointment token, not a CRM key, is what
+// limits access to any one record — see routes/retirementIntake.js).
+app.use('/api/retirement-intake', require('./routes/retirementIntake'));
+
 // Health check — PUBLIC, no sensitive data
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
@@ -180,6 +185,11 @@ app.use('/api/calls', requireApiKey, require('./routes/calls'));
 
 // Appointments — protected
 app.use('/api/appointments', requireApiKey, require('./routes/appointments'));
+
+// Retirement Intake Form — staff-only admin actions (list/mark-sent for
+// Contact Detail). Protected — public submission lives at
+// /api/retirement-intake above, not here.
+app.use('/api/retirement-intake-admin', requireApiKey, require('./routes/retirementIntakeAdmin'));
 
 // Follow-up tasks — protected
 app.use('/api/tasks', requireApiKey, require('./routes/tasks'));

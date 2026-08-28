@@ -3807,3 +3807,55 @@ body {
 .tl-form              { border-left-color: #d1d5db; background: #f9fafb; }
 .tl-note              .tl-title,
 .tl-form              .tl-title { color: #374151; }
+
+/* ── Retirement Intake card (crm/lib/retirementIntakeService.js) ────────── */
+.ri-intake-item {
+  padding: .75rem 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.ri-intake-item:last-child { border-bottom: none; }
+.ri-intake-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  flex-wrap: wrap;
+  font-weight: 600;
+  font-size: .875rem;
+  color: var(--text);
+}
+.ri-answer-row { font-size: .82rem; color: var(--text); padding: 2px 0; }
+.ri-answer-label { font-weight: 600; color: var(--text-muted); }
+.ri-answer-value { color: var(--text); }
+.ri-account-summary {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .6rem .75rem;
+  margin-bottom: .5rem;
+  font-size: .82rem;
+}
+.ri-answer-section { margin-bottom: .75rem; }
+.ri-answer-section-title {
+  font-weight: 700;
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--purple);
+  margin-bottom: .25rem;
+}
+.ri-expand {
+  margin-top: .5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .5rem .75rem;
+}
+.ri-expand summary {
+  cursor: pointer;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--purple);
+}
+.ri-expand[open] summary { margin-bottom: .5rem; }

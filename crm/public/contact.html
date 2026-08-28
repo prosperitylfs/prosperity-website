@@ -479,6 +479,14 @@
           </div>
         </div>
 
+        <!-- Retirement Intake — one card per Safe Money & Retirement
+             appointment this contact has, only rendered when at least one
+             exists (crm/lib/retirementIntakeService.js). -->
+        <div class="card card-retirement-intake hidden" id="retirement-intake-card">
+          <h2 class="card-title">Retirement Intake</h2>
+          <div id="retirement-intake-list"></div>
+        </div>
+
         <!--
           Follow-Up Information card removed from view (per Contact Detail
           usability cleanup): next_follow_up_date, last_contact_date, and

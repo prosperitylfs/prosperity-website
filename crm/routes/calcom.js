@@ -17,6 +17,8 @@ const express = require('express');
 const router  = express.Router();
 const db      = require('../db/database');
 const { isValidCalcomSignature } = require('../lib/calcomSignature');
+const { createIntakeForAppointment } = require('../lib/retirementIntakeService');
+const { sendRetirementIntakeSms } = require('../lib/retirementIntakeSms');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -149,7 +151,7 @@ function buildLifeInsuranceNote({ matched, rawExtras }) {
 
 // ── Event handlers ────────────────────────────────────────────────────────────
 
-function handleCreatedOrRescheduled(event, payload) {
+async function handleCreatedOrRescheduled(event, payload) {
   const uid           = payload.uid;
   const rescheduleUid = payload.rescheduleUid || null;
   const startTime     = payload.startTime;
@@ -351,6 +353,33 @@ function handleCreatedOrRescheduled(event, payload) {
       VALUES (?, 'appointment', 'inbound', ?, ?, ?)
     `).run(contact.id, subject, body, apptId);
   }
+
+  // ── Retirement Intake Form: create the (idempotent) intake record and ─────
+  // send the prospect their link. Only for a genuinely NEW retirement
+  // booking — a reschedule updates the existing appointment row in place
+  // (same appointments.id), so the existing intake record's appointment_id
+  // FK and live-computed deadline stay correct automatically without
+  // creating a second record or re-sending. This isNew gate is the FIRST of
+  // two independent safeguards against a duplicate send; see
+  // crm/lib/retirementIntakeSms.js's file-level comment for the second
+  // (status must still be 'Not Sent'). A messaging failure here is caught
+  // and logged, never thrown — it must not affect the booking/contact/
+  // appointment data already written above, and sendRetirementIntakeSms
+  // itself never lets a Twilio error propagate either (see
+  // crm/lib/legacySmsSend.js).
+  if (isNew && leadType === 'Retirement Lead') {
+    const intake = createIntakeForAppointment(db, { contactId: contact.id, appointmentId: apptId });
+    try {
+      const smsResult = await sendRetirementIntakeSms(db, {
+        intake, contactId: contact.id, appointmentDatetimeIso: apptDatetime,
+      });
+      if (smsResult.attempted && !smsResult.sent) {
+        console.warn(`Cal.com: retirement intake SMS not sent for contact #${contact.id} (intake #${intake.id}): ${smsResult.reason}`);
+      }
+    } catch (smsErr) {
+      console.error(`Cal.com: retirement intake SMS threw unexpectedly for contact #${contact.id}:`, smsErr.message);
+    }
+  }
 }
 
 function handleCancelled(payload) {
@@ -407,7 +436,7 @@ router.get('/webhook', (_req, res) => {
   res.json({ ok: true, message: 'Cal.com webhook endpoint is active' });
 });
 
-router.post('/webhook', (req, res) => {
+router.post('/webhook', async (req, res) => {
   // Respond 200 immediately so Cal.com does not retry on processing delay
   res.json({ ok: true });
 
@@ -426,7 +455,7 @@ router.post('/webhook', (req, res) => {
     console.log(`Cal.com webhook received: ${triggerEvent}`);
 
     if (triggerEvent === 'BOOKING_CREATED' || triggerEvent === 'BOOKING_RESCHEDULED') {
-      handleCreatedOrRescheduled(triggerEvent, payload);
+      await handleCreatedOrRescheduled(triggerEvent, payload);
     } else if (triggerEvent === 'BOOKING_CANCELLED') {
       handleCancelled(payload);
     } else {

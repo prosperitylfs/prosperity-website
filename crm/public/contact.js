@@ -870,6 +870,151 @@ function renderAppointments(appts) {
   }
 }
 
+// ── Retirement Intake (crm/lib/retirementIntakeService.js) ─────────────────
+// One entry per Safe Money & Retirement appointment this contact has. The
+// card itself stays hidden when there are none, so it never clutters the
+// main contact view for Life Insurance-only contacts.
+
+const RI_STATUS_TAG = {
+  'Not Sent':  'tag-gray',
+  'Sent':      'tag-blue',
+  'Completed': 'tag-green',
+  'Overdue':   'tag-red',
+};
+
+async function loadRetirementIntake() {
+  try {
+    const intakes = await CRM.fetch(`/api/retirement-intake-admin/contact/${id}`);
+    renderRetirementIntake(intakes);
+  } catch (e) {
+    console.error('loadRetirementIntake failed:', e);
+  }
+}
+
+function riAnswerRows(obj, prefix = '') {
+  if (!obj || typeof obj !== 'object') return '';
+  return Object.entries(obj).map(([key, val]) => {
+    if (val === null || val === undefined || val === '' || (Array.isArray(val) && !val.length)) return '';
+    const label = escHtml(prefix + key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()));
+    let display;
+    if (Array.isArray(val)) display = escHtml(val.join(', '));
+    else if (typeof val === 'object') return riAnswerRows(val, key + ' – ');
+    else display = escHtml(String(val));
+    return `<div class="ri-answer-row"><span class="ri-answer-label">${label}:</span> <span class="ri-answer-value">${display}</span></div>`;
+  }).join('');
+}
+
+function renderIntakeItem(intake) {
+  const tagCls = RI_STATUS_TAG[intake.displayStatus] || 'tag-gray';
+  const apptWhen = intake.appt_datetime ? fmtApptDt(intake.appt_datetime) : '—';
+  const deadlineWhen = intake.deadline ? fmtApptDt(intake.deadline) : '—';
+
+  const sentInfo = intake.sent_at ? `<div class="text-muted" style="font-size:0.82rem;">Sent: ${escHtml(fmtApptDt(intake.sent_at))} CT</div>` : '';
+  const completedInfo = intake.completed_at ? `<div class="text-muted" style="font-size:0.82rem;">Completed: ${escHtml(fmtApptDt(intake.completed_at))} CT</div>` : '';
+
+  const markSentBtn = intake.status === 'Not Sent'
+    ? `<button class="btn-section-cancel" onclick="markRetirementIntakeSent(${intake.id})">Mark as Sent</button>`
+    : '';
+  // Available regardless of status -- useful as a manual backup even after
+  // the automatic SMS has gone out (e.g. to resend via a different
+  // channel). The token itself is only ever visible here, behind
+  // dashboardAuth + requireApiKey -- never on the public intake page.
+  const copyLinkBtn = `<button class="btn-section-cancel" onclick="copyRetirementIntakeLink('${intake.token}')">Copy Intake Link</button>`;
+
+  let answersHtml = '<p class="text-muted">Not completed yet.</p>';
+  if (intake.responses) {
+    const r = intake.responses;
+    const quickFacts = [
+      r.helpWith && r.helpWith.mainConcern ? `<div class="ri-answer-row"><span class="ri-answer-label">Main consultation goal:</span> ${escHtml(r.helpWith.mainConcern)}</div>` : '',
+      intake.totalAssets || (r.totalAssets ? `<div class="ri-answer-row"><span class="ri-answer-label">Total assets to discuss:</span> ${escHtml(r.totalAssets)}</div>` : ''),
+      r.about && r.about.isRetired ? `<div class="ri-answer-row"><span class="ri-answer-label">Retirement status:</span> ${escHtml(r.about.isRetired)}${r.about.retirementYear ? ' (' + escHtml(r.about.retirementYear) + ')' : ''}</div>` : '',
+      r.income && r.income.needsIncome ? `<div class="ri-answer-row"><span class="ri-answer-label">Income need:</span> ${escHtml(r.income.needsIncome)}</div>` : '',
+      r.risk && r.risk.comfortWithLosses ? `<div class="ri-answer-row"><span class="ri-answer-label">Risk comfort:</span> ${escHtml(r.risk.comfortWithLosses)}</div>` : '',
+      r.risk && r.risk.priorities && r.risk.priorities.length ? `<div class="ri-answer-row"><span class="ri-answer-label">Priorities:</span> ${escHtml(r.risk.priorities.join(', '))}</div>` : '',
+      r.timeHorizon && r.timeHorizon.horizon ? `<div class="ri-answer-row"><span class="ri-answer-label">Time horizon:</span> ${escHtml(r.timeHorizon.horizon)}</div>` : '',
+    ].filter(Boolean).join('');
+
+    const accountsHtml = (r.accounts || []).map((acct, i) => `
+      <div class="ri-account-summary">
+        <strong>Account ${i + 1}${acct.accountType ? ': ' + escHtml(acct.accountType) : ''}</strong>
+        ${riAnswerRows(acct)}
+      </div>`).join('') || '<p class="text-muted">No accounts listed.</p>';
+
+    answersHtml = `
+      ${quickFacts}
+      <details class="ri-expand">
+        <summary>Accounts &amp; assets (${(r.accounts || []).length})</summary>
+        ${accountsHtml}
+      </details>
+      <details class="ri-expand">
+        <summary>All intake answers</summary>
+        ${Object.entries(r).filter(([k]) => k !== 'accounts').map(([section, val]) => `
+          <div class="ri-answer-section">
+            <div class="ri-answer-section-title">${escHtml(section.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()))}</div>
+            ${riAnswerRows(val)}
+          </div>`).join('')}
+      </details>`;
+  }
+
+  return `
+    <div class="ri-intake-item">
+      <div class="ri-intake-header">
+        <span>${escHtml(intake.appt_type || 'Safe Money & Retirement Consultation')} — ${escHtml(apptWhen)} CT</span>
+        <span class="tag tag-xs ${tagCls}">${escHtml(intake.displayStatus)}</span>
+      </div>
+      <div class="text-muted" style="font-size:0.82rem;">Deadline: ${escHtml(deadlineWhen)} CT</div>
+      ${sentInfo}
+      ${completedInfo}
+      <div style="margin-top:8px;">${answersHtml}</div>
+      <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+        ${copyLinkBtn}
+        ${markSentBtn}
+      </div>
+    </div>`;
+}
+
+function renderRetirementIntake(intakes) {
+  const card = document.getElementById('retirement-intake-card');
+  const el = document.getElementById('retirement-intake-list');
+  if (!card || !el) return;
+
+  if (!intakes || !intakes.length) {
+    card.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+
+  card.classList.remove('hidden');
+  el.innerHTML = intakes.map(renderIntakeItem).join('');
+}
+
+// Keep this base URL in sync with crm/lib/retirementIntakeSms.js's
+// PUBLIC_SITE_BASE_URL — the frontend and backend are separate runtimes
+// with no shared module, so the format is necessarily duplicated here.
+const RI_PUBLIC_SITE_BASE_URL = 'https://www.prosperitylfs.com';
+
+window.copyRetirementIntakeLink = async function (token) {
+  const url = `${RI_PUBLIC_SITE_BASE_URL}/retirement-intake?token=${token}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Intake link copied.');
+  } catch (e) {
+    alert('Could not copy the link automatically. Here it is to copy manually:\n\n' + url);
+  }
+};
+
+window.markRetirementIntakeSent = async function (intakeId) {
+  try {
+    await CRM.fetch(`/api/retirement-intake-admin/${intakeId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ action: 'mark_sent' }),
+    });
+    await loadRetirementIntake();
+  } catch (e) {
+    alert('Could not mark this intake as sent: ' + e.message);
+  }
+};
+
 async function saveAppointment() {
   const typeEl  = document.getElementById('appt-type');
   const dtEl    = document.getElementById('appt-datetime');
@@ -1523,7 +1668,7 @@ async function loadContact() {
     wireSmsCompose(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
-    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity(), loadTasks(), loadTimeline()]);
+    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity(), loadTasks(), loadTimeline(), loadRetirementIntake()]);
   } catch (err) {
     showError(`Could not load contact: ${err.message}`);
   }
@@ -1629,7 +1774,7 @@ async function refreshContact() {
     wireSmsCompose(contact);
     populateSections(contact);
     renderNotes(contact.notes || []);
-    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity(), loadTasks(), loadTimeline()]);
+    await Promise.all([loadCallLogs(), loadSmsHistory(), loadEmailHistory(), loadAppointments(), loadActivity(), loadTasks(), loadTimeline(), loadRetirementIntake()]);
     showToast('CRM refreshed ✓');
   } catch (err) {
     console.error('Refresh failed:', err);

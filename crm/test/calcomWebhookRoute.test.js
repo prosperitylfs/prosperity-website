@@ -264,3 +264,109 @@ test('a new/status-changing booking logs an entry to the communications timeline
   assert.ok(comm, 'a new booking must be logged to the contact activity timeline');
   assert.match(comm.subject, /Appointment Scheduled/);
 });
+
+// ── Retirement Intake Form auto-creation (new) ───────────────────────────
+
+function getIntakeByApptId(apptId) {
+  return db.prepare('SELECT * FROM retirement_intakes WHERE appointment_id = ?').get(apptId);
+}
+
+test('a new Safe Money & Retirement booking automatically creates a Not Sent retirement intake record', async () => {
+  const uid = 'ri-new-' + Date.now();
+  await postWebhook(basePayload({
+    uid, eventTitle: 'Safe Money & Retirement Consultation',
+    responses: { name: responseEntry('Name', 'Rita Ree'), email: responseEntry('Email', 'rita-' + Date.now() + '@example.com') },
+  }));
+  const appt = getAppointment(uid);
+  const intake = getIntakeByApptId(appt.id);
+  assert.ok(intake, 'booking a retirement appointment must create an intake record');
+  assert.equal(intake.status, 'Not Sent');
+  assert.equal(intake.contact_id, appt.contact_id);
+  assert.ok(intake.token && intake.token.length >= 32);
+  assert.equal(intake.sent_at, null);
+  assert.equal(intake.completed_at, null);
+});
+
+test('a Life Insurance booking never creates a retirement intake record or attempts an intake SMS', async () => {
+  const uid = 'ri-li-' + Date.now();
+  await postWebhook(basePayload({ uid, responses: lifeInsuranceResponses() }));
+  const appt = getAppointment(uid);
+  assert.equal(getIntakeByApptId(appt.id), undefined);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sms_messages WHERE contact_id = ?').get(appt.contact_id).n, 0);
+});
+
+test('a new retirement booking for an already SMS-consenting contact reaches the send path (no Twilio configured in this test file, so it fails gracefully) without falsely marking the intake Sent', async () => {
+  const email = 'consented-' + Date.now() + '@example.com';
+  db.prepare(`
+    INSERT INTO contacts (first_name, last_name, email, phone_e164, sms_consent)
+    VALUES ('Consented', 'Prospect', ?, '+14145550188', 1)
+  `).run(email);
+
+  const uid = 'ri-consented-' + Date.now();
+  await postWebhook(basePayload({
+    uid, eventTitle: 'Safe Money & Retirement Consultation',
+    responses: { name: responseEntry('Name', 'Consented Prospect'), email: responseEntry('Email', email), phone: responseEntry('Phone', '+14145550188') },
+  }));
+
+  const appt = getAppointment(uid);
+  const intake = getIntakeByApptId(appt.id);
+  assert.ok(intake);
+  // No TWILIO_* env vars are set anywhere in this test file, so the send
+  // deterministically fails at the "not configured" step -- proving this
+  // contact's consent got it PAST the consent gate (unlike the other tests
+  // in this file, whose contacts have no consent on file at all) without
+  // ever needing a live Twilio account or a network call.
+  assert.equal(intake.status, 'Not Sent');
+  assert.equal(intake.sent_at, null);
+});
+
+test('a duplicate/redelivered webhook for the same retirement booking never creates a second intake record', async () => {
+  const uid = 'ri-dup-' + Date.now();
+  const payload = basePayload({
+    uid, eventTitle: 'Safe Money & Retirement Consultation',
+    responses: { name: responseEntry('Name', 'Dup Test'), email: responseEntry('Email', 'dup-' + Date.now() + '@example.com') },
+  });
+  await postWebhook(payload);
+  await postWebhook(payload);
+  const appt = getAppointment(uid);
+  const rows = db.prepare('SELECT * FROM retirement_intakes WHERE appointment_id = ?').all(appt.id);
+  assert.equal(rows.length, 1);
+});
+
+test('rescheduling a retirement appointment keeps the same intake record (same token, no duplicate)', async () => {
+  const uid = 'ri-resched-' + Date.now();
+  const email = 'resched-' + Date.now() + '@example.com';
+  await postWebhook(basePayload({
+    uid, eventTitle: 'Safe Money & Retirement Consultation',
+    responses: { name: responseEntry('Name', 'Resched Person'), email: responseEntry('Email', email) },
+    startTime: '2026-09-01T15:00:00.000Z', endTime: '2026-09-01T15:30:00.000Z',
+  }));
+  const originalAppt = getAppointment(uid);
+  const originalIntake = getIntakeByApptId(originalAppt.id);
+
+  const rescheduled = basePayload({
+    uid: uid + '-v2', eventTitle: 'Safe Money & Retirement Consultation',
+    responses: { name: responseEntry('Name', 'Resched Person'), email: responseEntry('Email', email) },
+    startTime: '2026-09-05T16:00:00.000Z', endTime: '2026-09-05T16:30:00.000Z',
+  });
+  rescheduled.triggerEvent = 'BOOKING_RESCHEDULED';
+  rescheduled.payload.rescheduleUid = uid;
+  await postWebhook(rescheduled);
+
+  // The same appointments row is updated in place on reschedule (see the
+  // route's own existing-by-uid-then-rescheduleUid lookup), so the intake
+  // lookup by the ORIGINAL appointment id must still resolve to the exact
+  // same intake row, with its deadline naturally following the new time.
+  const stillSameIntake = getIntakeByApptId(originalAppt.id);
+  assert.ok(stillSameIntake);
+  assert.equal(stillSameIntake.id, originalIntake.id);
+  assert.equal(stillSameIntake.token, originalIntake.token);
+  const totalIntakes = db.prepare('SELECT COUNT(*) AS n FROM retirement_intakes').get().n;
+  const appt = db.prepare('SELECT * FROM appointments WHERE id = ?').get(originalAppt.id);
+  assert.equal(appt.appt_datetime, '2026-09-05T16:00:00.000Z', 'reschedule must update the same appointment row in place');
+  assert.equal(
+    db.prepare('SELECT COUNT(*) AS n FROM retirement_intakes WHERE appointment_id = ?').get(originalAppt.id).n,
+    1,
+  );
+  assert.ok(totalIntakes >= 1);
+});

@@ -36,16 +36,27 @@ function isRetirementEligibleAmount(amount) {
   return typeof amount === 'number' && isFinite(amount) && amount >= RETIREMENT_MIN_AMOUNT;
 }
 
-// Cal.com's "Attendee phone number" LOCATION field already applies the
-// selected country code (+1 for a US-configured event) on its own side --
-// prefilling optionValue with the full +1E.164 string double-applies it,
-// displaying "+1 1 414 688 7619". optionValue must receive just the
-// 10-digit national number instead. This ONLY affects what's sent to
-// Cal.com's location payload -- the +1E.164 value itself (schContact.phone,
-// CRM storage/submission, etc.) is untouched; this function only strips a
-// leading "+1" from its own local copy when building optionValue.
-function stripUsCountryCodeForCalcomLocation(e164Phone) {
-  return String(e164Phone || '').replace(/^\+1(\d{10})$/, '$1');
+// Normalizes a US phone number to full E.164 (+1XXXXXXXXXX) for Cal.com's
+// phone-location prefill (see buildCalcomPrefillQuery below). Confirmed via
+// live production testing that Cal.com's phone-location field rejects a
+// bare 10-digit optionValue with "Invalid phone number" -- it requires the
+// complete E.164 string, including the country code.
+//
+// Accepts a bare 10-digit number, any common punctuated US format
+// ((NXX) NXX-XXXX, NXX-NXX-XXXX, NXX NXX XXXX), or an already-E.164
+// +1NXXNXXXXXX string -- idempotent, so an already-normalized input is
+// returned unchanged rather than double-prefixed. Returns null for
+// anything that isn't a valid 10-digit US number once non-digit characters
+// are stripped.
+//
+// Self-contained (no dependency on assets/js/main.v2.js's toE164()/
+// phoneDigits()) so this file keeps working standalone in the Node test
+// runner, exactly like every other function here.
+function normalizeUsPhoneToE164(raw) {
+  var digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length === 11 && digits.charAt(0) === '1') digits = digits.slice(1);
+  if (digits.length !== 10) return null;
+  return '+1' + digits;
 }
 
 // Builds the query string appended to a Cal.com event URL for the
@@ -59,18 +70,20 @@ function stripUsCountryCodeForCalcomLocation(e164Phone) {
 // attendeePhoneNumber only prefills the latter, so it silently did nothing
 // on this page. Cal.com's documented mechanism for a phone-type location
 // (cal.com/help/bookings/prefill-fields) is a single JSON-encoded
-// `location` parameter: {"value":"phone","optionValue":"<national number>"}
-// -- see stripUsCountryCodeForCalcomLocation() above for why optionValue is
-// the 10-digit number, not the full +1E.164 string.
+// `location` parameter: {"value":"phone","optionValue":"<E.164 number>"} --
+// see normalizeUsPhoneToE164() above for why optionValue is the full
+// +1E.164 string, not a bare national number.
 //
-// `phone` must already be a normalized +1E.164 string (see toE164() in
-// assets/js/main.v2.js) -- this function does not validate or reformat it
-// beyond stripping the country code for the location payload specifically.
+// `phone` is normalized here via normalizeUsPhoneToE164() regardless of
+// what format it arrives in -- schedule.html/book.html already pass an
+// E.164 string (via toE164() in assets/js/main.v2.js) by the time this
+// runs, but normalizing again here is idempotent and keeps this function
+// correct on its own if ever called with a differently-formatted phone.
 function buildCalcomPrefillQuery(fields) {
   return new URLSearchParams({
     name: fields.firstName + ' ' + fields.lastName,
     email: fields.email,
-    location: JSON.stringify({ value: 'phone', optionValue: stripUsCountryCodeForCalcomLocation(fields.phone) }),
+    location: JSON.stringify({ value: 'phone', optionValue: normalizeUsPhoneToE164(fields.phone) }),
   }).toString();
 }
 
@@ -80,11 +93,11 @@ if (typeof window !== 'undefined') {
   window.isRetirementEligibleAmount = isRetirementEligibleAmount;
   window.RETIREMENT_MIN_AMOUNT = RETIREMENT_MIN_AMOUNT;
   window.buildCalcomPrefillQuery = buildCalcomPrefillQuery;
-  window.stripUsCountryCodeForCalcomLocation = stripUsCountryCodeForCalcomLocation;
+  window.normalizeUsPhoneToE164 = normalizeUsPhoneToE164;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     parseDollarAmount, formatDollar, isRetirementEligibleAmount, RETIREMENT_MIN_AMOUNT,
-    buildCalcomPrefillQuery, stripUsCountryCodeForCalcomLocation,
+    buildCalcomPrefillQuery, normalizeUsPhoneToE164,
   };
 }

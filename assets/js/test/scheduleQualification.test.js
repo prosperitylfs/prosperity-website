@@ -9,7 +9,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   parseDollarAmount, formatDollar, isRetirementEligibleAmount, RETIREMENT_MIN_AMOUNT,
-  buildCalcomPrefillQuery, stripUsCountryCodeForCalcomLocation,
+  buildCalcomPrefillQuery, normalizeUsPhoneToE164,
 } = require('../scheduleQualification.js');
 
 test('RETIREMENT_MIN_AMOUNT is $15,000', () => {
@@ -103,7 +103,7 @@ test('the generated query string carries the phone number via a JSON-encoded loc
   assert.ok(params.has('location'), 'must send the location parameter Cal.com actually reads the phone number from');
 
   const location = JSON.parse(params.get('location'));
-  assert.deepEqual(location, { value: 'phone', optionValue: '4146887619' });
+  assert.deepEqual(location, { value: 'phone', optionValue: '+14146887619' });
 });
 
 test('name and email are prefilled unchanged alongside the location fix', () => {
@@ -121,7 +121,7 @@ test('the query string is valid and round-trips through standard URL parsing (no
   });
   const url = new URL('https://cal.com/lorettastewart/retirement-safemoney-consultation-prosperitylfs?' + qs);
   assert.equal(url.searchParams.get('name'), "Mary O'Brien");
-  assert.equal(JSON.parse(url.searchParams.get('location')).optionValue, '9995551234');
+  assert.equal(JSON.parse(url.searchParams.get('location')).optionValue, '+19995551234');
 });
 
 test('the same query-building function is used for both Prosperity events (no per-event divergence)', () => {
@@ -135,48 +135,63 @@ test('the same query-building function is used for both Prosperity events (no pe
   assert.equal(forLifeInsurance, forRetirement);
 });
 
-// ── Cal.com location optionValue: no duplicated +1 country code ──────────
+// ── normalizeUsPhoneToE164 (Cal.com location optionValue) ────────────────
 //
-// Cal.com's "Attendee phone number" location field already applies the
-// selected country code (+1 for a US event) on its own -- prefilling
-// optionValue with the full +1E.164 string double-applies it and displays
-// "+1 1 414 688 7619". Only the location payload's optionValue changes;
-// schContact.phone / CRM storage / everything else keeps the full +1E.164
-// value.
+// Confirmed via live production testing: Cal.com's phone-location field
+// rejects a bare 10-digit optionValue with "Invalid phone number" -- it
+// requires the full E.164 string. optionValue must be the complete
+// +1XXXXXXXXXX value, and it must never be double-prefixed (e.g.
+// "+1+14146887619" or "+11 4146887619") regardless of what format the
+// input phone arrives in.
 
-test('1: schContact.phone-equivalent input remains untouched by this fix -- stripping happens only inside the location builder', () => {
-  const e164 = '+14146887619';
-  buildCalcomPrefillQuery({ firstName: 'Test', lastName: 'Caller', email: 't@example.com', phone: e164 });
-  // buildCalcomPrefillQuery must never mutate the object/string it's given.
-  assert.equal(e164, '+14146887619');
+test('4143676486 (bare 10 digits) normalizes to +14143676486', () => {
+  assert.equal(normalizeUsPhoneToE164('4143676486'), '+14143676486');
 });
 
-test('2: the Cal.com location optionValue is the 10-digit national number, not the full +1E.164 string', () => {
+test('(414) 367-6486 normalizes to +14143676486', () => {
+  assert.equal(normalizeUsPhoneToE164('(414) 367-6486'), '+14143676486');
+});
+
+test('414-367-6486 normalizes to +14143676486', () => {
+  assert.equal(normalizeUsPhoneToE164('414-367-6486'), '+14143676486');
+});
+
+test('414 367 6486 normalizes to +14143676486', () => {
+  assert.equal(normalizeUsPhoneToE164('414 367 6486'), '+14143676486');
+});
+
+test('+14143676486 (already E.164) normalizes to itself -- no double +1', () => {
+  assert.equal(normalizeUsPhoneToE164('+14143676486'), '+14143676486');
+});
+
+test('an 11-digit number already starting with 1 (no +) is treated the same as E.164', () => {
+  assert.equal(normalizeUsPhoneToE164('14143676486'), '+14143676486');
+});
+
+test('invalid/incomplete input returns null rather than a guessed number', () => {
+  assert.equal(normalizeUsPhoneToE164('12345'), null);
+  assert.equal(normalizeUsPhoneToE164(''), null);
+  assert.equal(normalizeUsPhoneToE164(null), null);
+  assert.equal(normalizeUsPhoneToE164(undefined), null);
+});
+
+test('the Cal.com location optionValue is the full +1E.164 string', () => {
   const qs = buildCalcomPrefillQuery({ firstName: 'Test', lastName: 'Caller', email: 't@example.com', phone: '+14146887619' });
   const location = JSON.parse(new URLSearchParams(qs).get('location'));
-  assert.equal(location.optionValue, '4146887619');
+  assert.equal(location.optionValue, '+14146887619');
 });
 
-test('3: the generated location payload never contains a duplicated US country code', () => {
+test('the generated location payload never contains a doubled US country code', () => {
   const qs = buildCalcomPrefillQuery({ firstName: 'Test', lastName: 'Caller', email: 't@example.com', phone: '+14146887619' });
   const location = JSON.parse(new URLSearchParams(qs).get('location'));
-  assert.doesNotMatch(location.optionValue, /^\+?1?1\d{10}$/, 'must not contain a doubled leading 1/+1');
-  assert.equal(location.optionValue.length, 10);
-  assert.ok(!location.optionValue.includes('+'), 'optionValue must carry no + at all -- Cal.com applies the country code itself');
+  assert.doesNotMatch(location.optionValue, /^\+1\+?1|^\+11\d{10}$/, 'must not contain a doubled leading 1/+1');
+  assert.equal(location.optionValue, '+14146887619');
 });
 
-test('stripUsCountryCodeForCalcomLocation strips a leading +1 from a normalized E.164 number', () => {
-  assert.equal(stripUsCountryCodeForCalcomLocation('+14146887619'), '4146887619');
-});
-
-test('stripUsCountryCodeForCalcomLocation leaves a bare 10-digit number unchanged', () => {
-  assert.equal(stripUsCountryCodeForCalcomLocation('4146887619'), '4146887619');
-});
-
-test('name/email prefill and the fixed location value all coexist correctly in one query string', () => {
+test('name/email prefill and the corrected E.164 location value all coexist correctly in one query string', () => {
   const qs = buildCalcomPrefillQuery({ firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '+14146887619' });
   const params = new URLSearchParams(qs);
   assert.equal(params.get('name'), 'Jane Doe');
   assert.equal(params.get('email'), 'jane@example.com');
-  assert.deepEqual(JSON.parse(params.get('location')), { value: 'phone', optionValue: '4146887619' });
+  assert.deepEqual(JSON.parse(params.get('location')), { value: 'phone', optionValue: '+14146887619' });
 });

@@ -133,6 +133,18 @@
       aspect-ratio: 16 / 9;
       object-fit: contain;
     }
+
+    /* Applied by JS (positionBookWhy(), bottom of this file) only while
+       .book-why has been relocated into its mobile position between the
+       service selector and Turnstile -- restores the visual breathing room
+       it normally gets from .book-layout's grid `gap` on desktop/tablet,
+       where this class is never added. Desktop/tablet layout itself is
+       untouched. */
+    .book-why-mobile-position {
+      margin: 20px 0 24px;
+      padding-top: 20px;
+      border-top: 1px solid #ede9f6;
+    }
   </style>
 </head>
 <body class="book-page">
@@ -344,6 +356,18 @@
                 <input type="hidden" id="sch-service" value="">
               </div>
 
+              <!-- Mobile-only anchor: on small screens, JS moves the SAME
+                   .book-why node (never a copy — see the script at the
+                   bottom of this file) to sit right here, immediately after
+                   the service selector and before Turnstile/consent/
+                   Continue, so the dynamic content the visitor just
+                   triggered appears exactly where they're already looking
+                   instead of above the fold they've scrolled past. Desktop/
+                   tablet is untouched -- this anchor is invisible and inert
+                   there; .book-why stays in its original two-column
+                   position. -->
+              <div id="book-why-mobile-anchor"></div>
+
               <!-- Cloudflare Turnstile — same widget/pattern as schedule.html,
                    life-insurance.html, life-insurance-qualifier.html.
                    renderTurnstileWidgets() (assets/js/main.v2.js) renders it
@@ -512,7 +536,55 @@
       Object.keys(blocks).forEach(function (key) {
         if (blocks[key]) blocks[key].classList.toggle('active', key === activeKey);
       });
+      scrollBookWhyIntoViewIfNeeded();
     };
+
+    // Mobile-only reposition: moves (never copies) the single .book-why
+    // node between its normal desktop/tablet position (first child of
+    // .book-layout, i.e. the left column) and a mobile-only anchor placed
+    // right after the service selector in the form, so a visitor who has
+    // already scrolled down to make a selection sees the resulting content
+    // appear right where they're looking, not back up at the top of the
+    // page. Same breakpoint (960px) assets/css/style.css already uses to
+    // collapse .book-layout to a single column, so this only ever runs
+    // once that stacked mobile layout is actually in effect.
+    var bookWhyMql = window.matchMedia('(max-width: 960px)');
+
+    function positionBookWhy() {
+      var bookWhy = document.querySelector('.book-why');
+      var bookLayout = document.querySelector('.book-layout');
+      var bookFormWrap = document.querySelector('.book-form-wrap');
+      var mobileAnchor = document.getElementById('book-why-mobile-anchor');
+      if (!bookWhy || !bookLayout || !bookFormWrap || !mobileAnchor) return;
+
+      if (bookWhyMql.matches) {
+        mobileAnchor.parentNode.insertBefore(bookWhy, mobileAnchor);
+        bookWhy.classList.add('book-why-mobile-position');
+      } else {
+        bookLayout.insertBefore(bookWhy, bookFormWrap);
+        bookWhy.classList.remove('book-why-mobile-position');
+      }
+    }
+
+    function scrollBookWhyIntoViewIfNeeded() {
+      if (!bookWhyMql.matches) return;
+      var bookWhy = document.querySelector('.book-why');
+      if (!bookWhy) return;
+      var rect = bookWhy.getBoundingClientRect();
+      var fullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+      if (!fullyVisible) {
+        bookWhy.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    positionBookWhy();
+    if (bookWhyMql.addEventListener) {
+      bookWhyMql.addEventListener('change', positionBookWhy);
+    } else if (bookWhyMql.addListener) {
+      // Older Safari/WebKit fallback -- addEventListener on MediaQueryList
+      // isn't universally supported on very old mobile browsers.
+      bookWhyMql.addListener(positionBookWhy);
+    }
   </script>
   <script>
     (function () {

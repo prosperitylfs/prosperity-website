@@ -18,6 +18,21 @@ router.get('/', (req, res) => {
     "SELECT COUNT(*) AS n FROM appointments WHERE status='Scheduled' AND substr(appt_datetime,1,10) = ?"
   ).get(today).n;
 
+  // "Upcoming Appointments" — any appointment with a start time still in
+  // the future, regardless of whether it also falls today (an appointment
+  // later today legitimately counts in BOTH cards). Cancelled appointments
+  // never count. Uses the actual current instant (not the CT calendar day
+  // used above) so "future" means "hasn't happened yet", not "today or
+  // later". appt_datetime is stored as an ISO string ("...T...Z"); wrapping
+  // both sides in datetime() normalizes to SQLite's own "YYYY-MM-DD
+  // HH:MM:SS" form before comparing -- a raw string compare against
+  // datetime('now') (which never contains "T") would sort every
+  // same-day appointment as "greater" regardless of its actual time, since
+  // 'T' > ' ' lexicographically.
+  const apptsUpcoming = db.prepare(
+    "SELECT COUNT(*) AS n FROM appointments WHERE status != 'Cancelled' AND datetime(appt_datetime) > datetime('now')"
+  ).get().n;
+
   const newLeads = db.prepare(
     "SELECT COUNT(*) AS n FROM contacts WHERE lead_status = 'New Lead'"
   ).get().n;
@@ -33,6 +48,7 @@ router.get('/', (req, res) => {
   res.json({
     tasks: { overdue: taskOverdue, today: taskToday, tomorrow: taskTomorrow, upcoming: taskUpcoming },
     apptsToday,
+    apptsUpcoming,
     newLeads,
     inboundSms,
     inboundEmail,

@@ -987,6 +987,7 @@ function renderDashboardStats(s) {
     { val: s.tasks.tomorrow, label: 'Due Tomorrow',   cls: 'ds-tomorrow', alwaysShow: true,  filter: { param: 'task_due',        value: 'tomorrow'  } },
     { val: s.tasks.upcoming, label: 'Upcoming Tasks', cls: 'ds-upcoming', alwaysShow: true,  filter: { param: 'task_due',        value: 'upcoming'  } },
     { val: s.apptsToday,     label: 'Appts Today',    cls: 'ds-appts',    alwaysShow: true,  filter: { param: 'appt_today',      value: '1'         } },
+    { val: s.apptsUpcoming,  label: 'Upcoming Appointments', cls: 'ds-upcoming-appts', alwaysShow: true, filter: { param: 'appt_upcoming', value: '1' } },
     { val: s.newLeads,       label: 'New Leads',      cls: 'ds-leads',    alwaysShow: true,  filter: { param: 'lead_status',     value: 'New Lead'  } },
     { val: s.inboundSms,     label: 'Inbound SMS',    cls: 'ds-sms',      alwaysShow: false, filter: { param: 'has_inbound_sms', value: '1'         } },
     { val: s.inboundEmail,   label: 'Inbound Emails', cls: 'ds-email',    alwaysShow: false, filter: null },

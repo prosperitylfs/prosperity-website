@@ -40,7 +40,7 @@ function toIntOrNull(v) {
 // GET /api/contacts — list all, newest first
 router.get('/', (req, res) => {
   const { q, lead_type, lead_status, sms_consent, appointment_booked,
-          task_due, appt_today, has_inbound_sms, limit = 200, offset = 0 } = req.query;
+          task_due, appt_today, appt_upcoming, has_inbound_sms, limit = 200, offset = 0 } = req.query;
 
   let sql = 'SELECT * FROM contacts';
   const params = [];
@@ -89,6 +89,12 @@ router.get('/', (req, res) => {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
     conditions.push(`EXISTS (SELECT 1 FROM appointments WHERE contact_id = contacts.id AND status = 'Scheduled' AND substr(appt_datetime,1,10) = ?)`);
     params.push(today);
+  }
+  if (appt_upcoming === '1') {
+    // Mirrors GET /api/stats' apptsUpcoming count exactly (see its comment
+    // for why datetime() wraps both sides) so the card and its click-through
+    // filter always agree on the same set of contacts.
+    conditions.push(`EXISTS (SELECT 1 FROM appointments WHERE contact_id = contacts.id AND status != 'Cancelled' AND datetime(appt_datetime) > datetime('now'))`);
   }
   if (has_inbound_sms === '1') {
     conditions.push(`EXISTS (SELECT 1 FROM sms_messages WHERE contact_id = contacts.id AND direction = 'inbound' AND sent_at > datetime('now','-30 days'))`);

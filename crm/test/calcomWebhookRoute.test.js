@@ -505,6 +505,198 @@ test('the phone-location fallback (payload.location.optionValue) is used for con
   assert.equal(contact.phone_e164, '+14143676486', 'the real phone number must be stored, extracted from payload.location.optionValue');
 });
 
+// ── Phone type mapping (mobile vs. landline, new standardized question) ──
+
+test('answering "Mobile" routes the phone into phone/phone_e164, leaving home_phone empty', async () => {
+  const email = 'phone-mobile-' + Date.now() + '@example.com';
+  const uid = 'phone-mobile-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Mobile Person'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14145550111'),
+      phoneType: responseEntry('Is this a mobile phone or a landline?', 'Mobile'),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.phone_e164, '+14145550111');
+  assert.equal(contact.home_phone, null);
+});
+
+test('answering "Landline" routes the phone into home_phone only, never into phone/phone_e164', async () => {
+  const email = 'phone-landline-' + Date.now() + '@example.com';
+  const uid = 'phone-landline-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Landline Person'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14145550122'),
+      phoneType: responseEntry('Is this a mobile phone or a landline?', 'Landline'),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.phone_e164, null, 'a landline number must never be written into the mobile phone_e164 field');
+  assert.ok(contact.home_phone && contact.home_phone.includes('414'), 'the landline number must be stored in home_phone');
+});
+
+test('no phone-type question present preserves the existing mobile-by-default behavior', async () => {
+  const email = 'phone-notype-' + Date.now() + '@example.com';
+  const uid = 'phone-notype-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'No Type Person'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14145550133'),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.phone_e164, '+14145550133', 'with no phone-type question, the number must still land in the mobile field as before');
+  assert.equal(contact.home_phone, null);
+});
+
+test('contact matching by phone still works for a landline booking whose email does not match any existing contact', async () => {
+  const uid = 'phone-landline-match-' + Date.now();
+  const existingPhone = '+14145550144';
+  db.prepare(`INSERT INTO contacts (first_name, last_name, phone_e164) VALUES ('Existing', 'Landline', ?)`).run(existingPhone);
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Existing Landline'),
+      // A unique email so email-first matching finds nothing and the route
+      // falls through to phone_e164 matching (basePayload always fills in
+      // SOME attendee email even if `responses.email` is omitted, so this
+      // must be explicit rather than relying on omission).
+      email: responseEntry('Email', 'no-match-' + Date.now() + '@example.com'),
+      phone: responseEntry('Phone', existingPhone),
+      phoneType: responseEntry('Is this a mobile phone or a landline?', 'Landline'),
+    },
+  }));
+  const appt = getAppointment(uid);
+  const contact = db.prepare('SELECT * FROM contacts WHERE phone_e164 = ?').get(existingPhone);
+  assert.equal(appt.contact_id, contact.id, 'matching by phone_e164 must still find the existing contact even when this booking answers Landline');
+});
+
+// ── Communication consent mapping (new standardized question) ────────────
+
+test('"Yes, text and email" sets both sms_consent and email_consent to 1', async () => {
+  const email = 'consent-both-' + Date.now() + '@example.com';
+  const uid = 'consent-both-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Both Consent'),
+      email: responseEntry('Email', email),
+      consent: responseEntry(
+        'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email? Message and data rates may apply.',
+        'Yes, text and email'
+      ),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.sms_consent, 1);
+  assert.equal(contact.email_consent, 1);
+});
+
+test('"Email only, no text messages" sets sms_consent to 0 and email_consent to 1 (brand-agnostic label match)', async () => {
+  const email = 'consent-emailonly-' + Date.now() + '@example.com';
+  const uid = 'consent-emailonly-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Email Only'),
+      email: responseEntry('Email', email),
+      // Insurance Lady's exact wording, to prove the match isn't tied to Prosperity's brand name.
+      consent: responseEntry(
+        'May Insurance Lady LLC send you appointment confirmations, reminders, and related communications by text message and email? Message and data rates may apply.',
+        'Email only, no text messages'
+      ),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.sms_consent, 0);
+  assert.equal(contact.email_consent, 1);
+});
+
+test('no consent question present never writes/infers sms_consent or email_consent on a new contact beyond the schema default', async () => {
+  const email = 'consent-absent-' + Date.now() + '@example.com';
+  const uid = 'consent-absent-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: { name: responseEntry('Name', 'No Consent Q'), email: responseEntry('Email', email) },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.sms_consent, 0);
+  assert.equal(contact.email_consent, 0);
+  assert.equal(contact.sms_consent_source, null, 'no consent question means no consent audit-trail stamp either');
+});
+
+test('an existing contact\'s consent is never overwritten by a later booking that omits the consent question', async () => {
+  const email = 'consent-preserve-' + Date.now() + '@example.com';
+  db.prepare(`
+    INSERT INTO contacts (first_name, last_name, email, sms_consent, email_consent)
+    VALUES ('Already', 'Consented', ?, 1, 1)
+  `).run(email);
+  const uid = 'consent-preserve-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: { name: responseEntry('Name', 'Already Consented'), email: responseEntry('Email', email) },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.sms_consent, 1, 'must not be reset to 0 just because this booking did not ask the consent question');
+  assert.equal(contact.email_consent, 1);
+});
+
+test('an existing contact\'s consent IS updated when a later booking explicitly answers the consent question differently', async () => {
+  const email = 'consent-update-' + Date.now() + '@example.com';
+  db.prepare(`
+    INSERT INTO contacts (first_name, last_name, email, sms_consent, email_consent)
+    VALUES ('Was', 'OptedIn', ?, 1, 1)
+  `).run(email);
+  const uid = 'consent-update-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Was OptedIn'),
+      email: responseEntry('Email', email),
+      consent: responseEntry(
+        'May Prosperity send you appointment confirmations, reminders, and related communications by text message and email?',
+        'Email only, no text messages'
+      ),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.sms_consent, 0, 'an explicit new answer must be authoritative, even when it reduces consent');
+  assert.equal(contact.email_consent, 1);
+});
+
+// ── Location display safety ───────────────────────────────────────────────
+
+test('an unrecognized object-shaped location never renders as "[object Object]" and is omitted instead', async () => {
+  const email = 'loc-weird-' + Date.now() + '@example.com';
+  const uid = 'loc-weird-' + Date.now();
+  const payload = basePayload({
+    uid,
+    responses: { name: responseEntry('Name', 'Weird Location'), email: responseEntry('Email', email) },
+  });
+  // A shape with neither .value nor .type as a usable string.
+  payload.payload.location = { nested: { something: 'unexpected' } };
+  const raw = JSON.stringify(payload);
+  const res = await fetch(`${baseUrl}/webhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-cal-signature-256': sign(raw) },
+    body: raw,
+  });
+  await res.json();
+  await new Promise(r => setTimeout(r, 20));
+  const appt = getAppointment(uid);
+  assert.ok(appt, 'the booking must still be processed despite the unusable location shape');
+  assert.notEqual(appt.location, '[object Object]');
+  assert.equal(appt.location, null, 'an unreadable location must be omitted, not rendered as a broken string');
+});
+
 test('a non-phone location (e.g. Google Meet) is not mistaken for a phone number', async () => {
   const email = 'meet-location-' + Date.now() + '@example.com';
   const uid = 'meet-location-' + Date.now();

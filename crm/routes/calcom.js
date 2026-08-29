@@ -43,8 +43,20 @@ function normalizePhone(raw) {
 
 function normalizeLocation(raw) {
   if (!raw) return null;
-  // Cal.com may send location as object { type, value } or as a plain string
-  const loc = typeof raw === 'object' ? (raw.value || raw.type || '') : String(raw);
+  // Cal.com may send location as object { type, value } or as a plain string.
+  // The extracted value is only ever used if it's itself a string -- if a
+  // future/unexpected location shape puts an object where .value/.type is
+  // expected (e.g. a nested object with no string field), loc stays '' and
+  // this returns null rather than crashing on .startsWith() below or, if
+  // returned as-is, rendering as the literal string "[object Object]"
+  // wherever the CRM UI displays appointments.location.
+  let loc = '';
+  if (typeof raw === 'object') {
+    const v = raw.value || raw.type || '';
+    loc = typeof v === 'string' ? v : '';
+  } else {
+    loc = String(raw);
+  }
   if (!loc) return null;
   if (loc.startsWith('integrations:google:meet'))  return 'Google Meet';
   if (loc.startsWith('integrations:zoom'))          return 'Zoom (link in confirmation email)';
@@ -160,6 +172,94 @@ function fmtCT(iso) {
 // Render's logs the first time this runs against a real booking —
 // satisfying "inspect/log the actual structure" without needing dashboard
 // access to Cal.com from here.
+function normalizeLabel(s) {
+  return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// A Cal.com response entry's .value is normally a plain string, but this
+// guards against any question type that could return something else (a
+// nested {label,value} object, an array from a multi-select, a number) so a
+// value never gets stringified into the literal "[object Object]" wherever
+// it ends up displayed (appointment notes, the raw-extras dump, etc).
+function toSafeString(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return value.map(toSafeString).filter(Boolean).join(', ');
+  if (typeof value === 'object') return String(value.label || value.value || '');
+  return String(value);
+}
+
+// Finds the first payload.responses entry whose .label matches one of the
+// given lowercased substring patterns. Shared by the Life Insurance
+// qualification questions and the phone-type/consent questions below --
+// matching by human-readable label text (not a guessed internal
+// identifier) so this tolerates Cal.com wording differing slightly between
+// the two brands' otherwise-identical booking forms.
+function findResponseByLabelPattern(responses, patterns) {
+  const found = Object.entries(responses).find(([, r]) => {
+    const l = normalizeLabel(r && r.label);
+    return patterns.some(p => l.includes(p));
+  });
+  return found ? found[1] : null; // { label, value }
+}
+
+// Same idea as findResponseByLabelPattern, but matches a label by an
+// arbitrary predicate over the normalized text rather than a fixed
+// substring list -- used where an exact phrase is too brittle (e.g. "…a
+// mobile phone or landline…" vs "…a mobile phone or a landline…" would both
+// need to be listed as separate substrings otherwise). Checking that the
+// key normalized WORDS are all present, regardless of the connecting words
+// around them, tolerates that kind of minor rewording automatically.
+function findResponseByLabelPredicate(responses, predicate) {
+  const found = Object.entries(responses).find(([, r]) => predicate(normalizeLabel(r && r.label)));
+  return found ? found[1] : null; // { label, value }
+}
+
+// New standardized administrative question added to BOTH brands' Cal.com
+// booking forms (not just Life Insurance): "Is this a mobile phone or
+// landline?" Determines whether the attendee's phone number is routed into
+// the mobile fields (phone/phone_e164) or the home_phone field -- never
+// both, per the CRM's phone-field convention (see the home_phone addCol
+// comment in crm/db/database.js). Absent/unrecognized answer intentionally
+// returns null, so the existing mobile-by-default routing is unchanged for
+// any booking that doesn't have this question yet.
+function isPhoneTypeQuestionLabel(l) {
+  return l.includes('mobile') && l.includes('landline');
+}
+
+function extractPhoneType(responses) {
+  const entry = findResponseByLabelPredicate(responses, isPhoneTypeQuestionLabel);
+  if (!entry) return null;
+  const answer = normalizeLabel(toSafeString(entry.value));
+  if (answer.includes('mobile'))   return 'mobile';
+  if (answer.includes('landline')) return 'landline';
+  return null;
+}
+
+// New standardized consent question added to both brands' Cal.com booking
+// forms, worded identically apart from the brand's own legal name (e.g.
+// "May Insurance Lady LLC send you appointment confirmations, reminders,
+// and related communications by text message and email? Message and data
+// rates may apply."). Matched by predicate (both key phrases present)
+// rather than the full sentence, so it tolerates the brand name AND any
+// other minor rewording, not just the brand name. Returns null (never a
+// default) when the question is missing or its answer doesn't match either
+// known option -- callers must never write sms_consent/email_consent when
+// this returns null, so consent is never inferred or assumed.
+function isConsentQuestionLabel(l) {
+  return l.includes('text message') && l.includes('email') && l.includes('appointment confirmation');
+}
+
+function extractCommunicationConsent(responses) {
+  const entry = findResponseByLabelPredicate(responses, isConsentQuestionLabel);
+  if (!entry) return null;
+  const answer = normalizeLabel(toSafeString(entry.value));
+  if (answer.includes('text and email')) return { sms: true,  email: true };
+  if (answer.includes('email only'))     return { sms: false, email: true };
+  return null;
+}
+
 const LIFE_INSURANCE_QUESTIONS = [
   { key: 'help_with',       label: 'What they need help with',              patterns: ['what would you like help with'] },
   { key: 'applicant',       label: 'Who is applying for coverage',          patterns: ['who will be applying for coverage'] },
@@ -180,14 +280,11 @@ function extractLifeInsuranceAnswers(payload) {
   const consumedResponseKeys = new Set();
 
   for (const { label, patterns } of LIFE_INSURANCE_QUESTIONS) {
-    const found = Object.entries(responses).find(([, r]) => {
-      const l = String((r && r.label) || '').toLowerCase();
-      return patterns.some(p => l.includes(p));
-    });
-    if (!found) continue;
-    const [respKey, entry] = found;
+    const entry = findResponseByLabelPattern(responses, patterns);
+    if (!entry) continue;
     if (entry.value === undefined || entry.value === null || entry.value === '') continue;
-    matched.push({ label, value: entry.value });
+    const respKey = Object.entries(responses).find(([, r]) => r === entry)[0];
+    matched.push({ label, value: toSafeString(entry.value) });
     consumedResponseKeys.add(respKey);
   }
 
@@ -197,7 +294,8 @@ function extractLifeInsuranceAnswers(payload) {
   for (const [respKey, entry] of Object.entries(responses)) {
     if (ALREADY_HANDLED_RESPONSE_KEYS.has(respKey) || consumedResponseKeys.has(respKey)) continue;
     if (!entry || entry.value === undefined || entry.value === null || entry.value === '') continue;
-    rawExtras.push(entry.label ? `${entry.label}: ${entry.value}` : `${respKey}: ${entry.value}`);
+    const safeValue = toSafeString(entry.value);
+    rawExtras.push(entry.label ? `${entry.label}: ${safeValue}` : `${respKey}: ${safeValue}`);
   }
 
   return { matched, rawExtras };
@@ -248,6 +346,26 @@ async function handleCreatedOrRescheduled(event, payload) {
     || extractLocationPhone(payload.location)
     || null;
   const { display: phoneDisplay, e164: phoneE164 } = normalizePhone(rawPhone);
+
+  // New standardized "Is this a mobile phone or a landline?" question (both
+  // brands). Routes the SAME number into exactly one of the two phone
+  // fields -- never both -- per the home_phone addCol comment in
+  // crm/db/database.js. phoneE164 (used just below for CONTACT MATCHING) is
+  // deliberately left untouched by this routing: matching an existing
+  // contact by whatever number Cal.com sent must keep working the same way
+  // regardless of the mobile/landline answer, only where the number gets
+  // STORED is affected.
+  const phoneType = extractPhoneType(responses); // 'mobile' | 'landline' | null
+  const isLandline = phoneType === 'landline';
+  const mobilePhone     = isLandline ? null : phoneDisplay;
+  const mobilePhoneE164 = isLandline ? null : phoneE164;
+  const homePhone       = isLandline ? phoneDisplay : null;
+
+  // New standardized communication-consent question (both brands, identical
+  // wording apart from the brand's own legal name). null means the
+  // question was absent or unanswered -- see extractCommunicationConsent's
+  // own comment for why that must never be treated as consent.
+  const consent = extractCommunicationConsent(responses); // {sms, email} | null
 
   const baseNotes = payload.additionalNotes
     || responses.notes?.value
@@ -311,21 +429,39 @@ async function handleCreatedOrRescheduled(event, payload) {
     'Appointment Scheduled', 'Appointment Rescheduled', 'Needs Outcome',
   ];
 
+  // Consent is only ever written when explicitly answered on THIS booking
+  // (consent !== null); consentKnown gates both the INSERT default and the
+  // UPDATE's CASE below so an absent/unrecognized answer never touches an
+  // existing contact's consent columns, and a brand-new contact with no
+  // answer gets the same 0/"not confirmed" default the schema itself
+  // already applies (INSERT already left these columns unset entirely
+  // before this feature existed, so this is purely additive).
+  const consentKnown = consent !== null;
+  const smsConsentVal   = consentKnown ? (consent.sms   ? 1 : 0) : 0;
+  const emailConsentVal = consentKnown ? (consent.email ? 1 : 0) : 0;
+
   if (!contact) {
     const r = db.prepare(`
       INSERT INTO contacts
-        (first_name, last_name, email, phone, phone_e164, lead_type, lead_status, lead_source, updated_at)
+        (first_name, last_name, email, phone, phone_e164, home_phone, lead_type, lead_status, lead_source,
+         sms_consent, email_consent, sms_consent_source, sms_consent_at, updated_at)
       VALUES
-        (@first_name, @last_name, @email, @phone, @phone_e164, @lead_type, @lead_status, @lead_source, @now)
+        (@first_name, @last_name, @email, @phone, @phone_e164, @home_phone, @lead_type, @lead_status, @lead_source,
+         @sms_consent, @email_consent, @sms_consent_source, @sms_consent_at, @now)
     `).run({
       first_name:  firstName,
       last_name:   lastName,
       email:       email       || null,
-      phone:       phoneDisplay,
-      phone_e164:  phoneE164,
+      phone:       mobilePhone,
+      phone_e164:  mobilePhoneE164,
+      home_phone:  homePhone,
       lead_type:   leadType,
       lead_status: targetLeadStatus,
       lead_source: 'Cal.com',
+      sms_consent:         smsConsentVal,
+      email_consent:       emailConsentVal,
+      sms_consent_source:  consentKnown ? 'Cal.com booking' : null,
+      sms_consent_at:      consentKnown ? now : null,
       now,
     });
     contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(r.lastInsertRowid);
@@ -336,21 +472,32 @@ async function handleCreatedOrRescheduled(event, payload) {
       : contact.lead_status;
     db.prepare(`
       UPDATE contacts SET
-        first_name  = COALESCE(first_name,  @first_name),
-        last_name   = COALESCE(last_name,   @last_name),
-        phone       = COALESCE(phone,       @phone),
-        phone_e164  = COALESCE(phone_e164,  @phone_e164),
-        lead_status = @lead_status,
-        lead_source = COALESCE(lead_source, @lead_source),
-        updated_at  = @now
+        first_name    = COALESCE(first_name,   @first_name),
+        last_name     = COALESCE(last_name,    @last_name),
+        phone         = COALESCE(phone,        @phone),
+        phone_e164    = COALESCE(phone_e164,   @phone_e164),
+        home_phone    = COALESCE(home_phone,   @home_phone),
+        lead_status   = @lead_status,
+        lead_source   = COALESCE(lead_source,  @lead_source),
+        sms_consent         = CASE WHEN @consent_known = 1 THEN @sms_consent   ELSE sms_consent   END,
+        email_consent       = CASE WHEN @consent_known = 1 THEN @email_consent ELSE email_consent END,
+        sms_consent_source  = CASE WHEN @consent_known = 1 THEN @sms_consent_source ELSE sms_consent_source END,
+        sms_consent_at      = CASE WHEN @consent_known = 1 THEN @sms_consent_at     ELSE sms_consent_at     END,
+        updated_at    = @now
       WHERE id = @id
     `).run({
       first_name:  firstName,
       last_name:   lastName,
-      phone:       phoneDisplay,
-      phone_e164:  phoneE164,
+      phone:       mobilePhone,
+      phone_e164:  mobilePhoneE164,
+      home_phone:  homePhone,
       lead_status: newStatus,
       lead_source: 'Cal.com',
+      consent_known:       consentKnown ? 1 : 0,
+      sms_consent:         smsConsentVal,
+      email_consent:       emailConsentVal,
+      sms_consent_source:  'Cal.com booking',
+      sms_consent_at:      now,
       now,
       id: contact.id,
     });

@@ -3532,6 +3532,8 @@ body {
 .ds-upcoming .dash-stat-val { color: var(--purple); }
 .ds-appts    { border-top-color: var(--blue);    }
 .ds-appts    .dash-stat-val { color: var(--blue); }
+.ds-upcoming-appts { border-top-color: #0891b2; }
+.ds-upcoming-appts .dash-stat-val { color: #0891b2; }
 .ds-leads    { border-top-color: var(--green);   }
 .ds-leads    .dash-stat-val { color: var(--green-dark); }
 .ds-sms      { border-top-color: var(--green);   }

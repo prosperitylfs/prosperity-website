@@ -69,18 +69,45 @@ function normalizeLocation(raw) {
   return loc;
 }
 
-// Fallback phone source: the site prefills the attendee phone via the
-// `location` query param (JSON-encoded {value:'phone', optionValue:
-// '<E.164 number>'} -- see assets/js/scheduleQualification.js's
-// buildCalcomPrefillQuery), not through attendeePhoneNumber or a booking-
-// question response. Confirmed via live production testing that Cal.com
-// echoes the attendee's phone back through this same field on the
-// webhook, which the phone-extraction chain below did not previously
-// check at all.
+// A bare location string counts as a phone number only if it actually looks
+// like one after stripping non-digits (10 digits, or 11 starting with '1')
+// -- distinguishes a Retell-style "+14143676486" location from a genuine
+// location string like 'integrations:google:meet' or a street address.
+function looksLikePhoneNumber(str) {
+  if (typeof str !== 'string') return false;
+  const digits = str.replace(/\D/g, '');
+  return digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
+}
+
+// Fallback phone source, covering TWO different shapes production has
+// actually sent for payload.location:
+//
+// 1. Object form {value:'phone', optionValue:'<E.164 number>'} -- the
+//    site's own prefill mechanism (assets/js/scheduleQualification.js's
+//    buildCalcomPrefillQuery), echoed back by Cal.com on the webhook.
+//    Confirmed via live production testing of a booking made through
+//    book.html.
+//
+// 2. Bare phone-number STRING, e.g. "+14143676486" -- confirmed via a real
+//    production booking made through Jennifer/Retell's own Cal.com
+//    integration (not our book.html form), which does not use the
+//    {value,optionValue} object convention at all and instead puts the
+//    attendee's phone directly into payload.location as a plain string.
+//    This is why that real booking's appointment correctly showed
+//    "+14143676486" as its location (normalizeLocation's plain-string
+//    branch returns it as-is) while the CRM's Mobile Phone field stayed
+//    blank -- the old version of this function only ever checked the
+//    object shape, typeof rawLocation !== 'object' short-circuited
+//    immediately for a bare string, so this fallback silently contributed
+//    nothing and no other source in the rawPhone chain below had the
+//    number either.
 function extractLocationPhone(rawLocation) {
-  if (!rawLocation || typeof rawLocation !== 'object') return null;
-  if (rawLocation.value !== 'phone') return null;
-  return rawLocation.optionValue || null;
+  if (!rawLocation) return null;
+  if (typeof rawLocation === 'object') {
+    if (rawLocation.value !== 'phone') return null;
+    return rawLocation.optionValue || null;
+  }
+  return looksLikePhoneNumber(rawLocation) ? rawLocation : null;
 }
 
 // Known Cal.com event slugs (Cal.com's documented top-level BOOKING_CREATED
@@ -570,10 +597,15 @@ async function handleCreatedOrRescheduled(event, payload) {
     const subject = event === 'BOOKING_RESCHEDULED'
       ? 'Appointment Rescheduled (Cal.com)'
       : 'Appointment Scheduled (Cal.com)';
+    // Deliberately concise -- this becomes both the Activity Timeline entry's
+    // description AND (via GET /api/contacts/:id) what Activity & Form
+    // Submissions renders for this same row, so it must not repeat the full
+    // Cal.com intake questionnaire (that already lives, in full, in this
+    // appointment's own `notes` column -- see appointments.notes above --
+    // which the Appointments card renders as the canonical detailed view).
     const body = [
       `${apptType} — ${fmtCT(apptDatetime)}`,
       location   ? `Location: ${location}`   : null,
-      notes      ? `Notes: ${notes}`          : null,
       `Cal.com Booking: ${uid}`,
     ].filter(Boolean).join('\n');
 

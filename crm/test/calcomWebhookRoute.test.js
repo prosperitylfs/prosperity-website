@@ -718,3 +718,104 @@ test('a non-phone location (e.g. Google Meet) is not mistaken for a phone number
   assert.equal(contact.phone_e164, null);
   assert.equal(appt.location, 'Google Meet', 'location display value must still resolve normally');
 });
+
+// ── Real Retell/Cal.com production payload shape (Janet Jackson booking) ──
+//
+// A real production booking made through Jennifer/Retell's own Cal.com
+// integration (not book.html) exposed a bug the simulated tests above never
+// caught: Retell's booking puts the attendee's phone directly into
+// payload.location as a BARE STRING ("+14143676486"), not the
+// {value:'phone', optionValue} object our own book.html prefill uses, and
+// not into attendee.phoneNumber or any responses.phone/phoneNumber/cell/
+// mobile key either. The old extractLocationPhone() only ever handled the
+// object shape (`typeof rawLocation !== 'object'` short-circuited
+// immediately for a string), so this real booking's Mobile Phone field
+// stayed blank even though the phone number was RIGHT THERE in the
+// appointment's own location field, and phone type + consent (which read
+// from `responses`, unrelated to location) mapped correctly. This is
+// confirmed by the production symptom: the appointment's stored location
+// literally displayed as the raw phone number, not "Phone Call".
+// Mirrors the real booking's shape exactly (Janet Jackson, phone
+// +14143676486 as reported), but each test below supplies its own unique
+// email/phone so it can't collide with contacts created by other tests
+// sharing this file's in-memory database.
+function retellRealBookingPayload({ uid = 'retell-real-' + Date.now(), email, phone, phoneType = 'Mobile', consentAnswer = 'Yes, text and email' }) {
+  return {
+    triggerEvent: 'BOOKING_CREATED',
+    payload: {
+      uid,
+      startTime: '2026-09-20T19:00:00.000Z',
+      endTime: '2026-09-20T19:30:00.000Z',
+      type: 'life-insurance-consultation-prosperitylfs',
+      eventTitle: 'Life Insurance Consultation',
+      attendees: [{ name: 'Janet Jackson', email, timeZone: 'America/Chicago' }],
+      responses: {
+        name: { label: 'Name', value: 'Janet Jackson' },
+        email: { label: 'Email', value: email },
+        phoneType: { label: 'Is this a mobile phone or landline?', value: phoneType },
+        consent: {
+          label: 'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email? Message and data rates may apply.',
+          value: consentAnswer,
+        },
+      },
+      // The actual real-world shape: a bare phone-number string, not an object.
+      location: phone,
+    },
+  };
+}
+
+test('REAL Retell/Cal.com payload shape: a bare phone-number-string location maps to Mobile Phone (the exact production bug)', async () => {
+  const uid = 'retell-real-mobile-' + Date.now();
+  const email = 'retell-mobile-' + Date.now() + '@example.com';
+  const phone = '+14145559871';
+  await postWebhook(retellRealBookingPayload({ uid, email, phone }));
+  const contact = getContact(email);
+  assert.ok(contact, 'contact must be created');
+  assert.equal(contact.phone_e164, phone, 'the phone from a bare-string location must reach Mobile Phone');
+  assert.equal(contact.home_phone, null, 'must not also land in Landline Phone');
+  assert.equal(contact.sms_consent, 1, 'consent mapping must keep working alongside the phone fix');
+  assert.equal(contact.email_consent, 1);
+  const appt = getAppointment(uid);
+  assert.equal(appt.location, phone, 'location display is unchanged -- matches the production symptom exactly');
+});
+
+test('REAL Retell/Cal.com payload shape: a bare phone-number-string location maps to Landline Phone when answered Landline', async () => {
+  const uid = 'retell-real-landline-' + Date.now();
+  const email = 'retell-landline-' + Date.now() + '@example.com';
+  const phone = '+14145559872';
+  await postWebhook(retellRealBookingPayload({ uid, email, phone, phoneType: 'Landline', consentAnswer: 'Email only, no text messages' }));
+  const contact = getContact(email);
+  assert.equal(contact.phone_e164, null, 'must not land in Mobile Phone');
+  assert.equal(contact.home_phone, '(414) 555-9872', 'the phone from a bare-string location must reach Landline Phone');
+  assert.equal(contact.sms_consent, 0);
+  assert.equal(contact.email_consent, 1);
+});
+
+test('a bare location string that is not phone-shaped (e.g. a street address) is never mistaken for a phone number', async () => {
+  const uid = 'not-a-phone-location-' + Date.now();
+  const email = 'not-a-phone-location-' + Date.now() + '@example.com';
+  const payload = retellRealBookingPayload({ uid, email, phone: '+14145559873' });
+  payload.payload.location = '5010 W Vliet St';
+  await postWebhook(payload);
+  const contact = getContact(email);
+  assert.equal(contact.phone_e164, null);
+  assert.equal(contact.home_phone, null);
+});
+
+// ── Activity Timeline / communications.body no longer duplicates the full
+//    intake questionnaire (Issue 3: the same info was appearing in
+//    Activity Timeline, Appointments, and Activity & Form Submissions) ────
+
+test('the appointment-booked communications entry is concise and does not repeat the full Cal.com intake questionnaire', async () => {
+  const uid = 'concise-body-' + Date.now();
+  await postWebhook(basePayload({ uid, responses: lifeInsuranceResponses() }));
+  const appt = getAppointment(uid);
+  // The full intake dump still lives here, canonically, on the appointment itself.
+  assert.match(appt.notes, /Life Insurance Qualification Answers:/);
+
+  const comm = db.prepare(`SELECT * FROM communications WHERE appointment_id = ? AND comm_type = 'appointment'`).get(appt.id);
+  assert.ok(comm);
+  assert.doesNotMatch(comm.body, /Life Insurance Qualification Answers/, 'the timeline/activity entry must not repeat the full intake questionnaire');
+  assert.doesNotMatch(comm.body, /Term life insurance/, 'must not repeat individual qualification answers either');
+  assert.match(comm.body, /Life Insurance Consultation/, 'must still identify the appointment type');
+});

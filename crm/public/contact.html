@@ -174,63 +174,6 @@
           </div>
         </div>
 
-        <!-- Moved directly below Contact Info so actionable follow-ups are
-             visible without scrolling past Basic Information/Address/etc.
-             -- same card, same ids, nothing duplicated or rebuilt. -->
-        <div class="card card-tasks" id="tasks-card">
-          <div class="card-section-header">
-            <h2 class="card-title" style="margin-bottom:0">Follow-Up Tasks</h2>
-            <button id="add-task-btn" class="btn btn-primary btn-sm" onclick="toggleTaskForm()">+ Add Task</button>
-          </div>
-          <div id="task-form" class="task-form hidden">
-            <div class="task-form-grid">
-              <div class="crm-field">
-                <label class="crm-label" for="task-type">Task Type</label>
-                <select id="task-type" class="crm-select">
-                  <option value="">— Select —</option>
-                  <option>Call</option>
-                  <option>Email</option>
-                  <option>Text</option>
-                  <option>Send Document</option>
-                  <option>Follow-Up</option>
-                  <option>Other</option>
-                </select>
-              </div>
-              <div class="crm-field">
-                <label class="crm-label" for="task-priority">Priority</label>
-                <select id="task-priority" class="crm-select">
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="Low">Low</option>
-                </select>
-              </div>
-              <div class="crm-field">
-                <label class="crm-label" for="task-due-date">Due Date</label>
-                <input id="task-due-date" type="date" class="crm-input">
-              </div>
-              <div class="crm-field">
-                <label class="crm-label" for="task-due-time">Due Time (optional)</label>
-                <input id="task-due-time" type="time" class="crm-input">
-              </div>
-              <div class="crm-field crm-field-full">
-                <label class="crm-label" for="task-notes">Notes (optional)</label>
-                <textarea id="task-notes" class="crm-input" rows="2" placeholder="Details about this task…"></textarea>
-              </div>
-            </div>
-            <div class="task-form-footer">
-              <button id="task-save-btn" class="btn btn-primary" onclick="saveTask()">Save Task</button>
-              <button class="btn-section-cancel" onclick="toggleTaskForm(false)">Cancel</button>
-            </div>
-          </div>
-          <div id="tasks-pending" class="tasks-section"><p class="text-muted">No tasks yet.</p></div>
-          <div id="tasks-completed-toggle" class="tasks-completed-toggle hidden">
-            <button class="tasks-toggle-btn" onclick="toggleCompletedTasks()">
-              <span id="tasks-completed-toggle-label">Show Completed</span>
-            </button>
-          </div>
-          <div id="tasks-completed" class="hidden"></div>
-        </div>
-
         <!-- ── Basic Information ──────────────────────────────────────── -->
         <div class="card crm-card card-basic-info">
           <h2 class="crm-card-title">Basic Information</h2>
@@ -252,19 +195,16 @@
               <input id="f-phone" type="tel" class="crm-input" placeholder="(414) 555-0100">
             </div>
             <div class="crm-field">
-              <label class="crm-label" for="f-home_phone">Home Phone</label>
+              <label class="crm-label" for="f-home_phone">Landline Phone</label>
               <input id="f-home_phone" type="tel" class="crm-input" placeholder="(414) 555-0100">
             </div>
-            <div class="crm-field">
-              <label class="crm-label" for="f-preferred_contact_method">Preferred Contact Method</label>
-              <select id="f-preferred_contact_method" class="crm-select">
-                <option value="">— Select —</option>
-                <option>Email</option>
-                <option>Phone Call</option>
-                <option>Text / SMS</option>
-                <option>Mail</option>
-              </select>
-            </div>
+            <!-- Preferred Contact Method input hidden here (not deleted) --
+                 SMS Consent, Email Consent, and phone type (Mobile/Landline)
+                 already cover this workflow, and nothing else in the CRM
+                 reads preferred_contact_method. The database column and the
+                 PATCH allowlist in crm/routes/contacts.js are untouched, so
+                 existing stored values remain intact and this can be
+                 restored by re-adding this markup with no backend changes. -->
             <div class="crm-field crm-field-full">
               <label class="crm-label" for="f-general_notes">General Notes</label>
               <textarea id="f-general_notes" class="crm-input" rows="3" placeholder="General notes about this contact…"></textarea>
@@ -413,28 +353,25 @@
           </div>
         </div>
 
-        <!-- ── Marketing Permissions ──────────────────────────────────── -->
-        <!-- ── Activity Timeline ──────────────────────────────────────── -->
-        <div class="card card-timeline" id="timeline-card">
-          <h2 class="card-title">Activity Timeline</h2>
-          <!-- Filters only ever change what this SAME feed displays -- they
-               never call an API, and never touch stored activity. Shown
-               only once expanded. -->
-          <div class="calls-tabs hidden" id="timeline-filters">
-            <button type="button" class="calls-tab active" data-filter="all">All</button>
-            <button type="button" class="calls-tab" data-filter="calls">Calls</button>
-            <button type="button" class="calls-tab" data-filter="sms">SMS</button>
-            <button type="button" class="calls-tab" data-filter="email">Email</button>
-            <button type="button" class="calls-tab" data-filter="appointments">Appointments</button>
-            <button type="button" class="calls-tab" data-filter="tasks">Tasks</button>
-          </div>
-          <div id="timeline-feed" class="tl-feed">
-            <p class="text-muted tl-empty">Loading activity…</p>
-          </div>
-          <button type="button" class="tl-toggle-btn hidden" id="timeline-toggle-btn"></button>
+        <div class="card card-add-note">
+          <h2 class="card-title">Add Note</h2>
+          <textarea id="new-note-body" class="note-textarea" placeholder="Type a note…" rows="3"></textarea>
+          <button id="add-note-btn" class="btn btn-primary">Save Note</button>
         </div>
 
-        <!-- desktop col 1, mobile row 2 -->
+        <div class="card card-notes">
+          <h2 class="card-title">Notes</h2>
+          <div id="notes-list" class="timeline"></div>
+        </div>
+
+        </div><!-- /detail-col left -->
+
+        <!-- ── Right column ────────────────────────────────────────── -->
+        <div class="detail-col">
+
+        <!-- First card in the right column so an upcoming appointment is
+             visible immediately -- same card, same ids, nothing duplicated
+             or rebuilt. -->
         <div class="card card-appointments" id="appointments-card">
           <div class="card-section-header">
             <h2 class="card-title" style="margin-bottom:0">Appointments</h2>
@@ -479,75 +416,64 @@
           </div>
         </div>
 
-        <!-- Retirement Intake — one card per Safe Money & Retirement
-             appointment this contact has, only rendered when at least one
-             exists (crm/lib/retirementIntakeService.js). -->
-        <div class="card card-retirement-intake hidden" id="retirement-intake-card">
-          <h2 class="card-title">Retirement Intake</h2>
-          <div id="retirement-intake-list"></div>
-        </div>
-
-        <!--
-          Follow-Up Information card removed from view (per Contact Detail
-          usability cleanup): next_follow_up_date, last_contact_date, and
-          commission_estimate remain untouched in the database and in
-          crm/routes/contacts.js's PATCH allowlist -- only this card's
-          markup was removed, so no data was deleted and this can be
-          redesigned/reintroduced later without any schema work. See
-          contact.js's SECTIONS.followup, which is also left in place
-          (its populateSections()/saveCrmSection() lookups already no-op
-          safely on a missing element).
-
-          FUTURE ENHANCEMENT (not implemented in this pass): automatically
-          derive/update Last Contact from actual call, SMS, email, and
-          appointment activity, rather than the current manually-typed
-          last_contact_date field.
-        -->
-
-        <!-- desktop col 1, mobile row 4 -->
-        <div class="card card-recent-calls" id="recent-calls-card">
-          <h2 class="card-title">Recent Calls</h2>
-          <div id="calls-list" class="timeline"></div>
-        </div>
-
-        <!-- desktop col 1, mobile row 6 -->
-        <div class="card card-email-history" id="email-history-card">
+        <!-- Directly underneath Appointments -- same card, same ids,
+             nothing duplicated or rebuilt. -->
+        <div class="card card-tasks" id="tasks-card">
           <div class="card-section-header">
-            <h2 class="card-title" style="margin-bottom:0">Email History</h2>
-            <div style="display:flex;gap:.5rem;align-items:center">
-              <button id="sync-email-btn" class="btn-sync-email hidden" title="Sync replies from this contact">↻ Sync Replies</button>
-              <button id="compose-email-btn" class="btn-email hidden" title="Send email">✉ Compose</button>
+            <h2 class="card-title" style="margin-bottom:0">Follow-Up Tasks</h2>
+            <button id="add-task-btn" class="btn btn-primary btn-sm" onclick="toggleTaskForm()">+ Add Task</button>
+          </div>
+          <div id="task-form" class="task-form hidden">
+            <div class="task-form-grid">
+              <div class="crm-field">
+                <label class="crm-label" for="task-type">Task Type</label>
+                <select id="task-type" class="crm-select">
+                  <option value="">— Select —</option>
+                  <option>Call</option>
+                  <option>Email</option>
+                  <option>Text</option>
+                  <option>Send Document</option>
+                  <option>Follow-Up</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="crm-field">
+                <label class="crm-label" for="task-priority">Priority</label>
+                <select id="task-priority" class="crm-select">
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
+              <div class="crm-field">
+                <label class="crm-label" for="task-due-date">Due Date</label>
+                <input id="task-due-date" type="date" class="crm-input">
+              </div>
+              <div class="crm-field">
+                <label class="crm-label" for="task-due-time">Due Time (optional)</label>
+                <input id="task-due-time" type="time" class="crm-input">
+              </div>
+              <div class="crm-field crm-field-full">
+                <label class="crm-label" for="task-notes">Notes (optional)</label>
+                <textarea id="task-notes" class="crm-input" rows="2" placeholder="Details about this task…"></textarea>
+              </div>
+            </div>
+            <div class="task-form-footer">
+              <button id="task-save-btn" class="btn btn-primary" onclick="saveTask()">Save Task</button>
+              <button class="btn-section-cancel" onclick="toggleTaskForm(false)">Cancel</button>
             </div>
           </div>
-          <div id="email-history-list">
-            <p class="text-muted">No emails sent yet.</p>
+          <div id="tasks-pending" class="tasks-section"><p class="text-muted">No tasks yet.</p></div>
+          <div id="tasks-completed-toggle" class="tasks-completed-toggle hidden">
+            <button class="tasks-toggle-btn" onclick="toggleCompletedTasks()">
+              <span id="tasks-completed-toggle-label">Show Completed</span>
+            </button>
           </div>
+          <div id="tasks-completed" class="hidden"></div>
         </div>
 
-        <div class="card card-activity">
-          <h2 class="card-title">Activity &amp; Form Submissions</h2>
-          <div id="comms-list" class="timeline"></div>
-        </div>
-
-        <div class="card card-add-note">
-          <h2 class="card-title">Add Note</h2>
-          <textarea id="new-note-body" class="note-textarea" placeholder="Type a note…" rows="3"></textarea>
-          <button id="add-note-btn" class="btn btn-primary">Save Note</button>
-        </div>
-
-        <div class="card card-notes">
-          <h2 class="card-title">Notes</h2>
-          <div id="notes-list" class="timeline"></div>
-        </div>
-
-        </div><!-- /detail-col left -->
-
-        <!-- ── Right column ────────────────────────────────────────── -->
-        <div class="detail-col">
-
-        <!-- Moved to the top of the right column so SMS is visible without
-             scrolling (Retirement Information, below, moved down to make
-             room) -- same card, same ids, nothing duplicated. -->
+        <!-- Kept high in the right column -- an operational section checked
+             frequently -- same card, same ids, nothing duplicated. -->
         <div class="card card-sms-history" id="sms-history-card">
           <h2 class="card-title">SMS History</h2>
           <div id="sms-history-list">
@@ -572,6 +498,91 @@
           <div class="sms-send-error hidden" id="sms-consent-required"></div>
         </div>
 
+        <!-- Kept high in the right column, right after SMS -- an operational
+             section checked frequently -- same card, same ids, nothing
+             duplicated. -->
+        <div class="card card-email-history" id="email-history-card">
+          <div class="card-section-header">
+            <h2 class="card-title" style="margin-bottom:0">Email History</h2>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <button id="sync-email-btn" class="btn-sync-email hidden" title="Sync replies from this contact">↻ Sync Replies</button>
+              <button id="compose-email-btn" class="btn-email hidden" title="Send email">✉ Compose</button>
+            </div>
+          </div>
+          <div id="email-history-list">
+            <p class="text-muted">No emails sent yet.</p>
+          </div>
+        </div>
+
+        <!-- Placed after SMS History and Email History -- same card, same
+             id, nothing duplicated or rebuilt. Retains full inbound
+             Cal.com/form submission detail for audit/history; the concise
+             per-booking summary lives in Activity Timeline just below, and
+             the full appointment detail (type/date/location/intake answers)
+             is canonical in Appointments above. -->
+        <div class="card card-activity">
+          <h2 class="card-title">Activity &amp; Form Submissions</h2>
+          <div id="comms-list" class="timeline"></div>
+        </div>
+
+        <!-- Compact historical feed, not a large standalone section --
+             collapsed to 5 items by default (existing behavior). Each
+             appointment-booked entry is a one-line summary (e.g.
+             "Appointment Booked — Life Insurance Consultation — Sep 1, 2026
+             at 2:00 PM CT"), never the full intake questionnaire -- see
+             crm/routes/calcom.js's concise communications.body comment. -->
+        <div class="card card-timeline" id="timeline-card">
+          <h2 class="card-title">Activity Timeline</h2>
+          <!-- Filters only ever change what this SAME feed displays -- they
+               never call an API, and never touch stored activity. Shown
+               only once expanded. -->
+          <div class="calls-tabs hidden" id="timeline-filters">
+            <button type="button" class="calls-tab active" data-filter="all">All</button>
+            <button type="button" class="calls-tab" data-filter="calls">Calls</button>
+            <button type="button" class="calls-tab" data-filter="sms">SMS</button>
+            <button type="button" class="calls-tab" data-filter="email">Email</button>
+            <button type="button" class="calls-tab" data-filter="appointments">Appointments</button>
+            <button type="button" class="calls-tab" data-filter="tasks">Tasks</button>
+          </div>
+          <div id="timeline-feed" class="tl-feed">
+            <p class="text-muted tl-empty">Loading activity…</p>
+          </div>
+          <button type="button" class="tl-toggle-btn hidden" id="timeline-toggle-btn"></button>
+        </div>
+
+        <div class="card card-recent-calls" id="recent-calls-card">
+          <h2 class="card-title">Recent Calls</h2>
+          <div id="calls-list" class="timeline"></div>
+        </div>
+
+        <!-- Retirement Intake — one card per Safe Money & Retirement
+             appointment this contact has, only rendered when at least one
+             exists (crm/lib/retirementIntakeService.js). Placed directly
+             ahead of Retirement Information, the product section it
+             supplements. -->
+        <div class="card card-retirement-intake hidden" id="retirement-intake-card">
+          <h2 class="card-title">Retirement Intake</h2>
+          <div id="retirement-intake-list"></div>
+        </div>
+
+        <!--
+          Follow-Up Information card removed from view (per Contact Detail
+          usability cleanup): next_follow_up_date, last_contact_date, and
+          commission_estimate remain untouched in the database and in
+          crm/routes/contacts.js's PATCH allowlist -- only this card's
+          markup was removed, so no data was deleted and this can be
+          redesigned/reintroduced later without any schema work. See
+          contact.js's SECTIONS.followup, which is also left in place
+          (its populateSections()/saveCrmSection() lookups already no-op
+          safely on a missing element).
+
+          FUTURE ENHANCEMENT (not implemented in this pass): automatically
+          derive/update Last Contact from actual call, SMS, email, and
+          appointment activity, rather than the current manually-typed
+          last_contact_date field.
+        -->
+
+        <!-- Product sections toward the lower part of the right column. -->
         <div class="card card-retirement crm-card">
           <h2 class="card-title">Retirement Information</h2>
           <div class="crm-grid">

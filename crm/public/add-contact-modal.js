@@ -51,7 +51,7 @@
                 <input id="ac-phone" type="tel" class="crm-input" placeholder="(414) 555-0100">
               </div>
               <div class="crm-field">
-                <label class="crm-label" for="ac-home_phone">Home Phone</label>
+                <label class="crm-label" for="ac-home_phone">Landline Phone</label>
                 <input id="ac-home_phone" type="tel" class="crm-input" placeholder="(414) 555-0100">
               </div>
               <div class="crm-field">

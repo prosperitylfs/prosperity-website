@@ -643,19 +643,25 @@ async function handleCreatedOrRescheduled(event, payload) {
     `).run(contact.id, subject, body, apptId);
   }
 
-  // ── Appointment confirmation: exactly one automated SMS per NEW booking ───
+  // ── Appointment SMS: exactly one automated message per NEW booking, and
+  // exactly one more per genuine reschedule ────────────────────────────────
   // Retirement Lead bookings get the Retirement Intake Form link instead
   // (below) -- that message already states the appointment date/time, so it
   // serves as this booking's confirmation; sending both would duplicate.
   // Every other lead type (Life Insurance, Roth Conversion, generic Contact
-  // Form, etc.) gets the generic appointment-confirmation SMS here. Both
-  // branches share the same isNew gate a reschedule/redelivered webhook
-  // never re-enters (see the Retirement Intake comment below for the
-  // reschedule-in-place reasoning), and both catch/log rather than throw --
-  // a messaging failure must never affect the booking/contact/appointment
-  // data already written above. Neither sendAppointmentConfirmationSms nor
-  // sendRetirementIntakeSms ever lets a Twilio error propagate either (see
-  // crm/lib/legacySmsSend.js).
+  // Form, etc.) gets the generic appointment SMS here, in one of two forms:
+  //   - isNew: a NEW-booking confirmation (messageType 'confirmation').
+  //   - !isNew && statusChanged && event is a reschedule: a reschedule
+  //     notice (messageType 'reschedule'), using the SAME statusChanged
+  //     signal already used for the Activity Timeline entry above, so a
+  //     redelivered BOOKING_RESCHEDULED webhook (status already
+  //     'Rescheduled') never re-sends. This branch never creates or
+  //     duplicates an appointment row -- the upsert above already ran; this
+  //     only decides whether to notify.
+  // All three branches catch/log rather than throw -- a messaging failure
+  // must never affect the booking/contact/appointment data already written
+  // above. Neither sendAppointmentConfirmationSms nor sendRetirementIntakeSms
+  // ever lets a Twilio error propagate either (see crm/lib/legacySmsSend.js).
   if (isNew && leadType === 'Retirement Lead') {
     // Create the (idempotent) intake record and send the prospect their
     // link. This isNew gate is the FIRST of two independent safeguards
@@ -677,7 +683,7 @@ async function handleCreatedOrRescheduled(event, payload) {
     console.log(`Cal.com: booking brand resolved as ${bookingBrand} for contact #${contact.id}`);
     try {
       const smsResult = await sendAppointmentConfirmationSms(db, {
-        contactId: contact.id, attendeeName: fullName, appointmentType: apptType, appointmentDatetimeIso: apptDatetime,
+        contactId: contact.id, firstName, appointmentType: apptType, appointmentDatetimeIso: apptDatetime,
         brandId: bookingBrand,
       });
       if (smsResult.attempted && !smsResult.sent) {
@@ -685,6 +691,20 @@ async function handleCreatedOrRescheduled(event, payload) {
       }
     } catch (smsErr) {
       console.error(`Cal.com: appointment confirmation SMS threw unexpectedly for contact #${contact.id}:`, smsErr.message);
+    }
+  } else if (event === 'BOOKING_RESCHEDULED' && statusChanged && leadType !== 'Retirement Lead') {
+    const bookingBrand = inferBookingBrand(responses);
+    console.log(`Cal.com: booking brand resolved as ${bookingBrand} for contact #${contact.id} (reschedule)`);
+    try {
+      const smsResult = await sendAppointmentConfirmationSms(db, {
+        contactId: contact.id, firstName, appointmentType: apptType, appointmentDatetimeIso: apptDatetime,
+        brandId: bookingBrand, messageType: 'reschedule',
+      });
+      if (smsResult.attempted && !smsResult.sent) {
+        console.warn(`Cal.com: reschedule confirmation SMS not sent for contact #${contact.id}: ${smsResult.reason}`);
+      }
+    } catch (smsErr) {
+      console.error(`Cal.com: reschedule confirmation SMS threw unexpectedly for contact #${contact.id}:`, smsErr.message);
     }
   }
 }

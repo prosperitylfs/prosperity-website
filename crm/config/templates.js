@@ -1,28 +1,47 @@
 // Brand-specific operational message templates.
 //
-// LOCAL, EDITABLE DEFINITIONS ONLY — this module sends nothing, and is not
-// wired into crm/routes/twilio.js, crm/routes/calcom.js, or any other route.
-// It exists so template copy can be reviewed and approved before any
-// automated sending is built or activated in a later checkpoint.
+// LOCAL, EDITABLE DEFINITIONS ONLY — this module itself sends nothing (pure
+// data), but appointmentConfirmationSms and rescheduleNoticeSms ARE wired
+// into crm/routes/calcom.js via crm/lib/appointmentConfirmationSms.js (new
+// booking + reschedule confirmations). The other templates here remain
+// unwired scaffolding for a later checkpoint.
 //
 // Every template is `category: 'operational'` (appointment lifecycle /
 // compliance only) — deliberately separate from any future marketing
 // template set, which must live in its own module, never merged in here.
 //
-// Wording below is Loretta's approved exact copy (2026-08-12). Do not
-// reword without her approval.
+// Wording below is Loretta's approved exact copy (revised 2026-08-30 for
+// appointmentConfirmationSms/rescheduleNoticeSms — first name only,
+// natural closing brand identification instead of a leading prefix; every
+// other template is still the original 2026-08-12 copy). Do not reword
+// without her approval.
 //
 // Placeholders use {{attendee_name}}, {{appointment_type}}, {{date}},
 // {{time}}, {{time_zone}}; each template's `placeholders` list reflects only
 // the ones actually used in that template's body/text. No template names
 // Medicare, makes a promotional claim, or references the other brand.
+//
+// {{attendee_name}} is filled with the FIRST NAME ONLY by the sender
+// (crm/lib/appointmentConfirmationSms.js) -- the placeholder name is kept
+// as-is (not renamed to first_name) to avoid unnecessary churn, but every
+// appointmentConfirmationSms/rescheduleNoticeSms body below is written
+// assuming a first name in that slot ("Hi Janet," not "Hi Janet Jackson,").
+//
+// appointmentConfirmationSms/rescheduleNoticeSms bodies identify the
+// company near the END of the message ("- Insurance Lady LLC." /
+// "- Prosperity Life & Financial Solutions."), not as a leading prefix, per
+// Loretta's revised approved copy (2026-08-30). A plain hyphen is used
+// rather than an em dash so the message stays within the GSM-7 character
+// set (see the GSM-7 test in crm/test/templates.test.js) -- an em dash
+// would force UCS-2 encoding and roughly halve the per-segment character
+// budget.
 
 const TEMPLATES = {
   'insurance-lady': {
     appointmentConfirmationSms: {
       category: 'operational', channel: 'sms',
       placeholders: ['attendee_name', 'appointment_type', 'date', 'time', 'time_zone'],
-      body: 'Insurance Lady LLC: Hi {{attendee_name}}, your {{appointment_type}} with Loretta Stewart is confirmed for {{date}} at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. Reply HELP for help or STOP to opt out.',
+      body: 'Hi {{attendee_name}}, your {{appointment_type}} with Loretta Stewart is confirmed for {{date}} at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.',
     },
     reminder24hSms: {
       category: 'operational', channel: 'sms',
@@ -37,7 +56,7 @@ const TEMPLATES = {
     rescheduleNoticeSms: {
       category: 'operational', channel: 'sms',
       placeholders: ['attendee_name', 'appointment_type', 'date', 'time', 'time_zone'],
-      body: 'Insurance Lady LLC: Hi {{attendee_name}}, your {{appointment_type}} with Loretta Stewart has been rescheduled to {{date}} at {{time}} {{time_zone}}. Loretta will call you then. Reply HELP for help or STOP to opt out.',
+      body: 'Hi {{attendee_name}}, your {{appointment_type}} with Loretta Stewart has been rescheduled for {{date}} at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.',
     },
     cancellationNoticeSms: {
       category: 'operational', channel: 'sms',
@@ -78,7 +97,7 @@ Insurance Lady LLC`,
     appointmentConfirmationSms: {
       category: 'operational', channel: 'sms',
       placeholders: ['attendee_name', 'appointment_type', 'date', 'time', 'time_zone'],
-      body: 'Prosperity Life & Financial Solutions: Hi {{attendee_name}}, your {{appointment_type}} with Loretta Stewart is confirmed for {{date}} at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. Reply HELP for help or STOP to opt out.',
+      body: 'Hi {{attendee_name}}, your {{appointment_type}} with Loretta Stewart is confirmed for {{date}} at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.',
     },
     reminder24hSms: {
       category: 'operational', channel: 'sms',
@@ -93,7 +112,7 @@ Insurance Lady LLC`,
     rescheduleNoticeSms: {
       category: 'operational', channel: 'sms',
       placeholders: ['attendee_name', 'appointment_type', 'date', 'time', 'time_zone'],
-      body: 'Prosperity Life & Financial Solutions: Hi {{attendee_name}}, your {{appointment_type}} with Loretta Stewart has been rescheduled to {{date}} at {{time}} {{time_zone}}. Loretta will call you then. Reply HELP for help or STOP to opt out.',
+      body: 'Hi {{attendee_name}}, your {{appointment_type}} with Loretta Stewart has been rescheduled for {{date}} at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.',
     },
     cancellationNoticeSms: {
       category: 'operational', channel: 'sms',

@@ -1016,3 +1016,142 @@ test('a duplicate/redelivered webhook for the same new booking never attempts th
   const attempts = warnings.filter(l => l.includes('appointment confirmation SMS not sent')).length;
   assert.equal(attempts, 1, 'the isNew gate must prevent a second attempt on a redelivered webhook');
 });
+
+// ── Reschedule confirmation SMS (new) ─────────────────────────────────────
+//
+// Root cause of the reported bug: the entire appointment-SMS block was
+// gated exclusively on `isNew`. A BOOKING_RESCHEDULED event updates the
+// EXISTING appointment row in place (found via the rescheduleUid fallback
+// lookup), so isNew is always false for a reschedule -- meaning no SMS code
+// path was ever reached for one, regardless of consent/phone/brand. The fix
+// adds a third branch keyed on `event === 'BOOKING_RESCHEDULED' &&
+// statusChanged` (the SAME signal already used for the Activity Timeline
+// entry above), so a redelivered reschedule webhook -- whose second
+// delivery finds status already 'Rescheduled' -- never re-sends.
+
+// Each call needs its own unique phone number -- reusing a fixed number
+// across tests (e.g. the real +14143676486 from the production bug report)
+// risks matching an EARLIER test's contact by phone_e164 when this test's
+// own booking has no consent question, silently inheriting that other
+// contact's already-set sms_consent instead of exercising a fresh contact.
+let reschedulePhoneCounter = 0;
+function uniqueTestPhone() {
+  reschedulePhoneCounter += 1;
+  return '+1414' + String(6000000 + reschedulePhoneCounter).padStart(7, '0');
+}
+
+function bookThenReschedule({ uid, phoneType = 'Mobile', consentAnswer = 'Yes, text and email', consentBrandLabel = 'Prosperity', newStartTime = '2026-09-05T20:00:00.000Z', newEndTime = '2026-09-05T20:30:00.000Z' } = {}) {
+  const email = uid + '@example.com';
+  const phone = uniqueTestPhone();
+  const consentLabel = consentBrandLabel === 'Insurance Lady'
+    ? 'May Insurance Lady LLC send you appointment confirmations, reminders, and related communications by text message and email? Message and data rates may apply.'
+    : 'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email?';
+  const responses = {
+    name: responseEntry('Name', 'Janet Jackson'),
+    email: responseEntry('Email', email),
+    phone: responseEntry('Phone', phone),
+    phoneType: responseEntry('Is this a mobile phone or landline?', phoneType),
+    consent: responseEntry(consentLabel, consentAnswer),
+  };
+  const original = basePayload({ uid, responses, startTime: '2026-09-01T15:00:00.000Z', endTime: '2026-09-01T15:30:00.000Z' });
+  const rescheduled = basePayload({ uid: uid + '-v2', responses, startTime: newStartTime, endTime: newEndTime });
+  rescheduled.triggerEvent = 'BOOKING_RESCHEDULED';
+  rescheduled.payload.rescheduleUid = uid;
+  return { email, phone, original, rescheduled };
+}
+
+test('a successful reschedule of an Insurance Lady booking attempts a reschedule confirmation SMS using the new date/time', async () => {
+  const uid = 'resched-sms-il-' + Date.now();
+  const { original, rescheduled } = bookThenReschedule({ uid, consentBrandLabel: 'Insurance Lady', newStartTime: '2026-09-01T20:00:00.000Z', newEndTime: '2026-09-01T20:30:00.000Z' });
+
+  await postWebhook(original);
+  const warnings = await captureWarnings(() => postWebhook(rescheduled));
+
+  assert.ok(
+    warnings.some(l => l.includes('booking brand resolved as insurance-lady') && l.includes('reschedule')),
+    'brand resolution must run for the reschedule path too'
+  );
+  assert.ok(
+    warnings.some(l => l.includes('reschedule confirmation SMS not sent')),
+    'the reschedule SMS path must have been attempted (reported not-sent only because no Twilio is configured in this test file)'
+  );
+  const appt = getAppointment(uid + '-v2') || getAppointment(uid);
+  assert.equal(appt.status, 'Rescheduled');
+  assert.equal(appt.appt_datetime, '2026-09-01T20:00:00.000Z', 'the reschedule SMS attempt must use the NEW appointment time, which this same appointment row now holds');
+});
+
+test('a Prosperity reschedule resolves brand=prosperity for the reschedule SMS', async () => {
+  const uid = 'resched-sms-prosperity-' + Date.now();
+  const { original, rescheduled } = bookThenReschedule({ uid, consentBrandLabel: 'Prosperity' });
+
+  await postWebhook(original);
+  const warnings = await captureWarnings(() => postWebhook(rescheduled));
+
+  assert.ok(warnings.some(l => l.includes('booking brand resolved as prosperity') && l.includes('reschedule')));
+  assert.ok(!warnings.some(l => l.includes('booking brand resolved as insurance-lady')));
+});
+
+test('a reschedule is not attempted when the contact never had SMS consent', async () => {
+  const uid = 'resched-sms-noconsent-' + Date.now();
+  const email = uid + '@example.com';
+  const responses = {
+    name: responseEntry('Name', 'No Consent Person'),
+    email: responseEntry('Email', email),
+    phone: responseEntry('Phone', uniqueTestPhone()),
+    phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+    // No consent question answered on the original booking or the reschedule.
+  };
+  const original = basePayload({ uid, responses, startTime: '2026-09-01T15:00:00.000Z', endTime: '2026-09-01T15:30:00.000Z' });
+  const rescheduled = basePayload({ uid: uid + '-v2', responses, startTime: '2026-09-05T20:00:00.000Z', endTime: '2026-09-05T20:30:00.000Z' });
+  rescheduled.triggerEvent = 'BOOKING_RESCHEDULED';
+  rescheduled.payload.rescheduleUid = uid;
+
+  await postWebhook(original);
+  const warnings = await captureWarnings(() => postWebhook(rescheduled));
+
+  assert.ok(
+    warnings.some(l => l.includes('reschedule confirmation SMS not sent') && l.includes('does not have SMS consent')),
+    'must be blocked specifically by the missing-consent gate, same as the new-booking path'
+  );
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sms_messages').get().n, 0);
+});
+
+test('a redelivered reschedule webhook never attempts the reschedule SMS twice, and never creates a duplicate appointment', async () => {
+  const uid = 'resched-sms-redelivery-' + Date.now();
+  const { original, rescheduled } = bookThenReschedule({ uid });
+
+  await postWebhook(original);
+  const warnings = await captureWarnings(async () => {
+    await postWebhook(rescheduled);
+    await postWebhook(rescheduled); // redelivered
+  });
+
+  const attempts = warnings.filter(l => l.includes('reschedule confirmation SMS not sent')).length;
+  assert.equal(attempts, 1, 'statusChanged is false on the second delivery (status is already Rescheduled), so no second attempt is made');
+
+  const totalAppointments = db.prepare('SELECT COUNT(*) AS n FROM appointments WHERE cal_booking_uid IN (?, ?)').get(uid, uid + '-v2').n;
+  assert.equal(totalAppointments, 1, 'the reschedule must update the same appointment row in place, never create a duplicate');
+});
+
+test('a second reschedule that changes the time again does not re-fire the SMS (status stays Rescheduled -> Rescheduled) -- known, pre-existing limitation shared with the Activity Timeline logging', async () => {
+  const uid = 'resched-sms-double-' + Date.now();
+  const { original, rescheduled } = bookThenReschedule({ uid });
+  await postWebhook(original);
+  await postWebhook(rescheduled);
+
+  const rescheduledAgain = basePayload({
+    uid: uid + '-v3',
+    responses: rescheduled.payload.responses,
+    startTime: '2026-09-10T18:00:00.000Z', endTime: '2026-09-10T18:30:00.000Z',
+  });
+  rescheduledAgain.triggerEvent = 'BOOKING_RESCHEDULED';
+  rescheduledAgain.payload.rescheduleUid = uid + '-v2';
+
+  const warnings = await captureWarnings(() => postWebhook(rescheduledAgain));
+  assert.ok(
+    !warnings.some(l => l.includes('reschedule confirmation SMS not sent')),
+    'documented limitation: a second reschedule does not currently re-trigger the SMS, since status does not change (Rescheduled -> Rescheduled)'
+  );
+  const appt = getAppointment(uid + '-v3') || getAppointment(uid + '-v2') || getAppointment(uid);
+  assert.equal(appt.appt_datetime, '2026-09-10T18:00:00.000Z', 'the appointment date/time itself is still updated correctly even though no second SMS fires');
+});

@@ -1,10 +1,11 @@
-// Automatic appointment-confirmation SMS, triggered from crm/routes/calcom.js
-// when a NEW, non-Retirement-Lead Cal.com appointment is booked. Retirement
-// Lead bookings are deliberately excluded at the call site: they already get
-// their own confirmation-equivalent message (the Retirement Intake Form
-// link, see crm/lib/retirementIntakeSms.js), which already states the
+// Automatic appointment SMS -- new-booking confirmation AND reschedule
+// notice -- triggered from crm/routes/calcom.js for a NEW or rescheduled,
+// non-Retirement-Lead Cal.com appointment. Retirement Lead bookings are
+// deliberately excluded at the call site for BOTH message types: they get
+// their own confirmation-equivalent message instead (the Retirement Intake
+// Form link, see crm/lib/retirementIntakeSms.js), which already states the
 // appointment date/time -- sending this SMS as well would be a duplicate,
-// redundant second text for the same booking.
+// redundant second text for the same booking or reschedule.
 //
 // Reuses crm/lib/legacySmsSend.js rather than crm/lib/prosperitySmsGateway.js's
 // brand-aware path, for the exact same reason crm/lib/retirementIntakeSms.js
@@ -22,16 +23,31 @@
 // Mobile-vs-Landline routing already in crm/routes/calcom.js. None of that
 // gating logic is touched here.
 //
-// Idempotency: crm/routes/calcom.js only ever calls this from its
-// isNew-appointment branch (the same branch/guard already proven for the
-// Retirement Intake SMS), so a duplicate/redelivered webhook or a reschedule
-// of an existing appointment never reaches this function again for the same
-// booking.
+// Idempotency:
+//   - New booking: crm/routes/calcom.js only calls this (messageType
+//     'confirmation', the default) from its isNew-appointment branch, so a
+//     duplicate/redelivered BOOKING_CREATED webhook never reaches this
+//     function again for the same booking.
+//   - Reschedule: crm/routes/calcom.js only calls this (messageType
+//     'reschedule') when an EXISTING appointment's status actually
+//     transitions to 'Rescheduled' (the same statusChanged signal already
+//     used for the Activity Timeline entry) -- a redelivered
+//     BOOKING_RESCHEDULED webhook finds the status already 'Rescheduled'
+//     and does not re-enter. Known limitation, matching the pre-existing
+//     Activity Timeline logging's own same limitation: a SECOND reschedule
+//     of an already-rescheduled appointment does not re-fire either, since
+//     status stays 'Rescheduled' -> 'Rescheduled' (no change to detect).
+//     Not addressed here -- out of scope for this fix.
 
 const { sendLegacySms } = require('./legacySmsSend');
 const { getTemplate } = require('../config/templates');
 
 const DEFAULT_BRAND = 'prosperity';
+
+const TEMPLATE_KEY_BY_MESSAGE_TYPE = {
+  confirmation: 'appointmentConfirmationSms',
+  reschedule: 'rescheduleNoticeSms',
+};
 
 function fillTemplate(body, vars) {
   return body.replace(/\{\{(\w+)\}\}/g, (_, key) => (vars[key] != null ? String(vars[key]) : ''));
@@ -48,11 +64,14 @@ function fmtApptDateTimeCT(appointmentDatetimeIso) {
   return { date, time };
 }
 
-function buildConfirmationSmsBody({ attendeeName, appointmentType, appointmentDatetimeIso, brandId = DEFAULT_BRAND }) {
-  const template = getTemplate(brandId, 'appointmentConfirmationSms') || getTemplate(DEFAULT_BRAND, 'appointmentConfirmationSms');
+// `firstName` fills the template's {{attendee_name}} placeholder -- the
+// greeting is first-name-only ("Hi Janet,"), never the full name.
+function buildConfirmationSmsBody({ firstName, appointmentType, appointmentDatetimeIso, brandId = DEFAULT_BRAND, messageType = 'confirmation' }) {
+  const templateKey = TEMPLATE_KEY_BY_MESSAGE_TYPE[messageType] || TEMPLATE_KEY_BY_MESSAGE_TYPE.confirmation;
+  const template = getTemplate(brandId, templateKey) || getTemplate(DEFAULT_BRAND, templateKey);
   const { date, time } = fmtApptDateTimeCT(appointmentDatetimeIso);
   return fillTemplate(template.body, {
-    attendee_name: attendeeName || 'there',
+    attendee_name: firstName || 'there',
     appointment_type: appointmentType,
     date, time, time_zone: 'CT',
   });
@@ -68,6 +87,7 @@ function resolveFromNumberForBrand(brandId) {
   return null;
 }
 
+// `messageType`: 'confirmation' (default, new booking) or 'reschedule'.
 // Returns one of:
 //   { attempted: true, sent: true, sms }                     — sent.
 //   { attempted: true, sent: false, reason, status }          — blocked
@@ -75,7 +95,7 @@ function resolveFromNumberForBrand(brandId) {
 //     sender not configured) or a Twilio send failure. Already logged in
 //     sms_messages by sendLegacySms where applicable — see that module's
 //     own comment.
-async function sendAppointmentConfirmationSms(db, { contactId, attendeeName, appointmentType, appointmentDatetimeIso, brandId = DEFAULT_BRAND }, deps = {}) {
+async function sendAppointmentConfirmationSms(db, { contactId, firstName, appointmentType, appointmentDatetimeIso, brandId = DEFAULT_BRAND, messageType = 'confirmation' }, deps = {}) {
   // Fails closed rather than silently falling back to Prosperity's number:
   // an Insurance Lady booking must never go out under the wrong brand's
   // sender just because its dedicated number isn't configured in this
@@ -84,7 +104,7 @@ async function sendAppointmentConfirmationSms(db, { contactId, attendeeName, app
     return { attempted: true, sent: false, reason: 'INSURANCE_LADY_TWILIO_PHONE_NUMBER is not configured', status: 503 };
   }
 
-  const body = buildConfirmationSmsBody({ attendeeName, appointmentType, appointmentDatetimeIso, brandId });
+  const body = buildConfirmationSmsBody({ firstName, appointmentType, appointmentDatetimeIso, brandId, messageType });
   const fromNumber = resolveFromNumberForBrand(brandId);
   const send = deps.sendLegacySms || sendLegacySms;
   const result = await send(db, { contactId, body, fromNumber: fromNumber || undefined }, deps);

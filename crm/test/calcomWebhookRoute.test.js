@@ -833,14 +833,22 @@ test('the appointment-booked communications entry is concise and does not repeat
 // skipped for a Retirement Lead booking), rather than relying only on
 // absence of a database row, which can't distinguish "correctly skipped"
 // from "attempted and blocked" on its own.
+// Captures both console.warn (the "not sent" outcome lines) and console.log
+// (the "booking brand resolved as ..." line calcom.js logs right before
+// attempting the send) into one merged, chronological array -- some tests
+// below need to prove WHICH brand was resolved, not just whether a send was
+// attempted.
 async function captureWarnings(fn) {
-  const original = console.warn;
+  const originalWarn = console.warn;
+  const originalLog  = console.log;
   const lines = [];
   console.warn = (...args) => { lines.push(args.join(' ')); };
+  console.log  = (...args) => { lines.push(args.join(' ')); };
   try {
     await fn();
   } finally {
-    console.warn = original;
+    console.warn = originalWarn;
+    console.log  = originalLog;
   }
   return lines;
 }
@@ -866,6 +874,70 @@ test('a new Life Insurance booking with SMS consent and a mobile phone attempts 
     'the confirmation-SMS path must have been attempted (and, with no Twilio configured in this test file, reported as not sent) -- proving it reached the send path at all'
   );
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sms_messages').get().n, 0, 'no real Twilio call was made -- nothing configured in this test file');
+});
+
+// ── Brand resolution (Insurance Lady vs Prosperity) ──────────────────────
+//
+// crm/routes/calcom.js resolves the booking's brand from the consent
+// question's own label text (see inferBookingBrand's file comment for why
+// that's the only reliable, already-present signal) and logs
+// "booking brand resolved as <brand>" right before attempting the send --
+// captured here via captureWarnings to prove the correct brand was chosen,
+// since no sms_messages row is ever written in this Twilio-less test file.
+
+test('a booking whose consent question names Insurance Lady resolves brand=insurance-lady', async () => {
+  const uid = 'brand-il-' + Date.now();
+  const email = 'brand-il-' + Date.now() + '@example.com';
+  const lines = await captureWarnings(() => postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Renee Jones'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+18145550100'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Insurance Lady LLC send you appointment confirmations, reminders, and related communications by text message and email? Message and data rates may apply.',
+        'Yes, text and email'
+      ),
+    },
+  })));
+  assert.ok(lines.some(l => l.includes('booking brand resolved as insurance-lady')));
+  assert.ok(!lines.some(l => l.includes('booking brand resolved as prosperity')));
+});
+
+test('a booking whose consent question names Prosperity resolves brand=prosperity', async () => {
+  const uid = 'brand-prosperity-' + Date.now();
+  const email = 'brand-prosperity-' + Date.now() + '@example.com';
+  const lines = await captureWarnings(() => postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Janet Jackson'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14143676486'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email?',
+        'Yes, text and email'
+      ),
+    },
+  })));
+  assert.ok(lines.some(l => l.includes('booking brand resolved as prosperity')));
+  assert.ok(!lines.some(l => l.includes('booking brand resolved as insurance-lady')));
+});
+
+test('a booking with no consent question at all defaults to brand=prosperity (unchanged, pre-existing behavior)', async () => {
+  const uid = 'brand-no-consent-' + Date.now();
+  const email = 'brand-no-consent-' + Date.now() + '@example.com';
+  const lines = await captureWarnings(() => postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'No Consent Person'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14143677777'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+    },
+  })));
+  assert.ok(lines.some(l => l.includes('booking brand resolved as prosperity')));
 });
 
 test('a Retirement Lead booking does NOT also trigger the generic appointment confirmation SMS (no duplicate on top of the intake SMS)', async () => {

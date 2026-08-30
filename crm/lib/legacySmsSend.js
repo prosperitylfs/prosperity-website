@@ -55,7 +55,12 @@ function checkConsentGate(contact) {
 // (contact exists, consent, phone, Twilio configured) has passed -- exactly
 // matching the original route's ordering, so e.g. a consent-blocked send
 // never creates a row at all.
-async function sendLegacySms(db, { contactId, body }, deps = {}) {
+// `fromNumber` is an optional override of the sending number -- e.g. the
+// Insurance Lady brand-specific Twilio number (crm/lib/appointmentConfirmationSms.js).
+// Every existing caller (crm/routes/sms.js, crm/lib/retirementIntakeSms.js)
+// omits it and is completely unaffected: this falls back to the original,
+// unchanged process.env.TWILIO_FROM_NUMBER default exactly as before.
+async function sendLegacySms(db, { contactId, body, fromNumber: fromNumberOverride }, deps = {}) {
   const contact = db.prepare(
     'SELECT id, phone, phone_e164, sms_consent, sms_opted_out_at FROM contacts WHERE id = ?'
   ).get(contactId);
@@ -67,13 +72,13 @@ async function sendLegacySms(db, { contactId, body }, deps = {}) {
   const toNumber = resolveToNumber(contact);
   if (!toNumber) return { ok: false, status: 400, error: 'Contact has no valid phone number for SMS' };
 
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+  const fromNumber = fromNumberOverride || process.env.TWILIO_FROM_NUMBER;
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken  = process.env.TWILIO_AUTH_TOKEN;
   const publicUrl  = (process.env.CRM_PUBLIC_URL || '').replace(/\/$/, '');
 
   if (!fromNumber || !accountSid || !authToken) {
-    return { ok: false, status: 503, error: 'Twilio is not configured — check TWILIO_FROM_NUMBER, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN' };
+    return { ok: false, status: 503, error: 'Twilio is not configured — check TWILIO_FROM_NUMBER (or the provided sender override), TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN' };
   }
 
   const ins = db.prepare(`

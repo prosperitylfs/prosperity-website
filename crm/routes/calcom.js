@@ -288,6 +288,33 @@ function extractCommunicationConsent(responses) {
   return null;
 }
 
+// Which brand a Cal.com booking belongs to -- 'insurance-lady' | 'prosperity'.
+// Checked, in order, and ruled out before landing on this fallback:
+//   1. No explicit brand field exists anywhere in a Cal.com webhook payload.
+//   2. Cal.com-created/matched contacts never get a contact_brands row (see
+//      crm/lib/retirementIntakeSms.js's own comment for why), so there is no
+//      CRM brand mapping to read for a brand-new booking at webhook time.
+//   3. RETIREMENT_EVENT_SLUGS/LIFE_INSURANCE_EVENT_SLUGS above, and every
+//      Cal.com URL referenced anywhere in this repo (book.html, schedule.html,
+//      life-insurance.html, life-insurance-qualifier.html), only ever name
+//      Prosperity's own lorettastewart Cal.com account/slugs. Insurance
+//      Lady's booking flow (Jennifer/Retell) is configured entirely outside
+//      this repo, so there is no verified event slug/ID to key off of here.
+//   4. crm/config/brands.js has no Cal.com-related field to map from either.
+// The consent question's own label IS already brand-parameterized and
+// already flows through this same payload for consent purposes (see
+// isConsentQuestionLabel above: "May Insurance Lady LLC send you..." vs
+// "May Prosperity Life & Financial Solutions send you..."), making it the
+// one reliable, already-present signal. Defaults to 'prosperity' -- the
+// previously-hardcoded, working behavior -- whenever the consent question is
+// missing or doesn't name a brand, so nothing already working regresses.
+function inferBookingBrand(responses) {
+  const entry = findResponseByLabelPredicate(responses, isConsentQuestionLabel);
+  const label = normalizeLabel(entry && entry.label);
+  if (label.includes('insurance lady')) return 'insurance-lady';
+  return 'prosperity';
+}
+
 const LIFE_INSURANCE_QUESTIONS = [
   { key: 'help_with',       label: 'What they need help with',              patterns: ['what would you like help with'] },
   { key: 'applicant',       label: 'Who is applying for coverage',          patterns: ['who will be applying for coverage'] },
@@ -646,9 +673,12 @@ async function handleCreatedOrRescheduled(event, payload) {
       console.error(`Cal.com: retirement intake SMS threw unexpectedly for contact #${contact.id}:`, smsErr.message);
     }
   } else if (isNew) {
+    const bookingBrand = inferBookingBrand(responses);
+    console.log(`Cal.com: booking brand resolved as ${bookingBrand} for contact #${contact.id}`);
     try {
       const smsResult = await sendAppointmentConfirmationSms(db, {
         contactId: contact.id, attendeeName: fullName, appointmentType: apptType, appointmentDatetimeIso: apptDatetime,
+        brandId: bookingBrand,
       });
       if (smsResult.attempted && !smsResult.sent) {
         console.warn(`Cal.com: appointment confirmation SMS not sent for contact #${contact.id}: ${smsResult.reason}`);

@@ -19,6 +19,7 @@ const db      = require('../db/database');
 const { isValidCalcomSignature } = require('../lib/calcomSignature');
 const { createIntakeForAppointment } = require('../lib/retirementIntakeService');
 const { sendRetirementIntakeSms } = require('../lib/retirementIntakeSms');
+const { sendAppointmentConfirmationSms } = require('../lib/appointmentConfirmationSms');
 const { normalizeEmail } = require('../lib/leadNormalize');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -615,20 +616,24 @@ async function handleCreatedOrRescheduled(event, payload) {
     `).run(contact.id, subject, body, apptId);
   }
 
-  // ── Retirement Intake Form: create the (idempotent) intake record and ─────
-  // send the prospect their link. Only for a genuinely NEW retirement
-  // booking — a reschedule updates the existing appointment row in place
-  // (same appointments.id), so the existing intake record's appointment_id
-  // FK and live-computed deadline stay correct automatically without
-  // creating a second record or re-sending. This isNew gate is the FIRST of
-  // two independent safeguards against a duplicate send; see
-  // crm/lib/retirementIntakeSms.js's file-level comment for the second
-  // (status must still be 'Not Sent'). A messaging failure here is caught
-  // and logged, never thrown — it must not affect the booking/contact/
-  // appointment data already written above, and sendRetirementIntakeSms
-  // itself never lets a Twilio error propagate either (see
+  // ── Appointment confirmation: exactly one automated SMS per NEW booking ───
+  // Retirement Lead bookings get the Retirement Intake Form link instead
+  // (below) -- that message already states the appointment date/time, so it
+  // serves as this booking's confirmation; sending both would duplicate.
+  // Every other lead type (Life Insurance, Roth Conversion, generic Contact
+  // Form, etc.) gets the generic appointment-confirmation SMS here. Both
+  // branches share the same isNew gate a reschedule/redelivered webhook
+  // never re-enters (see the Retirement Intake comment below for the
+  // reschedule-in-place reasoning), and both catch/log rather than throw --
+  // a messaging failure must never affect the booking/contact/appointment
+  // data already written above. Neither sendAppointmentConfirmationSms nor
+  // sendRetirementIntakeSms ever lets a Twilio error propagate either (see
   // crm/lib/legacySmsSend.js).
   if (isNew && leadType === 'Retirement Lead') {
+    // Create the (idempotent) intake record and send the prospect their
+    // link. This isNew gate is the FIRST of two independent safeguards
+    // against a duplicate send; see crm/lib/retirementIntakeSms.js's
+    // file-level comment for the second (status must still be 'Not Sent').
     const intake = createIntakeForAppointment(db, { contactId: contact.id, appointmentId: apptId });
     try {
       const smsResult = await sendRetirementIntakeSms(db, {
@@ -639,6 +644,17 @@ async function handleCreatedOrRescheduled(event, payload) {
       }
     } catch (smsErr) {
       console.error(`Cal.com: retirement intake SMS threw unexpectedly for contact #${contact.id}:`, smsErr.message);
+    }
+  } else if (isNew) {
+    try {
+      const smsResult = await sendAppointmentConfirmationSms(db, {
+        contactId: contact.id, attendeeName: fullName, appointmentType: apptType, appointmentDatetimeIso: apptDatetime,
+      });
+      if (smsResult.attempted && !smsResult.sent) {
+        console.warn(`Cal.com: appointment confirmation SMS not sent for contact #${contact.id}: ${smsResult.reason}`);
+      }
+    } catch (smsErr) {
+      console.error(`Cal.com: appointment confirmation SMS threw unexpectedly for contact #${contact.id}:`, smsErr.message);
     }
   }
 }

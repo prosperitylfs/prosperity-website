@@ -819,3 +819,128 @@ test('the appointment-booked communications entry is concise and does not repeat
   assert.doesNotMatch(comm.body, /Term life insurance/, 'must not repeat individual qualification answers either');
   assert.match(comm.body, /Life Insurance Consultation/, 'must still identify the appointment type');
 });
+
+// ── Appointment confirmation SMS (new) ────────────────────────────────────
+//
+// No TWILIO_* env vars are set anywhere in this test file, so any send
+// attempt deterministically fails at the "not configured" step -- exactly
+// the same established pattern the pre-existing Retirement Intake SMS tests
+// above already rely on (see "reaches the send path...fails gracefully").
+// That means sms_messages stays empty regardless of which path ran, so
+// these tests capture console.warn to directly prove WHICH code path was
+// invoked (proof the new SMS was actually attempted -- got past the
+// consent/phone gates and reached Twilio -- vs. proof it was correctly
+// skipped for a Retirement Lead booking), rather than relying only on
+// absence of a database row, which can't distinguish "correctly skipped"
+// from "attempted and blocked" on its own.
+async function captureWarnings(fn) {
+  const original = console.warn;
+  const lines = [];
+  console.warn = (...args) => { lines.push(args.join(' ')); };
+  try {
+    await fn();
+  } finally {
+    console.warn = original;
+  }
+  return lines;
+}
+
+test('a new Life Insurance booking with SMS consent and a mobile phone attempts the appointment confirmation SMS', async () => {
+  const uid = 'confirm-sms-attempt-' + Date.now();
+  const email = 'confirm-sms-' + Date.now() + '@example.com';
+  const warnings = await captureWarnings(() => postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Janet Jackson'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14143676486'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email?',
+        'Yes, text and email'
+      ),
+    },
+  })));
+  assert.ok(
+    warnings.some(l => l.includes('appointment confirmation SMS not sent')),
+    'the confirmation-SMS path must have been attempted (and, with no Twilio configured in this test file, reported as not sent) -- proving it reached the send path at all'
+  );
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sms_messages').get().n, 0, 'no real Twilio call was made -- nothing configured in this test file');
+});
+
+test('a Retirement Lead booking does NOT also trigger the generic appointment confirmation SMS (no duplicate on top of the intake SMS)', async () => {
+  const uid = 'no-duplicate-sms-' + Date.now();
+  const email = 'no-duplicate-sms-' + Date.now() + '@example.com';
+  const warnings = await captureWarnings(() => postWebhook(basePayload({
+    uid, eventTitle: 'Safe Money & Retirement Consultation',
+    responses: {
+      name: responseEntry('Name', 'Rita Retirement'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14143676999'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email?',
+        'Yes, text and email'
+      ),
+    },
+  })));
+  assert.ok(
+    warnings.some(l => l.includes('retirement intake SMS not sent')),
+    'the retirement intake SMS path must still run for a Retirement Lead booking'
+  );
+  assert.ok(
+    !warnings.some(l => l.includes('appointment confirmation SMS not sent')),
+    'the generic appointment confirmation SMS must NEVER also be attempted for a Retirement Lead booking -- that would be a duplicate message'
+  );
+  const appt = getAppointment(uid);
+  const intakeCount = db.prepare('SELECT COUNT(*) AS n FROM retirement_intakes WHERE appointment_id = ?').get(appt.id).n;
+  assert.equal(intakeCount, 1, 'exactly one intake record, never two, and no separate confirmation attempt alongside it');
+});
+
+test('a contact with no SMS consent on this booking never attempts the confirmation SMS at all', async () => {
+  const uid = 'no-consent-no-sms-' + Date.now();
+  const email = 'no-consent-no-sms-' + Date.now() + '@example.com';
+  const warnings = await captureWarnings(() => postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'No Consent Person'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14143677000'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      // No consent question answered at all.
+    },
+  })));
+  // The send IS still attempted (sendAppointmentConfirmationSms has no
+  // independent eligibility check of its own -- consent is enforced inside
+  // sendLegacySms), so this asserts on the REASON, not on whether the
+  // warning appears at all -- proving the consent gate is what stopped it,
+  // not that the whole feature silently no-oped.
+  assert.ok(
+    warnings.some(l => l.includes('appointment confirmation SMS not sent') && l.includes('does not have SMS consent')),
+    'must be blocked specifically by the missing-consent gate'
+  );
+});
+
+test('a duplicate/redelivered webhook for the same new booking never attempts the confirmation SMS twice', async () => {
+  const uid = 'no-dup-sms-redelivery-' + Date.now();
+  const email = 'no-dup-sms-redelivery-' + Date.now() + '@example.com';
+  const payload = basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Redelivered Person'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14143677001'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Prosperity send you appointment confirmations, reminders, and related communications by text message and email?',
+        'Yes, text and email'
+      ),
+    },
+  });
+  const warnings = await captureWarnings(async () => {
+    await postWebhook(payload);
+    await postWebhook(payload);
+  });
+  const attempts = warnings.filter(l => l.includes('appointment confirmation SMS not sent')).length;
+  assert.equal(attempts, 1, 'the isNew gate must prevent a second attempt on a redelivered webhook');
+});

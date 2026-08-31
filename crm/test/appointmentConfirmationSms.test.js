@@ -101,6 +101,21 @@ test('Prosperity new-booking SMS: same natural greeting structure, no leading "P
   }
 });
 
+test('no reschedule link is fabricated in either message type -- no verified, booking-specific Cal.com reschedule URL exists in this codebase\'s webhook data for either brand (investigated; none added)', () => {
+  const confirmation = buildConfirmationSmsBody({
+    firstName: 'Janet', appointmentType: 'Life Insurance Consultation',
+    appointmentDatetimeIso: '2026-08-31T21:00:00.000Z', brandId: 'insurance-lady',
+  });
+  const reschedule = buildConfirmationSmsBody({
+    firstName: 'Janet', appointmentType: 'Life Insurance Consultation',
+    appointmentDatetimeIso: '2026-09-01T20:00:00.000Z', brandId: 'insurance-lady', messageType: 'reschedule',
+  });
+  for (const body of [confirmation, reschedule]) {
+    assert.doesNotMatch(body, /https?:\/\//i, 'must never include a URL -- none is available reliably from Cal.com webhook data for either brand');
+    assert.doesNotMatch(body, /reschedule\?/i);
+  }
+});
+
 // ── Body building — reschedule notice ───────────────────────────────────
 
 test('Insurance Lady reschedule SMS: exact wording, new date/time, first name only', () => {

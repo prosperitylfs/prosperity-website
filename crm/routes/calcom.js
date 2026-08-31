@@ -272,9 +272,22 @@ function extractPhoneType(responses) {
 // rates may apply."). Matched by predicate (both key phrases present)
 // rather than the full sentence, so it tolerates the brand name AND any
 // other minor rewording, not just the brand name. Returns null (never a
-// default) when the question is missing or its answer doesn't match either
+// default) when the question is missing or its answer doesn't match any
 // known option -- callers must never write sms_consent/email_consent when
 // this returns null, so consent is never inferred or assumed.
+//
+// Answer wording, current (as of 2026-08-31) and legacy, all matched by
+// substring so exact phrasing differences (a leading "Yes,", trailing
+// qualifiers) don't break the match:
+//   "Text and email"                    -> sms: true,  email: true
+//   "Yes, text and email"     (legacy)  -> sms: true,  email: true  (same 'text and email' substring)
+//   "Text only"                         -> sms: true,  email: false
+//   "Email only"                        -> sms: false, email: true
+//   "Email only, no text messages" (legacy) -> sms: false, email: true (same 'email only' substring)
+// "Text only" is checked before "text and email" purely so a hypothetical
+// future rewording containing both substrings can't silently misclassify --
+// today the two never overlap in the same answer, but the tightest match
+// wins if that ever changes.
 function isConsentQuestionLabel(l) {
   return l.includes('text message') && l.includes('email') && l.includes('appointment confirmation');
 }
@@ -283,6 +296,7 @@ function extractCommunicationConsent(responses) {
   const entry = findResponseByLabelPredicate(responses, isConsentQuestionLabel);
   if (!entry) return null;
   const answer = normalizeLabel(toSafeString(entry.value));
+  if (answer.includes('text only'))      return { sms: true,  email: false };
   if (answer.includes('text and email')) return { sms: true,  email: true };
   if (answer.includes('email only'))     return { sms: false, email: true };
   return null;

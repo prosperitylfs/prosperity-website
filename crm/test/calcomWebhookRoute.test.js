@@ -620,6 +620,95 @@ test('"Email only, no text messages" sets sms_consent to 0 and email_consent to 
   assert.equal(contact.email_consent, 1);
 });
 
+// ── New exact consent wording (as of 2026-08-31) ──────────────────────────
+
+test('"Text and email" sets both sms_consent and email_consent to 1', async () => {
+  const email = 'consent-new-both-' + Date.now() + '@example.com';
+  const uid = 'consent-new-both-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'New Both Consent'),
+      email: responseEntry('Email', email),
+      consent: responseEntry(
+        'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email? Message and data rates may apply.',
+        'Text and email'
+      ),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.sms_consent, 1);
+  assert.equal(contact.email_consent, 1);
+});
+
+test('"Text only" sets sms_consent to 1 and email_consent to 0', async () => {
+  const email = 'consent-new-textonly-' + Date.now() + '@example.com';
+  const uid = 'consent-new-textonly-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'New Text Only'),
+      email: responseEntry('Email', email),
+      consent: responseEntry(
+        'May Insurance Lady LLC send you appointment confirmations, reminders, and related communications by text message and email? Message and data rates may apply.',
+        'Text only'
+      ),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.sms_consent, 1);
+  assert.equal(contact.email_consent, 0);
+});
+
+test('"Email only" (new exact wording, no trailing qualifier) sets sms_consent to 0 and email_consent to 1', async () => {
+  const email = 'consent-new-emailonly-' + Date.now() + '@example.com';
+  const uid = 'consent-new-emailonly-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'New Email Only'),
+      email: responseEntry('Email', email),
+      consent: responseEntry(
+        'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email?',
+        'Email only'
+      ),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.sms_consent, 0);
+  assert.equal(contact.email_consent, 1);
+});
+
+test('legacy wording "Yes, text and email" and "Email only, no text messages" still map correctly alongside the new wording (backward compatibility)', async () => {
+  const emailBoth = 'consent-legacy-both-' + Date.now() + '@example.com';
+  const uidBoth = 'consent-legacy-both-' + Date.now();
+  await postWebhook(basePayload({
+    uid: uidBoth,
+    responses: {
+      name: responseEntry('Name', 'Legacy Both'),
+      email: responseEntry('Email', emailBoth),
+      consent: responseEntry('May Prosperity send you appointment confirmations by text message and email?', 'Yes, text and email'),
+    },
+  }));
+  const contactBoth = getContact(emailBoth);
+  assert.equal(contactBoth.sms_consent, 1);
+  assert.equal(contactBoth.email_consent, 1);
+
+  const emailEmailOnly = 'consent-legacy-emailonly-' + Date.now() + '@example.com';
+  const uidEmailOnly = 'consent-legacy-emailonly-' + Date.now();
+  await postWebhook(basePayload({
+    uid: uidEmailOnly,
+    responses: {
+      name: responseEntry('Name', 'Legacy Email Only'),
+      email: responseEntry('Email', emailEmailOnly),
+      consent: responseEntry('May Prosperity send you appointment confirmations by text message and email?', 'Email only, no text messages'),
+    },
+  }));
+  const contactEmailOnly = getContact(emailEmailOnly);
+  assert.equal(contactEmailOnly.sms_consent, 0);
+  assert.equal(contactEmailOnly.email_consent, 1);
+});
+
 test('no consent question present never writes/infers sms_consent or email_consent on a new contact beyond the schema default', async () => {
   const email = 'consent-absent-' + Date.now() + '@example.com';
   const uid = 'consent-absent-' + Date.now();

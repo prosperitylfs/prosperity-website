@@ -48,7 +48,7 @@ test('Medicare is absent from every template, in either brand', () => {
 });
 
 test('SMS templates that solicit a reply include STOP language', () => {
-  const smsKeysExpectingStop = ['appointmentConfirmationSms', 'reminder24hSms', 'reminder1hSms', 'rescheduleNoticeSms', 'cancellationNoticeSms', 'missedCallTextBack', 'helpResponseSms'];
+  const smsKeysExpectingStop = ['appointmentConfirmationSms', 'reminder24hSms', 'reminder1hSms', 'reminder15mSms', 'rescheduleNoticeSms', 'cancellationNoticeSms', 'missedCallTextBack', 'helpResponseSms'];
   for (const brandId of ['insurance-lady', 'prosperity']) {
     for (const key of smsKeysExpectingStop) {
       const tmpl = TEMPLATES[brandId][key];
@@ -103,7 +103,7 @@ test('the revised missed-call templates fit in a single GSM-7 segment with reali
 });
 
 test('templates use only the documented placeholders', () => {
-  const allowed = new Set(['attendee_name', 'appointment_type', 'date', 'time', 'time_zone']);
+  const allowed = new Set(['attendee_name', 'appointment_type', 'date', 'time', 'time_zone', 'day_phrase']);
   const placeholderPattern = /\{\{(\w+)\}\}/g;
   for (const brandId of ['insurance-lady', 'prosperity']) {
     for (const [key, tmpl] of Object.entries(TEMPLATES[brandId])) {

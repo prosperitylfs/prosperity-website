@@ -21,6 +21,7 @@ const { createIntakeForAppointment } = require('../lib/retirementIntakeService')
 const { sendRetirementIntakeSms } = require('../lib/retirementIntakeSms');
 const { sendAppointmentConfirmationSms } = require('../lib/appointmentConfirmationSms');
 const { normalizeEmail } = require('../lib/leadNormalize');
+const { resolveContactBrand } = require('../lib/caseMatching');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -305,9 +306,13 @@ function extractCommunicationConsent(responses) {
 // Which brand a Cal.com booking belongs to -- 'insurance-lady' | 'prosperity'.
 // Checked, in order, and ruled out before landing on this fallback:
 //   1. No explicit brand field exists anywhere in a Cal.com webhook payload.
-//   2. Cal.com-created/matched contacts never get a contact_brands row (see
-//      crm/lib/retirementIntakeSms.js's own comment for why), so there is no
-//      CRM brand mapping to read for a brand-new booking at webhook time.
+//   2. Cal.com-created/matched contacts historically never got a
+//      contact_brands row (see crm/lib/retirementIntakeSms.js's own
+//      comment for why) -- now addressed additively below (see
+//      inferBookingBrandStrict + the resolveContactBrand call site), so
+//      SMS sending still can't rely on a pre-existing link, but the CRM's
+//      brand-aware features elsewhere now pick up a link when one is
+//      reliably identified.
 //   3. RETIREMENT_EVENT_SLUGS/LIFE_INSURANCE_EVENT_SLUGS above, and every
 //      Cal.com URL referenced anywhere in this repo (book.html, schedule.html,
 //      life-insurance.html, life-insurance-qualifier.html), only ever name
@@ -322,11 +327,32 @@ function extractCommunicationConsent(responses) {
 // one reliable, already-present signal. Defaults to 'prosperity' -- the
 // previously-hardcoded, working behavior -- whenever the consent question is
 // missing or doesn't name a brand, so nothing already working regresses.
+//
+// This default is exactly why this function must NEVER be used to decide
+// whether to LINK the contact to a brand in contact_brands (see
+// inferBookingBrandStrict below) -- it would silently "guess" Prosperity
+// for every booking where the signal is simply missing.
 function inferBookingBrand(responses) {
   const entry = findResponseByLabelPredicate(responses, isConsentQuestionLabel);
   const label = normalizeLabel(entry && entry.label);
   if (label.includes('insurance lady')) return 'insurance-lady';
   return 'prosperity';
+}
+
+// Stricter sibling of inferBookingBrand, used ONLY for deciding whether to
+// create a contact_brands link (crm/lib/caseMatching.js's
+// resolveContactBrand). Returns null -- never a default -- whenever the
+// consent question is absent, or present but names neither brand by name,
+// so a booking with no reliable brand signal never creates a guessed
+// relationship. SMS template/sender selection continues to use
+// inferBookingBrand's own 'prosperity' default unchanged.
+function inferBookingBrandStrict(responses) {
+  const entry = findResponseByLabelPredicate(responses, isConsentQuestionLabel);
+  if (!entry) return null;
+  const label = normalizeLabel(entry.label);
+  if (label.includes('insurance lady')) return 'insurance-lady';
+  if (label.includes('prosperity'))     return 'prosperity';
+  return null;
 }
 
 const LIFE_INSURANCE_QUESTIONS = [
@@ -435,6 +461,14 @@ async function handleCreatedOrRescheduled(event, payload) {
   // question was absent or unanswered -- see extractCommunicationConsent's
   // own comment for why that must never be treated as consent.
   const consent = extractCommunicationConsent(responses); // {sms, email} | null
+
+  // Computed once here (rather than separately in each SMS branch below) so
+  // the SAME value is both persisted onto the appointment row (for the
+  // reminder scheduler, which has no webhook payload/responses to re-derive
+  // it from later) and used for this booking's own confirmation/reschedule
+  // SMS -- see inferBookingBrand's own comment for why the consent
+  // question's label is the only reliable signal available.
+  const bookingBrand = inferBookingBrand(responses);
 
   const baseNotes = payload.additionalNotes
     || responses.notes?.value
@@ -574,6 +608,34 @@ async function handleCreatedOrRescheduled(event, payload) {
     console.log(`Cal.com: matched existing contact #${contact.id} — ${fullName}`);
   }
 
+  // ── Link contact to brand (contact_brands), only when reliably known ──────
+  // Reuses the existing contact_brands mechanism unchanged (crm/lib/caseMatching.js's
+  // resolveContactBrand: idempotent INSERT OR IGNORE, keyed on the
+  // UNIQUE(contact_id, brand_id) index) -- never creates a new brand
+  // system, never removes/updates an existing row, and a contact keeps
+  // whatever OTHER brand relationship(s) it may already have (multiple
+  // relationships are already supported by this schema). Only runs when
+  // inferBookingBrandStrict found a genuine signal -- see that function's
+  // own comment for why inferBookingBrand's 'prosperity' default must
+  // never be used here. Wrapped defensively: contact_brands/brands are
+  // provisioned by a separate migration (crm/db/migrateBrands.js) that
+  // isn't guaranteed to have been run in every environment this route
+  // executes in, and a missing table here must never break the booking/
+  // contact/appointment write that already happened above.
+  const bookingBrandStrict = inferBookingBrandStrict(responses);
+  if (bookingBrandStrict) {
+    try {
+      const brandRow = db.prepare('SELECT id FROM brands WHERE slug = ?').get(bookingBrandStrict);
+      if (brandRow) {
+        resolveContactBrand(db, { contactId: contact.id, brandId: brandRow.id });
+      } else {
+        console.warn(`Cal.com: booking brand '${bookingBrandStrict}' reliably identified for contact #${contact.id}, but no matching row exists in the brands table -- skipping contact_brands link (has crm/db/migrateBrands.js been run in this environment?)`);
+      }
+    } catch (err) {
+      console.error(`Cal.com: failed to link contact #${contact.id} to brand '${bookingBrandStrict}' in contact_brands:`, err.message);
+    }
+  }
+
   // ── Upsert appointment ─────────────────────────────────────────────────────
   const apptStatus = event === 'BOOKING_RESCHEDULED' ? 'Rescheduled' : 'Scheduled';
 
@@ -598,6 +660,7 @@ async function handleCreatedOrRescheduled(event, payload) {
         location        = @location,
         notes           = @notes,
         cal_booking_uid = @cal_booking_uid,
+        booking_brand   = COALESCE(booking_brand, @booking_brand),
         updated_at      = @updated_at
       WHERE id = @id
     `).run({
@@ -609,6 +672,7 @@ async function handleCreatedOrRescheduled(event, payload) {
       location:        location || null,
       notes:           notes    || null,
       cal_booking_uid: uid,
+      booking_brand:   bookingBrand,
       updated_at:      now,
       id:              existing.id,
     });
@@ -617,9 +681,9 @@ async function handleCreatedOrRescheduled(event, payload) {
   } else {
     const r = db.prepare(`
       INSERT INTO appointments
-        (contact_id, appt_type, appt_datetime, duration_min, status, location, notes, cal_booking_uid)
+        (contact_id, appt_type, appt_datetime, duration_min, status, location, notes, cal_booking_uid, booking_brand)
       VALUES
-        (@contact_id, @appt_type, @appt_datetime, @duration_min, @status, @location, @notes, @cal_booking_uid)
+        (@contact_id, @appt_type, @appt_datetime, @duration_min, @status, @location, @notes, @cal_booking_uid, @booking_brand)
     `).run({
       contact_id:      contact.id,
       appt_type:       apptType,
@@ -629,6 +693,7 @@ async function handleCreatedOrRescheduled(event, payload) {
       location:        location || null,
       notes:           notes    || null,
       cal_booking_uid: uid,
+      booking_brand:   bookingBrand,
     });
     apptId = r.lastInsertRowid;
     console.log(`Cal.com: created appointment #${apptId} (${apptType})`);
@@ -693,12 +758,11 @@ async function handleCreatedOrRescheduled(event, payload) {
       console.error(`Cal.com: retirement intake SMS threw unexpectedly for contact #${contact.id}:`, smsErr.message);
     }
   } else if (isNew) {
-    const bookingBrand = inferBookingBrand(responses);
     console.log(`Cal.com: booking brand resolved as ${bookingBrand} for contact #${contact.id}`);
     try {
       const smsResult = await sendAppointmentConfirmationSms(db, {
         contactId: contact.id, firstName, appointmentType: apptType, appointmentDatetimeIso: apptDatetime,
-        brandId: bookingBrand,
+        brandId: bookingBrand, appointmentId: apptId,
       });
       if (smsResult.attempted && !smsResult.sent) {
         console.warn(`Cal.com: appointment confirmation SMS not sent for contact #${contact.id}: ${smsResult.reason}`);
@@ -707,12 +771,11 @@ async function handleCreatedOrRescheduled(event, payload) {
       console.error(`Cal.com: appointment confirmation SMS threw unexpectedly for contact #${contact.id}:`, smsErr.message);
     }
   } else if (event === 'BOOKING_RESCHEDULED' && statusChanged && leadType !== 'Retirement Lead') {
-    const bookingBrand = inferBookingBrand(responses);
     console.log(`Cal.com: booking brand resolved as ${bookingBrand} for contact #${contact.id} (reschedule)`);
     try {
       const smsResult = await sendAppointmentConfirmationSms(db, {
         contactId: contact.id, firstName, appointmentType: apptType, appointmentDatetimeIso: apptDatetime,
-        brandId: bookingBrand, messageType: 'reschedule',
+        brandId: bookingBrand, messageType: 'reschedule', appointmentId: apptId,
       });
       if (smsResult.attempted && !smsResult.sent) {
         console.warn(`Cal.com: reschedule confirmation SMS not sent for contact #${contact.id}: ${smsResult.reason}`);

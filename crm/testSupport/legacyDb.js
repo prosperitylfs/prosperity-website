@@ -108,16 +108,19 @@ function createLegacyDb(dbPath = ':memory:') {
     );
 
     CREATE TABLE sms_messages (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      contact_id  INTEGER,
-      direction   TEXT NOT NULL DEFAULT 'outbound',
-      from_number TEXT,
-      to_number   TEXT,
-      body        TEXT,
-      status      TEXT DEFAULT 'queued',
-      twilio_sid  TEXT,
-      call_id     INTEGER,
-      sent_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id     INTEGER,
+      direction      TEXT NOT NULL DEFAULT 'outbound',
+      from_number    TEXT,
+      to_number      TEXT,
+      body           TEXT,
+      status         TEXT DEFAULT 'queued',
+      twilio_sid     TEXT,
+      call_id        INTEGER,
+      appointment_id INTEGER,
+      message_type   TEXT,
+      appointment_occurrence_at TEXT,
+      sent_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
     );
 
@@ -131,6 +134,7 @@ function createLegacyDb(dbPath = ':memory:') {
       location      TEXT,
       notes         TEXT,
       cal_booking_uid TEXT,
+      booking_brand TEXT,
       created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE

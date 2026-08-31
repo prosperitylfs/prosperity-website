@@ -29,6 +29,7 @@
 const { normalizePhone } = require('./leadNormalize');
 const { BRANDS } = require('../config/brands');
 const { stageUnresolvedIntake } = require('./caseMatching');
+const { isRescheduleRequest, processRescheduleRequest } = require('./rescheduleRequestService');
 
 const STOP_KEYWORDS = new Set(['stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit']);
 const START_KEYWORDS = new Set(['start', 'yes', 'unstop']);
@@ -226,6 +227,32 @@ function isConsentCommand(body) {
   return STOP_KEYWORDS.has(lower) || START_KEYWORDS.has(lower) || HELP_KEYWORDS.has(lower);
 }
 
+// Kicks off the reschedule-request workflow WITHOUT awaiting it here --
+// handleInboundSmsUnified and everything above it in the call chain
+// (crm/routes/twilio.js, crm/routes/twilioProsperitySms.js) are
+// synchronous today, and converting that chain to async would mean
+// updating every one of the 30+ existing synchronous callers across
+// crm/test/inboundSmsUnified.test.js and crm/test/inboundSmsService.test.js
+// -- exactly the kind of unrelated-code churn this task said not to do.
+// The reschedule-request follow-up TASK is still created deterministically
+// before this function returns (a JS async function body runs
+// synchronously up to its first `await` -- see
+// processRescheduleRequest's own comment); only the actual Twilio SEND
+// happens after this returns. The returned promise is exposed on the
+// result object as `rescheduleRequestPromise` purely so tests can await it
+// deterministically -- production callers ignore it, matching the existing
+// fire-and-forget pattern already used for Cal.com webhook SMS sends
+// (crm/routes/calcom.js responds to Cal.com immediately, then processes
+// async in the background).
+function triggerRescheduleRequest(db, { contactId, To }, deps) {
+  const promise = processRescheduleRequest(db, { contactId, inboundToNumber: To }, deps)
+    .catch(err => {
+      console.error(`[inboundSmsService] reschedule request processing failed for contact #${contactId}:`, err.message);
+      return { attempted: true, sent: false, reason: err.message };
+    });
+  return promise;
+}
+
 // Delivery-receipt deflection — shared by both branches, since Twilio can
 // send a status callback to either path regardless of which number it's
 // for.
@@ -240,7 +267,7 @@ function deflectDeliveryReceiptIfApplicable(db, { Body, MessageSid, MessageStatu
 // The ORIGINAL, unconditional legacy behavior — completely unchanged by
 // this correction. Only reached for a To number that is NOT the Prosperity
 // 414 line.
-function handleLegacyOnlyInboundSms(db, { From, To, Body, MessageSid }) {
+function handleLegacyOnlyInboundSms(db, { From, To, Body, MessageSid }, deps = {}) {
   let contact = findContactByPhoneAnyBrand(db, From);
   let contactCreated = false;
   if (!contact && From) {
@@ -258,6 +285,17 @@ function handleLegacyOnlyInboundSms(db, { From, To, Body, MessageSid }) {
     return { outcome: 'duplicate_ignored', contactId };
   }
 
+  // A RESCHEDULE reply replaces the generic "reply to this lead" task with
+  // its own dedicated one (crm/lib/rescheduleRequestService.js) -- never both.
+  if (contactId && isRescheduleRequest(Body)) {
+    const rescheduleRequestPromise = triggerRescheduleRequest(db, { contactId, To }, deps);
+    return {
+      outcome: 'processed', contactId, contactCreated, contactBrandId: null, autoTaskId: null,
+      consentAction: null, reviewStaged: null, isProsperityNumber: false,
+      rescheduleRequested: true, rescheduleRequestPromise,
+    };
+  }
+
   const autoTaskId = contactId ? createLegacySmsReplyTask(db, contactId) : null;
   return { outcome: 'processed', contactId, contactCreated, contactBrandId: null, autoTaskId, consentAction: null, reviewStaged: null, isProsperityNumber: false };
 }
@@ -268,7 +306,7 @@ function handleLegacyOnlyInboundSms(db, { From, To, Body, MessageSid }) {
 // consent UNLESS the sender matches exactly one contact with an ACTIVE
 // Prosperity relationship (findActiveProsperityContactByPhone). Everything
 // else is staged, read-only with respect to contacts, in unresolved_intake.
-function handleProsperityInboundSms(db, { From, To, Body, MessageSid }) {
+function handleProsperityInboundSms(db, { From, To, Body, MessageSid }, deps = {}) {
   const { e164: fromE164 } = normalizePhone(From);
   const isCommand = isConsentCommand(Body);
 
@@ -282,6 +320,19 @@ function handleProsperityInboundSms(db, { From, To, Body, MessageSid }) {
 
     if (insertResult.changes === 0) {
       return { outcome: 'duplicate_ignored', contactId: match.id };
+    }
+
+    // A RESCHEDULE reply replaces the generic "reply to this lead" task
+    // with its own dedicated one (crm/lib/rescheduleRequestService.js) --
+    // never both, and never a consent-keyword side effect either (the
+    // word doesn't overlap with STOP/START/HELP).
+    if (isRescheduleRequest(Body)) {
+      const rescheduleRequestPromise = triggerRescheduleRequest(db, { contactId: match.id, To }, deps);
+      return {
+        outcome: 'processed', contactId: match.id, contactCreated: false, contactBrandId: match.contact_brand_id,
+        autoTaskId: null, consentAction: null, reviewStaged: null, isProsperityNumber: true,
+        rescheduleRequested: true, rescheduleRequestPromise,
+      };
     }
 
     let consentAction = null;
@@ -353,15 +404,21 @@ function handleProsperityInboundSms(db, { From, To, Body, MessageSid }) {
 //   { outcome: 'duplicate_ignored', contactId }
 //   { outcome: 'already_staged', unresolvedIntakeId }
 //   { outcome: 'staged_for_review', unresolvedIntakeId, candidateContactId }
-//   { outcome: 'processed', contactId, contactCreated, contactBrandId, autoTaskId, consentAction, reviewStaged, isProsperityNumber }
-function handleInboundSmsUnified(db, { From, To, Body, MessageSid, MessageStatus }) {
+//   { outcome: 'processed', contactId, contactCreated, contactBrandId, autoTaskId, consentAction, reviewStaged, isProsperityNumber, rescheduleRequested?, rescheduleRequestPromise? }
+//
+// This function itself remains fully SYNCHRONOUS (see triggerRescheduleRequest's
+// own comment for why) -- `deps` is an optional 3rd param (every existing
+// caller omits it, unaffected) that only matters when a RESCHEDULE reply
+// triggers processRescheduleRequest's async send; tests can await the
+// returned `rescheduleRequestPromise` for deterministic assertions.
+function handleInboundSmsUnified(db, { From, To, Body, MessageSid, MessageStatus }, deps = {}) {
   const deflected = deflectDeliveryReceiptIfApplicable(db, { Body, MessageSid, MessageStatus });
   if (deflected) return deflected;
 
   const isProsperityNumber = To === BRANDS.prosperity.phone.e164;
   return isProsperityNumber
-    ? handleProsperityInboundSms(db, { From, To, Body, MessageSid })
-    : handleLegacyOnlyInboundSms(db, { From, To, Body, MessageSid });
+    ? handleProsperityInboundSms(db, { From, To, Body, MessageSid }, deps)
+    : handleLegacyOnlyInboundSms(db, { From, To, Body, MessageSid }, deps);
 }
 
 module.exports = {

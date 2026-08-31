@@ -24,11 +24,19 @@ const SECRET = 'unit-test-fake-calcom-secret';
 process.env.CALCOM_WEBHOOK_SECRET = SECRET;
 
 const db = require('../db/database');
+const { runMigrations: runBrandsMigrations } = require('../db/migrateBrands');
 const calcomRouter = require('../routes/calcom');
 
 let server, baseUrl;
 
 before(() => {
+  // contact_brands/brands are provisioned by their own separate,
+  // idempotent migration (not part of crm/db/database.js's unconditional
+  // schema) -- run it here so the new brand-linking behavior in
+  // crm/routes/calcom.js (resolveContactBrand) is genuinely exercised by
+  // these tests, matching how crm/test/inboundSmsUnified.test.js's own
+  // setup already does the same for its brand-aware coverage.
+  runBrandsMigrations(db);
   const app = express();
   app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
   app.use('/api/calcom', calcomRouter);
@@ -992,6 +1000,7 @@ test('a booking whose consent question names Insurance Lady resolves brand=insur
   })));
   assert.ok(lines.some(l => l.includes('booking brand resolved as insurance-lady')));
   assert.ok(!lines.some(l => l.includes('booking brand resolved as prosperity')));
+  assert.equal(getAppointment(uid).booking_brand, 'insurance-lady', 'must be persisted onto the appointment row for the reminder scheduler to use later');
 });
 
 test('a booking whose consent question names Prosperity resolves brand=prosperity', async () => {
@@ -1012,6 +1021,46 @@ test('a booking whose consent question names Prosperity resolves brand=prosperit
   })));
   assert.ok(lines.some(l => l.includes('booking brand resolved as prosperity')));
   assert.ok(!lines.some(l => l.includes('booking brand resolved as insurance-lady')));
+  assert.equal(getAppointment(uid).booking_brand, 'prosperity');
+});
+
+test('booking_brand set on the original booking is preserved across a reschedule, even if the reschedule payload omits the consent question', async () => {
+  const uid = 'brand-persist-resched-' + Date.now();
+  const email = 'brand-persist-resched-' + Date.now() + '@example.com';
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Brand Persist'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14143678888'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Insurance Lady LLC send you appointment confirmations, reminders, and related communications by text message and email?',
+        'Yes, text and email'
+      ),
+    },
+    startTime: '2026-09-01T15:00:00.000Z', endTime: '2026-09-01T15:30:00.000Z',
+  }));
+  assert.equal(getAppointment(uid).booking_brand, 'insurance-lady');
+
+  // Reschedule payload with NO consent question at all -- would resolve to
+  // the 'prosperity' default if re-evaluated, but must not overwrite what
+  // was already correctly detected on the original booking.
+  const rescheduled = basePayload({
+    uid: uid + '-v2',
+    responses: {
+      name: responseEntry('Name', 'Brand Persist'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14143678888'),
+    },
+    startTime: '2026-09-05T16:00:00.000Z', endTime: '2026-09-05T16:30:00.000Z',
+  });
+  rescheduled.triggerEvent = 'BOOKING_RESCHEDULED';
+  rescheduled.payload.rescheduleUid = uid;
+  await postWebhook(rescheduled);
+
+  const appt = getAppointment(uid + '-v2') || getAppointment(uid);
+  assert.equal(appt.booking_brand, 'insurance-lady', 'must still be insurance-lady -- never silently reset to the prosperity default by a reschedule with no consent question');
 });
 
 test('a booking with no consent question at all defaults to brand=prosperity (unchanged, pre-existing behavior)', async () => {
@@ -1243,4 +1292,234 @@ test('a second reschedule that changes the time again does not re-fire the SMS (
   );
   const appt = getAppointment(uid + '-v3') || getAppointment(uid + '-v2') || getAppointment(uid);
   assert.equal(appt.appt_datetime, '2026-09-10T18:00:00.000Z', 'the appointment date/time itself is still updated correctly even though no second SMS fires');
+});
+
+// ── contact_brands linking (new) ──────────────────────────────────────────
+//
+// Reuses the existing contact_brands mechanism (crm/lib/caseMatching.js's
+// resolveContactBrand) unchanged -- only WHEN inferBookingBrandStrict finds
+// a reliable signal (the consent question explicitly naming a brand).
+// Fixes the limitation flagged in the previous round: Cal.com-originated
+// contacts previously never got a contact_brands row at all, which meant
+// they could never match crm/lib/inboundSmsService.js's
+// findActiveProsperityContactByPhone (the strict Prosperity-number
+// matching rule the RESCHEDULE workflow depends on for that number).
+
+function getContactBrandLinks(contactId) {
+  return db.prepare(`
+    SELECT cb.*, b.slug AS brand_slug FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id
+    WHERE cb.contact_id = ?
+  `).all(contactId);
+}
+
+test('an Insurance Lady Cal.com booking links the contact to Insurance Lady in contact_brands', async () => {
+  const uid = 'brandlink-il-' + Date.now();
+  const email = 'brandlink-il-' + Date.now() + '@example.com';
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Renee Jones'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14145559301'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Insurance Lady LLC send you appointment confirmations, reminders, and related communications by text message and email? Message and data rates may apply.',
+        'Yes, text and email'
+      ),
+    },
+  }));
+  const contact = getContact(email);
+  const links = getContactBrandLinks(contact.id);
+  assert.equal(links.length, 1);
+  assert.equal(links[0].brand_slug, 'insurance-lady');
+  assert.equal(links[0].status, 'Active');
+});
+
+test('a Prosperity Cal.com booking links the contact to Prosperity in contact_brands', async () => {
+  const uid = 'brandlink-prosperity-' + Date.now();
+  const email = 'brandlink-prosperity-' + Date.now() + '@example.com';
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Janet Jackson'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14145559302'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email?',
+        'Yes, text and email'
+      ),
+    },
+  }));
+  const contact = getContact(email);
+  const links = getContactBrandLinks(contact.id);
+  assert.equal(links.length, 1);
+  assert.equal(links[0].brand_slug, 'prosperity');
+});
+
+test('an existing valid brand link is not removed or overwritten by a later booking for a different brand -- a contact may retain multiple links', async () => {
+  const uid1 = 'brandlink-multi-1-' + Date.now();
+  const uid2 = 'brandlink-multi-2-' + Date.now();
+  const email = 'brandlink-multi-' + Date.now() + '@example.com';
+  const phone = '+14145559303';
+
+  await postWebhook(basePayload({
+    uid: uid1,
+    responses: {
+      name: responseEntry('Name', 'Multi Brand'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', phone),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Insurance Lady LLC send you appointment confirmations, reminders, and related communications by text message and email? Message and data rates may apply.',
+        'Yes, text and email'
+      ),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(getContactBrandLinks(contact.id).length, 1);
+
+  // A second, later booking for the SAME contact (matched by email),
+  // reliably identified as Prosperity this time.
+  await postWebhook(basePayload({
+    uid: uid2,
+    responses: {
+      name: responseEntry('Name', 'Multi Brand'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', phone),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email?',
+        'Yes, text and email'
+      ),
+    },
+  }));
+
+  const links = getContactBrandLinks(contact.id);
+  assert.equal(links.length, 2, 'both brand relationships must coexist');
+  const slugs = links.map(l => l.brand_slug).sort();
+  assert.deepEqual(slugs, ['insurance-lady', 'prosperity']);
+  assert.ok(links.every(l => l.status === 'Active'), 'the original link must not be deactivated by the second booking');
+});
+
+test('a booking with no consent question (unknown/unreliable brand) creates no guessed contact_brands relationship', async () => {
+  const uid = 'brandlink-unknown-' + Date.now();
+  const email = 'brandlink-unknown-' + Date.now() + '@example.com';
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'No Signal'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14145559304'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      // No consent question at all -- inferBookingBrand would default to
+      // 'prosperity' for SMS purposes, but that must NOT be guessed here.
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(getContactBrandLinks(contact.id).length, 0, 'must not silently link to Prosperity just because that is the SMS-wording default');
+});
+
+// ── End-to-end: a Cal.com-created contact can now be matched for RESCHEDULE ──
+//
+// The actual scenario the previous round's limitation blocked: a Cal.com
+// booking creates a contact with no contact_brands row, so a later
+// RESCHEDULE reply to the Prosperity number was staged for review instead
+// of triggering the automated workflow. Confirms that's fixed, using the
+// SAME shared `db` this whole file already operates against.
+
+test('a Cal.com-created Prosperity contact can subsequently text RESCHEDULE to the Prosperity number and get the automated reply', async () => {
+  const { handleInboundSmsUnified } = require('../lib/inboundSmsService');
+  const { BRANDS } = require('../config/brands');
+
+  const uid = 'e2e-prosperity-reschedule-' + Date.now();
+  const email = 'e2e-prosperity-reschedule-' + Date.now() + '@example.com';
+  const phone = '+14145559305';
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Janet Jackson'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', phone),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email?',
+        'Yes, text and email'
+      ),
+    },
+    startTime: '2026-09-20T18:00:00.000Z', endTime: '2026-09-20T18:30:00.000Z',
+  }));
+  const contact = getContact(email);
+  assert.equal(getContactBrandLinks(contact.id)[0].brand_slug, 'prosperity');
+
+  const OK_DEPS = { sendLegacySms: async (db2, { contactId, body, fromNumber, appointmentId, messageType }) => {
+    const twilioSid = 'SMfake-' + Math.random().toString(36).slice(2);
+    const ins = db2.prepare(`
+      INSERT INTO sms_messages (contact_id, direction, from_number, to_number, body, status, twilio_sid, appointment_id, message_type)
+      VALUES (?, 'outbound', ?, ?, ?, 'sent', ?, ?, ?)
+    `).run(contactId, fromNumber, phone, body, twilioSid, appointmentId, messageType);
+    return { ok: true, sms: db2.prepare('SELECT * FROM sms_messages WHERE id = ?').get(ins.lastInsertRowid) };
+  }};
+
+  const result = handleInboundSmsUnified(db, {
+    From: phone, To: BRANDS.prosperity.phone.e164, Body: 'RESCHEDULE', MessageSid: 'SM_e2e_prosperity_1',
+  }, OK_DEPS);
+
+  assert.equal(result.outcome, 'processed', 'must be matched and processed now, not staged for review');
+  assert.equal(result.rescheduleRequested, true);
+  const sendOutcome = await result.rescheduleRequestPromise;
+  assert.equal(sendOutcome.sent, true);
+  const row = db.prepare(`SELECT * FROM sms_messages WHERE contact_id = ? AND direction = 'outbound'`).get(contact.id);
+  assert.match(row.body, /Absolutely\. What day and time/);
+});
+
+test('a Cal.com-created Insurance Lady contact can subsequently text RESCHEDULE to the Insurance Lady number and get the automated reply', async () => {
+  const { handleInboundSmsUnified } = require('../lib/inboundSmsService');
+  const { BRANDS } = require('../config/brands');
+
+  const uid = 'e2e-il-reschedule-' + Date.now();
+  const email = 'e2e-il-reschedule-' + Date.now() + '@example.com';
+  const phone = '+14145559306';
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Renee Jones'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', phone),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Insurance Lady LLC send you appointment confirmations, reminders, and related communications by text message and email? Message and data rates may apply.',
+        'Yes, text and email'
+      ),
+    },
+    startTime: '2026-09-21T18:00:00.000Z', endTime: '2026-09-21T18:30:00.000Z',
+  }));
+  const contact = getContact(email);
+  assert.equal(getContactBrandLinks(contact.id)[0].brand_slug, 'insurance-lady');
+
+  const OK_DEPS = { sendLegacySms: async (db2, { contactId, body, fromNumber, appointmentId, messageType }) => {
+    const twilioSid = 'SMfake-' + Math.random().toString(36).slice(2);
+    const ins = db2.prepare(`
+      INSERT INTO sms_messages (contact_id, direction, from_number, to_number, body, status, twilio_sid, appointment_id, message_type)
+      VALUES (?, 'outbound', ?, ?, ?, 'sent', ?, ?, ?)
+    `).run(contactId, fromNumber, phone, body, twilioSid, appointmentId, messageType);
+    return { ok: true, sms: db2.prepare('SELECT * FROM sms_messages WHERE id = ?').get(ins.lastInsertRowid) };
+  }};
+
+  // Insurance Lady's number is not the Prosperity number, so this flows
+  // through handleLegacyOnlyInboundSms's broad phone match -- the
+  // contact_brands link isn't strictly required for THIS case to work
+  // (findContactByPhoneAnyBrand already matches on phone alone), but the
+  // link is still confirmed above and is what enables the Prosperity-
+  // number case in the previous test.
+  const result = handleInboundSmsUnified(db, {
+    From: phone, To: BRANDS['insurance-lady'].phone.e164, Body: 'Reschedule', MessageSid: 'SM_e2e_il_1',
+  }, OK_DEPS);
+
+  assert.equal(result.outcome, 'processed');
+  assert.equal(result.rescheduleRequested, true);
+  const sendOutcome = await result.rescheduleRequestPromise;
+  assert.equal(sendOutcome.sent, true);
+  const row = db.prepare(`SELECT * FROM sms_messages WHERE contact_id = ? AND direction = 'outbound'`).get(contact.id);
+  assert.equal(row.from_number, BRANDS['insurance-lady'].phone.e164);
 });

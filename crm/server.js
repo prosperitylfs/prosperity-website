@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const db = require('./db/database');
+const { startReminderScheduler } = require('./lib/appointmentReminderScheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -295,4 +297,9 @@ app.listen(PORT, () => {
   console.log(`\nProsperity CRM running at http://localhost:${PORT}`);
   console.log(`Dashboard:      http://localhost:${PORT}/`);
   console.log(`Lead endpoint:  POST http://localhost:${PORT}/api/leads\n`);
+
+  // 24h/1h/15m appointment reminder SMS -- an in-process periodic check,
+  // not a separate Render service (see crm/lib/appointmentReminderScheduler.js's
+  // own header comment for why that's sufficient here).
+  startReminderScheduler(db);
 });

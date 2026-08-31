@@ -57,10 +57,18 @@ function checkConsentGate(contact) {
 // never creates a row at all.
 // `fromNumber` is an optional override of the sending number -- e.g. the
 // Insurance Lady brand-specific Twilio number (crm/lib/appointmentConfirmationSms.js).
+// `appointmentId`/`messageType` are optional SMS History classification --
+// which appointment this is about, and 'confirmation' | 'reschedule' |
+// 'reminder_24h' | 'reminder_1h' | 'reminder_15m'. `appointmentOccurrenceAt`
+// is a snapshot of that appointment's appt_datetime AT SEND TIME -- what
+// crm/lib/appointmentReminderScheduler.js dedupes reminders by, so a
+// reschedule (new appt_datetime, same appointment row) doesn't collide with
+// an earlier reminder already sent for the time before the reschedule.
 // Every existing caller (crm/routes/sms.js, crm/lib/retirementIntakeSms.js)
-// omits it and is completely unaffected: this falls back to the original,
-// unchanged process.env.TWILIO_FROM_NUMBER default exactly as before.
-async function sendLegacySms(db, { contactId, body, fromNumber: fromNumberOverride }, deps = {}) {
+// omits all four and is completely unaffected: they fall back to the
+// original, unchanged process.env.TWILIO_FROM_NUMBER default and NULL
+// appointment_id/message_type/appointment_occurrence_at.
+async function sendLegacySms(db, { contactId, body, fromNumber: fromNumberOverride, appointmentId = null, messageType = null, appointmentOccurrenceAt = null }, deps = {}) {
   const contact = db.prepare(
     'SELECT id, phone, phone_e164, sms_consent, sms_opted_out_at FROM contacts WHERE id = ?'
   ).get(contactId);
@@ -82,9 +90,9 @@ async function sendLegacySms(db, { contactId, body, fromNumber: fromNumberOverri
   }
 
   const ins = db.prepare(`
-    INSERT INTO sms_messages (contact_id, direction, from_number, to_number, body, status)
-    VALUES (?, 'outbound', ?, ?, ?, 'queued')
-  `).run(contactId, fromNumber, toNumber, body);
+    INSERT INTO sms_messages (contact_id, direction, from_number, to_number, body, status, appointment_id, message_type, appointment_occurrence_at)
+    VALUES (?, 'outbound', ?, ?, ?, 'queued', ?, ?, ?)
+  `).run(contactId, fromNumber, toNumber, body, appointmentId, messageType, appointmentOccurrenceAt);
   const smsId = ins.lastInsertRowid;
 
   console.log(`[legacySmsSend] contact_id=${contactId} sms_id=${smsId} to=${toNumber}`);

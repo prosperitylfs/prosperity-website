@@ -309,6 +309,45 @@ try {
   if (!e.message.includes('already exists')) throw e;
 }
 
+// Which brand a Cal.com booking is for ('prosperity' | 'insurance-lady'),
+// resolved once at webhook time (crm/routes/calcom.js's inferBookingBrand)
+// and persisted here so the appointment-reminder scheduler
+// (crm/lib/appointmentReminderScheduler.js) can pick the correct SMS
+// template/Twilio sender later without the original webhook payload
+// (Cal.com-created contacts have no contact_brands link -- see
+// crm/lib/retirementIntakeSms.js's own comment). NULL for any appointment
+// created before this column existed, or one not created via Cal.com --
+// callers must default a NULL value to 'prosperity', matching
+// inferBookingBrand's own existing default.
+addCol('appointments', 'booking_brand', 'TEXT');
+
+// Links an sms_messages row back to the appointment it's about (reminders,
+// confirmation, reschedule notice) -- NULL for manual/STOP-HELP/missed-call
+// SMS, which aren't about any specific appointment. message_type
+// distinguishes what KIND of automated SMS this was in SMS History:
+// 'confirmation' | 'reschedule' | 'reminder_24h' | 'reminder_1h' |
+// 'reminder_15m' | NULL (manual send / other, unchanged from before this
+// column existed).
+addCol('sms_messages', 'appointment_id', 'INTEGER REFERENCES appointments(id)');
+addCol('sms_messages', 'message_type',   'TEXT');
+// A snapshot of appointments.appt_datetime AT THE TIME this SMS was sent --
+// what crm/lib/appointmentReminderScheduler.js dedupes reminders by
+// (appointment_id + message_type + appointment_occurrence_at), so a
+// reschedule (which changes appt_datetime on the SAME appointment row)
+// automatically makes each reminder type eligible again for the NEW time,
+// without re-sending for the time that no longer applies. NULL for any SMS
+// not tied to a specific appointment occurrence.
+addCol('sms_messages', 'appointment_occurrence_at', 'TEXT');
+try {
+  db.prepare('CREATE INDEX IF NOT EXISTS idx_sms_appointment_id ON sms_messages(appointment_id)').run();
+} catch (e) { if (!e.message.includes('already exists')) throw e; }
+try {
+  db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_sms_reminder_dedup
+    ON sms_messages(appointment_id, message_type, appointment_occurrence_at)
+  `).run();
+} catch (e) { if (!e.message.includes('already exists')) throw e; }
+
 // One-time cleanup: remove communications rows with comm_type='sms' that were
 // created as double-writes alongside sms_messages rows. These caused every SMS
 // to appear twice in the SMS History card. Safe to run on every boot — the DELETE

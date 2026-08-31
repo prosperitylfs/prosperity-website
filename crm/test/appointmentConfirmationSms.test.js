@@ -139,6 +139,52 @@ test('Prosperity reschedule SMS: same structure, Prosperity identification', () 
   assert.doesNotMatch(body, /Insurance Lady/);
 });
 
+// ── Body building — 24h reminder reschedule note ────────────────────────
+//
+// "Need to reschedule? Reply RESCHEDULE." was added to the 24h reminder
+// ONLY -- prompts the client to text back the RESCHEDULE keyword, which
+// crm/lib/inboundSmsService.js recognizes and starts the SMS reschedule-
+// request workflow (see crm/test/inboundSmsService.test.js for that side).
+// Deliberately left out of the 1h/15m reminders since it's most useful
+// with a day's notice, not minutes before the call. (Earlier revision
+// pointed to Cal.com's own confirmation-email link instead -- superseded.)
+
+test('Insurance Lady 24h reminder includes the reschedule note, positioned right after "Loretta will call you at the scheduled time."', () => {
+  const body = buildConfirmationSmsBody({
+    firstName: 'Janet', appointmentType: 'Life Insurance Consultation',
+    appointmentDatetimeIso: '2026-08-31T21:00:00.000Z', brandId: 'insurance-lady', messageType: 'reminder_24h',
+    now: new Date('2026-08-30T21:00:00.000Z'), // exactly 1 day before -> "tomorrow"
+  });
+  assert.equal(
+    body,
+    'Hi Janet, reminder: your Life Insurance Consultation with Loretta Stewart is tomorrow at 4:00 PM CT. Loretta will call you at the scheduled time. Need to reschedule? Reply RESCHEDULE. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.'
+  );
+});
+
+test('Prosperity 24h reminder includes the same reschedule note', () => {
+  const body = buildConfirmationSmsBody({
+    firstName: 'Janet', appointmentType: 'Life Insurance Consultation',
+    appointmentDatetimeIso: '2026-08-31T21:00:00.000Z', brandId: 'prosperity', messageType: 'reminder_24h',
+    now: new Date('2026-08-30T21:00:00.000Z'),
+  });
+  assert.equal(
+    body,
+    'Hi Janet, reminder: your Life Insurance Consultation with Loretta Stewart is tomorrow at 4:00 PM CT. Loretta will call you at the scheduled time. Need to reschedule? Reply RESCHEDULE. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.'
+  );
+});
+
+test('the reschedule note is NOT present in the 1h or 15m reminders, for either brand', () => {
+  for (const brandId of ['insurance-lady', 'prosperity']) {
+    for (const messageType of ['reminder_1h', 'reminder_15m']) {
+      const body = buildConfirmationSmsBody({
+        firstName: 'Janet', appointmentType: 'Life Insurance Consultation',
+        appointmentDatetimeIso: '2026-08-31T21:00:00.000Z', brandId, messageType,
+      });
+      assert.doesNotMatch(body, /Need to reschedule/, `${brandId} ${messageType} must not include the 24h-only reschedule note`);
+    }
+  }
+});
+
 test('messageType defaults to "confirmation" wording when omitted', () => {
   const body = buildConfirmationSmsBody({
     firstName: 'Janet', appointmentType: 'Life Insurance Consultation',

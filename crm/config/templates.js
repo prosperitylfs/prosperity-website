@@ -1,9 +1,11 @@
 // Brand-specific operational message templates.
 //
 // LOCAL, EDITABLE DEFINITIONS ONLY — this module itself sends nothing (pure
-// data), but appointmentConfirmationSms and rescheduleNoticeSms ARE wired
-// into crm/routes/calcom.js via crm/lib/appointmentConfirmationSms.js (new
-// booking + reschedule confirmations). The other templates here remain
+// data), but appointmentConfirmationSms, rescheduleNoticeSms, reminder24hSms,
+// reminder1hSms, and reminder15mSms ARE wired into crm/routes/calcom.js /
+// crm/lib/appointmentReminderScheduler.js via
+// crm/lib/appointmentConfirmationSms.js (new booking + reschedule
+// confirmations + the three reminder SMS). The other templates here remain
 // unwired scaffolding for a later checkpoint.
 //
 // Every template is `category: 'operational'` (appointment lifecycle /
@@ -11,15 +13,17 @@
 // template set, which must live in its own module, never merged in here.
 //
 // Wording below is Loretta's approved exact copy (revised 2026-08-30 for
-// appointmentConfirmationSms/rescheduleNoticeSms — first name only,
-// natural closing brand identification instead of a leading prefix; every
-// other template is still the original 2026-08-12 copy). Do not reword
-// without her approval.
+// appointmentConfirmationSms/rescheduleNoticeSms, and 2026-08-31 for
+// reminder24hSms/reminder1hSms/reminder15mSms — first name only, natural
+// closing brand identification instead of a leading prefix; every other
+// template is still the original 2026-08-12 copy). Do not reword without
+// her approval.
 //
 // Placeholders use {{attendee_name}}, {{appointment_type}}, {{date}},
-// {{time}}, {{time_zone}}; each template's `placeholders` list reflects only
-// the ones actually used in that template's body/text. No template names
-// Medicare, makes a promotional claim, or references the other brand.
+// {{time}}, {{time_zone}}, {{day_phrase}}; each template's `placeholders`
+// list reflects only the ones actually used in that template's body/text.
+// No template names Medicare, makes a promotional claim, or references the
+// other brand.
 //
 // {{attendee_name}} is filled with the FIRST NAME ONLY by the sender
 // (crm/lib/appointmentConfirmationSms.js) -- the placeholder name is kept
@@ -45,13 +49,21 @@ const TEMPLATES = {
     },
     reminder24hSms: {
       category: 'operational', channel: 'sms',
-      placeholders: ['appointment_type', 'date', 'time', 'time_zone'],
-      body: 'Insurance Lady LLC reminder: Your {{appointment_type}} with Loretta Stewart is tomorrow, {{date}}, at {{time}} {{time_zone}}. Loretta will call you. Reply HELP for help or STOP to opt out.',
+      // {{day_phrase}} is computed by the sender (crm/lib/appointmentConfirmationSms.js):
+      // "tomorrow" normally, or "on <full date>" when that would be inaccurate
+      // (a calendar-day edge case) -- see that file's computeDayPhrase().
+      placeholders: ['attendee_name', 'appointment_type', 'day_phrase', 'time', 'time_zone'],
+      body: 'Hi {{attendee_name}}, reminder: your {{appointment_type}} with Loretta Stewart is {{day_phrase}} at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. Need to reschedule? Reply RESCHEDULE. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.',
     },
     reminder1hSms: {
       category: 'operational', channel: 'sms',
-      placeholders: ['appointment_type', 'time', 'time_zone'],
-      body: 'Insurance Lady LLC reminder: Loretta Stewart will call you in about one hour for your {{appointment_type}} at {{time}} {{time_zone}}. Reply HELP for help or STOP to opt out.',
+      placeholders: ['attendee_name', 'appointment_type', 'time', 'time_zone'],
+      body: 'Hi {{attendee_name}}, reminder: your {{appointment_type}} with Loretta Stewart is in 1 hour at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.',
+    },
+    reminder15mSms: {
+      category: 'operational', channel: 'sms',
+      placeholders: ['attendee_name', 'appointment_type', 'time', 'time_zone'],
+      body: 'Hi {{attendee_name}}, reminder: your {{appointment_type}} with Loretta Stewart is in 15 minutes at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.',
     },
     rescheduleNoticeSms: {
       category: 'operational', channel: 'sms',
@@ -101,13 +113,18 @@ Insurance Lady LLC`,
     },
     reminder24hSms: {
       category: 'operational', channel: 'sms',
-      placeholders: ['appointment_type', 'date', 'time', 'time_zone'],
-      body: 'Prosperity reminder: Your {{appointment_type}} with Loretta Stewart is tomorrow, {{date}}, at {{time}} {{time_zone}}. Loretta will call you. Reply HELP for help or STOP to opt out.',
+      placeholders: ['attendee_name', 'appointment_type', 'day_phrase', 'time', 'time_zone'],
+      body: 'Hi {{attendee_name}}, reminder: your {{appointment_type}} with Loretta Stewart is {{day_phrase}} at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. Need to reschedule? Reply RESCHEDULE. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.',
     },
     reminder1hSms: {
       category: 'operational', channel: 'sms',
-      placeholders: ['appointment_type', 'time', 'time_zone'],
-      body: 'Prosperity reminder: Loretta Stewart will call you in about one hour for your {{appointment_type}} at {{time}} {{time_zone}}. Reply HELP for help or STOP to opt out.',
+      placeholders: ['attendee_name', 'appointment_type', 'time', 'time_zone'],
+      body: 'Hi {{attendee_name}}, reminder: your {{appointment_type}} with Loretta Stewart is in 1 hour at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.',
+    },
+    reminder15mSms: {
+      category: 'operational', channel: 'sms',
+      placeholders: ['attendee_name', 'appointment_type', 'time', 'time_zone'],
+      body: 'Hi {{attendee_name}}, reminder: your {{appointment_type}} with Loretta Stewart is in 15 minutes at {{time}} {{time_zone}}. Loretta will call you at the scheduled time. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.',
     },
     rescheduleNoticeSms: {
       category: 'operational', channel: 'sms',
@@ -151,7 +168,7 @@ Prosperity Life & Financial Solutions LLC`,
 };
 
 const REQUIRED_TEMPLATE_KEYS = [
-  'appointmentConfirmationSms', 'reminder24hSms', 'reminder1hSms',
+  'appointmentConfirmationSms', 'reminder24hSms', 'reminder1hSms', 'reminder15mSms',
   'rescheduleNoticeSms', 'cancellationNoticeSms', 'missedCallTextBack',
   'helpResponseSms', 'appointmentConfirmationEmail',
 ];

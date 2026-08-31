@@ -58,6 +58,14 @@
 // sendLegacySms that every other automated SMS in this codebase already
 // uses, so there is exactly one place that logic lives.
 //
+// ── Brand resolution (never guessed) ────────────────────────────────────
+// See resolveReminderBrand's own comment: booking_brand first, a single
+// active contact_brands relationship second, otherwise the reminder is
+// SKIPPED for that appointment -- never sent under a guessed/defaulted
+// brand. This fixed a real production bug where appointments predating
+// booking_brand persistence (NULL column) silently sent Prosperity-branded
+// reminders for Insurance Lady bookings.
+//
 // ── Error isolation ────────────────────────────────────────────────────────
 // Each appointment is processed in its own try/catch; one failure (a
 // throwing dependency, a malformed row) is logged and skipped, never
@@ -95,6 +103,44 @@ function alreadySent(db, { appointmentId, messageType, appointmentOccurrenceAt }
     LIMIT 1
   `).get(appointmentId, messageType, appointmentOccurrenceAt);
   return !!row;
+}
+
+// Resolves which brand a reminder must use, in the strongest-signal-first
+// order: (1) the appointment's own persisted booking_brand (set by
+// crm/routes/calcom.js at webhook time); (2) if that's missing --
+// appointments created/last touched before booking_brand persistence
+// existed -- the contact's contact_brands relationship, but ONLY when
+// there is EXACTLY ONE active one (two would be genuinely ambiguous, not
+// a signal to guess from). Returns null, never a default brand, when
+// neither signal resolves -- the caller must skip sending rather than
+// fall back to sendAppointmentConfirmationSms's own 'prosperity' default
+// (its brandId default parameter only applies to `undefined`, not `null`,
+// and buildConfirmationSmsBody's internal `getTemplate(brandId, ...) ||
+// getTemplate('prosperity', ...)` would silently re-default even a `null`
+// brandId -- so the only safe way to "not guess" is to never call it).
+//
+// When resolved via the contact_brands fallback, the appointment row is
+// healed in place (booking_brand written, guarded to only ever fill a
+// NULL value, never overwrite) so this and every other brand-dependent
+// lookup on this appointment stops needing to re-derive it on every future
+// poll -- the smallest safe migration for pre-existing rows, applied
+// lazily/on-demand rather than as a bulk backfill.
+function resolveReminderBrand(db, appt) {
+  if (appt.booking_brand) return appt.booking_brand;
+
+  const activeLinks = db.prepare(`
+    SELECT b.slug FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id
+    WHERE cb.contact_id = ? AND cb.status = 'Active'
+  `).all(appt.contact_id);
+
+  if (activeLinks.length === 1) {
+    const brandId = activeLinks[0].slug;
+    db.prepare('UPDATE appointments SET booking_brand = ? WHERE id = ? AND booking_brand IS NULL')
+      .run(brandId, appt.appointment_id);
+    return brandId;
+  }
+
+  return null;
 }
 
 // Maps "minutes until the appointment" to the single reminder type whose
@@ -138,7 +184,12 @@ async function runReminderCheck(db, { now = new Date(), deps = {} } = {}) {
         continue;
       }
 
-      const brandId = appt.booking_brand || 'prosperity';
+      const brandId = resolveReminderBrand(db, appt);
+      if (!brandId) {
+        summary.skipped += 1;
+        console.warn(`[appointmentReminderScheduler] skipping ${spec.messageType} for appointment #${appt.appointment_id} -- brand could not be reliably determined (no booking_brand, and contact_brands has no single active relationship). Never guessed as Prosperity.`);
+        continue;
+      }
       const smsResult = await sendAppointmentConfirmationSms(db, {
         contactId: appt.contact_id,
         firstName: appt.first_name,

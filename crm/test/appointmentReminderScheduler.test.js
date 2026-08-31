@@ -9,11 +9,17 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createLegacyDb } = require('../testSupport/legacyDb');
 const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
+const { runMigrations: runBrandsMigrations } = require('../db/migrateBrands');
 const { runReminderCheck } = require('../lib/appointmentReminderScheduler');
 
 function setup() {
   const db = createLegacyDb();
   runRevenueMvpMigrations(db); // adds sms_opted_out_at
+  // contact_brands/brands are a separate migration (not part of
+  // crm/db/database.js's own unconditional schema) -- needed here for the
+  // brand-resolution fallback tests (resolveReminderBrand falls back to
+  // contact_brands when booking_brand is NULL).
+  runBrandsMigrations(db);
   return db;
 }
 
@@ -25,6 +31,13 @@ function seedContact(db, overrides = {}) {
     first_name: 'Janet', last_name: 'Jackson', phone: '(414) 367-6486', phone_e164: '+14143676486',
     sms_consent: 1, sms_opted_out_at: null, ...overrides,
   }).lastInsertRowid;
+}
+
+// Links a contact to a brand in contact_brands, the same way
+// crm/lib/caseMatching.js's resolveContactBrand does in production.
+function linkContactToBrand(db, contactId, brandSlug) {
+  const brandRow = db.prepare('SELECT id FROM brands WHERE slug = ?').get(brandSlug);
+  db.prepare('INSERT INTO contact_brands (contact_id, brand_id) VALUES (?, ?)').run(contactId, brandRow.id);
 }
 
 function seedAppointment(db, contactId, overrides = {}) {
@@ -279,14 +292,95 @@ test('Prosperity appointment retains Prosperity branding and sender', () => with
   assert.notEqual(row.from_number, '+18559305239');
 }));
 
-test('an appointment with no booking_brand (created before that column existed) defaults to Prosperity', () => withEnv(TWILIO_ENV, async () => {
+// ── Brand resolution: booking_brand -> contact_brands -> never guessed ────
+//
+// Fixes a real production bug: appointments created before booking_brand
+// persistence existed have booking_brand = NULL, and the old code did
+// `appt.booking_brand || 'prosperity'` -- silently sending Prosperity-
+// branded reminders for Insurance Lady appointments. The fix never
+// defaults; it falls back to a single active contact_brands relationship,
+// and skips the reminder entirely (never guessing Prosperity) when even
+// that isn't available.
+
+test('an older Insurance Lady appointment with missing booking_brand resolves correctly via its contact_brands relationship', () => withEnv(INSURANCE_LADY_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db, { first_name: 'Renee' });
+  linkContactToBrand(db, contactId, 'insurance-lady');
+  const apptId = seedAppointment(db, contactId, { appt_datetime: minutesFromNow(10), booking_brand: null });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
+  assert.equal(summary.sent, 1);
+  const row = smsRowsFor(db, contactId)[0];
+  assert.match(row.body, /- Insurance Lady LLC\./);
+  assert.equal(row.from_number, '+18559305239');
+
+  const appt = db.prepare('SELECT * FROM appointments WHERE id = ?').get(apptId);
+  assert.equal(appt.booking_brand, 'insurance-lady', 'the row must be healed so future lookups do not need to re-derive it');
+}));
+
+test('an older Prosperity appointment with missing booking_brand resolves correctly via its contact_brands relationship', () => withEnv(TWILIO_ENV, async () => {
   const db = setup();
   const contactId = seedContact(db);
+  linkContactToBrand(db, contactId, 'prosperity');
   seedAppointment(db, contactId, { appt_datetime: minutesFromNow(10), booking_brand: null });
 
   await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
   const row = smsRowsFor(db, contactId)[0];
-  assert.match(row.body, /Prosperity Life & Financial Solutions/);
+  assert.match(row.body, /- Prosperity Life & Financial Solutions\./);
+}));
+
+test('an appointment with no booking_brand AND no contact_brands relationship is SKIPPED, never sent under a guessed Prosperity brand', () => withEnv(INSURANCE_LADY_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  // No linkContactToBrand call -- genuinely no reliable signal at all.
+  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(10), booking_brand: null });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
+  assert.equal(summary.sent, 0);
+  assert.equal(summary.skipped, 1);
+  assert.equal(smsRowsFor(db, contactId).length, 0, 'must never send under a guessed/default brand');
+}));
+
+test('an appointment with no booking_brand and TWO active contact_brands relationships is also SKIPPED -- genuinely ambiguous, not a signal to guess from', () => withEnv(INSURANCE_LADY_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  linkContactToBrand(db, contactId, 'insurance-lady');
+  linkContactToBrand(db, contactId, 'prosperity');
+  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(10), booking_brand: null });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
+  assert.equal(summary.sent, 0);
+  assert.equal(smsRowsFor(db, contactId).length, 0);
+}));
+
+// ── Additional appointment types (Insurance Lady) ─────────────────────────
+
+test('an Insurance Lady Cancer Insurance Consultation reminder uses Insurance Lady branding and sender', () => withEnv(INSURANCE_LADY_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db, { first_name: 'Renee' });
+  seedAppointment(db, contactId, {
+    appt_datetime: minutesFromNow(10), booking_brand: 'insurance-lady', appt_type: 'Cancer Insurance Consultation',
+  });
+
+  await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
+  const row = smsRowsFor(db, contactId)[0];
+  assert.match(row.body, /Cancer Insurance Consultation/);
+  assert.match(row.body, /- Insurance Lady LLC\./);
+  assert.equal(row.from_number, '+18559305239');
+}));
+
+test('a Prosperity Safe Money & Retirement Consultation reminder uses Prosperity branding and sender', () => withEnv(INSURANCE_LADY_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  seedAppointment(db, contactId, {
+    appt_datetime: minutesFromNow(10), booking_brand: 'prosperity', appt_type: 'Safe Money & Retirement Consultation',
+  });
+
+  await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
+  const row = smsRowsFor(db, contactId)[0];
+  assert.match(row.body, /Safe Money & Retirement Consultation/);
+  assert.match(row.body, /- Prosperity Life & Financial Solutions\./);
+  assert.notEqual(row.from_number, '+18559305239');
 }));
 
 // ── 15: Twilio failure ──────────────────────────────────────────────────────

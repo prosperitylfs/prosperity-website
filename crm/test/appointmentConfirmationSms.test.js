@@ -157,7 +157,7 @@ test('Insurance Lady 24h reminder includes the reschedule note, positioned right
   });
   assert.equal(
     body,
-    'Hi Janet, reminder: your Life Insurance Consultation with Loretta Stewart is tomorrow at 4:00 PM CT. Loretta will call you at the scheduled time. Need to reschedule? Reply RESCHEDULE. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.'
+    'Hi Janet, this is your 24-hour reminder. Your Life Insurance Consultation with Loretta Stewart is tomorrow at 4:00 PM CT. Loretta will call you at the scheduled time. Need to reschedule? Reply RESCHEDULE. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.'
   );
 });
 
@@ -169,7 +169,7 @@ test('Prosperity 24h reminder includes the same reschedule note', () => {
   });
   assert.equal(
     body,
-    'Hi Janet, reminder: your Life Insurance Consultation with Loretta Stewart is tomorrow at 4:00 PM CT. Loretta will call you at the scheduled time. Need to reschedule? Reply RESCHEDULE. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.'
+    'Hi Janet, this is your 24-hour reminder. Your Life Insurance Consultation with Loretta Stewart is tomorrow at 4:00 PM CT. Loretta will call you at the scheduled time. Need to reschedule? Reply RESCHEDULE. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.'
   );
 });
 
@@ -181,6 +181,23 @@ test('the reschedule note is NOT present in the 1h or 15m reminders, for either 
         appointmentDatetimeIso: '2026-08-31T21:00:00.000Z', brandId, messageType,
       });
       assert.doesNotMatch(body, /Need to reschedule/, `${brandId} ${messageType} must not include the 24h-only reschedule note`);
+    }
+  }
+});
+
+test('1h and 15m reminders explicitly name which reminder they are, and still state the actual scheduled time, for both brands', () => {
+  const expectedLabel = { reminder_1h: '1-hour reminder', reminder_15m: '15-minute reminder' };
+  const expectedIdentity = { 'insurance-lady': 'Insurance Lady LLC', prosperity: 'Prosperity Life & Financial Solutions' };
+  for (const brandId of ['insurance-lady', 'prosperity']) {
+    for (const messageType of ['reminder_1h', 'reminder_15m']) {
+      const body = buildConfirmationSmsBody({
+        firstName: 'Janet', appointmentType: 'Life Insurance Consultation',
+        appointmentDatetimeIso: '2026-08-31T21:00:00.000Z', brandId, messageType,
+      });
+      assert.match(body, new RegExp(`^Hi Janet, this is your ${expectedLabel[messageType]}\\.`), `${brandId} ${messageType} must explicitly name the reminder type`);
+      assert.match(body, /\d{1,2}:\d{2} (AM|PM) CT/, `${brandId} ${messageType} must still state the actual appointment time`);
+      assert.doesNotMatch(body, /in 1 hour|in 15 minutes/, `${brandId} ${messageType} must not use a vague relative-time phrase instead of the clock time`);
+      assert.match(body, new RegExp(`- ${expectedIdentity[brandId].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`), `${brandId} ${messageType} must identify the correct brand`);
     }
   }
 });

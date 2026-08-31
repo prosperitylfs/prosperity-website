@@ -7,34 +7,32 @@
 // receives Cal.com webhooks in real time), which is all a plain
 // setInterval loop needs to be reliable.
 //
-// ── Windowing (not an exact-second match) ──────────────────────────────────
-// Each poll selects every active appointment whose start time has ALREADY
-// crossed the 24-hour threshold (the widest window) but hasn't happened
-// yet. Because the poll interval (crm/server.js, default 5 minutes) is far
-// shorter than any of the three windows, an appointment can never sail past
-// a threshold unnoticed between polls -- correctness comes from idempotency
-// (below), not from a narrow window, so a slow/late poll only delays a
-// reminder by a few extra minutes, never causes a miss or a duplicate.
+// ── Windowing: narrow, disjoint windows around each target time ───────────
+// Each reminder type fires only inside a narrow window around its actual
+// target time, not "anywhere between now and the threshold":
+//   reminder_24h -> 1435-1445 minutes away (23h55m-24h5m, ~24h +/- 5m)
+//   reminder_1h  -> 55-65 minutes away     (~1h +/- 5m)
+//   reminder_15m -> 10-20 minutes away     (~15m +/- 5m)
+// Each window is at least 10 minutes wide against a 5-minute poll interval
+// (crm/server.js, DEFAULT_POLL_INTERVAL_MS), so at least one poll always
+// lands inside it -- the poll cadence can never cause a miss. Being outside
+// a window is not "not sent yet", it's "not due" -- an appointment 5.5
+// hours away is simply between windows and gets nothing, which is the fix
+// for a real production bug where a 5:00 PM appointment received a
+// "24-hour" reminder at 11:27 AM (~5.5 hours out), because the old logic
+// treated reminder_24h as "anywhere from 1h to 24h away" rather than
+// "around the 24h mark".
 //
-// ── Exactly one reminder per appointment per BAND, never a cascade ─────────
-// "Within 24h", "within 1h", and "within 15m" are nested, not disjoint -- an
-// appointment 10 minutes away is trivially also "within 24h" and "within
-// 1h". Deduping each type independently is NOT enough to prevent a cascade:
-// a same-day/last-minute booking (or an appointment the scheduler never got
-// to poll during an earlier window, e.g. after downtime) would otherwise
-// become eligible for all three reminder types at once, and once the
-// smallest one is sent, the other two would STILL show as "not yet sent"
-// and fire on a later poll -- three separate texts, just spread out instead
-// of simultaneous. To prevent that, "how far away is this appointment" maps
-// to exactly ONE of three MUTUALLY EXCLUSIVE bands (0-15m, 15m-1h, 1h-24h)
-// via currentReminderBand() below -- an appointment is only ever a
-// candidate for the single reminder type matching whichever band it's
-// currently in, never any other type, regardless of what has or hasn't
-// been sent before. In normal steady-state operation (time actually
-// advancing between polls) this still sends all three, once each, exactly
-// like nested windows would -- the difference only shows up for the
-// catch-up/last-minute case, where it correctly sends just the one most
-// relevant reminder instead of all three.
+// ── Exactly one reminder per appointment, no cascade -- now structural ─────
+// The three windows above are disjoint (10-20, 55-65, and 1435-1445 all
+// have gaps between them), so a given minutesUntil value can match at most
+// one spec -- findReminderSpec() below just returns whichever single window
+// (if any) currently contains it. This also means a restart/deployment, or
+// a same-day/last-minute booking, can never retroactively fire a stale
+// reminder type: if the appointment is 30 minutes away when the process
+// (re)starts, it isn't in the 1h window (55-65) or the 15m window (10-20)
+// yet, so nothing sends until it actually enters one -- there is no "still
+// within 24h, still eligible" fallback left to trigger it early.
 //
 // ── Idempotency / reschedule handling ───────────────────────────────────────
 // Each (appointment, reminder type) pair is deduped by a compound key:
@@ -73,15 +71,18 @@
 
 const { sendAppointmentConfirmationSms } = require('./appointmentConfirmationSms');
 
-// Order matters: also the order the bands are listed in the header comment
-// above (0-15m, 15m-1h, 1h-24h).
+// Listed smallest-window-first purely for readability -- the windows are
+// disjoint, so match order has no effect on which spec (if any) is found.
 const REMINDER_SPECS = [
-  { messageType: 'reminder_15m', offsetMinutes: 15 },
-  { messageType: 'reminder_1h',  offsetMinutes: 60 },
-  { messageType: 'reminder_24h', offsetMinutes: 24 * 60 },
+  { messageType: 'reminder_15m', minMinutes: 10, maxMinutes: 20 },
+  { messageType: 'reminder_1h',  minMinutes: 55, maxMinutes: 65 },
+  { messageType: 'reminder_24h', minMinutes: 1435, maxMinutes: 1445 },
 ];
 
-const WIDEST_OFFSET_MINUTES = REMINDER_SPECS[REMINDER_SPECS.length - 1].offsetMinutes;
+// The outer edge of the widest (24h) window -- how far out the eligibility
+// query must look so appointments in the 1435-1445 minute window aren't
+// excluded before they're ever considered.
+const WIDEST_MAX_MINUTES = Math.max(...REMINDER_SPECS.map(spec => spec.maxMinutes));
 const DEFAULT_POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 function findEligibleAppointments(db, { nowIso, cutoffIso }) {
@@ -143,26 +144,23 @@ function resolveReminderBrand(db, appt) {
   return null;
 }
 
-// Maps "minutes until the appointment" to the single reminder type whose
-// band it currently falls in -- REMINDER_SPECS is ordered smallest-offset
-// first, so the first spec whose offsetMinutes the appointment is still
-// inside IS that band (0-15m matches reminder_15m, 15m-1h falls through to
-// reminder_1h, 1h-24h falls through to reminder_24h). Returns null if the
-// appointment has already happened (minutesUntil <= 0) or isn't due for
-// any reminder yet (more than 24h away).
-function currentReminderBand(minutesUntil) {
+// Returns the single reminder spec (if any) whose [minMinutes, maxMinutes]
+// window currently contains minutesUntil. The three windows are disjoint by
+// construction, so at most one can ever match -- an appointment between
+// windows (e.g. 5.5 hours out) or past its window (e.g. 5 minutes out once
+// the 15m window has closed at 20 minutes) simply matches nothing and gets
+// no reminder, rather than falling back to a broader "still within 24h"
+// match.
+function findReminderSpec(minutesUntil) {
   if (minutesUntil <= 0) return null;
-  for (const spec of REMINDER_SPECS) {
-    if (minutesUntil <= spec.offsetMinutes) return spec;
-  }
-  return null;
+  return REMINDER_SPECS.find(spec => minutesUntil >= spec.minMinutes && minutesUntil <= spec.maxMinutes) || null;
 }
 
 // Runs one full pass. Returns a small summary object (mainly for tests /
 // server-startup logging) -- never throws.
 async function runReminderCheck(db, { now = new Date(), deps = {} } = {}) {
   const nowIso = now.toISOString();
-  const cutoffIso = new Date(now.getTime() + WIDEST_OFFSET_MINUTES * 60000).toISOString();
+  const cutoffIso = new Date(now.getTime() + WIDEST_MAX_MINUTES * 60000).toISOString();
   const summary = { checked: 0, sent: 0, skipped: 0, failed: 0, errors: [] };
 
   let candidates;
@@ -178,7 +176,7 @@ async function runReminderCheck(db, { now = new Date(), deps = {} } = {}) {
     summary.checked += 1;
     try {
       const minutesUntil = (new Date(appt.appt_datetime).getTime() - now.getTime()) / 60000;
-      const spec = currentReminderBand(minutesUntil);
+      const spec = findReminderSpec(minutesUntil);
       if (!spec || alreadySent(db, { appointmentId: appt.appointment_id, messageType: spec.messageType, appointmentOccurrenceAt: appt.appt_datetime })) {
         summary.skipped += 1;
         continue;

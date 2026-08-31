@@ -10,7 +10,7 @@ const assert = require('node:assert/strict');
 const { createLegacyDb } = require('../testSupport/legacyDb');
 const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
 const { runMigrations: runBrandsMigrations } = require('../db/migrateBrands');
-const { runReminderCheck } = require('../lib/appointmentReminderScheduler');
+const { runReminderCheck, REMINDER_SPECS } = require('../lib/appointmentReminderScheduler');
 
 function setup() {
   const db = createLegacyDb();
@@ -94,30 +94,107 @@ function smsRowsFor(db, contactId) {
 
 // ── 1-3: each reminder type sends ──────────────────────────────────────────
 
-test('24-hour reminder sends to an SMS-consented contact within the 24h window', () => withEnv(TWILIO_ENV, async () => {
+test('24-hour reminder sends to an SMS-consented contact around the 24h mark', () => withEnv(TWILIO_ENV, async () => {
   const db = setup();
   const contactId = seedContact(db);
-  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(23 * 60 + 50) }); // 23h50m away
+  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(24 * 60) }); // exactly 24h away
 
   const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
   assert.equal(summary.sent, 1);
   const rows = smsRowsFor(db, contactId);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].message_type, 'reminder_24h');
-  assert.match(rows[0].body, /^Hi Janet, reminder:/);
+  assert.match(rows[0].body, /^Hi Janet, this is your 24-hour reminder\./);
+  assert.match(rows[0].body, /Reply RESCHEDULE/, '24h reminder must offer RESCHEDULE');
+  assert.match(rows[0].body, /\d{1,2}:\d{2} (AM|PM) CT/, 'must state the actual scheduled appointment time, not just "tomorrow"');
 }));
 
-test('1-hour reminder sends within the 1h window', () => withEnv(TWILIO_ENV, async () => {
+test('an appointment 5.5 hours away does NOT qualify for the 24-hour reminder (regression: the 11:27 AM-for-a-5:00-PM-appointment bug)', () => withEnv(TWILIO_ENV, async () => {
   const db = setup();
   const contactId = seedContact(db);
-  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(45) });
+  // Reproduces the reported production bug directly: a 5:00 PM appointment
+  // polled at 11:27 AM is (17:00 - 11:27 =) 5h33m = 333 minutes away --
+  // nowhere near the 1435-1445 minute reminder_24h window, and also not in
+  // the 1h or 15m windows. The old broad-band logic incorrectly matched
+  // reminder_24h here because 333 <= 1440.
+  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(333) });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
+  assert.equal(summary.sent, 0, 'a 5.5-hour-away appointment must not receive a "24-hour" reminder');
+  assert.equal(smsRowsFor(db, contactId).length, 0);
+}));
+
+test('1-hour reminder sends around the 1h mark', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(60) });
 
   const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
   assert.equal(summary.sent, 1);
   const rows = smsRowsFor(db, contactId);
   assert.equal(rows[0].message_type, 'reminder_1h');
-  assert.match(rows[0].body, /is in 1 hour/);
+  assert.match(rows[0].body, /^Hi Janet, this is your 1-hour reminder\./);
+  assert.doesNotMatch(rows[0].body, /RESCHEDULE/, '1h reminder must not offer RESCHEDULE');
+  assert.match(rows[0].body, /\d{1,2}:\d{2} (AM|PM) CT/, 'must state the actual scheduled appointment time, not just "in 1 hour"');
 }));
+
+test('an appointment 30 minutes away does NOT qualify for the 1-hour reminder', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(30) });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
+  assert.equal(summary.sent, 0, '30 minutes away is between the 15m (10-20) and 1h (55-65) windows -- not due for either');
+  assert.equal(smsRowsFor(db, contactId).length, 0);
+}));
+
+test('an appointment 5 minutes away does NOT retroactively qualify for the 15-minute reminder once that window has passed', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  // The 15m window is 10-20 minutes away; 5 minutes away means that window
+  // has already closed. This must NOT fire late just because it's "close".
+  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(5) });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
+  assert.equal(summary.sent, 0, 'a missed 15m window must not fire late');
+  assert.equal(smsRowsFor(db, contactId).length, 0);
+}));
+
+test('a restart/deployment 5 hours before a 5:00 PM appointment does not trigger a 24-hour reminder, and 30 minutes before does not trigger a 1-hour reminder', () => withEnv(TWILIO_ENV, async () => {
+  // Simulates the exact reported scenario: the process (re)starts and polls
+  // at a point that is well inside "the next 24 hours" and "the next hour"
+  // respectively, but not actually near either target window.
+  const fiveHoursOut = await (async () => {
+    const db = setup();
+    const contactId = seedContact(db);
+    seedAppointment(db, contactId, { appt_datetime: minutesFromNow(5 * 60) }); // 5h away
+    const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
+    assert.equal(summary.sent, 0, 'a restart 5 hours out must not fire a stale 24-hour reminder');
+    return smsRowsFor(db, contactId).length;
+  })();
+  assert.equal(fiveHoursOut, 0);
+
+  const thirtyMinOut = await (async () => {
+    const db = setup();
+    const contactId = seedContact(db);
+    seedAppointment(db, contactId, { appt_datetime: minutesFromNow(30) }); // 30m away
+    const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
+    assert.equal(summary.sent, 0, 'a restart 30 minutes out must not fire a stale 1-hour reminder');
+    return smsRowsFor(db, contactId).length;
+  })();
+  assert.equal(thirtyMinOut, 0);
+}));
+
+test('the three reminder windows never overlap', () => {
+  const sorted = [...REMINDER_SPECS].sort((a, b) => a.minMinutes - b.minMinutes);
+  for (let i = 0; i < sorted.length; i += 1) {
+    assert.ok(sorted[i].minMinutes <= sorted[i].maxMinutes, `${sorted[i].messageType} has an inverted window`);
+    if (i > 0) {
+      assert.ok(sorted[i - 1].maxMinutes < sorted[i].minMinutes,
+        `${sorted[i - 1].messageType} (max ${sorted[i - 1].maxMinutes}) overlaps ${sorted[i].messageType} (min ${sorted[i].minMinutes})`);
+    }
+  }
+});
 
 test('15-minute reminder sends within the 15m window', () => withEnv(TWILIO_ENV, async () => {
   const db = setup();
@@ -128,7 +205,9 @@ test('15-minute reminder sends within the 15m window', () => withEnv(TWILIO_ENV,
   assert.equal(summary.sent, 1);
   const rows = smsRowsFor(db, contactId);
   assert.equal(rows[0].message_type, 'reminder_15m');
-  assert.match(rows[0].body, /is in 15 minutes/);
+  assert.match(rows[0].body, /^Hi Janet, this is your 15-minute reminder\./);
+  assert.doesNotMatch(rows[0].body, /RESCHEDULE/, '15m reminder must not offer RESCHEDULE');
+  assert.match(rows[0].body, /\d{1,2}:\d{2} (AM|PM) CT/, 'must state the actual scheduled appointment time, not just "in 15 minutes"');
 }));
 
 test('an appointment more than 24 hours away receives no reminder yet', () => withEnv(TWILIO_ENV, async () => {
@@ -244,8 +323,8 @@ test('rescheduling AFTER a reminder was already sent for the old time still send
   assert.equal(summary.sent, 1);
   assert.equal(smsRowsFor(db, contactId)[0].message_type, 'reminder_15m');
 
-  // Reschedule to 50 minutes away (now inside the 1h window instead).
-  db.prepare('UPDATE appointments SET appt_datetime = ? WHERE id = ?').run(minutesFromNow(50), apptId);
+  // Reschedule to 60 minutes away (now inside the 1h window instead).
+  db.prepare('UPDATE appointments SET appt_datetime = ? WHERE id = ?').run(minutesFromNow(60), apptId);
 
   summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
   assert.equal(summary.sent, 1, 'the 1h reminder for the NEW time must still send, despite a 15m reminder already having been sent for the old time');

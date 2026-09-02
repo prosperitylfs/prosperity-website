@@ -154,6 +154,9 @@ router.post('/review/case/:intakeId/resolve', handle(req => reviewResolution.res
 router.post('/review/company/:intakeId/resolve', handle(req => reviewResolution.resolveCompanyConflict(db, {
   intakeId: Number(req.params.intakeId), action: req.body.action, actor: ACTOR,
 })));
+router.post('/review/contact/:intakeId/resolve', handle(req => reviewResolution.resolveContactConflict(db, {
+  intakeId: Number(req.params.intakeId), action: req.body.action, actor: ACTOR,
+})));
 router.post('/review/unknown-sms/:intakeId/resolve', handle(req => reviewResolution.resolveUnknownSmsReview(db, {
   intakeId: Number(req.params.intakeId), action: req.body.action,
   contactId: req.body.contactId ? Number(req.body.contactId) : null,

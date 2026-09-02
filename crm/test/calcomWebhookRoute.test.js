@@ -25,6 +25,7 @@ process.env.CALCOM_WEBHOOK_SECRET = SECRET;
 
 const db = require('../db/database');
 const { runMigrations: runBrandsMigrations } = require('../db/migrateBrands');
+const { runDashboardMigrations } = require('../db/migrateDashboard');
 const calcomRouter = require('../routes/calcom');
 
 let server, baseUrl;
@@ -37,6 +38,12 @@ before(() => {
   // these tests, matching how crm/test/inboundSmsUnified.test.js's own
   // setup already does the same for its brand-aware coverage.
   runBrandsMigrations(db);
+  // review_type/candidate_contact_id evidence columns on unresolved_intake
+  // are added by this separate migration (not part of migrateBrands.js's
+  // own unconditional schema) -- needed here now that this route stages
+  // 'contact_conflict' review items (see the "New contact-matching rule"
+  // tests below).
+  runDashboardMigrations(db);
   const app = express();
   app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
   app.use('/api/calcom', calcomRouter);
@@ -232,19 +239,11 @@ test('a Life Insurance booking with no custom-question responses at all still su
 
 // ── Pre-existing behavior this route already had — verified not broken ──
 
-test('contact matching: email first, phone second', async () => {
-  const email = 'match-email-' + Date.now() + '@example.com';
-  db.prepare(`INSERT INTO contacts (first_name, last_name, email, phone_e164) VALUES ('Existing', 'Person', ?, '+19995550000')`).run(email);
-  const uid = 'match-' + Date.now();
-  await postWebhook(basePayload({
-    uid,
-    responses: { name: responseEntry('Name', 'Existing Person'), email: responseEntry('Email', email), phone: responseEntry('Phone', '+14145550123') },
-  }));
-  const appt = getAppointment(uid);
-  const contact = getContact(email);
-  assert.equal(appt.contact_id, contact.id, 'must match the existing contact by email rather than creating a duplicate');
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE email = ?').get(email).n, 1);
-});
+// Superseded: contact matching now cross-checks BOTH email AND phone (see
+// the "New contact-matching rule (email + phone)" section below) -- a
+// booking whose email matches an existing contact but whose phone
+// CONTRADICTS the one on file is no longer silently treated as the same
+// person. This case is now covered by that section's own test.
 
 test('contact matching is case-insensitive on email -- a mixed-case webhook attendee email matches the existing lowercase-stored contact, preserving its sms_consent', async () => {
   // Reproduces the real production bug: /submit-lead always stores emails
@@ -1522,4 +1521,205 @@ test('a Cal.com-created Insurance Lady contact can subsequently text RESCHEDULE 
   assert.equal(sendOutcome.sent, true);
   const row = db.prepare(`SELECT * FROM sms_messages WHERE contact_id = ? AND direction = 'outbound'`).get(contact.id);
   assert.equal(row.from_number, BRANDS['insurance-lady'].phone.e164);
+});
+
+// ── New contact-matching rule (email + phone) ───────────────────────────────
+//
+// A Cal.com booking is only ever treated as an EXISTING contact when
+// neither identifier it actually supplied contradicts what's already on
+// file for the matched contact (crm/routes/calcom.js's
+// matchContactForBooking). An identifier that contradicts the existing
+// record -- not merely absent, an actual different value -- means a
+// genuinely NEW contact is created from the incoming booking's own data,
+// and the mismatch is staged as a 'contact_conflict' Review Required item
+// (crm/public/app/review.html) for manual verification. Nothing is ever
+// silently merged, and the existing contact's phone/email are never
+// overwritten by a possible match.
+
+function getPendingContactConflicts() {
+  return db.prepare(`
+    SELECT * FROM unresolved_intake WHERE review_type = 'contact_conflict' AND status = 'Pending' ORDER BY id DESC
+  `).all();
+}
+
+test('1. same email + same phone: matches the existing contact normally, no conflict staged', async () => {
+  const email = 'match-both-' + Date.now() + '@example.com';
+  const phone = '+14145551001';
+  const existing = db.prepare(`INSERT INTO contacts (first_name, last_name, email, phone_e164) VALUES ('Renee', 'Jones', ?, ?)`).run(email, phone);
+  const uid = 'match-both-' + Date.now();
+  const before = getPendingContactConflicts().length;
+
+  await postWebhook(basePayload({
+    uid,
+    responses: { name: responseEntry('Name', 'Renee Jones'), email: responseEntry('Email', email), phone: responseEntry('Phone', phone) },
+  }));
+
+  const appt = getAppointment(uid);
+  assert.equal(appt.contact_id, existing.lastInsertRowid, 'must attach the appointment to the existing contact');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE email = ?').get(email).n, 1, 'no duplicate contact created');
+  assert.equal(getPendingContactConflicts().length, before, 'no possible-match review item staged for a clean match');
+});
+
+test('2. same email + different phone: possible-match flagged, no silent merge, existing contact untouched', async () => {
+  const email = 'match-email-only-' + Date.now() + '@example.com';
+  const oldPhone = '+14145552001';
+  const newPhone = '+14145552002';
+  const existing = db.prepare(`INSERT INTO contacts (first_name, last_name, email, phone, phone_e164) VALUES ('Renee', 'Jones', ?, ?, ?)`).run(email, oldPhone, oldPhone);
+  const uid = 'match-email-only-' + Date.now();
+
+  await postWebhook(basePayload({
+    uid,
+    responses: { name: responseEntry('Name', 'Renee Jones'), email: responseEntry('Email', email), phone: responseEntry('Phone', newPhone) },
+  }));
+
+  // The existing contact must be completely untouched.
+  const existingAfter = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existing.lastInsertRowid);
+  assert.equal(existingAfter.phone_e164, oldPhone, 'the existing contact\'s phone must never be overwritten by a possible match');
+  assert.equal(existingAfter.email, email);
+
+  // The appointment must attach to a genuinely NEW, separate contact --
+  // never silently merged into the existing one.
+  const appt = getAppointment(uid);
+  assert.notEqual(appt.contact_id, existing.lastInsertRowid, 'must not silently merge into the existing contact');
+  const newContact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(appt.contact_id);
+  assert.equal(newContact.phone_e164, newPhone, 'the new contact keeps the incoming booking\'s own phone');
+
+  // A review item must be staged with both records preserved.
+  const [intake] = getPendingContactConflicts();
+  assert.ok(intake, 'a contact_conflict review item must be staged');
+  assert.equal(intake.candidate_contact_id, existing.lastInsertRowid);
+  assert.match(intake.reason, /email matches, but phone number is different/i);
+  const payload = JSON.parse(intake.raw_payload);
+  assert.equal(payload.conflict_type, 'email_match_phone_diff');
+  assert.equal(payload.existing.phone, oldPhone);
+  // incoming.phone is the DISPLAY-formatted number (crm/routes/calcom.js's
+  // normalizePhone), same convention as every other contact.phone value in
+  // this CRM -- not the E.164 form.
+  assert.equal(payload.incoming.phone, '(414) 555-2002');
+  assert.equal(payload.incoming.email, email, 'the incoming email is preserved in the review item even though it was left off the new contact row (email is UNIQUE)');
+  assert.equal(payload.new_contact_id, newContact.id);
+});
+
+test('3. same phone + different email: possible-match flagged, no silent merge, existing contact untouched', async () => {
+  const oldEmail = 'match-phone-old-' + Date.now() + '@example.com';
+  const newEmail = 'match-phone-new-' + Date.now() + '@example.com';
+  const phone = '+14145553001';
+  const existing = db.prepare(`INSERT INTO contacts (first_name, last_name, email, phone_e164) VALUES ('Renee', 'Jones', ?, ?)`).run(oldEmail, phone);
+  const uid = 'match-phone-only-' + Date.now();
+
+  await postWebhook(basePayload({
+    uid,
+    responses: { name: responseEntry('Name', 'Renee Jones'), email: responseEntry('Email', newEmail), phone: responseEntry('Phone', phone) },
+  }));
+
+  const existingAfter = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existing.lastInsertRowid);
+  assert.equal(existingAfter.email, oldEmail, 'the existing contact\'s email must never be overwritten by a possible match');
+
+  const appt = getAppointment(uid);
+  assert.notEqual(appt.contact_id, existing.lastInsertRowid);
+  const newContact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(appt.contact_id);
+  assert.equal(newContact.email, newEmail);
+
+  const [intake] = getPendingContactConflicts();
+  assert.ok(intake);
+  assert.match(intake.reason, /phone number matches, but email address is different/i);
+  const payload = JSON.parse(intake.raw_payload);
+  assert.equal(payload.conflict_type, 'phone_match_email_diff');
+  assert.equal(payload.existing.email, oldEmail);
+  assert.equal(payload.incoming.email, newEmail);
+});
+
+test('4. neither email nor phone matches: a new contact is created normally, no conflict staged', async () => {
+  const email = 'match-neither-' + Date.now() + '@example.com';
+  const phone = '+14145554001';
+  const uid = 'match-neither-' + Date.now();
+  const before = getPendingContactConflicts().length;
+
+  await postWebhook(basePayload({
+    uid,
+    responses: { name: responseEntry('Name', 'Brand New'), email: responseEntry('Email', email), phone: responseEntry('Phone', phone) },
+  }));
+
+  const appt = getAppointment(uid);
+  const contact = getContact(email);
+  assert.ok(contact, 'a new contact must be created');
+  assert.equal(appt.contact_id, contact.id);
+  assert.equal(getPendingContactConflicts().length, before, 'no possible-match review item for a genuinely new contact');
+});
+
+test('5. different name + only email matching: flagged with name_mismatch for a more prominent warning', async () => {
+  const email = 'match-namecheck-' + Date.now() + '@example.com';
+  const oldPhone = '+14145555001';
+  const newPhone = '+14145555002';
+  const existing = db.prepare(`INSERT INTO contacts (first_name, last_name, email, phone_e164) VALUES ('Renee', 'Jones', ?, ?)`).run(email, oldPhone);
+  const uid = 'match-namecheck-' + Date.now();
+
+  await postWebhook(basePayload({
+    uid,
+    responses: { name: responseEntry('Name', 'Test Caller'), email: responseEntry('Email', email), phone: responseEntry('Phone', newPhone) },
+  }));
+
+  const [intake] = getPendingContactConflicts();
+  assert.ok(intake);
+  assert.equal(intake.candidate_contact_id, existing.lastInsertRowid);
+  const payload = JSON.parse(intake.raw_payload);
+  assert.equal(payload.name_mismatch, true, 'Renee Jones vs Test Caller must be flagged as a name mismatch, never assumed to be the same person just because the email matches');
+  assert.equal(payload.existing.first_name, 'Renee');
+  assert.equal(payload.incoming.first_name, 'Test');
+});
+
+test('6. existing contact has an old phone on file; a new Cal.com booking with a different phone sends the immediate confirmation to the NEW booking\'s phone, not the old stored one', async () => {
+  const email = 'match-smsphone-' + Date.now() + '@example.com';
+  const oldPhone = '+14145556001';
+  const newPhone = '+14145556002';
+  const existing = db.prepare(`INSERT INTO contacts (first_name, last_name, email, phone_e164) VALUES ('Renee', 'Jones', ?, ?)`).run(email, oldPhone);
+  const uid = 'match-smsphone-' + Date.now();
+
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Renee Jones'), email: responseEntry('Email', email), phone: responseEntry('Phone', newPhone),
+      consent: responseEntry(
+        'May Prosperity Life & Financial Solutions send you appointment confirmations, reminders, and related communications by text message and email?',
+        'Yes, text and email'
+      ),
+    },
+  }));
+
+  const appt = getAppointment(uid);
+  const newContact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(appt.contact_id);
+  // sendAppointmentConfirmationSms (crm/lib/appointmentConfirmationSms.js)
+  // resolves the SMS recipient from the appointment's OWN contact_id --
+  // this new contact carries the NEW booking's phone and consent, so the
+  // confirmation goes there, never to the old stored number.
+  assert.notEqual(appt.contact_id, existing.lastInsertRowid);
+  assert.equal(newContact.phone_e164, newPhone, 'the confirmation-eligible contact must carry the NEW booking\'s phone number');
+  assert.equal(newContact.sms_consent, 1, 'the NEW booking\'s own consent answer must be preserved on the new contact');
+  const oldContactAfter = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existing.lastInsertRowid);
+  assert.equal(oldContactAfter.phone_e164, oldPhone, 'the old contact\'s stored phone must never be substituted in or overwritten');
+});
+
+test('an unrelated contact sharing the incoming phone number (e.g. a household) never turns a clean email match into a false conflict', async () => {
+  // Phone numbers are not unique in this schema (a household can share
+  // one) -- once email has already identified exactly one contact, a
+  // DIFFERENT contact happening to have the same phone on file must never
+  // be treated as a contradiction. Only whether the EMAIL-matched contact's
+  // OWN phone disagrees matters.
+  const email = 'shared-phone-email-' + Date.now() + '@example.com';
+  const sharedPhone = '+14145557001';
+  db.prepare(`INSERT INTO contacts (first_name, last_name, phone_e164) VALUES ('Household', 'Member', ?)`).run(sharedPhone);
+  const existing = db.prepare(`INSERT INTO contacts (first_name, last_name, email) VALUES ('Renee', 'Jones', ?)`).run(email);
+  const uid = 'match-sharedphone-' + Date.now();
+  const before = getPendingContactConflicts().length;
+
+  await postWebhook(basePayload({
+    uid,
+    responses: { name: responseEntry('Name', 'Renee Jones'), email: responseEntry('Email', email), phone: responseEntry('Phone', sharedPhone) },
+  }));
+
+  const appt = getAppointment(uid);
+  assert.equal(appt.contact_id, existing.lastInsertRowid, 'must match the email-identified contact, not flag a conflict just because another contact shares the phone');
+  assert.equal(getPendingContactConflicts().length, before, 'no possible-match review item staged');
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existing.lastInsertRowid);
+  assert.equal(contact.phone_e164, sharedPhone, 'the previously-unknown phone is filled in, same as any other null field');
 });

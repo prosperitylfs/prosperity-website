@@ -21,7 +21,7 @@ const { createIntakeForAppointment } = require('../lib/retirementIntakeService')
 const { sendRetirementIntakeSms } = require('../lib/retirementIntakeSms');
 const { sendAppointmentConfirmationSms } = require('../lib/appointmentConfirmationSms');
 const { normalizeEmail } = require('../lib/leadNormalize');
-const { resolveContactBrand } = require('../lib/caseMatching');
+const { resolveContactBrand, stageUnresolvedIntake } = require('../lib/caseMatching');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -403,6 +403,94 @@ function buildLifeInsuranceNote({ matched, rawExtras }) {
   return parts.length ? parts.join('\n\n') : null;
 }
 
+// ── Contact matching: compare BOTH email and phone, never either alone ─────
+// Matching on a single identifier isn't enough to safely treat an incoming
+// booking as an existing person: someone could reuse a stranger's old email
+// by typo, or the same person could call in from a new phone. Email is
+// checked FIRST because contacts.email is UNIQUE -- it can only ever
+// identify one specific contact, so once found, the only remaining question
+// is whether THAT contact's own phone (if it has one on file) contradicts
+// the incoming one. This deliberately never does a second, independent
+// "does this phone belong to some OTHER contact" search once email already
+// identified someone -- phone numbers are NOT unique in this schema (a
+// household can share one), so an unrelated contact happening to share the
+// incoming phone must never turn a clean email match into a false conflict.
+// An identifier the booking simply didn't supply, or one the matched
+// contact has no value on file for yet, is not a contradiction (that's
+// just "unknown", filled in the same COALESCE way this route already only
+// ever fills a null field, never overwrites one). A genuine contradiction
+// -- the incoming phone differs from the phone already on file for the
+// email-matched contact, or vice versa -- returns `possibleMatch` instead
+// of `contact`: never silently merged, never used to overwrite the
+// existing record. The caller creates a genuinely new contact from the
+// incoming booking's own data and stages it for manual review (see
+// stageContactMatchReview below) rather than guessing.
+function matchContactForBooking(db, { email, phoneE164 }) {
+  const byEmail = email ? db.prepare('SELECT * FROM contacts WHERE email = ?').get(email) : null;
+  if (byEmail) {
+    const phoneContradicts = phoneE164 && byEmail.phone_e164 && byEmail.phone_e164 !== phoneE164;
+    if (phoneContradicts) return { contact: null, possibleMatch: byEmail, conflictType: 'email_match_phone_diff' };
+    return { contact: byEmail, possibleMatch: null, conflictType: null };
+  }
+
+  const byPhone = phoneE164 ? db.prepare('SELECT * FROM contacts WHERE phone_e164 = ?').get(phoneE164) : null;
+  if (byPhone) {
+    const emailContradicts = email && byPhone.email && byPhone.email !== email;
+    if (emailContradicts) return { contact: null, possibleMatch: byPhone, conflictType: 'phone_match_email_diff' };
+    return { contact: byPhone, possibleMatch: null, conflictType: null };
+  }
+
+  return { contact: null, possibleMatch: null, conflictType: null }; // genuinely new
+}
+
+const CONTACT_CONFLICT_REASON = {
+  email_match_phone_diff: 'Possible existing contact — email matches, but phone number is different. Verify identity before merging or updating.',
+  phone_match_email_diff: 'Possible existing contact — phone number matches, but email address is different. Verify identity before merging or updating.',
+};
+
+// Stages a 'contact_conflict' Review Required item (crm/public/app/review.html)
+// so Loretta can manually decide whether this is the same person with
+// updated information or a different person who happens to share one
+// identifier -- never decided automatically. `newContact` is the genuinely
+// new contact row this booking's own data was just written to (never the
+// existing, possibly-matching one) so both records stay fully intact and
+// independently reviewable. Sets name_mismatch in the staged payload when
+// the incoming booking's name doesn't match the existing contact's name on
+// file, so the dashboard can render that combination more prominently (a
+// different name AND only one matching identifier is the strongest signal
+// this is actually two different people).
+function stageContactMatchReview(db, { existingContact, newContact, conflictType, incomingFullName, incomingEmail, incomingPhone, uid }) {
+  const existingFullName = [existingContact.first_name, existingContact.last_name].filter(Boolean).join(' ').trim();
+  const nameMismatch = !!(existingFullName && incomingFullName
+    && existingFullName.toLowerCase() !== incomingFullName.trim().toLowerCase());
+
+  stageUnresolvedIntake(db, {
+    source: 'calcom_webhook',
+    candidateContactId: existingContact.id,
+    reviewType: 'contact_conflict',
+    reason: CONTACT_CONFLICT_REASON[conflictType] || CONTACT_CONFLICT_REASON.email_match_phone_diff,
+    rawPayload: {
+      conflict_type: conflictType,
+      name_mismatch: nameMismatch,
+      new_contact_id: newContact.id,
+      existing: {
+        first_name: existingContact.first_name, last_name: existingContact.last_name,
+        email: existingContact.email, phone: existingContact.phone,
+      },
+      // The incoming booking's OWN submitted values, verbatim -- not
+      // newContact's own stored fields, since a colliding email is
+      // deliberately left off that row (see the UNIQUE-index comment above
+      // this function's only call site) but must still be shown here.
+      incoming: {
+        first_name: newContact.first_name, last_name: newContact.last_name,
+        email: incomingEmail || null, phone: incomingPhone || null,
+      },
+      cal_booking_uid: uid,
+    },
+  });
+  console.warn(`Cal.com: possible duplicate contact -- new contact #${newContact.id} created and flagged for manual verification against existing contact #${existingContact.id} (${conflictType}${nameMismatch ? ', name mismatch' : ''})`);
+}
+
 // ── Event handlers ────────────────────────────────────────────────────────────
 
 async function handleCreatedOrRescheduled(event, payload) {
@@ -514,10 +602,8 @@ async function handleCreatedOrRescheduled(event, payload) {
   }
 
   // ── Upsert contact ─────────────────────────────────────────────────────────
-  let contact = null;
-  if (email)    contact = db.prepare('SELECT * FROM contacts WHERE email = ?').get(email);
-  if (!contact && phoneE164)
-    contact = db.prepare('SELECT * FROM contacts WHERE phone_e164 = ?').get(phoneE164);
+  const contactMatch = matchContactForBooking(db, { email, phoneE164 });
+  let contact = contactMatch.contact;
 
   const now      = new Date().toISOString();
 
@@ -544,6 +630,16 @@ async function handleCreatedOrRescheduled(event, payload) {
   const emailConsentVal = consentKnown ? (consent.email ? 1 : 0) : 0;
 
   if (!contact) {
+    // contacts.email has a UNIQUE index (crm/db/database.js) -- when this
+    // booking's email is the very thing that matched an existing DIFFERENT
+    // contact (conflictType 'email_match_phone_diff'), writing that same
+    // email onto this new, separate contact row would violate it. The true
+    // incoming email is never lost -- it's preserved verbatim in the staged
+    // review item below for Loretta to see and act on -- it's only left off
+    // this new contact row so the two records can coexist until she
+    // resolves which one it belongs to.
+    const emailCollidesWithExisting = contactMatch.conflictType === 'email_match_phone_diff';
+
     const r = db.prepare(`
       INSERT INTO contacts
         (first_name, last_name, email, phone, phone_e164, home_phone, lead_type, lead_status, lead_source,
@@ -554,7 +650,7 @@ async function handleCreatedOrRescheduled(event, payload) {
     `).run({
       first_name:  firstName,
       last_name:   lastName,
-      email:       email       || null,
+      email:       emailCollidesWithExisting ? null : (email || null),
       phone:       mobilePhone,
       phone_e164:  mobilePhoneE164,
       home_phone:  homePhone,
@@ -569,6 +665,29 @@ async function handleCreatedOrRescheduled(event, payload) {
     });
     contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(r.lastInsertRowid);
     console.log(`Cal.com: created new contact #${contact.id} — ${fullName}`);
+
+    // Wrapped defensively, exactly like the contact_brands link below:
+    // unresolved_intake's review_type/candidate_contact_id evidence columns
+    // are provisioned by a separate migration (crm/db/migrateDashboard.js)
+    // that isn't guaranteed to have run in every environment this route
+    // executes in, and staging a review item must never break the booking/
+    // contact/appointment write that already happened above -- the contact
+    // was still correctly kept separate from the existing one either way.
+    if (contactMatch.possibleMatch) {
+      try {
+        stageContactMatchReview(db, {
+          existingContact: contactMatch.possibleMatch,
+          newContact: contact,
+          conflictType: contactMatch.conflictType,
+          incomingFullName: fullName,
+          incomingEmail: email,
+          incomingPhone: phoneDisplay,
+          uid,
+        });
+      } catch (err) {
+        console.error(`Cal.com: failed to stage contact_conflict review item for new contact #${contact.id} vs existing contact #${contactMatch.possibleMatch.id}:`, err.message);
+      }
+    }
   } else {
     const newStatus = upgradeStatuses.includes(contact.lead_status)
       ? targetLeadStatus

@@ -23,6 +23,7 @@ const {
   getBrandReviewQueue,
   getCaseReviewQueue,
   getCompanyConflictQueue,
+  getContactConflictQueue,
   getUnknownSmsReviewQueue,
   getMessageDeliveryStatus,
   getPoliciesList,
@@ -97,6 +98,7 @@ router.get('/review', (req, res) => {
     brandReview: getBrandReviewQueue(db),
     caseReview: getCaseReviewQueue(db),
     companyConflicts: getCompanyConflictQueue(db),
+    contactConflicts: getContactConflictQueue(db),
     unknownSmsReview: getUnknownSmsReviewQueue(db),
     testArchive: testArchiveLog,
   });

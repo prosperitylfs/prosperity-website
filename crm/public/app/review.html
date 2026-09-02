@@ -118,6 +118,36 @@ async function render() {
     </div></div>`;
   }
 
+  function identityBox(label, identity) {
+    return `<div class="company-box" style="text-align:left;">
+      <div class="label">${CrmApp.escapeHtml(label)}</div>
+      <div><strong>${CrmApp.escapeHtml(identity.name || 'Unnamed')}</strong></div>
+      <div class="text-faint">${CrmApp.escapeHtml(identity.email || 'No email on file')}</div>
+      <div class="text-faint">${CrmApp.escapeHtml(identity.phone || 'No phone on file')}</div>
+    </div>`;
+  }
+
+  function contactConflictItemHtml(item) {
+    return `<div class="card" style="margin-bottom:12px;${item.nameMismatch ? ' border-color: var(--danger);' : ''}"><div class="card-body">
+      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <strong>Possible Duplicate Contact</strong>
+        <span class="text-faint">${CrmApp.escapeHtml(item.channelLabel)} · ${CrmApp.friendlyDate(item.receivedDate)}</span>
+      </div>
+      ${item.nameMismatch ? `<div class="pill overdue" style="margin-top:8px; display:inline-block;">NAME MISMATCH — VERIFICATION NEEDED</div>` : ''}
+      <div style="margin-top:6px;">${CrmApp.escapeHtml(item.reason)}</div>
+      <div class="conflict-compare" style="margin-top:12px;">
+        ${identityBox('Existing Contact', item.existing)}
+        <div class="arrow">vs</div>
+        ${identityBox('Incoming Booking', item.incoming)}
+      </div>
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn small" data-contact-resolve="${item.intakeId}" data-action="confirm_different">Confirm — Different People</button>
+        <button class="btn small ghost" data-contact-resolve="${item.intakeId}" data-action="test_archive">Archive as test</button>
+      </div>
+      <div class="text-faint" style="margin-top:8px;">A new contact was already created from the incoming booking's own information — nothing was merged or overwritten. If this turns out to be the same person, update the correct contact's record by hand.</div>
+    </div></div>`;
+  }
+
   function unknownSmsItemHtml(item) {
     const clientOptions = prosperityClients.map(c => `<option value="${c.contactId}">${CrmApp.escapeHtml(c.contactName)}</option>`).join('');
     return `<div class="card" style="margin-bottom:12px;"><div class="card-body">
@@ -161,7 +191,7 @@ async function render() {
     </div></div>`;
   }
 
-  const RENDERERS = { brand: brandItemHtml, case: caseItemHtml, company_conflict: conflictItemHtml, unknown_sms: unknownSmsItemHtml, archive: archiveItemHtml };
+  const RENDERERS = { brand: brandItemHtml, case: caseItemHtml, company_conflict: conflictItemHtml, contact_conflict: contactConflictItemHtml, unknown_sms: unknownSmsItemHtml, archive: archiveItemHtml };
   let currentData;
 
   function renderQueueBody() {
@@ -169,6 +199,7 @@ async function render() {
       { key: 'brand', label: 'Brand Review Required', items: currentData.brandReview },
       { key: 'case', label: 'Case Review Required', items: currentData.caseReview },
       { key: 'company_conflict', label: 'Company-Assignment Conflicts', items: currentData.companyConflicts },
+      { key: 'contact_conflict', label: 'Contact Verification Needed', items: currentData.contactConflicts },
       { key: 'unknown_sms', label: 'Unrecognized Text Senders', items: currentData.unknownSmsReview },
       { key: 'archive', label: 'Test / Archive', items: currentData.testArchive },
     ];
@@ -241,6 +272,20 @@ async function render() {
         if (!ok) return;
         try {
           await CrmApp.postJSON(`/api/app/review/company/${companyBtn.dataset.companyResolve}/resolve`, 'POST', { action });
+          CrmApp.toast('Resolved.');
+          load();
+        } catch (err) { CrmApp.toast(err.message, { error: true }); }
+        return;
+      }
+
+      const contactBtn = e.target.closest('[data-contact-resolve]');
+      if (contactBtn) {
+        const action = contactBtn.dataset.action;
+        const label = action === 'confirm_different' ? 'confirm these are different people (both contact records stay as they are)' : 'archive this as a test';
+        const ok = await CrmApp.confirmAction(`Confirm: ${label}?`, { confirmLabel: 'Confirm', danger: action === 'test_archive' });
+        if (!ok) return;
+        try {
+          await CrmApp.postJSON(`/api/app/review/contact/${contactBtn.dataset.contactResolve}/resolve`, 'POST', { action });
           CrmApp.toast('Resolved.');
           load();
         } catch (err) { CrmApp.toast(err.message, { error: true }); }

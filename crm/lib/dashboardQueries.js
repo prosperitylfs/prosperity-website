@@ -460,6 +460,61 @@ function getCompanyConflictQueue(db) {
   });
 }
 
+// ── Contact Verification Needed ─────────────────────────────────────────────
+// A Cal.com booking whose email matched an existing contact but whose phone
+// didn't (or vice versa) — crm/routes/calcom.js's matchContactForBooking /
+// stageContactMatchReview. Never auto-merged: a genuinely new contact was
+// already created from the incoming booking's own data, and this queue item
+// is only Loretta's evidence for deciding by hand whether that's the same
+// person with updated info or a different person who happens to share one
+// identifier. Read-only; resolving one is
+// crm/lib/reviewResolution.js's resolveContactConflict.
+function friendlyContactConflictReason(row) {
+  if (row.reason) return row.reason;
+  return 'Possible existing contact — one identifier matches, the other does not. Verify identity before merging or updating.';
+}
+
+function getContactConflictQueue(db) {
+  const rows = db.prepare(`
+    SELECT * FROM unresolved_intake
+    WHERE review_type = 'contact_conflict' AND status = 'Pending'
+    ORDER BY created_at ASC
+  `).all();
+
+  return rows.map(row => {
+    let payload = {};
+    try { payload = JSON.parse(row.raw_payload || '{}'); } catch { payload = {}; }
+    const existingRow = row.candidate_contact_id
+      ? db.prepare('SELECT id, first_name, last_name, email, phone FROM contacts WHERE id = ?').get(row.candidate_contact_id)
+      : null;
+    // Always prefer the live contacts row for the EXISTING contact (it may
+    // have changed since this was staged); the INCOMING booking's values
+    // are a point-in-time snapshot by nature and always come from the
+    // staged payload.
+    const existing = existingRow
+      ? { contactId: existingRow.id, name: contactDisplayName(existingRow), email: existingRow.email, phone: existingRow.phone }
+      : { contactId: row.candidate_contact_id, name: contactDisplayName(payload.existing || {}), email: payload.existing?.email || null, phone: payload.existing?.phone || null };
+    const incoming = {
+      contactId: payload.new_contact_id || null,
+      name: contactDisplayName(payload.incoming || {}),
+      email: payload.incoming?.email || null,
+      phone: payload.incoming?.phone || null,
+    };
+
+    return {
+      intakeId: row.id,
+      conflictType: payload.conflict_type || null,
+      nameMismatch: !!payload.name_mismatch,
+      existing,
+      incoming,
+      receivedDate: toIsoUtc(row.created_at),
+      channelLabel: friendlySourceLabel(row.source),
+      reason: friendlyContactConflictReason(row),
+      technicalDetails: { calBookingUid: payload.cal_booking_uid || null },
+    };
+  });
+}
+
 // Inbound texts to the Prosperity number that couldn't be matched to
 // exactly one active Prosperity client (crm/lib/inboundSmsService.js) —
 // Prosperity Revenue MVP, Requirement 3 ("route unknown or ambiguous
@@ -989,6 +1044,7 @@ module.exports = {
   getMessageDeliveryStatus,
   normalizeMessageStatus,
   getCompanyConflictQueue,
+  getContactConflictQueue,
   getUnknownSmsReviewQueue,
   getClientDetail,
   getDashboardSummary,

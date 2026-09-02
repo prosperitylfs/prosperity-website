@@ -224,6 +224,45 @@ function resolveCompanyConflict(db, { intakeId, action, actor }) {
   throw new Error(`resolveCompanyConflict: unknown action '${action}' (only 'keep_existing' and 'test_archive' are implemented)`);
 }
 
+// action: 'confirm_different' | 'test_archive' — deliberately no merge
+// action, matching resolveCompanyConflict's own restraint just above:
+// merging two contacts (reassigning appointments, communications, tasks,
+// notes, etc. from one contact_id to another) is a real data operation this
+// checkpoint never performs automatically. 'confirm_different' just records
+// that Loretta looked at both records side by side and confirmed they are
+// two different people (or otherwise doesn't need to merge them right now)
+// — both contact rows are left exactly as they already are; nothing is
+// renamed, relinked, or deleted. If she instead determines it IS the same
+// person, the fix today is a manual edit on the correct contact's own
+// record — not something this resolution action does for her.
+function resolveContactConflict(db, { intakeId, action, actor }) {
+  if (!actor) throw new Error('resolveContactConflict: actor is required for the audit trail');
+  const intake = db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId);
+  if (!intake) throw new Error(`resolveContactConflict: intake ${intakeId} does not exist`);
+  if (intake.review_type !== 'contact_conflict') throw new Error(`resolveContactConflict: intake ${intakeId} is not a contact-conflict item`);
+  if (intake.status !== 'Pending') throw new Error(`resolveContactConflict: intake ${intakeId} is not pending (status: ${intake.status})`);
+
+  if (action === 'test_archive') {
+    db.prepare(`
+      UPDATE unresolved_intake
+      SET status = 'Archived', decision = 'test_archive', resolved_by = ?, resolved_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(actor, intakeId);
+    return { outcome: 'archived', intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId) };
+  }
+
+  if (action === 'confirm_different') {
+    db.prepare(`
+      UPDATE unresolved_intake
+      SET status = 'Resolved', decision = 'confirmed_different_person', resolved_by = ?, resolved_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(actor, intakeId);
+    return { outcome: 'confirmed_different', intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId) };
+  }
+
+  throw new Error(`resolveContactConflict: unknown action '${action}' (only 'confirm_different' and 'test_archive' are implemented)`);
+}
+
 // Resolves a staged unmatched-inbound-SMS review item (review_type
 // 'unknown_sms_sender', crm/lib/inboundSmsService.js) via one of two
 // explicit, human-triggered actions — never a guess, never automatic:
@@ -347,4 +386,4 @@ function archiveReviewItem(db, { intakeId, actor }) {
   return { outcome: 'archived', intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId) };
 }
 
-module.exports = { archiveCase, resolveBrandReviewItem, resolveCaseReviewItem, resolveCompanyConflict, resolveUnknownSmsReview, archiveReviewItem };
+module.exports = { archiveCase, resolveBrandReviewItem, resolveCaseReviewItem, resolveCompanyConflict, resolveContactConflict, resolveUnknownSmsReview, archiveReviewItem };

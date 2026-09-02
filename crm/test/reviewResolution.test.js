@@ -6,7 +6,7 @@ const { createLegacyDb } = require('../testSupport/legacyDb');
 const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { dedupeContact, resolveContactBrand, matchOrCreateCase } = require('../lib/caseMatching');
-const { archiveCase, resolveBrandReviewItem, resolveCaseReviewItem } = require('../lib/reviewResolution');
+const { archiveCase, resolveBrandReviewItem, resolveCaseReviewItem, resolveContactConflict } = require('../lib/reviewResolution');
 
 function setup() {
   const db = createLegacyDb();
@@ -229,4 +229,184 @@ test('attach_existing_case refuses to cross brand relationships', () => {
   assert.throws(() => {
     resolveCaseReviewItem(db, { intakeId: intake.id, action: 'attach_existing_case', targetCaseId: ilCase.case.id, actor: 'test-agent' });
   }, /different brand relationship/);
+});
+
+// ── resolveContactConflict ("Verification Needed") ─────────────────────────
+// crm/routes/calcom.js's matchContactForBooking / stageContactMatchReview
+// stages one of these whenever an incoming Cal.com booking matches an
+// existing contact on exactly one of email/phone. Mirrors the shape
+// crm/routes/calcom.js's stageContactMatchReview actually writes.
+
+function insertContact(db, overrides = {}) {
+  return db.prepare(`
+    INSERT INTO contacts (first_name, last_name, email, phone, phone_e164)
+    VALUES (@first_name, @last_name, @email, @phone, @phone_e164)
+  `).run({ first_name: 'Renee', last_name: 'Jones', email: null, phone: null, phone_e164: null, ...overrides }).lastInsertRowid;
+}
+
+function insertContactConflictIntake(db, { existingContactId, newContactId, conflictType, nameMismatch = false, existing, incoming }) {
+  const reasonByType = {
+    email_match_phone_diff: 'Possible existing contact — email matches, but phone number is different. Verify identity before merging or updating.',
+    phone_match_email_diff: 'Possible existing contact — phone number matches, but email address is different. Verify identity before merging or updating.',
+  };
+  const result = db.prepare(`
+    INSERT INTO unresolved_intake (source, raw_payload, candidate_contact_id, reason, status, review_type)
+    VALUES ('calcom_webhook', ?, ?, ?, 'Pending', 'contact_conflict')
+  `).run(
+    JSON.stringify({ conflict_type: conflictType, name_mismatch: nameMismatch, new_contact_id: newContactId, existing, incoming }),
+    existingContactId,
+    reasonByType[conflictType],
+  );
+  return db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(result.lastInsertRowid);
+}
+
+test('resolveContactConflict "confirm_different" leaves both contacts completely untouched', () => {
+  const { db } = setup();
+  const existingId = insertContact(db, { email: 'diff.existing@example.test', phone: '414-688-7619', phone_e164: '+14146887619' });
+  const newId = insertContact(db, { first_name: 'Test', last_name: 'Caller', email: null, phone: '414-367-6486', phone_e164: '+14143676486' });
+  const intake = insertContactConflictIntake(db, {
+    existingContactId: existingId, newContactId: newId, conflictType: 'email_match_phone_diff',
+    existing: { first_name: 'Renee', last_name: 'Jones', email: 'diff.existing@example.test', phone: '414-688-7619' },
+    incoming: { first_name: 'Test', last_name: 'Caller', email: 'diff.existing@example.test', phone: '414-367-6486' },
+  });
+
+  const result = resolveContactConflict(db, { intakeId: intake.id, action: 'confirm_different', actor: 'Loretta Stewart' });
+  assert.equal(result.outcome, 'confirmed_different');
+
+  const resolvedIntake = db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intake.id);
+  assert.equal(resolvedIntake.status, 'Resolved');
+  assert.equal(resolvedIntake.decision, 'confirmed_different_person');
+
+  const existingAfter = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existingId);
+  const newAfter = db.prepare('SELECT * FROM contacts WHERE id = ?').get(newId);
+  assert.equal(existingAfter.phone_e164, '+14146887619', 'existing contact must be completely untouched');
+  assert.equal(newAfter.archived_at, null, 'the new contact must NOT be archived -- it stays separate');
+  assert.equal(newAfter.phone_e164, '+14143676486', 'the new contact keeps its own phone');
+});
+
+test('resolveContactConflict "same_person" (email matched, phone differed): merges history, updates only the phone, archives the duplicate', () => {
+  const { db } = setup();
+  const existingId = insertContact(db, { email: 'same.existing@example.test', phone: '(414) 688-7619', phone_e164: '+14146887619' });
+  const newId = insertContact(db, { first_name: 'Test', last_name: 'Caller', email: null, phone: '(414) 367-6486', phone_e164: '+14143676486' });
+
+  // Pre-existing history on BOTH contacts -- must never be lost or duplicated.
+  db.prepare(`INSERT INTO appointments (contact_id, appt_type, appt_datetime, status) VALUES (?, 'Consultation', '2026-09-10T18:00:00.000Z', 'Scheduled')`).run(existingId);
+  db.prepare(`INSERT INTO sms_messages (contact_id, direction, body, status) VALUES (?, 'outbound', 'existing contact old sms', 'sent')`).run(existingId);
+  const newApptId = db.prepare(`INSERT INTO appointments (contact_id, appt_type, appt_datetime, status) VALUES (?, 'Consultation', '2026-09-15T18:00:00.000Z', 'Scheduled')`).run(newId).lastInsertRowid;
+  const newSmsId = db.prepare(`INSERT INTO sms_messages (contact_id, direction, body, status) VALUES (?, 'outbound', 'new booking confirmation sms', 'sent')`).run(newId).lastInsertRowid;
+  db.prepare(`INSERT INTO contact_notes (contact_id, body) VALUES (?, 'a note on the new contact')`).run(newId);
+  db.prepare(`INSERT INTO follow_up_tasks (contact_id, task_type, due_date) VALUES (?, 'Call', '2026-09-20')`).run(newId);
+
+  const intake = insertContactConflictIntake(db, {
+    existingContactId: existingId, newContactId: newId, conflictType: 'email_match_phone_diff',
+    existing: { first_name: 'Renee', last_name: 'Jones', email: 'same.existing@example.test', phone: '(414) 688-7619' },
+    incoming: { first_name: 'Test', last_name: 'Caller', email: 'same.existing@example.test', phone: '(414) 367-6486' },
+  });
+
+  const result = resolveContactConflict(db, { intakeId: intake.id, action: 'same_person', actor: 'Loretta Stewart' });
+  assert.equal(result.outcome, 'merged');
+
+  const existingAfter = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existingId);
+  assert.equal(existingAfter.phone_e164, '+14143676486', 'the existing contact\'s phone must update to the incoming (new booking\'s) number');
+  assert.equal(existingAfter.phone, '(414) 367-6486');
+  assert.equal(existingAfter.email, 'same.existing@example.test', 'the email, which already agreed, must not change');
+
+  const newAfter = db.prepare('SELECT * FROM contacts WHERE id = ?').get(newId);
+  assert.ok(newAfter.archived_at, 'the drained duplicate contact must be archived, never deleted');
+
+  const apptCount = db.prepare('SELECT COUNT(*) AS n FROM appointments WHERE contact_id = ?').get(existingId).n;
+  assert.equal(apptCount, 2, 'both the existing contact\'s own appointment AND the new one must now be under the existing contact');
+  const movedAppt = db.prepare('SELECT contact_id FROM appointments WHERE id = ?').get(newApptId);
+  assert.equal(movedAppt.contact_id, existingId, 'the new booking\'s appointment must be moved, not duplicated or dropped');
+
+  const smsCount = db.prepare('SELECT COUNT(*) AS n FROM sms_messages WHERE contact_id = ?').get(existingId).n;
+  assert.equal(smsCount, 2, 'SMS history from both contacts must be preserved under the existing contact');
+  const movedSms = db.prepare('SELECT contact_id FROM sms_messages WHERE id = ?').get(newSmsId);
+  assert.equal(movedSms.contact_id, existingId);
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contact_notes WHERE contact_id = ?').get(existingId).n, 1, 'notes must move too');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM follow_up_tasks WHERE contact_id = ?').get(existingId).n, 1, 'tasks must move too');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM appointments WHERE contact_id = ?').get(newId).n, 0, 'nothing should remain under the archived duplicate');
+
+  const resolvedIntake = db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intake.id);
+  assert.equal(resolvedIntake.status, 'Resolved');
+  assert.equal(resolvedIntake.decision, 'confirmed_same_person');
+});
+
+test('resolveContactConflict "same_person" (phone matched, email differed): updates only the email, without violating the UNIQUE email constraint', () => {
+  const { db } = setup();
+  const existingId = insertContact(db, { email: 'phonematch.old@example.test', phone: '(414) 555-7001', phone_e164: '+14145557001' });
+  const newId = insertContact(db, { first_name: 'Test', last_name: 'Caller', email: 'phonematch.new@example.test', phone: '(414) 555-7001', phone_e164: '+14145557001' });
+
+  const intake = insertContactConflictIntake(db, {
+    existingContactId: existingId, newContactId: newId, conflictType: 'phone_match_email_diff',
+    existing: { first_name: 'Renee', last_name: 'Jones', email: 'phonematch.old@example.test', phone: '(414) 555-7001' },
+    incoming: { first_name: 'Test', last_name: 'Caller', email: 'phonematch.new@example.test', phone: '(414) 555-7001' },
+  });
+
+  const result = resolveContactConflict(db, { intakeId: intake.id, action: 'same_person', actor: 'Loretta Stewart' });
+  assert.equal(result.outcome, 'merged');
+
+  const existingAfter = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existingId);
+  assert.equal(existingAfter.email, 'phonematch.new@example.test', 'email must update to the incoming value');
+  assert.equal(existingAfter.phone_e164, '+14145557001', 'the phone, which already agreed, must not change');
+
+  const newAfter = db.prepare('SELECT * FROM contacts WHERE id = ?').get(newId);
+  assert.equal(newAfter.email, null, 'the duplicate\'s own email must be cleared once its value has moved to the existing contact');
+  assert.ok(newAfter.archived_at);
+});
+
+test('resolveContactConflict "same_person" merges contact_brands without violating UNIQUE(contact_id, brand_id)', () => {
+  const { db, insuranceLadyId, prosperityId } = setup();
+  const existingId = insertContact(db, { email: 'brandmerge.existing@example.test', phone: '(414) 555-7002', phone_e164: '+14145557002' });
+  const newId = insertContact(db, { first_name: 'Test', last_name: 'Caller', email: null, phone: '(414) 555-7003', phone_e164: '+14145557003' });
+
+  // existing already has Prosperity; the duplicate has BOTH Prosperity
+  // (redundant -- must not violate the UNIQUE index) and Insurance Lady
+  // (new -- must be picked up by the existing contact).
+  resolveContactBrand(db, { contactId: existingId, brandId: prosperityId });
+  resolveContactBrand(db, { contactId: newId, brandId: prosperityId });
+  resolveContactBrand(db, { contactId: newId, brandId: insuranceLadyId });
+
+  const intake = insertContactConflictIntake(db, {
+    existingContactId: existingId, newContactId: newId, conflictType: 'email_match_phone_diff',
+    existing: { first_name: 'Renee', last_name: 'Jones', email: 'brandmerge.existing@example.test', phone: '(414) 555-7002' },
+    incoming: { first_name: 'Test', last_name: 'Caller', email: 'brandmerge.existing@example.test', phone: '(414) 555-7003' },
+  });
+
+  assert.doesNotThrow(() => {
+    resolveContactConflict(db, { intakeId: intake.id, action: 'same_person', actor: 'Loretta Stewart' });
+  });
+
+  const existingLinks = db.prepare('SELECT brand_id FROM contact_brands WHERE contact_id = ?').all(existingId);
+  assert.equal(existingLinks.length, 2, 'the existing contact must end up linked to both brands, no duplicates');
+  assert.deepEqual(new Set(existingLinks.map(l => l.brand_id)), new Set([prosperityId, insuranceLadyId]));
+
+  const dupLinks = db.prepare('SELECT * FROM contact_brands WHERE contact_id = ?').all(newId);
+  assert.equal(dupLinks.length, 0, 'the duplicate\'s own brand links must be gone (merged or removed as redundant)');
+});
+
+test('resolveContactConflict rejects an unknown action', () => {
+  const { db } = setup();
+  const existingId = insertContact(db, { email: 'unknown.action@example.test' });
+  const newId = insertContact(db, { email: null });
+  const intake = insertContactConflictIntake(db, {
+    existingContactId: existingId, newContactId: newId, conflictType: 'email_match_phone_diff', existing: {}, incoming: {},
+  });
+  assert.throws(() => {
+    resolveContactConflict(db, { intakeId: intake.id, action: 'merge_everything', actor: 'Loretta Stewart' });
+  }, /unknown action/);
+});
+
+test('resolveContactConflict refuses to resolve an already-resolved intake a second time', () => {
+  const { db } = setup();
+  const existingId = insertContact(db, { email: 'already.resolved@example.test' });
+  const newId = insertContact(db, { email: null });
+  const intake = insertContactConflictIntake(db, {
+    existingContactId: existingId, newContactId: newId, conflictType: 'email_match_phone_diff', existing: {}, incoming: {},
+  });
+  resolveContactConflict(db, { intakeId: intake.id, action: 'confirm_different', actor: 'Loretta Stewart' });
+  assert.throws(() => {
+    resolveContactConflict(db, { intakeId: intake.id, action: 'confirm_different', actor: 'Loretta Stewart' });
+  }, /not pending/);
 });

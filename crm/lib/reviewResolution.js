@@ -224,17 +224,80 @@ function resolveCompanyConflict(db, { intakeId, action, actor }) {
   throw new Error(`resolveCompanyConflict: unknown action '${action}' (only 'keep_existing' and 'test_archive' are implemented)`);
 }
 
-// action: 'confirm_different' | 'test_archive' — deliberately no merge
-// action, matching resolveCompanyConflict's own restraint just above:
-// merging two contacts (reassigning appointments, communications, tasks,
-// notes, etc. from one contact_id to another) is a real data operation this
-// checkpoint never performs automatically. 'confirm_different' just records
-// that Loretta looked at both records side by side and confirmed they are
-// two different people (or otherwise doesn't need to merge them right now)
-// — both contact rows are left exactly as they already are; nothing is
-// renamed, relinked, or deleted. If she instead determines it IS the same
-// person, the fix today is a manual edit on the correct contact's own
-// record — not something this resolution action does for her.
+// Tables holding records "owned" by a contact that must move with a
+// 'same_person' merge below, so the existing contact's appointment/SMS/
+// activity history stays complete and nothing is stranded under the
+// drained duplicate. Same set of tables crm/lib/dashboardQueries.js's own
+// LAST_ACTIVITY_SOURCES already treats as this contact's activity, plus
+// retirement_intakes and communication_drafts (also contact-owned, just not
+// activity-timeline sources). None of these have a UNIQUE constraint on
+// contact_id, so a plain UPDATE is safe for all of them — contact_brands
+// (which DOES have UNIQUE(contact_id, brand_id)) is handled separately, in
+// mergeContactBrands.
+const CONTACT_OWNED_TABLES = [
+  'communications', 'comm_calls', 'sms_messages', 'emails', 'contact_notes',
+  'follow_up_tasks', 'appointments', 'activities', 'retirement_intakes',
+  'communication_drafts',
+];
+
+function tableExists(db, name) {
+  return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
+}
+
+// contacts.archived_at (crm/db/migrateCrmCore.js) is a newer, optional
+// column — some already-approved db shapes haven't run that migration yet
+// (same reasoning as crm/lib/dashboardQueries.js's own columnExists()).
+// Checked dynamically so the merge below degrades gracefully rather than
+// throwing in an environment where it's absent: the duplicate's data is
+// still fully drained onto the existing contact either way — only the
+// "hide the empty duplicate" step is skipped.
+function columnExists(db, table, column) {
+  return db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === column);
+}
+
+function reassignContactOwnedRecords(db, { fromContactId, toContactId }) {
+  for (const table of CONTACT_OWNED_TABLES) {
+    if (!tableExists(db, table)) continue; // optional/newer tables — see crm/lib/dashboardQueries.js's own tableExists()
+    db.prepare(`UPDATE ${table} SET contact_id = ? WHERE contact_id = ?`).run(toContactId, fromContactId);
+  }
+
+  // contact_brands has UNIQUE(contact_id, brand_id) — reassign only where
+  // the existing contact doesn't already have a link for that brand; where
+  // it does, the existing contact's own link is already authoritative, so
+  // the duplicate's redundant row is simply removed, never overwriting it.
+  const dupLinks = db.prepare('SELECT * FROM contact_brands WHERE contact_id = ?').all(fromContactId);
+  for (const link of dupLinks) {
+    const alreadyLinked = db.prepare('SELECT 1 FROM contact_brands WHERE contact_id = ? AND brand_id = ?').get(toContactId, link.brand_id);
+    if (alreadyLinked) db.prepare('DELETE FROM contact_brands WHERE id = ?').run(link.id);
+    else db.prepare('UPDATE contact_brands SET contact_id = ? WHERE id = ?').run(toContactId, link.id);
+  }
+}
+
+// action: 'same_person' | 'confirm_different' | 'test_archive'.
+//
+// 'confirm_different' just records that Loretta looked at both records side
+// by side and confirmed they are two different people — both contact rows
+// are left exactly as they already are; nothing is renamed, relinked, or
+// deleted (matches resolveCompanyConflict's own restraint on an ordinary
+// conflict).
+//
+// 'same_person' is the one real data operation this module performs: the
+// caller (crm/public/app/review.html / client.html) has already shown
+// Loretta the existing-vs-incoming comparison — including which single
+// field is about to change — and she has explicitly confirmed it's the
+// same person. This moves every contact-owned record (appointments,
+// sms_messages, communications, notes, calls, emails, tasks, activities,
+// retirement intakes, contact_brands) from the newly-created duplicate onto
+// the existing contact via reassignContactOwnedRecords, so appointment and
+// SMS history is preserved exactly, never dropped or duplicated. It then
+// updates ONLY the one field the conflict was actually about — phone for
+// 'email_match_phone_diff', email for 'phone_match_email_diff' — on the
+// EXISTING contact to the incoming value; every other existing field is
+// left untouched, never silently overwritten. The drained duplicate is
+// archived (contacts.archived_at, crm/db/migrateCrmCore.js's own
+// soft-delete convention), never hard-deleted, so both the original record
+// and this decision stay auditable. All of this runs in one transaction —
+// either the whole merge lands or none of it does.
 function resolveContactConflict(db, { intakeId, action, actor }) {
   if (!actor) throw new Error('resolveContactConflict: actor is required for the audit trail');
   const intake = db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId);
@@ -260,7 +323,57 @@ function resolveContactConflict(db, { intakeId, action, actor }) {
     return { outcome: 'confirmed_different', intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId) };
   }
 
-  throw new Error(`resolveContactConflict: unknown action '${action}' (only 'confirm_different' and 'test_archive' are implemented)`);
+  if (action === 'same_person') {
+    let payload = {};
+    try { payload = JSON.parse(intake.raw_payload || '{}'); } catch { payload = {}; }
+    const newContactId = payload.new_contact_id;
+    const existingContactId = intake.candidate_contact_id;
+    if (!newContactId || !existingContactId) {
+      throw new Error('resolveContactConflict: intake is missing the contact ids needed to merge');
+    }
+    const newContact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(newContactId);
+    const existingContact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existingContactId);
+    if (!newContact || !existingContact) {
+      throw new Error('resolveContactConflict: one of the two contact records no longer exists');
+    }
+
+    const merge = db.transaction(() => {
+      reassignContactOwnedRecords(db, { fromContactId: newContactId, toContactId: existingContactId });
+
+      if (payload.conflict_type === 'email_match_phone_diff' && newContact.phone_e164) {
+        db.prepare('UPDATE contacts SET phone = ?, phone_e164 = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+          .run(newContact.phone, newContact.phone_e164, existingContactId);
+      } else if (payload.conflict_type === 'phone_match_email_diff' && newContact.email) {
+        // The duplicate's own email must be cleared FIRST -- contacts.email
+        // is UNIQUE, so writing the same value onto the existing contact
+        // while the duplicate still holds it would violate that index.
+        db.prepare('UPDATE contacts SET email = NULL WHERE id = ?').run(newContactId);
+        db.prepare('UPDATE contacts SET email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+          .run(newContact.email, existingContactId);
+      }
+
+      if (columnExists(db, 'contacts', 'archived_at')) {
+        db.prepare("UPDATE contacts SET archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(newContactId);
+      } else {
+        db.prepare("UPDATE contacts SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(newContactId);
+      }
+
+      db.prepare(`
+        UPDATE unresolved_intake
+        SET status = 'Resolved', decision = 'confirmed_same_person', resolved_by = ?, resolved_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(actor, intakeId);
+    });
+    merge();
+
+    return {
+      outcome: 'merged',
+      existingContact: db.prepare('SELECT * FROM contacts WHERE id = ?').get(existingContactId),
+      intake: db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intakeId),
+    };
+  }
+
+  throw new Error(`resolveContactConflict: unknown action '${action}' (only 'same_person', 'confirm_different', and 'test_archive' are implemented)`);
 }
 
 // Resolves a staged unmatched-inbound-SMS review item (review_type

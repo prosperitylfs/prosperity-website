@@ -27,6 +27,8 @@ const db = require('../db/database');
 const { runMigrations: runBrandsMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const calcomRouter = require('../routes/calcom');
+const { getDashboardSummary, getClientDetail } = require('../lib/dashboardQueries');
+const { resolveContactConflict } = require('../lib/reviewResolution');
 
 let server, baseUrl;
 
@@ -1722,4 +1724,52 @@ test('an unrelated contact sharing the incoming phone number (e.g. a household) 
   assert.equal(getPendingContactConflicts().length, before, 'no possible-match review item staged');
   const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existing.lastInsertRowid);
   assert.equal(contact.phone_e164, sharedPhone, 'the previously-unknown phone is filled in, same as any other null field');
+});
+
+// ── End-to-end: Verification Needed visibility (dashboard count, contact
+// detail flag) and resolution, exactly as review.html/client.html use them.
+// This is the exact live scenario reported: Renee Jones on file, a "Test
+// Caller" booking arrives with the same email but a different phone.
+
+test('a possible-duplicate booking is counted in the dashboard "Verification Needed" total and flagged on the new contact\'s own detail record', async () => {
+  const email = 'e2e-vn-' + Date.now() + '@example.com';
+  const oldPhone = '+14146887619';
+  const newPhone = '+14143676486';
+  const existing = db.prepare(`INSERT INTO contacts (first_name, last_name, email, phone, phone_e164) VALUES ('Renee', 'Jones', ?, '(414) 688-7619', ?)`).run(email, oldPhone);
+  const uid = 'e2e-vn-' + Date.now();
+
+  const before = getDashboardSummary(db, {}).verificationNeeded;
+
+  await postWebhook(basePayload({
+    uid,
+    responses: { name: responseEntry('Name', 'Test Caller'), email: responseEntry('Email', email), phone: responseEntry('Phone', newPhone) },
+  }));
+
+  const appt = getAppointment(uid);
+  const dupContactId = appt.contact_id;
+  assert.notEqual(dupContactId, existing.lastInsertRowid);
+
+  // Dashboard counter.
+  const after = getDashboardSummary(db, {}).verificationNeeded;
+  assert.equal(after, before + 1, 'the new Verification Needed dashboard tile must count this');
+
+  // Flag on the new ("Test Caller") contact's own detail record -- never on
+  // Renee Jones's own record.
+  const dupDetail = getClientDetail(db, dupContactId);
+  assert.ok(dupDetail.contactConflict, 'Test Caller\'s own detail page must carry the warning');
+  assert.equal(dupDetail.contactConflict.existing.name, 'Renee Jones');
+  assert.equal(dupDetail.contactConflict.existing.phone, '(414) 688-7619');
+  assert.equal(dupDetail.contactConflict.incoming.name, 'Test Caller');
+  assert.match(dupDetail.contactConflict.incoming.phone, /367-6486/);
+
+  const existingDetail = getClientDetail(db, existing.lastInsertRowid);
+  assert.equal(existingDetail.contactConflict, null, 'Renee Jones\'s own record must not carry the warning');
+
+  // Resolving as "Same Person" clears the counter and moves the appointment.
+  resolveContactConflict(db, { intakeId: dupDetail.contactConflict.intakeId, action: 'same_person', actor: 'Loretta Stewart' });
+  assert.equal(getDashboardSummary(db, {}).verificationNeeded, before, 'resolving must clear the counter back down');
+  const movedAppt = db.prepare('SELECT contact_id FROM appointments WHERE id = ?').get(appt.id);
+  assert.equal(movedAppt.contact_id, existing.lastInsertRowid, 'the appointment must now belong to Renee Jones');
+  const existingAfterMerge = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existing.lastInsertRowid);
+  assert.equal(existingAfterMerge.phone_e164, newPhone, 'Renee Jones\'s phone updates to the number from the new booking');
 });

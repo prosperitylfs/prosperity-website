@@ -28,7 +28,7 @@
 
   const NAV_ITEMS = [
     { key: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: 'dashboard' },
-    { key: 'clients', label: 'Clients', href: 'clients.html', icon: 'clients' },
+    { key: 'clients', label: 'Clients', href: 'clients.html', icon: 'clients', badgeKey: 'verificationNeeded' },
     { key: 'leads', label: 'Leads', href: 'leads.html', icon: 'leads', badgeKey: 'newLeads' },
     { key: 'cases', label: 'Cases', href: 'cases.html', icon: 'cases' },
     { key: 'policies', label: 'Policies', href: 'policies.html', icon: 'policies' },
@@ -296,9 +296,53 @@
     el.__timer = setTimeout(() => el.classList.remove('visible'), 3200);
   }
 
+  // Shared "Same Person" / "Different Person" / "Archive as test" resolution
+  // flow for a 'contact_conflict' Verification Needed item -- used by both
+  // review.html's queue view and client.html's on-record warning banner, so
+  // the confirmation wording and the API call never drift between the two.
+  // `item` is one entry from GET /api/app/review's contactConflicts array
+  // (or GET /api/app/clients/:id's contactConflict) -- shape:
+  // { intakeId, conflictType, existing: {name,email,phone}, incoming: {name,email,phone} }.
+  // Returns the resolve endpoint's result on success, or null if the user
+  // cancelled the confirmation or the request failed (already toasted).
+  async function resolveContactConflict(item, action) {
+    let message, confirmLabel, danger = false;
+    if (action === 'same_person') {
+      const diff = item.conflictType === 'email_match_phone_diff'
+        ? `Phone will update from <strong>${escapeHtml(item.existing.phone || 'none on file')}</strong> to <strong>${escapeHtml(item.incoming.phone || 'none')}</strong>.`
+        : item.conflictType === 'phone_match_email_diff'
+          ? `Email will update from <strong>${escapeHtml(item.existing.email || 'none on file')}</strong> to <strong>${escapeHtml(item.incoming.email || 'none')}</strong>.`
+          : 'The incoming booking\'s details will be applied.';
+      message = `Confirm this is the same person as <strong>${escapeHtml(item.existing.name)}</strong>.<br>${diff}<br><br>All appointment and text history from the new record will move onto ${escapeHtml(item.existing.name)}, and the duplicate record will be archived. This cannot be automatically undone.`;
+      confirmLabel = 'Same Person — Merge';
+    } else if (action === 'confirm_different') {
+      message = `Confirm <strong>${escapeHtml(item.incoming.name || 'this booking')}</strong> and <strong>${escapeHtml(item.existing.name)}</strong> are different people. Both records stay exactly as they are — nothing is merged or changed.`;
+      confirmLabel = 'Different Person';
+    } else {
+      message = 'Archive this review item as a test? The duplicate contact itself is not affected.';
+      confirmLabel = 'Archive';
+      danger = true;
+    }
+
+    const ok = await confirmAction(message, { confirmLabel, danger });
+    if (!ok) return null;
+    try {
+      const result = await postJSON(`/api/app/review/contact/${item.intakeId}/resolve`, 'POST', { action });
+      toast(
+        action === 'same_person' ? 'Merged — history moved to the existing contact.'
+          : action === 'confirm_different' ? 'Confirmed as different people.'
+            : 'Archived.'
+      );
+      return result;
+    } catch (err) {
+      toast(err.message, { error: true });
+      return null;
+    }
+  }
+
   window.CrmApp = {
     mount, getCompany, setCompany, companyBadge, escapeHtml, initials,
     fetchJSON, postJSON, friendlyDate, friendlyDateTime, friendlyTime, NAV_ITEMS,
-    openModal, closeModal, confirmAction, toast,
+    openModal, closeModal, confirmAction, toast, resolveContactConflict,
   };
 })();

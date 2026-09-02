@@ -608,7 +608,41 @@ async function render() {
     documents: documentsHtml, marketing: marketingHtml, audit: auditHtml,
   };
 
+  const cc = detail.contactConflict;
+  function conflictBannerHtml() {
+    if (!cc) return '';
+    const explanation = cc.conflictType === 'email_match_phone_diff'
+      ? 'Email matches an existing contact, but the phone number is different.'
+      : cc.conflictType === 'phone_match_email_diff'
+        ? 'Phone number matches an existing contact, but the email address is different.'
+        : 'This may be the same person as an existing contact.';
+    const identity = (label, id) => `<div class="company-box" style="text-align:left;">
+      <div class="label">${label}</div>
+      <div><strong>${CrmApp.escapeHtml(id.name || 'Unnamed')}</strong></div>
+      <div class="text-faint">Email: ${CrmApp.escapeHtml(id.email || 'No email on file')}</div>
+      <div class="text-faint">Phone: ${CrmApp.escapeHtml(id.phone || 'No phone on file')}</div>
+    </div>`;
+    return `<div class="card" style="margin-bottom:16px; border-color: var(--danger); background: var(--danger-tint);">
+      <div class="card-body">
+        <div style="font-weight:800; color: var(--danger); font-size:15px; letter-spacing:.02em;">POSSIBLE DUPLICATE — VERIFICATION NEEDED</div>
+        ${cc.nameMismatch ? '<div class="pill overdue" style="margin-top:8px; display:inline-block;">NAME MISMATCH</div>' : ''}
+        <div style="margin-top:8px;">${CrmApp.escapeHtml(explanation)}</div>
+        <div class="conflict-compare" style="margin-top:12px;">
+          ${identity('Existing Contact', cc.existing)}
+          <div class="arrow">vs</div>
+          ${identity('Incoming Booking', cc.incoming)}
+        </div>
+        <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn small primary" id="conflict-same-person">Same Person</button>
+          <button class="btn small" id="conflict-different-person">Different Person</button>
+        </div>
+        <div class="text-faint" style="margin-top:8px;">"Same Person" moves this record's appointment and text history onto the existing contact and archives this duplicate. "Different Person" just clears this warning — both records stay untouched.</div>
+      </div>
+    </div>`;
+  }
+
   content.innerHTML = `
+    ${conflictBannerHtml()}
     <div class="card">
       <div class="detail-header">
         <div class="detail-avatar">${CrmApp.initials(c.name)}</div>
@@ -645,6 +679,19 @@ async function render() {
       </div>
     </div>
   `;
+
+  if (cc) {
+    document.getElementById('conflict-same-person').addEventListener('click', async () => {
+      const result = await CrmApp.resolveContactConflict(cc, 'same_person');
+      // This record (the duplicate) is archived by a successful merge -- go
+      // to the surviving existing contact instead of reloading onto it.
+      if (result && result.existingContact) location.href = `client.html?id=${result.existingContact.id}`;
+    });
+    document.getElementById('conflict-different-person').addEventListener('click', async () => {
+      const result = await CrmApp.resolveContactConflict(cc, 'confirm_different');
+      if (result) location.reload();
+    });
+  }
 
   const tabsEl = document.getElementById('tabs');
   tabsEl.addEventListener('click', (e) => {

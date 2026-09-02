@@ -61,6 +61,24 @@ router.get('/clients', (req, res) => {
   const sort = ['name', 'dueDate', 'nextAction', 'lastActivity'].includes(req.query.sort) ? req.query.sort : 'name';
 
   const result = getCaseList(db, { brandId, statusFilter, search, page, pageSize, sort });
+
+  // "Verification Needed" (crm/lib/reviewResolution.js's resolveContactConflict)
+  // must be visible directly on the Contacts list, never only inside Review
+  // Required -- getCaseList's own paginated query only shows contacts that
+  // already have a case (a Cal.com-created possible-duplicate usually
+  // doesn't have one yet), so this is surfaced as its OWN list here rather
+  // than folded into pagination. A flagged contact that DOES also have a
+  // case still gets stamped verificationNeeded=true on its normal row.
+  const contactConflicts = getContactConflictQueue(db);
+  const flaggedIds = new Set(contactConflicts.map(item => item.incoming.contactId));
+  result.contacts.forEach(c => { c.verificationNeeded = flaggedIds.has(c.contactId); });
+  result.verificationNeeded = contactConflicts.map(item => ({
+    contactId: item.incoming.contactId,
+    contactName: item.incoming.name,
+    reason: item.reason,
+    nameMismatch: item.nameMismatch,
+  }));
+
   res.json(result);
 });
 

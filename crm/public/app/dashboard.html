@@ -70,6 +70,7 @@ async function render() {
         ${statTile(s.casesInProgress, 'Cases In Progress', { kind: 'nav', href: 'cases.html' })}
         ${statTile(s.failedComms, 'Failed Communications', { kind: 'nav', href: 'communications.html?status=Failed' }, s.failedComms > 0, 'stat-failed')}
         ${statTile(s.reviewRequired, 'Review Required', { kind: 'nav', href: 'review.html' }, s.reviewRequired > 0, 'stat-review')}
+        ${statTile(s.verificationNeeded, 'Verification Needed', { kind: 'nav', href: 'review.html?type=contact_conflict' }, s.verificationNeeded > 0, 'stat-review')}
       </div>
 
       <div class="grid grid-2" style="align-items:start;">

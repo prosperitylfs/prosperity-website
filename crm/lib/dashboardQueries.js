@@ -699,6 +699,14 @@ function getClientDetail(db, contactId) {
   const callLog = db.prepare('SELECT * FROM comm_calls WHERE contact_id = ? ORDER BY COALESCE(started_at, created_at) DESC').all(contactId)
     .map(c => ({ ...c, started_at: c.started_at ? toIsoUtc(c.started_at) : null, created_at: toIsoUtc(c.created_at) }));
 
+  // A pending 'contact_conflict' review item where THIS contact is the
+  // newly-created, possibly-duplicate side (getContactConflictQueue's
+  // incoming.contactId) -- never the existing side (candidate_contact_id),
+  // matching the feature's own scope: only the auto-created contact needs a
+  // "Verification Needed" warning, not the established record it was
+  // compared against. null when this contact isn't currently flagged.
+  const contactConflict = getContactConflictQueue(db).find(item => item.incoming.contactId === contactId) || null;
+
   return {
     contact: {
       contactId: contact.id,
@@ -722,6 +730,7 @@ function getClientDetail(db, contactId) {
       archivedAt: contact.archived_at ? toIsoUtc(contact.archived_at) : null,
     },
     contactBrands,
+    contactConflict,
     tasks: tasks.map(t => ({ ...t, due_date: t.due_date, created_at: toIsoUtc(t.created_at) })),
     appointments: appointments.map(a => ({ ...a, appt_datetime: toIsoUtc(a.appt_datetime) })),
     communications,
@@ -787,9 +796,16 @@ function getDashboardSummary(db, { brandId = null } = {}) {
     getCaseReviewQueue(db).length +
     getCompanyConflictQueue(db).length;
 
+  // Deliberately its own tile, not folded into reviewRequired above -- a
+  // possible-duplicate contact needs Loretta's attention in a way that's
+  // easy to miss inside a generic "Review Required" total (see
+  // crm/public/app/review.html's 'contact_conflict' queue / dashboard.html).
+  const verificationNeeded = getContactConflictQueue(db).length;
+
   return {
     newLeads, followUpsDue, overdueTasks,
     todaysAppointments, casesInProgress, failedComms, reviewRequired,
+    verificationNeeded,
   };
 }
 

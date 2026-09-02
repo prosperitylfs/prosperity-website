@@ -55,6 +55,36 @@ test('getClientDetail returns null for an unknown contact id', () => {
   assert.equal(getClientDetail(db, 999999), null);
 });
 
+test('getClientDetail surfaces contactConflict on the flagged (new) contact, and null on an unrelated contact', () => {
+  const { db } = setup();
+  const existing = dedupeContact(db, { email: 'detail.existing@example.com', first_name: 'Renee', last_name: 'Jones', phone: '(414) 688-7619', phone_e164: '+14146887619' });
+  const dup = dedupeContact(db, { email: null, first_name: 'Test', last_name: 'Caller', phone: '(414) 367-6486', phone_e164: '+14143676486' });
+  const bystander = dedupeContact(db, { email: 'bystander@example.com', first_name: 'Someone', last_name: 'Else' });
+
+  db.prepare(`
+    INSERT INTO unresolved_intake (source, raw_payload, candidate_contact_id, reason, status, review_type)
+    VALUES ('calcom_webhook', ?, ?, 'Possible existing contact — email matches, but phone number is different. Verify identity before merging or updating.', 'Pending', 'contact_conflict')
+  `).run(JSON.stringify({
+    conflict_type: 'email_match_phone_diff', name_mismatch: true, new_contact_id: dup.id,
+    existing: { first_name: 'Renee', last_name: 'Jones', email: 'detail.existing@example.com', phone: '(414) 688-7619' },
+    incoming: { first_name: 'Test', last_name: 'Caller', email: 'detail.existing@example.com', phone: '(414) 367-6486' },
+  }), existing.id);
+
+  const dupDetail = getClientDetail(db, dup.id);
+  assert.ok(dupDetail.contactConflict, 'the newly-created (flagged) contact must show its conflict');
+  assert.equal(dupDetail.contactConflict.conflictType, 'email_match_phone_diff');
+  assert.equal(dupDetail.contactConflict.nameMismatch, true);
+  assert.equal(dupDetail.contactConflict.existing.name, 'Renee Jones');
+  assert.equal(dupDetail.contactConflict.existing.phone, '(414) 688-7619');
+  assert.equal(dupDetail.contactConflict.incoming.phone, '(414) 367-6486');
+
+  const existingDetail = getClientDetail(db, existing.id);
+  assert.equal(existingDetail.contactConflict, null, 'the EXISTING (established) contact must not itself show a Verification Needed warning');
+
+  const bystanderDetail = getClientDetail(db, bystander.id);
+  assert.equal(bystanderDetail.contactConflict, null);
+});
+
 test('getClientDetail keeps multiple cases under one client as separate records', () => {
   const { db, prosperityId } = setup();
   const contact = dedupeContact(db, { email: 'multi2@example.com', first_name: 'Omar' });
@@ -121,6 +151,20 @@ test('getDashboardSummary counts review-required items and respects the company 
   const summaryIL = getDashboardSummary(db, { brandId: 'insurance-lady' });
   assert.equal(summaryProsperity.casesInProgress, 1);
   assert.equal(summaryIL.casesInProgress, 0, 'the company filter must scope case counts correctly');
+});
+
+test('getDashboardSummary counts pending contact_conflict items as verificationNeeded, separate from reviewRequired', () => {
+  const { db } = setup();
+  const existing = dedupeContact(db, { email: 'vn.existing@example.com', first_name: 'Renee', last_name: 'Jones', phone_e164: '+14146887619' });
+  const dup = dedupeContact(db, { email: null, first_name: 'Test', last_name: 'Caller', phone_e164: '+14143676486' });
+  db.prepare(`
+    INSERT INTO unresolved_intake (source, raw_payload, candidate_contact_id, reason, status, review_type)
+    VALUES ('calcom_webhook', ?, ?, 'Possible existing contact — email matches, but phone number is different. Verify identity before merging or updating.', 'Pending', 'contact_conflict')
+  `).run(JSON.stringify({ conflict_type: 'email_match_phone_diff', new_contact_id: dup.id, existing: {}, incoming: {} }), existing.id);
+
+  const summary = getDashboardSummary(db, { brandId: null });
+  assert.equal(summary.verificationNeeded, 1);
+  assert.equal(summary.reviewRequired, 0, 'contact_conflict must not be double-counted inside the generic reviewRequired total');
 });
 
 test('getWorkList never selects a sender and every item is openable (has a target)', () => {

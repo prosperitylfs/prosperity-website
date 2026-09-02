@@ -141,10 +141,11 @@ async function render() {
         ${identityBox('Incoming Booking', item.incoming)}
       </div>
       <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn small" data-contact-resolve="${item.intakeId}" data-action="confirm_different">Confirm — Different People</button>
+        <button class="btn small primary" data-contact-resolve="${item.intakeId}" data-action="same_person">Same Person</button>
+        <button class="btn small" data-contact-resolve="${item.intakeId}" data-action="confirm_different">Different Person</button>
         <button class="btn small ghost" data-contact-resolve="${item.intakeId}" data-action="test_archive">Archive as test</button>
       </div>
-      <div class="text-faint" style="margin-top:8px;">A new contact was already created from the incoming booking's own information — nothing was merged or overwritten. If this turns out to be the same person, update the correct contact's record by hand.</div>
+      <div class="text-faint" style="margin-top:8px;">A new contact was already created from the incoming booking's own information — nothing was merged or overwritten yet. "Same Person" moves its appointment and text history onto the existing contact and archives the duplicate; "Different Person" just clears this warning and leaves both records untouched.</div>
     </div></div>`;
   }
 
@@ -280,15 +281,11 @@ async function render() {
 
       const contactBtn = e.target.closest('[data-contact-resolve]');
       if (contactBtn) {
-        const action = contactBtn.dataset.action;
-        const label = action === 'confirm_different' ? 'confirm these are different people (both contact records stay as they are)' : 'archive this as a test';
-        const ok = await CrmApp.confirmAction(`Confirm: ${label}?`, { confirmLabel: 'Confirm', danger: action === 'test_archive' });
-        if (!ok) return;
-        try {
-          await CrmApp.postJSON(`/api/app/review/contact/${contactBtn.dataset.contactResolve}/resolve`, 'POST', { action });
-          CrmApp.toast('Resolved.');
-          load();
-        } catch (err) { CrmApp.toast(err.message, { error: true }); }
+        const item = currentData.contactConflicts.find(i => String(i.intakeId) === contactBtn.dataset.contactResolve);
+        if (item) {
+          const result = await CrmApp.resolveContactConflict(item, contactBtn.dataset.action);
+          if (result) load();
+        }
         return;
       }
 

@@ -70,6 +70,19 @@ function smsTemplateEntry(templateKey) {
   return entry;
 }
 
+// Mirrors EXISTING_CLIENT_SMS_TEMPLATES exactly, for the email composer's
+// own Template dropdown -- crm/config/templates.js currently has one
+// approved Prosperity email (existingClientReconnectionEmail); its content
+// already covers Life Insurance Awareness Month / Policy Review, so it's
+// labeled that way here. Adding a genuinely distinct second email later
+// (Birthday, Follow-Up, etc.) is exactly one more entry -- unlike SMS,
+// sendReconnectionEmail below has no per-template dedup/message_type
+// concept to extend (email was never asked to track "already sent"), so
+// there is nothing else to wire up.
+const EXISTING_CLIENT_EMAIL_TEMPLATES = [
+  { templateKey: 'existingClientReconnectionEmail', label: 'Existing Client – Life Insurance Awareness Month / Policy Review' },
+];
+
 // Reuses BOTH of the CRM's existing "this is an existing client" signals,
 // never a new field: relationship_type === 'active_client'
 // (crm/lib/clientService.js's manual entry) OR lead_type === 'Existing
@@ -90,10 +103,13 @@ function getReconnectionTemplates() {
     const tmpl = getTemplate('prosperity', entry.templateKey);
     return { templateKey: entry.templateKey, label: entry.label, body: tmpl.body };
   });
-  const email = getTemplate('prosperity', 'existingClientReconnectionEmail');
+  const emailTemplates = EXISTING_CLIENT_EMAIL_TEMPLATES.map(entry => {
+    const tmpl = getTemplate('prosperity', entry.templateKey);
+    return { templateKey: entry.templateKey, label: entry.label, subject: tmpl.subject, body: tmpl.text };
+  });
   return {
     smsTemplates,
-    email: { templateKey: 'existingClientReconnectionEmail', subject: email.subject, body: email.text },
+    emailTemplates,
     officePhone: BRANDS.prosperity.phone.display,
     bookingLink: PROSPERITY_LIFE_INSURANCE_BOOKING_URL,
   };
@@ -272,6 +288,7 @@ async function bulkSendReconnectionOutreach(db, { contactIds, channel, message, 
 module.exports = {
   RECONNECTION_SMS_MESSAGE_TYPE,
   EXISTING_CLIENT_SMS_TEMPLATES,
+  EXISTING_CLIENT_EMAIL_TEMPLATES,
   DEFAULT_SMS_TEMPLATE_KEY,
   PROSPERITY_LIFE_INSURANCE_BOOKING_URL,
   isExistingClient,

@@ -16,7 +16,7 @@ const {
   RECONNECTION_SMS_MESSAGE_TYPE, getReconnectionTemplates, fillFirstName,
   checkReconnectionSmsEligibility, sendReconnectionSms, sendReconnectionEmail,
   getExistingClientsForOutreach, bulkSendReconnectionOutreach,
-  EXISTING_CLIENT_SMS_TEMPLATES, PROSPERITY_LIFE_INSURANCE_BOOKING_URL,
+  EXISTING_CLIENT_SMS_TEMPLATES, EXISTING_CLIENT_EMAIL_TEMPLATES, PROSPERITY_LIFE_INSURANCE_BOOKING_URL,
 } = require('../lib/existingClientOutreach');
 
 const LIFE_INSURANCE_AWARENESS_KEY = 'existingClientLifeInsuranceAwarenessSms';
@@ -91,7 +91,7 @@ function seedLead(db, overrides = {}) {
 
 // ── Templates ────────────────────────────────────────────────────────────
 
-test('getReconnectionTemplates returns both Prosperity SMS templates, the email template, the office phone, and the booking link', () => {
+test('getReconnectionTemplates returns both Prosperity SMS templates, the email template(s), the office phone, and the booking link', () => {
   const templates = getReconnectionTemplates();
   assert.equal(templates.smsTemplates.length, 2);
   const reconnection = templates.smsTemplates.find(t => t.templateKey === 'existingClientReconnectionSms');
@@ -99,8 +99,14 @@ test('getReconnectionTemplates returns both Prosperity SMS templates, the email 
   assert.match(reconnection.body, /Reply YES to allow text communication/);
   assert.match(awareness.body, /Life Insurance Awareness Month/);
   assert.match(awareness.body, /\{\{booking_link\}\}/);
-  assert.match(templates.email.subject, /Policy Review/);
-  assert.match(templates.email.body, /September is Life Insurance Awareness Month/);
+
+  assert.equal(templates.emailTemplates.length, 1);
+  const email = templates.emailTemplates[0];
+  assert.equal(email.templateKey, 'existingClientReconnectionEmail');
+  assert.equal(email.label, 'Existing Client – Life Insurance Awareness Month / Policy Review');
+  assert.match(email.subject, /Policy Review/);
+  assert.match(email.body, /September is Life Insurance Awareness Month/);
+
   assert.equal(templates.officePhone, '+1 414-441-1177');
   assert.equal(templates.bookingLink, 'https://cal.com/lorettastewart/life-insurance-consultation-prosperitylfs');
 });
@@ -254,6 +260,15 @@ test('EXISTING_CLIENT_SMS_TEMPLATES registry and PROSPERITY_LIFE_INSURANCE_BOOKI
   assert.equal(EXISTING_CLIENT_SMS_TEMPLATES.length, 2);
   assert.ok(EXISTING_CLIENT_SMS_TEMPLATES.some(t => t.templateKey === LIFE_INSURANCE_AWARENESS_KEY));
   assert.equal(PROSPERITY_LIFE_INSURANCE_BOOKING_URL, 'https://cal.com/lorettastewart/life-insurance-consultation-prosperitylfs');
+});
+
+test('EXISTING_CLIENT_EMAIL_TEMPLATES registry is exported for the compose UI, mirroring the SMS registry shape', () => {
+  assert.ok(Array.isArray(EXISTING_CLIENT_EMAIL_TEMPLATES));
+  assert.ok(EXISTING_CLIENT_EMAIL_TEMPLATES.length >= 1);
+  for (const entry of EXISTING_CLIENT_EMAIL_TEMPLATES) {
+    assert.ok(entry.templateKey);
+    assert.ok(entry.label);
+  }
 });
 
 // ── H: initial email ─────────────────────────────────────────────────────

@@ -1,8 +1,17 @@
-// Prosperity CRM — Service Worker v23
+// Prosperity CRM — Service Worker v24
 // Strategy: network-first for same-origin assets (always fresh JS/HTML),
 //           cache fallback for offline; network-only for live API + config.js
+//
+// Bumped for the Existing Client Outreach rollout (crm/public/app/clients.html,
+// crm/public/app/client.html): this service worker's scope is the whole
+// origin ('/', since it's registered from the root), so it also intercepts
+// fetches for /app/* pages even though they never register it themselves --
+// any browser tab still controlled by an OLDER installed instance keeps
+// running that older instance's own fetch logic until the browser detects
+// this file's bytes have changed (a plain hard refresh does not force that
+// detection). Changing CACHE is what forces it.
 
-const CACHE = 'prosperity-crm-v37';
+const CACHE = 'prosperity-crm-v38';
 
 const PRECACHE = [
   '/',

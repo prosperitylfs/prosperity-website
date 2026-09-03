@@ -211,6 +211,9 @@ Reply HELP for help or STOP to opt out.`,
     existingClientLifeInsuranceAwarenessSms: {
       category: 'operational', channel: 'sms',
       placeholders: ['first_name', 'booking_link'],
+      // Re-verified byte-for-byte against Loretta's 2026-09-04 re-pasted
+      // copy -- identical, only the same straight-apostrophe substitution
+      // as before (see comment above). Nothing here was ever altered.
       body: `Hi {{first_name}}, this is Loretta Stewart, your insurance agent. I'm reaching out to reconnect and make sure you have my current office contact information. This is my new office and texting number, so please save it so you'll recognize me when I call and have it whenever you need assistance with your policy.
 
 Since September is Life Insurance Awareness Month, it's also a good time to make sure the information on your policy is still current. Life changes over the years, and things such as your contact information, beneficiaries, or coverage needs may have changed since we last spoke.

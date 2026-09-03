@@ -210,18 +210,18 @@ Reply HELP for help or STOP to opt out.`,
     // outbound message itself mentions it.
     existingClientLifeInsuranceAwarenessSms: {
       category: 'operational', channel: 'sms',
-      placeholders: ['first_name', 'booking_link'],
-      // Re-verified byte-for-byte against Loretta's 2026-09-04 re-pasted
-      // copy -- identical, only the same straight-apostrophe substitution
-      // as before (see comment above). Nothing here was ever altered.
+      // {{booking_link}} deliberately removed (2026-09-04 revision) -- this
+      // initial message no longer offers a self-service booking link at
+      // all; Loretta follows up by phone instead, and only sends the
+      // booking link separately if the client asks for it in their reply.
+      placeholders: ['first_name'],
       body: `Hi {{first_name}}, this is Loretta Stewart, your insurance agent. I'm reaching out to reconnect and make sure you have my current office contact information. This is my new office and texting number, so please save it so you'll recognize me when I call and have it whenever you need assistance with your policy.
 
 Since September is Life Insurance Awareness Month, it's also a good time to make sure the information on your policy is still current. Life changes over the years, and things such as your contact information, beneficiaries, or coverage needs may have changed since we last spoke.
 
-If you'd like to speak with me, you can schedule a time that's convenient for you here:
-{{booking_link}}
+I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you.
 
-I'd also like your permission to communicate with you by text regarding your policy, appointments, and service needs. Reply YES if I may text you, or NO if you prefer not to receive text messages.
+I'd also like your permission to communicate with you by text regarding your policy, appointments, and service needs. Reply YES if I may text you, or NO if you prefer not to receive text messages. If you'd like my booking link, just let me know and I'll send it to you.
 
 Loretta Stewart
 Prosperity Life & Financial Solutions`,

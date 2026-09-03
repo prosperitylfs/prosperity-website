@@ -98,7 +98,11 @@ test('getReconnectionTemplates returns both Prosperity SMS templates, the email 
   const awareness = templates.smsTemplates.find(t => t.templateKey === 'existingClientLifeInsuranceAwarenessSms');
   assert.match(reconnection.body, /Reply YES to allow text communication/);
   assert.match(awareness.body, /Life Insurance Awareness Month/);
-  assert.match(awareness.body, /\{\{booking_link\}\}/);
+  assert.match(awareness.body, /I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you\./);
+  // {{booking_link}} was deliberately REMOVED from this SMS template in the
+  // 2026-09-04 revision -- Loretta follows up by phone and sends the link
+  // manually only if the client asks for it in their reply.
+  assert.doesNotMatch(awareness.body, /\{\{booking_link\}\}/);
 
   assert.equal(templates.emailTemplates.length, 2);
   const policyReview = templates.emailTemplates.find(t => t.templateKey === 'existingClientReconnectionEmail');

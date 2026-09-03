@@ -62,11 +62,15 @@ test('existingClientReconnectionSms (Prosperity-only) includes STOP/HELP languag
   assert.match(TEMPLATES.prosperity.existingClientReconnectionSms.body, /HELP/);
 });
 
-test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s approved copy exactly, apart from straight apostrophes', () => {
+test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s 2026-09-04 approved copy exactly, apart from straight apostrophes', () => {
   const tmpl = TEMPLATES.prosperity.existingClientLifeInsuranceAwarenessSms;
   assert.match(tmpl.body, /Life Insurance Awareness Month/);
-  assert.match(tmpl.body, /Reply YES if I may text you, or NO if you prefer not to receive text messages\./);
-  assert.match(tmpl.body, /\{\{booking_link\}\}/);
+  assert.match(tmpl.body, /I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you\./);
+  assert.match(tmpl.body, /Reply YES if I may text you, or NO if you prefer not to receive text messages\. If you'd like my booking link, just let me know and I'll send it to you\./);
+  // {{booking_link}} was deliberately REMOVED in the 2026-09-04 revision --
+  // this initial message no longer offers a self-service booking link.
+  assert.doesNotMatch(tmpl.body, /\{\{booking_link\}\}/);
+  assert.deepEqual(tmpl.placeholders, ['first_name']);
   assert.equal(TEMPLATES['insurance-lady'].existingClientLifeInsuranceAwarenessSms, undefined, 'must never exist for Insurance Lady');
 });
 

@@ -81,6 +81,7 @@ function smsTemplateEntry(templateKey) {
 // there is nothing else to wire up.
 const EXISTING_CLIENT_EMAIL_TEMPLATES = [
   { templateKey: 'existingClientReconnectionEmail', label: 'Existing Client – Life Insurance Awareness Month / Policy Review' },
+  { templateKey: 'existingClientSmsPermissionEmail', label: 'Existing Client – SMS Permission / Contact Update' },
 ];
 
 // Reuses BOTH of the CRM's existing "this is an existing client" signals,

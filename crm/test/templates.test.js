@@ -70,13 +70,26 @@ test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\
   assert.equal(TEMPLATES['insurance-lady'].existingClientLifeInsuranceAwarenessSms, undefined, 'must never exist for Insurance Lady');
 });
 
-test('existingClientReconnectionSms, existingClientLifeInsuranceAwarenessSms, and existingClientReconnectionEmail exist ONLY for Prosperity, never Insurance Lady', () => {
+test('existingClientSmsPermissionEmail (Prosperity-only) matches Loretta\'s approved copy exactly, apart from straight apostrophes', () => {
+  const tmpl = TEMPLATES.prosperity.existingClientSmsPermissionEmail;
+  assert.equal(tmpl.channel, 'email');
+  assert.equal(tmpl.subject, 'A Quick Update From Loretta — Please Save My New Office Number');
+  assert.match(tmpl.text, /YES, you may text me at \[your mobile number\]\./);
+  assert.match(tmpl.text, /NO TEXTS\./);
+  assert.match(tmpl.text, /\{\{booking_link\}\}/);
+  assert.match(tmpl.text, /\{\{office_phone\}\}/);
+  assert.equal(TEMPLATES['insurance-lady'].existingClientSmsPermissionEmail, undefined, 'must never exist for Insurance Lady');
+});
+
+test('existingClientReconnectionSms, existingClientLifeInsuranceAwarenessSms, existingClientReconnectionEmail, and existingClientSmsPermissionEmail exist ONLY for Prosperity, never Insurance Lady', () => {
   assert.ok(TEMPLATES.prosperity.existingClientReconnectionSms);
   assert.ok(TEMPLATES.prosperity.existingClientLifeInsuranceAwarenessSms);
   assert.ok(TEMPLATES.prosperity.existingClientReconnectionEmail);
+  assert.ok(TEMPLATES.prosperity.existingClientSmsPermissionEmail);
   assert.equal(TEMPLATES['insurance-lady'].existingClientReconnectionSms, undefined);
   assert.equal(TEMPLATES['insurance-lady'].existingClientLifeInsuranceAwarenessSms, undefined);
   assert.equal(TEMPLATES['insurance-lady'].existingClientReconnectionEmail, undefined);
+  assert.equal(TEMPLATES['insurance-lady'].existingClientSmsPermissionEmail, undefined);
 });
 
 test('every template is marked operational, not marketing', () => {

@@ -100,12 +100,16 @@ test('getReconnectionTemplates returns both Prosperity SMS templates, the email 
   assert.match(awareness.body, /Life Insurance Awareness Month/);
   assert.match(awareness.body, /\{\{booking_link\}\}/);
 
-  assert.equal(templates.emailTemplates.length, 1);
-  const email = templates.emailTemplates[0];
-  assert.equal(email.templateKey, 'existingClientReconnectionEmail');
-  assert.equal(email.label, 'Existing Client – Life Insurance Awareness Month / Policy Review');
-  assert.match(email.subject, /Policy Review/);
-  assert.match(email.body, /September is Life Insurance Awareness Month/);
+  assert.equal(templates.emailTemplates.length, 2);
+  const policyReview = templates.emailTemplates.find(t => t.templateKey === 'existingClientReconnectionEmail');
+  const smsPermission = templates.emailTemplates.find(t => t.templateKey === 'existingClientSmsPermissionEmail');
+  assert.equal(policyReview.label, 'Existing Client – Life Insurance Awareness Month / Policy Review');
+  assert.match(policyReview.subject, /Policy Review/);
+  assert.match(policyReview.body, /September is Life Insurance Awareness Month/);
+  assert.equal(smsPermission.label, 'Existing Client – SMS Permission / Contact Update');
+  assert.match(smsPermission.subject, /Please Save My New Office Number/);
+  assert.match(smsPermission.body, /NO TEXTS\./);
+  assert.match(smsPermission.body, /\{\{booking_link\}\}/);
 
   assert.equal(templates.officePhone, '+1 414-441-1177');
   assert.equal(templates.bookingLink, 'https://cal.com/lorettastewart/life-insurance-consultation-prosperitylfs');

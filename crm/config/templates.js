@@ -251,6 +251,41 @@ Life & Retirement Advisor
 Prosperity Life & Financial Solutions
 {{office_phone}}`,
     },
+
+    // Loretta's exact approved copy (verbatim, including the subject's em
+    // dash -- unlike the SMS templates above, email has no GSM-7/segment
+    // cost concern, so no character substitution was needed here).
+    existingClientSmsPermissionEmail: {
+      category: 'operational', channel: 'email',
+      placeholders: ['first_name', 'office_phone', 'booking_link'],
+      subject: 'A Quick Update From Loretta — Please Save My New Office Number',
+      text:
+`Hi {{first_name}},
+
+This is Loretta Stewart, your insurance agent. I'm reaching out to reconnect and make sure you have my current contact information.
+
+My current Prosperity Life & Financial Solutions office and texting number is {{office_phone}}. Please save this number so you'll recognize me when I call and have it whenever you need assistance with your policy.
+
+I'd also like your permission to communicate with you by text regarding your policy, appointments, and service needs.
+
+If you would like to receive service-related text messages from me, simply reply to this email with:
+
+YES, you may text me at [your mobile number].
+
+If you prefer not to receive text messages, you may reply:
+
+NO TEXTS.
+
+If you would like to schedule a time to speak with me, you can do that here:
+
+{{booking_link}}
+
+I look forward to reconnecting with you.
+
+Loretta Stewart
+Prosperity Life & Financial Solutions
+{{office_phone}}`,
+    },
   },
 };
 

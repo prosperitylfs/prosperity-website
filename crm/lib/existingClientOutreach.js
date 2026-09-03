@@ -3,12 +3,14 @@
 // checkConsentGate), scoped exclusively to sending the single named
 // "Existing Client Reconnection / SMS Permission" template (see
 // crm/config/templates.js, prosperity-only) to a contact explicitly
-// classified as an Existing Client (contacts.relationship_type ===
-// 'active_client', reused verbatim from crm/lib/clientService.js — no
-// second relationship field). Every function here is the ONLY call site
-// that ever passes requireConsent: false to sendLegacySms — nothing in
-// this file lets an arbitrary template or a Lead/Prospect contact bypass
-// the normal consent gate.
+// classified as an Existing Client. Reuses BOTH of the CRM's existing
+// classification signals (see isExistingClient below) — never a second/new
+// relationship field: contacts.relationship_type === 'active_client'
+// (crm/lib/clientService.js's manual entry) or contacts.lead_type ===
+// 'Existing Client' (crm/lib/leadNormalize.js). Every function here is the
+// ONLY call site that ever passes requireConsent: false to sendLegacySms —
+// nothing in this file lets an arbitrary template or a Lead/Prospect
+// contact bypass the normal consent gate.
 //
 // Reuses existing infrastructure throughout:
 //   - crm/lib/legacySmsSend.js's sendLegacySms for the actual Twilio
@@ -37,8 +39,14 @@ const { sendGmailEmail } = require('./gmailSend');
 
 const RECONNECTION_SMS_MESSAGE_TYPE = 'existing_client_reconnection';
 
+// Reuses BOTH of the CRM's existing "this is an existing client" signals,
+// never a new field: relationship_type === 'active_client'
+// (crm/lib/clientService.js's manual entry) OR lead_type === 'Existing
+// Client' (crm/lib/leadNormalize.js's formatLeadTypeLabel -- the value a
+// contact ends up with when intake/import already classified them that
+// way). A contact only needs ONE of the two to qualify.
 function isExistingClient(contact) {
-  return !!contact && contact.relationship_type === 'active_client';
+  return !!contact && (contact.relationship_type === 'active_client' || contact.lead_type === 'Existing Client');
 }
 
 // Raw (unsubstituted) templates + the Prosperity office phone, for the
@@ -131,7 +139,7 @@ async function sendReconnectionEmail(db, { contactId, subject, body }, deps = {}
 // has no case yet and would never appear there). Scoped to Prosperity only
 // (brand safety, Revenue MVP section 11) via the contact_brands join.
 function getExistingClientsForOutreach(db, { search = '' } = {}) {
-  const clauses = [`ct.relationship_type = 'active_client'`, `ct.archived_at IS NULL`];
+  const clauses = [`(ct.relationship_type = 'active_client' OR ct.lead_type = 'Existing Client')`, `ct.archived_at IS NULL`];
   const params = [];
   const trimmed = (search || '').trim();
   if (trimmed) {
@@ -145,7 +153,7 @@ function getExistingClientsForOutreach(db, { search = '' } = {}) {
 
   const rows = db.prepare(`
     SELECT DISTINCT ct.id, ct.first_name, ct.last_name, ct.email, ct.phone, ct.phone_e164,
-           ct.sms_consent, ct.sms_opted_out_at, ct.relationship_type
+           ct.sms_consent, ct.sms_opted_out_at, ct.relationship_type, ct.lead_type
     FROM contacts ct
     JOIN contact_brands cb ON cb.contact_id = ct.id AND cb.status = 'Active'
     JOIN brands b          ON b.id = cb.brand_id AND b.slug = 'prosperity'

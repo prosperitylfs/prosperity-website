@@ -55,6 +55,20 @@ test('getClientDetail returns null for an unknown contact id', () => {
   assert.equal(getClientDetail(db, 999999), null);
 });
 
+test('getClientDetail exposes leadType and relationshipType, both null when unset', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'leadtype@example.com', first_name: 'Pat' });
+  db.prepare(`UPDATE contacts SET lead_type = 'Existing Client' WHERE id = ?`).run(contact.id);
+
+  const detail = getClientDetail(db, contact.id);
+  assert.equal(detail.contact.leadType, 'Existing Client');
+
+  const contact2 = dedupeContact(db, { email: 'nolead@example.com', first_name: 'Sam' });
+  const detail2 = getClientDetail(db, contact2.id);
+  assert.equal(detail2.contact.leadType, null);
+  assert.equal(detail2.contact.relationshipType, null);
+});
+
 test('getClientDetail surfaces contactConflict on the flagged (new) contact, and null on an unrelated contact', () => {
   const { db } = setup();
   const existing = dedupeContact(db, { email: 'detail.existing@example.com', first_name: 'Renee', last_name: 'Jones', phone: '(414) 688-7619', phone_e164: '+14146887619' });

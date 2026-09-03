@@ -724,6 +724,7 @@ function getClientDetail(db, contactId) {
       originalSource: contact.lead_source || null,
       generalNotes: contact.general_notes || null,
       leadStatus: contact.lead_status,
+      leadType: contact.lead_type || null,
       relationshipType: contact.relationship_type || null,
       smsConsent: !!contact.sms_consent,
       smsConsentSource: contact.sms_consent_source || null,

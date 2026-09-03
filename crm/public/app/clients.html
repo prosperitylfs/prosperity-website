@@ -360,7 +360,20 @@ async function render() {
     outreachSearchTimer = setTimeout(() => loadOutreachContacts(e.target.value), 200);
   });
 
+  // Primary multi-client outreach compose modal (Revenue MVP correction:
+  // this is the workflow's main entry point, not the individual contact
+  // record). `{{first_name}}` is shown substituted with a REPRESENTATIVE
+  // recipient's own name in a read-only preview so the message reads
+  // naturally when reviewed -- the EDITABLE textarea underneath always
+  // keeps the raw {{first_name}} placeholder, since that's the literal
+  // text crm/lib/existingClientOutreach.js's bulkSendReconnectionOutreach
+  // substitutes per-recipient at send time (crm/lib/existingClientOutreach.js's
+  // fillFirstName). Editing the textarea updates the preview live; if she
+  // deliberately removes {{first_name}} herself, every recipient gets that
+  // exact text instead -- same tradeoff any mail-merge tool has, never
+  // hidden from her.
   function bulkSendModal() {
+    const selected = outreachContacts.filter(c => selectedOutreachIds.has(c.contactId));
     const count = selectedOutreachIds.size;
     let channel = 'sms';
 
@@ -368,12 +381,25 @@ async function render() {
       title: 'Send Message to Selected Existing Clients',
       wide: true,
       bodyHtml: `
-        <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
-          <button type="button" class="btn small primary" id="bulk-channel-sms">SMS — Existing Client Reconnection / SMS Permission</button>
-          <button type="button" class="btn small" id="bulk-channel-email">Email — Existing Client Reconnection / Policy Review</button>
+        <div class="form-field full">
+          <label>Brand</label>
+          <div>${CrmApp.companyBadge('prosperity', 'Prosperity Life & Financial Solutions')}</div>
         </div>
-        <div class="text-faint" style="margin-bottom:8px;">${count} recipient${count === 1 ? '' : 's'} selected. {{first_name}} is filled in individually for each recipient at send time.</div>
-        <div id="bulk-channel-body"></div>
+        <div class="form-field full" style="margin-top:10px;">
+          <label>Channel</label>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn small primary" id="bulk-channel-sms">Text</button>
+            <button type="button" class="btn small" id="bulk-channel-email">Email</button>
+          </div>
+        </div>
+        <div class="text-faint" id="bulk-template-name" style="margin-top:6px;"></div>
+        <div class="form-field full" style="margin-top:10px;">
+          <label>Recipients (${count})</label>
+          <div style="max-height:90px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; font-size:13.5px;">
+            ${selected.map(c => CrmApp.escapeHtml(c.contactName)).join(', ') || '<span class="text-faint">None selected</span>'}
+          </div>
+        </div>
+        <div id="bulk-channel-body" style="margin-top:10px;"></div>
         <div class="form-error" id="bulk-send-error"></div>
         <div id="bulk-send-results" style="margin-top:12px; max-height:220px; overflow-y:auto;"></div>
         <div class="crmapp-modal-actions">
@@ -383,17 +409,35 @@ async function render() {
       `,
     });
 
+    function updatePreview() {
+      const raw = dialog.querySelector('#bulk-body').value;
+      const representativeName = selected.length ? selected[0].firstName : null;
+      const previewText = raw.replace(/\{\{first_name\}\}/g, representativeName || 'there');
+      dialog.querySelector('#bulk-preview').textContent = previewText;
+    }
+
     function renderChannelBody() {
       if (!reconnectionTemplatesCache) { dialog.querySelector('#bulk-channel-body').innerHTML = '<div class="empty-state">Could not load the message template.</div>'; return; }
       const isSms = channel === 'sms';
-      const prefilled = (isSms ? reconnectionTemplatesCache.sms.body : reconnectionTemplatesCache.email.body)
+      const templateName = isSms ? 'Existing Client Reconnection / SMS Permission' : 'Existing Client Reconnection / Policy Review';
+      dialog.querySelector('#bulk-template-name').textContent = `Template: ${templateName}`;
+      const rawBody = (isSms ? reconnectionTemplatesCache.sms.body : reconnectionTemplatesCache.email.body)
         .replace(/\{\{office_phone\}\}/g, reconnectionTemplatesCache.officePhone);
       dialog.querySelector('#bulk-channel-body').innerHTML = `
         ${isSms ? '' : `<div class="form-field full"><label>Subject</label><input class="input" id="bulk-subject" value="${CrmApp.escapeHtml(reconnectionTemplatesCache.email.subject)}"></div>`}
-        <div class="form-field full"><label>Message</label><textarea class="input" id="bulk-body" rows="12">${CrmApp.escapeHtml(prefilled)}</textarea></div>
+        <div class="form-field full" style="margin-top:8px;">
+          <label>Message preview${selected.length ? ` — shown for ${CrmApp.escapeHtml(selected[0].contactName)}` : ''}</label>
+          <div id="bulk-preview" style="white-space:pre-wrap; background:var(--surface-alt); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; font-size:13.5px; max-height:180px; overflow-y:auto;"></div>
+        </div>
+        <div class="form-field full" style="margin-top:8px;">
+          <label>Edit message <span class="hint">(keep {{first_name}} so each recipient gets their own name)</span></label>
+          <textarea class="input" id="bulk-body" rows="10">${CrmApp.escapeHtml(rawBody)}</textarea>
+        </div>
       `;
       dialog.querySelector('#bulk-channel-sms').classList.toggle('primary', isSms);
       dialog.querySelector('#bulk-channel-email').classList.toggle('primary', !isSms);
+      dialog.querySelector('#bulk-body').addEventListener('input', updatePreview);
+      updatePreview();
     }
     renderChannelBody();
     dialog.querySelector('#bulk-channel-sms').addEventListener('click', () => { channel = 'sms'; renderChannelBody(); });
@@ -413,10 +457,14 @@ async function render() {
           contactIds: [...selectedOutreachIds], channel, message: bodyText, subject, body: bodyText,
         });
         const resultsEl = dialog.querySelector('#bulk-send-results');
-        resultsEl.innerHTML = result.results.map(r => `<div style="display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--border);">
-          <span>${CrmApp.escapeHtml(r.contactName)}</span>
-          <span class="pill status-${r.outcome === 'sent' ? 'open' : r.outcome === 'failed' ? 'failed' : 'blocked'}">${r.outcome === 'sent' ? 'SENT' : r.outcome === 'failed' ? 'FAILED' : 'BLOCKED'}${r.reason ? ' — ' + CrmApp.escapeHtml(r.reason) : ''}</span>
-        </div>`).join('');
+        resultsEl.innerHTML = result.results.map(r => {
+          const label = r.outcome === 'sent' ? 'SENT' : r.outcome === 'failed' ? `FAILED: ${r.reason || ''}` : `BLOCKED: ${r.reason || ''}`;
+          const statusClass = r.outcome === 'sent' ? 'open' : r.outcome === 'failed' ? 'failed' : 'blocked';
+          return `<div style="display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--border);">
+            <span>${CrmApp.escapeHtml(r.contactName)}</span>
+            <span class="pill status-${statusClass}">${CrmApp.escapeHtml(label)}</span>
+          </div>`;
+        }).join('');
         CrmApp.toast(`${result.results.filter(r => r.outcome === 'sent').length} of ${result.results.length} sent.`);
         loadOutreachContacts(document.getElementById('outreach-search').value);
       } catch (err) {

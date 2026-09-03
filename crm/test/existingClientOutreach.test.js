@@ -276,6 +276,45 @@ test('getExistingClientsForOutreach lists only Prosperity Existing Clients, neve
   assert.equal(rennee.smsEligible, true);
 });
 
+// ── Eligibility also honors lead_type = 'Existing Client', the CRM's OTHER
+// pre-existing "this is an existing client" signal (crm/lib/leadNormalize.js)
+// -- never a new field, and a contact only needs ONE of the two. ──────────
+
+test('a contact with lead_type "Existing Client" (but relationship_type still unset) is treated as an Existing Client for outreach', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contact = createClient(db, {
+    firstName: 'Pat', lastName: 'Nguyen', email: `pat-${Date.now()}@example.com`, phone: '414-555-9501', brandSlug: 'prosperity',
+  }, 'Loretta Stewart').contact;
+  // Simulates a contact classified via lead_type (e.g. import/intake) --
+  // relationship_type is deliberately left unset.
+  db.prepare(`UPDATE contacts SET lead_type = 'Existing Client' WHERE id = ?`).run(contact.id);
+  const refreshed = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contact.id);
+  assert.equal(refreshed.relationship_type, null);
+
+  const check = checkReconnectionSmsEligibility(db, refreshed);
+  assert.equal(check.eligible, true);
+
+  const result = await sendReconnectionSms(db, { contactId: contact.id, message: 'Hi Pat' }, { twilioClientFactory: fakeTwilioClient('ok') });
+  assert.equal(result.outcome, 'sent');
+
+  const list = getExistingClientsForOutreach(db, {});
+  assert.ok(list.some(c => c.contactId === contact.id), 'must appear in the outreach list via lead_type alone');
+}));
+
+test('a contact with neither relationship_type "active_client" nor lead_type "Existing Client" is NOT eligible', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contact = createClient(db, {
+    firstName: 'Not', lastName: 'Eligible', email: `notelig-${Date.now()}@example.com`, phone: '414-555-9502', brandSlug: 'prosperity',
+  }, 'Loretta Stewart').contact; // relationship_type/lead_type both unset
+
+  const check = checkReconnectionSmsEligibility(db, contact);
+  assert.equal(check.eligible, false);
+  assert.equal(check.code, 'not_existing_client');
+
+  const list = getExistingClientsForOutreach(db, {});
+  assert.ok(!list.some(c => c.contactId === contact.id));
+}));
+
 // ── J: the exception cannot be used to bypass consent for arbitrary
 // templates or Lead/Prospect contacts ───────────────────────────────────
 

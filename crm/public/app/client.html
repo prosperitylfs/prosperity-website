@@ -36,12 +36,16 @@ async function render() {
   const activeCases = allCases.filter(cs => cs.status !== 'Archived');
   const soonestTask = [...detail.tasks].filter(t => t.status === 'Pending').sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))[0];
 
-  // Existing Client Reconnection outreach (Revenue MVP) -- only ever shown
-  // for a contact explicitly classified as Existing Client
-  // (relationship_type === 'active_client', crm/lib/clientService.js) under
-  // an ACTIVE Prosperity relationship. Never shown for a Lead/Prospect or
-  // an Insurance Lady client -- see crm/lib/existingClientOutreach.js.
-  const isProsperityExistingClient = c.relationshipType === 'active_client'
+  // Existing Client Reconnection outreach (Revenue MVP) -- primarily
+  // initiated from the Contacts page now (crm/public/app/clients.html);
+  // this card is kept here too as an optional single-client convenience.
+  // Only ever shown for a contact explicitly classified as Existing Client
+  // -- either relationship_type === 'active_client' (crm/lib/clientService.js)
+  // or lead_type === 'Existing Client' (crm/lib/leadNormalize.js), the
+  // SAME two signals crm/lib/existingClientOutreach.js's isExistingClient
+  // checks -- under an ACTIVE Prosperity relationship. Never shown for a
+  // Lead/Prospect or an Insurance Lady client.
+  const isProsperityExistingClient = (c.relationshipType === 'active_client' || c.leadType === 'Existing Client')
     && detail.contactBrands.some(cb => cb.brandId === 'prosperity' && cb.status === 'Active');
   let reconnectionTemplates = null;
   if (isProsperityExistingClient) {
@@ -674,7 +678,7 @@ async function render() {
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div>
             <strong>Existing Client Outreach</strong>
-            <div class="text-faint">Reconnect this Prosperity client by text and/or email.</div>
+            <div class="text-faint">Send to this one client. To message several at once, use Send Message on the Contacts page.</div>
           </div>
           ${CrmApp.companyBadge('prosperity', 'Prosperity')}
         </div>

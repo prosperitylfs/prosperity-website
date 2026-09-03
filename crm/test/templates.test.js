@@ -57,6 +57,18 @@ test('SMS templates that solicit a reply include STOP language', () => {
   }
 });
 
+test('existingClientReconnectionSms (Prosperity-only) includes STOP/HELP language', () => {
+  assert.match(TEMPLATES.prosperity.existingClientReconnectionSms.body, /STOP/);
+  assert.match(TEMPLATES.prosperity.existingClientReconnectionSms.body, /HELP/);
+});
+
+test('existingClientReconnectionSms and existingClientReconnectionEmail exist ONLY for Prosperity, never Insurance Lady', () => {
+  assert.ok(TEMPLATES.prosperity.existingClientReconnectionSms);
+  assert.ok(TEMPLATES.prosperity.existingClientReconnectionEmail);
+  assert.equal(TEMPLATES['insurance-lady'].existingClientReconnectionSms, undefined);
+  assert.equal(TEMPLATES['insurance-lady'].existingClientReconnectionEmail, undefined);
+});
+
 test('every template is marked operational, not marketing', () => {
   for (const brandId of ['insurance-lady', 'prosperity']) {
     for (const [key, tmpl] of Object.entries(TEMPLATES[brandId])) {
@@ -103,7 +115,7 @@ test('the revised missed-call templates fit in a single GSM-7 segment with reali
 });
 
 test('templates use only the documented placeholders', () => {
-  const allowed = new Set(['attendee_name', 'appointment_type', 'date', 'time', 'time_zone', 'day_phrase']);
+  const allowed = new Set(['attendee_name', 'appointment_type', 'date', 'time', 'time_zone', 'day_phrase', 'first_name', 'office_phone']);
   const placeholderPattern = /\{\{(\w+)\}\}/g;
   for (const brandId of ['insurance-lady', 'prosperity']) {
     for (const [key, tmpl] of Object.entries(TEMPLATES[brandId])) {

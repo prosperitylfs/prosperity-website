@@ -32,6 +32,7 @@ const {
 const { BRANDS } = require('../config/brands');
 const { getSenderGuardrailForCase, getSenderGuardrailForManualSelection } = require('../lib/senderGuardrail');
 const { listTasks } = require('../lib/taskService');
+const { getReconnectionTemplates, getExistingClientsForOutreach } = require('../lib/existingClientOutreach');
 
 // Normalizes the ?company= query param used throughout this API to a valid
 // brandId value for crm/lib/dashboardQueries.js: null/'all' pass through as
@@ -146,6 +147,21 @@ router.get('/policies', (req, res) => {
 
 router.get('/reports', (req, res) => {
   res.json(getReportsSummary(db));
+});
+
+// ── Existing Client Reconnection outreach (Revenue MVP) ─────────────────
+// Read-only: the raw templates (for the compose/preview UI to fill in
+// per-recipient) and the dedicated Existing Client listing (see
+// crm/lib/existingClientOutreach.js's own header comment for why this is
+// separate from getCaseList above). Sending itself is a mutation — see
+// crm/routes/crmActions.js.
+router.get('/existing-client-outreach/templates', (req, res) => {
+  res.json(getReconnectionTemplates());
+});
+
+router.get('/existing-client-outreach/contacts', (req, res) => {
+  const search = typeof req.query.search === 'string' ? req.query.search : '';
+  res.json({ items: getExistingClientsForOutreach(db, { search }) });
 });
 
 module.exports = router;

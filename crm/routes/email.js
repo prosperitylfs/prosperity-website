@@ -6,6 +6,7 @@ const db           = require('../db/database');
 const { google }   = require('googleapis');
 const { createAutoTask } = require('../lib/autoTasks');
 const { syncContactEmailReplies } = require('../lib/emailReplySync');
+const { sendGmailEmail } = require('../lib/gmailSend');
 
 const SCOPES    = [
   'https://www.googleapis.com/auth/gmail.send',
@@ -133,43 +134,8 @@ router.post('/send', async (req, res) => {
   if (!body)     return res.status(400).json({ error: 'body is required' });
 
   try {
-    const auth  = authedClient();
-    const gmail = google.gmail({ version: 'v1', auth });
-
-    const raw = [
-      `From: ${FROM_NAME} <${FROM_ADDR}>`,
-      `To: ${to_email}`,
-      `Subject: ${subject}`,
-      'MIME-Version: 1.0',
-      'Content-Type: text/plain; charset=utf-8',
-      '',
-      body,
-    ].join('\r\n');
-
-    const result = await gmail.users.messages.send({
-      userId: 'me',
-      requestBody: { raw: Buffer.from(raw).toString('base64url') },
-    });
-
-    const gmailId  = result.data.id;
-    const threadId = result.data.threadId || null;
-    const preview  = body.length > 400 ? body.slice(0, 397) + '…' : body;
-
-    if (contact_id) {
-      db.prepare(`
-        INSERT OR IGNORE INTO emails
-          (contact_id, to_email, subject, body, status, gmail_message_id, thread_id, direction)
-        VALUES (?, ?, ?, ?, 'sent', ?, ?, 'outbound')
-      `).run(contact_id, to_email, subject, preview, gmailId, threadId);
-
-      // Also land in the communications timeline (activity feed excludes comm_type='email')
-      db.prepare(`
-        INSERT INTO communications (contact_id, comm_type, direction, subject, body, status, external_id)
-        VALUES (?, 'email', 'outbound', ?, ?, 'sent', ?)
-      `).run(contact_id, subject, preview, gmailId);
-    }
-
-    res.json({ ok: true, gmail_message_id: gmailId });
+    const result = await sendGmailEmail(db, { contactId: contact_id, toEmail: to_email, subject, body });
+    res.json({ ok: true, gmail_message_id: result.gmailMessageId });
   } catch (err) {
     console.error('[email] send error:', err.message);
     res.status(500).json({ error: err.message || 'Failed to send email' });

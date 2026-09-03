@@ -308,6 +308,105 @@ test('LEGACY (non-Prosperity number, unchanged): a retry never duplicates the me
   assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM sms_messages WHERE twilio_sid = 'SM_legacy_retry_1'`).get().n, 1);
 });
 
+// ── Revenue MVP: inbound YES / NO / STOP consent recording ─────────────────
+// The "Existing Client Reconnection" workflow's whole reason for existing
+// is this: the initial SMS is sent WITHOUT consent already on file
+// (crm/lib/existingClientOutreach.js), and consent is only ever recorded
+// here, by the contact's own reply -- never by the sender. YES was already
+// a recognized START-equivalent keyword before this round; these tests
+// cover the newly-added consent AUDIT TRAIL stamping (source/timestamp)
+// and the newly-added NO keyword.
+
+test('D. an Existing Client replying YES: SMS consent becomes YES, with an exact timestamp, source "Inbound SMS", and the reply itself preserved in history', () => {
+  const db = setup();
+  const client = createClient(db, {
+    firstName: 'Renee', lastName: 'Jones', phone: '4145559101', brandSlug: 'prosperity', relationshipType: 'active_client',
+  }, 'Loretta Stewart');
+  assert.equal(client.contact.sms_consent, 0, 'starts with no consent on file');
+
+  const before = new Date();
+  const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'YES', MessageSid: 'SM_yes_1' });
+  assert.equal(result.consentAction, 'opted_in');
+
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+  assert.equal(contact.sms_consent, 1);
+  assert.equal(contact.sms_consent_source, 'Inbound SMS');
+  assert.ok(contact.sms_consent_at, 'consent timestamp must be recorded');
+  assert.ok(new Date(contact.sms_consent_at.replace(' ', 'T') + 'Z') >= new Date(before.getTime() - 2000), 'timestamp must reflect roughly now, not a stale/default value');
+  assert.equal(contact.sms_opted_out_at, null);
+
+  const detail = getClientDetail(db, client.contact.id);
+  assert.ok(detail.smsThread.some(m => m.body === 'YES' && m.direction === 'inbound'), 'the inbound YES message itself must be preserved in communication history');
+});
+
+test('YES is matched case-insensitively and tolerates surrounding whitespace ("Yes", "yes", " YES ")', () => {
+  const db = setup();
+  for (const [i, body] of ['Yes', 'yes', ' YES '].entries()) {
+    const client = createClient(db, { firstName: 'Case', lastName: `Test${i}`, phone: `414555920${i}`, brandSlug: 'prosperity' }, 'Loretta Stewart');
+    const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: body, MessageSid: `SM_yes_case_${i}` });
+    assert.equal(result.consentAction, 'opted_in', `"${body}" must be recognized as YES`);
+  }
+});
+
+test('an unrelated sentence merely containing "yes" is NOT treated as automatic consent', () => {
+  const db = setup();
+  const client = createClient(db, { firstName: 'Not', lastName: 'Consent', phone: '4145559210', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'yes I think so, thanks!', MessageSid: 'SM_yes_sentence_1' });
+  assert.equal(result.consentAction, null, 'only a message whose ENTIRE body is "yes" counts');
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+  assert.equal(contact.sms_consent, 0);
+});
+
+test('E. an Existing Client replying NO: SMS consent becomes NO, with timestamp/source recorded, distinct from STOP', () => {
+  const db = setup();
+  const client = createClient(db, {
+    firstName: 'Renee', lastName: 'Jones', phone: '4145559102', brandSlug: 'prosperity', relationshipType: 'active_client',
+  }, 'Loretta Stewart');
+  db.prepare(`UPDATE contacts SET sms_consent = 1 WHERE id = ?`).run(client.contact.id); // e.g. consented previously, now declining
+
+  const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'NO', MessageSid: 'SM_no_1' });
+  assert.equal(result.consentAction, 'declined');
+  assert.equal(result.autoTaskId, null, 'NO must not create an ordinary reply task, same as STOP/START/HELP');
+
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+  assert.equal(contact.sms_consent, 0);
+  assert.equal(contact.sms_consent_source, 'Inbound SMS');
+  assert.ok(contact.sms_consent_at);
+  assert.equal(contact.sms_opted_out_at, null, 'NO must NOT set the authoritative STOP/opt-out timestamp -- it is a lighter, separate signal');
+
+  const detail = getClientDetail(db, client.contact.id);
+  assert.ok(detail.smsThread.some(m => m.body === 'NO' && m.direction === 'inbound'));
+});
+
+test('F. STOP remains authoritative and unchanged -- still blocks future SMS even after a prior YES', () => {
+  const db = setup();
+  const client = createClient(db, { firstName: 'Renee', lastName: 'Jones', phone: '4145559103', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'YES', MessageSid: 'SM_f_yes_1' });
+  let contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+  assert.equal(contact.sms_consent, 1);
+
+  const stopResult = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'STOP', MessageSid: 'SM_f_stop_1' });
+  assert.equal(stopResult.consentAction, 'opted_out');
+  contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+  assert.equal(contact.sms_consent, 0);
+  assert.ok(contact.sms_opted_out_at, 'STOP must still set the authoritative opt-out timestamp');
+  assert.throws(
+    () => createDraft(db, { contactId: client.contact.id, channel: 'text', body: 'Hi again' }, 'Loretta Stewart'),
+    /STOP/
+  );
+});
+
+test('G. after YES, an ordinary Prosperity SMS passes the existing consent gate through the normal send system', () => {
+  const db = setup();
+  const client = createClient(db, { firstName: 'Renee', lastName: 'Jones', phone: '4145559104', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'YES', MessageSid: 'SM_g_yes_1' });
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+
+  const { checkConsentGate } = require('../lib/legacySmsSend');
+  const gate = checkConsentGate(contact);
+  assert.equal(gate.blocked, false, 'the SAME consent gate every other SMS in this CRM uses must now pass, with no special-casing needed');
+});
+
 test('SCENARIO 14: both inbound endpoint paths remain behaviorally identical (same shared handler, same outcome)', () => {
   const db1 = setup();
   const db2 = setup();

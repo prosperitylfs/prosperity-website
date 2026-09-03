@@ -167,6 +167,64 @@ Warm regards,
 Loretta Stewart
 Prosperity Life & Financial Solutions LLC`,
     },
+
+    // ── Existing Client Reconnection outreach (Revenue MVP, 2026-09) ────────
+    // Prosperity-only, deliberately not added to REQUIRED_TEMPLATE_KEYS below
+    // (so this never needs an Insurance Lady counterpart) and never used by
+    // any generic send path — only crm/lib/existingClientOutreach.js's
+    // dedicated, narrowly-scoped sender calls these two keys. Loretta's
+    // approved exact copy, with one technical adjustment: the em dash before
+    // the signature was changed to a plain hyphen (matches every other SMS
+    // template in this file, see the GSM-7 comment above) and the standard
+    // Reply HELP/STOP footer already used on every other Prosperity SMS was
+    // appended, since this is the one message in this workflow sent to
+    // someone who has NOT yet re-confirmed consent.
+    existingClientReconnectionSms: {
+      category: 'operational', channel: 'sms',
+      placeholders: ['first_name'],
+      body: `Hi {{first_name}}, this is Loretta Stewart, your insurance agent with Prosperity Life & Financial Solutions.
+
+I'm reaching out to reconnect and make sure your life insurance policy and contact information are up to date.
+
+This is my current office/text number, so please save it for future policy service.
+
+May I text you at this number regarding your policy, appointments, policy reviews and service needs?
+
+Reply YES to allow text communication.
+
+- Loretta Stewart
+Prosperity Life & Financial Solutions
+
+Reply HELP for help or STOP to opt out.`,
+    },
+    existingClientReconnectionEmail: {
+      category: 'operational', channel: 'email',
+      placeholders: ['first_name', 'office_phone'],
+      subject: "It's Time for Your Life Insurance Policy Review",
+      text:
+`Hi {{first_name}},
+
+This is Loretta Stewart with Prosperity Life & Financial Solutions.
+
+I'm reaching out to reconnect and make sure your life insurance policy and contact information are still up to date.
+
+Life changes over the years, so it's important to periodically review things such as your beneficiaries, contact information, coverage and other policy details.
+
+September is Life Insurance Awareness Month, so I'm reaching out to my existing clients and encouraging everyone to take a few minutes to review their current coverage.
+
+I also have a new office/text number. Please save:
+
+{{office_phone}}
+
+If you'd like me to communicate with you by text regarding your policy, appointments, policy reviews and service needs, simply reply YES to the text message I send you from that number.
+
+I look forward to reconnecting with you.
+
+Loretta Stewart
+Life & Retirement Advisor
+Prosperity Life & Financial Solutions
+{{office_phone}}`,
+    },
   },
 };
 

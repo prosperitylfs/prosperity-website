@@ -26,6 +26,7 @@ const draftService = require('../lib/communicationDraftService');
 const reviewResolution = require('../lib/reviewResolution');
 const callLogService = require('../lib/callLogService');
 const taskCalendarSync = require('../lib/taskCalendarSync');
+const existingClientOutreach = require('../lib/existingClientOutreach');
 
 function handle(fn) {
   return (req, res) => {
@@ -55,6 +56,22 @@ router.post('/clients/:id/restore', handle(req => clientService.restoreClient(db
 router.post('/clients/:id/request-company-change', handle(req => clientService.requestCompanyChange(db, {
   contactId: Number(req.params.id), requestedBrandSlug: req.body.requestedBrandSlug, reason: req.body.reason, actor: ACTOR,
 })));
+
+// ── Existing Client Reconnection outreach (Revenue MVP) ─────────────────
+// See crm/lib/existingClientOutreach.js's own header comment: this is the
+// ONLY place in the app that can trigger its narrow consent-gate exception,
+// and only for the two fixed templates it defines.
+router.post('/clients/:id/existing-client-sms', handle(req => existingClientOutreach.sendReconnectionSms(db, {
+  contactId: Number(req.params.id), message: req.body.message, confirmResend: !!req.body.confirmResend,
+})));
+router.post('/clients/:id/existing-client-email', handle(req => existingClientOutreach.sendReconnectionEmail(db, {
+  contactId: Number(req.params.id), subject: req.body.subject, body: req.body.body,
+})));
+router.post('/existing-client-outreach/bulk', handle(req => existingClientOutreach.bulkSendReconnectionOutreach(db, {
+  contactIds: Array.isArray(req.body.contactIds) ? req.body.contactIds.map(Number) : [],
+  channel: req.body.channel, message: req.body.message, subject: req.body.subject, body: req.body.body,
+  confirmResend: !!req.body.confirmResend,
+}).then(results => ({ results }))));
 
 // ── Cases ────────────────────────────────────────────────────────────────
 // productName -> productId is resolved here, scoped to the CLIENT'S OWN

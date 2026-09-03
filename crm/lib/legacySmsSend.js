@@ -32,12 +32,22 @@ function resolveToNumber(contact) {
 // Returns { blocked: true, status, error } or { blocked: false }. Opt-out
 // (STOP) is authoritative and checked first, exactly like the original
 // route -- a contact who has texted STOP stays blocked even if sms_consent
-// is somehow still 1 on their record.
-function checkConsentGate(contact) {
+// is somehow still 1 on their record. STOP blocks unconditionally,
+// regardless of requireConsent.
+//
+// requireConsent (default true, unchanged behavior for every existing
+// caller): set to false ONLY by crm/lib/existingClientOutreach.js's own
+// send function, for the one named "Existing Client Reconnection / SMS
+// Permission" message -- the sole purpose of that message is to OBTAIN
+// consent, so it cannot itself require consent already being on file, but
+// STOP/opt-out still always blocks it. No other caller in this codebase
+// passes this, and it must never be exposed to a generic/arbitrary send
+// path -- see that module's own header comment.
+function checkConsentGate(contact, { requireConsent = true } = {}) {
   if (contact.sms_opted_out_at) {
     return { blocked: true, status: 403, error: 'This contact has opted out of SMS (STOP) and cannot be texted.' };
   }
-  if (!contact.sms_consent) {
+  if (requireConsent && !contact.sms_consent) {
     return { blocked: true, status: 403, error: 'This contact does not have SMS consent on file. Add a consent source on the Contact Detail page before texting.' };
   }
   return { blocked: false };
@@ -64,17 +74,19 @@ function checkConsentGate(contact) {
 // crm/lib/appointmentReminderScheduler.js dedupes reminders by, so a
 // reschedule (new appt_datetime, same appointment row) doesn't collide with
 // an earlier reminder already sent for the time before the reschedule.
+// `requireConsent` (default true) is passed straight to checkConsentGate --
+// see that function's own comment; every existing caller omits it.
 // Every existing caller (crm/routes/sms.js, crm/lib/retirementIntakeSms.js)
-// omits all four and is completely unaffected: they fall back to the
+// omits all five and is completely unaffected: they fall back to the
 // original, unchanged process.env.TWILIO_FROM_NUMBER default and NULL
 // appointment_id/message_type/appointment_occurrence_at.
-async function sendLegacySms(db, { contactId, body, fromNumber: fromNumberOverride, appointmentId = null, messageType = null, appointmentOccurrenceAt = null }, deps = {}) {
+async function sendLegacySms(db, { contactId, body, fromNumber: fromNumberOverride, appointmentId = null, messageType = null, appointmentOccurrenceAt = null, requireConsent = true }, deps = {}) {
   const contact = db.prepare(
     'SELECT id, phone, phone_e164, sms_consent, sms_opted_out_at FROM contacts WHERE id = ?'
   ).get(contactId);
   if (!contact) return { ok: false, status: 404, error: 'Contact not found' };
 
-  const gate = checkConsentGate(contact);
+  const gate = checkConsentGate(contact, { requireConsent });
   if (gate.blocked) return { ok: false, status: gate.status, error: gate.error };
 
   const toNumber = resolveToNumber(contact);

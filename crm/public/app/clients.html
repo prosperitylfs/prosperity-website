@@ -19,6 +19,31 @@ async function render() {
 
   content.innerHTML = `
     <div id="verification-needed-banner"></div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <h2>Existing Client Outreach</h2>
+        <span class="card-header-sub" id="outreach-selected-count">0 selected</span>
+      </div>
+      <div class="card-body">
+        <div class="search-row">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.8 10.6l5.3 5.3 1.4-1.4-5.3-5.3A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"/></svg>
+            <input class="input" id="outreach-search" type="text" placeholder="Search Existing Clients">
+          </div>
+          <button class="btn primary" id="outreach-send-btn" disabled>Send Message</button>
+        </div>
+        <div class="text-faint" style="margin-top:8px;">Manually select Prosperity Existing Clients to send the Existing Client Reconnection email and/or initial text.</div>
+        <div style="margin-top:12px; max-height:280px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm);">
+          <table class="data-table" style="margin:0;">
+            <thead><tr>
+              <th style="width:36px;"><input type="checkbox" id="outreach-select-all"></th>
+              <th>Client</th><th>Email</th><th>Phone</th><th>SMS Eligibility</th>
+            </tr></thead>
+            <tbody id="outreach-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-body">
         <div class="search-row">
@@ -274,6 +299,140 @@ async function render() {
     });
   }
   document.getElementById('add-client-btn').addEventListener('click', addClientModal);
+
+  // ── Existing Client Outreach (bulk select, Revenue MVP) ─────────────────
+  // Deliberately its OWN simple listing, not the paginated case-driven
+  // table above -- a brand-new Existing Client (just added via "Add
+  // Client") has no case yet and would never appear there. See
+  // crm/lib/existingClientOutreach.js's getExistingClientsForOutreach.
+  const selectedOutreachIds = new Set();
+  let outreachContacts = [];
+  let reconnectionTemplatesCache = null;
+
+  function outreachRowHtml(item) {
+    return `<tr>
+      <td><input type="checkbox" class="outreach-checkbox" data-id="${item.contactId}" ${selectedOutreachIds.has(item.contactId) ? 'checked' : ''}></td>
+      <td>${CrmApp.escapeHtml(item.contactName)}</td>
+      <td>${CrmApp.escapeHtml(item.email || '—')}</td>
+      <td>${CrmApp.escapeHtml(item.phone || '—')}</td>
+      <td>${item.smsEligible ? '<span class="pill status-open">SMS Eligible</span>' : `<span class="pill status-blocked">${CrmApp.escapeHtml(item.smsBlockedReason || 'Not eligible')}</span>`}</td>
+    </tr>`;
+  }
+
+  function updateOutreachSelectedCount() {
+    document.getElementById('outreach-selected-count').textContent = `${selectedOutreachIds.size} selected`;
+    document.getElementById('outreach-send-btn').disabled = selectedOutreachIds.size === 0;
+  }
+
+  async function loadOutreachContacts(search) {
+    let data;
+    try { data = await CrmApp.fetchJSON('/api/app/existing-client-outreach/contacts?' + new URLSearchParams({ search: search || '' })); }
+    catch (e) {
+      document.getElementById('outreach-rows').innerHTML = `<tr><td colspan="5"><div class="empty-state">Could not load Existing Clients: ${CrmApp.escapeHtml(e.message)}</div></td></tr>`;
+      return;
+    }
+    outreachContacts = data.items;
+    const rowsEl = document.getElementById('outreach-rows');
+    rowsEl.innerHTML = outreachContacts.length
+      ? outreachContacts.map(outreachRowHtml).join('')
+      : '<tr><td colspan="5"><div class="empty-state">No Existing Clients found.</div></td></tr>';
+    rowsEl.querySelectorAll('.outreach-checkbox').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const id = Number(cb.dataset.id);
+        if (cb.checked) selectedOutreachIds.add(id); else selectedOutreachIds.delete(id);
+        updateOutreachSelectedCount();
+      });
+    });
+    updateOutreachSelectedCount();
+  }
+
+  document.getElementById('outreach-select-all').addEventListener('change', (e) => {
+    outreachContacts.forEach(item => {
+      if (e.target.checked) selectedOutreachIds.add(item.contactId); else selectedOutreachIds.delete(item.contactId);
+    });
+    document.querySelectorAll('.outreach-checkbox').forEach(cb => { cb.checked = e.target.checked; });
+    updateOutreachSelectedCount();
+  });
+
+  let outreachSearchTimer;
+  document.getElementById('outreach-search').addEventListener('input', (e) => {
+    clearTimeout(outreachSearchTimer);
+    outreachSearchTimer = setTimeout(() => loadOutreachContacts(e.target.value), 200);
+  });
+
+  function bulkSendModal() {
+    const count = selectedOutreachIds.size;
+    let channel = 'sms';
+
+    const dialog = CrmApp.openModal({
+      title: 'Send Message to Selected Existing Clients',
+      wide: true,
+      bodyHtml: `
+        <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+          <button type="button" class="btn small primary" id="bulk-channel-sms">SMS — Existing Client Reconnection / SMS Permission</button>
+          <button type="button" class="btn small" id="bulk-channel-email">Email — Existing Client Reconnection / Policy Review</button>
+        </div>
+        <div class="text-faint" style="margin-bottom:8px;">${count} recipient${count === 1 ? '' : 's'} selected. {{first_name}} is filled in individually for each recipient at send time.</div>
+        <div id="bulk-channel-body"></div>
+        <div class="form-error" id="bulk-send-error"></div>
+        <div id="bulk-send-results" style="margin-top:12px; max-height:220px; overflow-y:auto;"></div>
+        <div class="crmapp-modal-actions">
+          <button type="button" class="btn" id="bulk-cancel">Cancel</button>
+          <button type="button" class="btn primary" id="bulk-send">Send to Selected</button>
+        </div>
+      `,
+    });
+
+    function renderChannelBody() {
+      if (!reconnectionTemplatesCache) { dialog.querySelector('#bulk-channel-body').innerHTML = '<div class="empty-state">Could not load the message template.</div>'; return; }
+      const isSms = channel === 'sms';
+      const prefilled = (isSms ? reconnectionTemplatesCache.sms.body : reconnectionTemplatesCache.email.body)
+        .replace(/\{\{office_phone\}\}/g, reconnectionTemplatesCache.officePhone);
+      dialog.querySelector('#bulk-channel-body').innerHTML = `
+        ${isSms ? '' : `<div class="form-field full"><label>Subject</label><input class="input" id="bulk-subject" value="${CrmApp.escapeHtml(reconnectionTemplatesCache.email.subject)}"></div>`}
+        <div class="form-field full"><label>Message</label><textarea class="input" id="bulk-body" rows="12">${CrmApp.escapeHtml(prefilled)}</textarea></div>
+      `;
+      dialog.querySelector('#bulk-channel-sms').classList.toggle('primary', isSms);
+      dialog.querySelector('#bulk-channel-email').classList.toggle('primary', !isSms);
+    }
+    renderChannelBody();
+    dialog.querySelector('#bulk-channel-sms').addEventListener('click', () => { channel = 'sms'; renderChannelBody(); });
+    dialog.querySelector('#bulk-channel-email').addEventListener('click', () => { channel = 'email'; renderChannelBody(); });
+    dialog.querySelector('#bulk-cancel').addEventListener('click', () => dialog.close());
+
+    dialog.querySelector('#bulk-send').addEventListener('click', async () => {
+      const errorEl = dialog.querySelector('#bulk-send-error');
+      errorEl.textContent = '';
+      const isSms = channel === 'sms';
+      const bodyText = dialog.querySelector('#bulk-body').value;
+      const subject = isSms ? undefined : dialog.querySelector('#bulk-subject').value;
+      const ok = await CrmApp.confirmAction(`Send this ${isSms ? 'text' : 'email'} to ${count} selected Existing Client${count === 1 ? '' : 's'}?`, { confirmLabel: 'Send to Selected' });
+      if (!ok) return;
+      try {
+        const result = await CrmApp.postJSON('/api/app/existing-client-outreach/bulk', 'POST', {
+          contactIds: [...selectedOutreachIds], channel, message: bodyText, subject, body: bodyText,
+        });
+        const resultsEl = dialog.querySelector('#bulk-send-results');
+        resultsEl.innerHTML = result.results.map(r => `<div style="display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--border);">
+          <span>${CrmApp.escapeHtml(r.contactName)}</span>
+          <span class="pill status-${r.outcome === 'sent' ? 'open' : r.outcome === 'failed' ? 'failed' : 'blocked'}">${r.outcome === 'sent' ? 'SENT' : r.outcome === 'failed' ? 'FAILED' : 'BLOCKED'}${r.reason ? ' — ' + CrmApp.escapeHtml(r.reason) : ''}</span>
+        </div>`).join('');
+        CrmApp.toast(`${result.results.filter(r => r.outcome === 'sent').length} of ${result.results.length} sent.`);
+        loadOutreachContacts(document.getElementById('outreach-search').value);
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    });
+  }
+
+  document.getElementById('outreach-send-btn').addEventListener('click', async () => {
+    if (!reconnectionTemplatesCache) {
+      try { reconnectionTemplatesCache = await CrmApp.fetchJSON('/api/app/existing-client-outreach/templates'); } catch { reconnectionTemplatesCache = null; }
+    }
+    bulkSendModal();
+  });
+
+  loadOutreachContacts('');
 
   load();
 }

@@ -34,6 +34,26 @@ const { isRescheduleRequest, processRescheduleRequest } = require('./rescheduleR
 const STOP_KEYWORDS = new Set(['stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit']);
 const START_KEYWORDS = new Set(['start', 'yes', 'unstop']);
 const HELP_KEYWORDS = new Set(['help', 'info']);
+// NO: an explicit "not right now" reply -- distinct from STOP. Sets
+// sms_consent = 0 (blocks ordinary future SMS the same way START/YES sets
+// it to 1) but deliberately does NOT set sms_opted_out_at -- that column is
+// the authoritative TCPA opt-out record STOP alone controls; conflating the
+// two would make a plain "no" as hard to reverse as a real STOP, which
+// Revenue MVP explicitly treats as a separate, lighter-weight signal
+// (crm/lib/existingClientOutreach.js's Existing Client Reconnection
+// workflow is what SMS_CONSENT_SOURCE 'Inbound SMS' typically records this
+// for). Matched via the exact same whole-message, trimmed+lowercased
+// comparison every other keyword set here already uses -- see
+// isConsentCommand -- so "no thanks" or "no, not interested" do NOT match;
+// only a message whose ENTIRE body is (case/whitespace-insensitively) "no"
+// does.
+const NO_KEYWORDS = new Set(['no']);
+
+// The exact consent-audit values crm/lib/clientService.js's manual-entry
+// path already writes for smsConsentSource -- reused verbatim (never a new
+// vocabulary) so "Inbound SMS" reads identically everywhere in the CRM
+// regardless of which path set it.
+const INBOUND_SMS_CONSENT_SOURCE = 'Inbound SMS';
 
 function findActiveProsperityContactByPhone(db, e164) {
   if (!e164) return null;
@@ -224,7 +244,7 @@ function createLegacySmsReplyTask(db, contactId) {
 
 function isConsentCommand(body) {
   const lower = (body || '').trim().toLowerCase();
-  return STOP_KEYWORDS.has(lower) || START_KEYWORDS.has(lower) || HELP_KEYWORDS.has(lower);
+  return STOP_KEYWORDS.has(lower) || START_KEYWORDS.has(lower) || HELP_KEYWORDS.has(lower) || NO_KEYWORDS.has(lower);
 }
 
 // Kicks off the reschedule-request workflow WITHOUT awaiting it here --
@@ -341,8 +361,31 @@ function handleProsperityInboundSms(db, { From, To, Body, MessageSid }, deps = {
       db.prepare(`UPDATE contacts SET sms_consent = 0, sms_opted_out_at = CURRENT_TIMESTAMP WHERE id = ?`).run(match.id);
       consentAction = 'opted_out';
     } else if (START_KEYWORDS.has(bodyLower)) {
-      db.prepare(`UPDATE contacts SET sms_consent = 1, sms_opted_out_at = NULL WHERE id = ?`).run(match.id);
+      // sms_consent_source/_at are stamped here too (not just sms_consent
+      // itself) so the audit trail crm/lib/clientService.js's manual entry
+      // already writes for a human-recorded consent grant is equally
+      // complete for an inbound one -- "SMS Consent: YES / Consent Method:
+      // Inbound SMS / Consent Date: <this exact reply's timestamp>" reads
+      // the same regardless of which path set it. Always re-stamped on
+      // every YES/START (even if already 1) since each reply is itself a
+      // fresh, explicit re-affirmation worth its own timestamp.
+      db.prepare(`
+        UPDATE contacts
+        SET sms_consent = 1, sms_opted_out_at = NULL,
+            sms_consent_source = ?, sms_consent_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(INBOUND_SMS_CONSENT_SOURCE, match.id);
       consentAction = 'opted_in';
+    } else if (NO_KEYWORDS.has(bodyLower)) {
+      // Deliberately mirrors the START/YES branch's audit stamping, minus
+      // sms_opted_out_at -- see NO_KEYWORDS' own comment for why NO and
+      // STOP stay two distinct signals.
+      db.prepare(`
+        UPDATE contacts
+        SET sms_consent = 0, sms_consent_source = ?, sms_consent_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(INBOUND_SMS_CONSENT_SOURCE, match.id);
+      consentAction = 'declined';
     } else if (HELP_KEYWORDS.has(bodyLower)) {
       consentAction = 'help_requested';
     }
@@ -428,4 +471,6 @@ module.exports = {
   STOP_KEYWORDS,
   START_KEYWORDS,
   HELP_KEYWORDS,
+  NO_KEYWORDS,
+  INBOUND_SMS_CONSENT_SOURCE,
 };

@@ -36,6 +36,19 @@ async function render() {
   const activeCases = allCases.filter(cs => cs.status !== 'Archived');
   const soonestTask = [...detail.tasks].filter(t => t.status === 'Pending').sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))[0];
 
+  // Existing Client Reconnection outreach (Revenue MVP) -- only ever shown
+  // for a contact explicitly classified as Existing Client
+  // (relationship_type === 'active_client', crm/lib/clientService.js) under
+  // an ACTIVE Prosperity relationship. Never shown for a Lead/Prospect or
+  // an Insurance Lady client -- see crm/lib/existingClientOutreach.js.
+  const isProsperityExistingClient = c.relationshipType === 'active_client'
+    && detail.contactBrands.some(cb => cb.brandId === 'prosperity' && cb.status === 'Active');
+  let reconnectionTemplates = null;
+  if (isProsperityExistingClient) {
+    try { reconnectionTemplates = await CrmApp.fetchJSON('/api/app/existing-client-outreach/templates'); }
+    catch { reconnectionTemplates = null; }
+  }
+
   const TABS = [
     { key: 'overview', label: 'Overview' },
     { key: 'contact', label: 'Contact Information' },
@@ -185,7 +198,16 @@ async function render() {
       </div>`;
   }
 
+  const RELATIONSHIP_TYPE_LABELS = {
+    lead: 'Lead / Prospect', active_client: 'Existing Client', former_client: 'Former Client',
+    prior_applicant: 'Prior Applicant', declined_applicant: 'Declined Applicant',
+  };
+
   function contactInfoHtml() {
+    // Consent Brand isn't its own stored field (crm/lib/existingClientOutreach.js's
+    // header comment) -- shown here as the contact's current active company,
+    // the same relationship the consent itself was given under.
+    const consentBrandLabel = primaryBrand ? primaryBrand.brandShortName === 'Prosperity' ? 'Prosperity Life & Financial Solutions' : primaryBrand.brandShortName : '—';
     return `<div class="card"><div class="card-body">
       <dl class="kv-list">
         <dt>First name</dt><dd>${CrmApp.escapeHtml(c.firstName || '—')}</dd>
@@ -198,7 +220,11 @@ async function render() {
         <dt>ZIP code</dt><dd>${CrmApp.escapeHtml(c.zip || '—')}</dd>
         <dt>Date of birth</dt><dd>${CrmApp.escapeHtml(c.dateOfBirth || '—')}</dd>
         <dt>Original source</dt><dd>${CrmApp.escapeHtml(c.originalSource || '—')}</dd>
-        <dt>SMS Consent</dt><dd>${c.smsConsent ? 'Yes' : 'No'}</dd>
+        <dt>Relationship</dt><dd>${CrmApp.escapeHtml(RELATIONSHIP_TYPE_LABELS[c.relationshipType] || '—')}</dd>
+        <dt>SMS Consent</dt><dd>${c.smsConsent ? 'YES' : (c.smsOptedOutAt ? 'STOPPED (opted out)' : 'NO')}</dd>
+        <dt>Consent Date</dt><dd>${c.smsConsentAt ? CrmApp.friendlyDateTime(c.smsConsentAt) : '—'}</dd>
+        <dt>Consent Method</dt><dd>${CrmApp.escapeHtml(c.smsConsentSource || '—')}</dd>
+        <dt>Consent Brand</dt><dd>${c.smsConsent && c.smsConsentSource ? CrmApp.escapeHtml(consentBrandLabel) : '—'}</dd>
         <dt>Email Consent</dt><dd>${c.emailConsent ? 'Yes' : 'No'}</dd>
         <dt>Lead Status</dt><dd>${CrmApp.escapeHtml(c.leadStatus || '—')}</dd>
         <dt>General notes</dt><dd style="white-space:pre-wrap;">${CrmApp.escapeHtml(c.generalNotes || '—')}</dd>
@@ -641,8 +667,88 @@ async function render() {
     </div>`;
   }
 
+  function outreachCardHtml() {
+    if (!isProsperityExistingClient) return '';
+    return `<div class="card" style="margin-bottom:16px;">
+      <div class="card-body">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <strong>Existing Client Outreach</strong>
+            <div class="text-faint">Reconnect this Prosperity client by text and/or email.</div>
+          </div>
+          ${CrmApp.companyBadge('prosperity', 'Prosperity')}
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn small" id="action-reconnection-sms">Send Initial Text (SMS Permission)</button>
+          <button class="btn small" id="action-reconnection-email">Send Initial Email (Policy Review)</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Shared preview/edit/send modal for both channels -- `channel` is 'sms'
+  // or 'email'. Reused instead of duplicating near-identical modal wiring
+  // twice.
+  function reconnectionModal(channel) {
+    if (!reconnectionTemplates) { CrmApp.toast('Could not load the message template.', { error: true }); return; }
+    const isSms = channel === 'sms';
+    const officePhone = reconnectionTemplates.officePhone;
+    const prefilledBody = (isSms ? reconnectionTemplates.sms.body : reconnectionTemplates.email.body)
+      .replace(/\{\{first_name\}\}/g, c.firstName || 'there')
+      .replace(/\{\{office_phone\}\}/g, officePhone);
+    const subject = isSms ? null : reconnectionTemplates.email.subject;
+
+    const dialog = CrmApp.openModal({
+      title: isSms ? 'Send Initial Text — Existing Client Reconnection / SMS Permission' : 'Send Initial Email — Existing Client Reconnection / Policy Review',
+      wide: true,
+      bodyHtml: `
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px; flex-wrap:wrap;">
+          ${CrmApp.companyBadge('prosperity', 'Prosperity')}
+          <span class="text-faint">${isSms ? `Sending number: ${CrmApp.escapeHtml(officePhone)}` : 'Sending from: loretta@prosperitylfs.com'}</span>
+        </div>
+        <div class="text-faint" style="margin-bottom:10px;">To: ${CrmApp.escapeHtml(c.name)} · ${CrmApp.escapeHtml(isSms ? (c.phone || 'No phone on file') : (c.email || 'No email on file'))}</div>
+        ${isSms ? '' : `<div class="form-field full"><label>Subject</label><input class="input" id="reconnection-subject" value="${CrmApp.escapeHtml(subject)}"></div>`}
+        <div class="form-field full"><label>Message</label><textarea class="input" id="reconnection-body" rows="14">${CrmApp.escapeHtml(prefilledBody)}</textarea></div>
+        <div class="form-error" id="reconnection-error"></div>
+        <div class="crmapp-modal-actions">
+          <button type="button" class="btn" id="reconnection-cancel">Cancel</button>
+          <button type="button" class="btn primary" id="reconnection-send">Send</button>
+        </div>
+      `,
+    });
+    dialog.querySelector('#reconnection-cancel').addEventListener('click', () => dialog.close());
+
+    async function attemptSend(confirmResend) {
+      const errorEl = dialog.querySelector('#reconnection-error');
+      errorEl.textContent = '';
+      const bodyText = dialog.querySelector('#reconnection-body').value;
+      try {
+        const result = isSms
+          ? await CrmApp.postJSON(`/api/app/clients/${contactId}/existing-client-sms`, 'POST', { message: bodyText, confirmResend })
+          : await CrmApp.postJSON(`/api/app/clients/${contactId}/existing-client-email`, 'POST', { subject: dialog.querySelector('#reconnection-subject').value, body: bodyText });
+
+        if (result.outcome === 'sent') {
+          CrmApp.toast(isSms ? 'Text sent.' : 'Email sent.');
+          dialog.close();
+          reloadPage();
+          return;
+        }
+        if (isSms && result.code === 'already_sent' && !confirmResend) {
+          const ok = await CrmApp.confirmAction('This contact already received this message. Send again anyway?', { confirmLabel: 'Resend' });
+          if (ok) return attemptSend(true);
+          return;
+        }
+        errorEl.textContent = result.reason || 'This message could not be sent.';
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    }
+    dialog.querySelector('#reconnection-send').addEventListener('click', () => attemptSend(false));
+  }
+
   content.innerHTML = `
     ${conflictBannerHtml()}
+    ${outreachCardHtml()}
     <div class="card">
       <div class="detail-header">
         <div class="detail-avatar">${CrmApp.initials(c.name)}</div>
@@ -691,6 +797,11 @@ async function render() {
       const result = await CrmApp.resolveContactConflict(cc, 'confirm_different');
       if (result) location.reload();
     });
+  }
+
+  if (isProsperityExistingClient) {
+    document.getElementById('action-reconnection-sms').addEventListener('click', () => reconnectionModal('sms'));
+    document.getElementById('action-reconnection-email').addEventListener('click', () => reconnectionModal('email'));
   }
 
   const tabsEl = document.getElementById('tabs');

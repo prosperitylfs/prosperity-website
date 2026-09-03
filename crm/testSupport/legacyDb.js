@@ -99,10 +99,13 @@ function createLegacyDb(dbPath = ':memory:') {
       id               INTEGER PRIMARY KEY AUTOINCREMENT,
       contact_id       INTEGER,
       to_email         TEXT NOT NULL,
+      from_email       TEXT,
       subject          TEXT,
       body             TEXT,
       status           TEXT DEFAULT 'sent',
       gmail_message_id TEXT,
+      thread_id        TEXT,
+      direction        TEXT NOT NULL DEFAULT 'outbound',
       sent_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
     );

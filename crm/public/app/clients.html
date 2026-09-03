@@ -381,6 +381,11 @@ async function render() {
     const selected = outreachContacts.filter(c => selectedOutreachIds.has(c.contactId));
     const count = selectedOutreachIds.size;
     let channel = 'sms';
+    // Defaults to the first registered SMS template (crm/lib/existingClientOutreach.js's
+    // EXISTING_CLIENT_SMS_TEMPLATES) -- the template <select> below lets her
+    // choose a different one when more than one exists.
+    let smsTemplateKey = reconnectionTemplatesCache && reconnectionTemplatesCache.smsTemplates.length
+      ? reconnectionTemplatesCache.smsTemplates[0].templateKey : null;
 
     const dialog = CrmApp.openModal({
       title: 'Send Message to Selected Existing Clients',
@@ -397,7 +402,7 @@ async function render() {
             <button type="button" class="btn small" id="bulk-channel-email">Email</button>
           </div>
         </div>
-        <div class="text-faint" id="bulk-template-name" style="margin-top:6px;"></div>
+        <div id="bulk-template-picker" style="margin-top:10px;"></div>
         <div class="form-field full" style="margin-top:10px;">
           <label>Recipients (${count})</label>
           <div style="max-height:90px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; font-size:13.5px;">
@@ -421,13 +426,37 @@ async function render() {
       dialog.querySelector('#bulk-preview').textContent = previewText;
     }
 
+    function currentSmsTemplate() {
+      return reconnectionTemplatesCache.smsTemplates.find(t => t.templateKey === smsTemplateKey);
+    }
+
+    function renderTemplatePicker() {
+      const isSms = channel === 'sms';
+      if (!isSms || !reconnectionTemplatesCache || reconnectionTemplatesCache.smsTemplates.length < 2) {
+        dialog.querySelector('#bulk-template-picker').innerHTML = '';
+        return;
+      }
+      dialog.querySelector('#bulk-template-picker').innerHTML = `
+        <div class="form-field full">
+          <label>Template</label>
+          <select class="input" id="bulk-sms-template">
+            ${reconnectionTemplatesCache.smsTemplates.map(t => `<option value="${CrmApp.escapeHtml(t.templateKey)}" ${t.templateKey === smsTemplateKey ? 'selected' : ''}>${CrmApp.escapeHtml(t.label)}</option>`).join('')}
+          </select>
+        </div>
+      `;
+      dialog.querySelector('#bulk-sms-template').addEventListener('change', (e) => {
+        smsTemplateKey = e.target.value;
+        renderChannelBody();
+      });
+    }
+
     function renderChannelBody() {
       if (!reconnectionTemplatesCache) { dialog.querySelector('#bulk-channel-body').innerHTML = '<div class="empty-state">Could not load the message template.</div>'; return; }
       const isSms = channel === 'sms';
-      const templateName = isSms ? 'Existing Client Reconnection / SMS Permission' : 'Existing Client Reconnection / Policy Review';
-      dialog.querySelector('#bulk-template-name').textContent = `Template: ${templateName}`;
-      const rawBody = (isSms ? reconnectionTemplatesCache.sms.body : reconnectionTemplatesCache.email.body)
-        .replace(/\{\{office_phone\}\}/g, reconnectionTemplatesCache.officePhone);
+      renderTemplatePicker();
+      const rawBody = (isSms ? currentSmsTemplate().body : reconnectionTemplatesCache.email.body)
+        .replace(/\{\{office_phone\}\}/g, reconnectionTemplatesCache.officePhone)
+        .replace(/\{\{booking_link\}\}/g, reconnectionTemplatesCache.bookingLink);
       dialog.querySelector('#bulk-channel-body').innerHTML = `
         ${isSms ? '' : `<div class="form-field full"><label>Subject</label><input class="input" id="bulk-subject" value="${CrmApp.escapeHtml(reconnectionTemplatesCache.email.subject)}"></div>`}
         <div class="form-field full" style="margin-top:8px;">
@@ -460,6 +489,7 @@ async function render() {
       try {
         const result = await CrmApp.postJSON('/api/app/existing-client-outreach/bulk', 'POST', {
           contactIds: [...selectedOutreachIds], channel, message: bodyText, subject, body: bodyText,
+          templateKey: isSms ? smsTemplateKey : undefined,
         });
         const resultsEl = dialog.querySelector('#bulk-send-results');
         resultsEl.innerHTML = result.results.map(r => {

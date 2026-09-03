@@ -197,6 +197,32 @@ Prosperity Life & Financial Solutions
 
 Reply HELP for help or STOP to opt out.`,
     },
+    // Loretta's exact approved copy (verbatim) -- the only technical
+    // adjustment made is replacing the curly apostrophes the source text
+    // was pasted with (’) with plain straight ones ('), matching every
+    // other template in this file: a curly apostrophe forces UCS-2 SMS
+    // encoding (same reasoning as the em-dash comment above), which would
+    // roughly halve this already-long message's per-segment character
+    // budget. The wording itself is unchanged. Deliberately has NO
+    // Reply HELP/STOP footer, unlike existingClientReconnectionSms above --
+    // Loretta's approved copy didn't include one; STOP keyword handling
+    // (crm/lib/inboundSmsService.js) still works regardless of whether the
+    // outbound message itself mentions it.
+    existingClientLifeInsuranceAwarenessSms: {
+      category: 'operational', channel: 'sms',
+      placeholders: ['first_name', 'booking_link'],
+      body: `Hi {{first_name}}, this is Loretta Stewart, your insurance agent. I'm reaching out to reconnect and make sure you have my current office contact information. This is my new office and texting number, so please save it so you'll recognize me when I call and have it whenever you need assistance with your policy.
+
+Since September is Life Insurance Awareness Month, it's also a good time to make sure the information on your policy is still current. Life changes over the years, and things such as your contact information, beneficiaries, or coverage needs may have changed since we last spoke.
+
+If you'd like to speak with me, you can schedule a time that's convenient for you here:
+{{booking_link}}
+
+I'd also like your permission to communicate with you by text regarding your policy, appointments, and service needs. Reply YES if I may text you, or NO if you prefer not to receive text messages.
+
+Loretta Stewart
+Prosperity Life & Financial Solutions`,
+    },
     existingClientReconnectionEmail: {
       category: 'operational', channel: 'email',
       placeholders: ['first_name', 'office_phone'],

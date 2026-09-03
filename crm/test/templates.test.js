@@ -62,10 +62,20 @@ test('existingClientReconnectionSms (Prosperity-only) includes STOP/HELP languag
   assert.match(TEMPLATES.prosperity.existingClientReconnectionSms.body, /HELP/);
 });
 
-test('existingClientReconnectionSms and existingClientReconnectionEmail exist ONLY for Prosperity, never Insurance Lady', () => {
+test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s approved copy exactly, apart from straight apostrophes', () => {
+  const tmpl = TEMPLATES.prosperity.existingClientLifeInsuranceAwarenessSms;
+  assert.match(tmpl.body, /Life Insurance Awareness Month/);
+  assert.match(tmpl.body, /Reply YES if I may text you, or NO if you prefer not to receive text messages\./);
+  assert.match(tmpl.body, /\{\{booking_link\}\}/);
+  assert.equal(TEMPLATES['insurance-lady'].existingClientLifeInsuranceAwarenessSms, undefined, 'must never exist for Insurance Lady');
+});
+
+test('existingClientReconnectionSms, existingClientLifeInsuranceAwarenessSms, and existingClientReconnectionEmail exist ONLY for Prosperity, never Insurance Lady', () => {
   assert.ok(TEMPLATES.prosperity.existingClientReconnectionSms);
+  assert.ok(TEMPLATES.prosperity.existingClientLifeInsuranceAwarenessSms);
   assert.ok(TEMPLATES.prosperity.existingClientReconnectionEmail);
   assert.equal(TEMPLATES['insurance-lady'].existingClientReconnectionSms, undefined);
+  assert.equal(TEMPLATES['insurance-lady'].existingClientLifeInsuranceAwarenessSms, undefined);
   assert.equal(TEMPLATES['insurance-lady'].existingClientReconnectionEmail, undefined);
 });
 
@@ -115,7 +125,7 @@ test('the revised missed-call templates fit in a single GSM-7 segment with reali
 });
 
 test('templates use only the documented placeholders', () => {
-  const allowed = new Set(['attendee_name', 'appointment_type', 'date', 'time', 'time_zone', 'day_phrase', 'first_name', 'office_phone']);
+  const allowed = new Set(['attendee_name', 'appointment_type', 'date', 'time', 'time_zone', 'day_phrase', 'first_name', 'office_phone', 'booking_link']);
   const placeholderPattern = /\{\{(\w+)\}\}/g;
   for (const brandId of ['insurance-lady', 'prosperity']) {
     for (const [key, tmpl] of Object.entries(TEMPLATES[brandId])) {

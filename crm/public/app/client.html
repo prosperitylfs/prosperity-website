@@ -673,6 +673,12 @@ async function render() {
 
   function outreachCardHtml() {
     if (!isProsperityExistingClient) return '';
+    // One button per registered SMS template (crm/lib/existingClientOutreach.js's
+    // EXISTING_CLIENT_SMS_TEMPLATES) -- a future template added there needs
+    // no further change here, it just gets its own button automatically.
+    const smsButtons = (reconnectionTemplates ? reconnectionTemplates.smsTemplates : [])
+      .map(t => `<button class="btn small" data-sms-template="${CrmApp.escapeHtml(t.templateKey)}">Send Text — ${CrmApp.escapeHtml(t.label)}</button>`)
+      .join('');
     return `<div class="card" style="margin-bottom:16px;">
       <div class="card-body">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -683,7 +689,7 @@ async function render() {
           ${CrmApp.companyBadge('prosperity', 'Prosperity')}
         </div>
         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn small" id="action-reconnection-sms">Send Initial Text (SMS Permission)</button>
+          ${smsButtons}
           <button class="btn small" id="action-reconnection-email">Send Initial Email (Policy Review)</button>
         </div>
       </div>
@@ -691,19 +697,23 @@ async function render() {
   }
 
   // Shared preview/edit/send modal for both channels -- `channel` is 'sms'
-  // or 'email'. Reused instead of duplicating near-identical modal wiring
-  // twice.
-  function reconnectionModal(channel) {
+  // or 'email'; `smsTemplateKey` selects which registered SMS template
+  // (only used when channel === 'sms'). Reused instead of duplicating
+  // near-identical modal wiring for every template.
+  function reconnectionModal(channel, smsTemplateKey) {
     if (!reconnectionTemplates) { CrmApp.toast('Could not load the message template.', { error: true }); return; }
     const isSms = channel === 'sms';
     const officePhone = reconnectionTemplates.officePhone;
-    const prefilledBody = (isSms ? reconnectionTemplates.sms.body : reconnectionTemplates.email.body)
+    const smsTemplate = isSms ? reconnectionTemplates.smsTemplates.find(t => t.templateKey === smsTemplateKey) : null;
+    if (isSms && !smsTemplate) { CrmApp.toast('Could not find that message template.', { error: true }); return; }
+    const prefilledBody = (isSms ? smsTemplate.body : reconnectionTemplates.email.body)
       .replace(/\{\{first_name\}\}/g, c.firstName || 'there')
-      .replace(/\{\{office_phone\}\}/g, officePhone);
+      .replace(/\{\{office_phone\}\}/g, officePhone)
+      .replace(/\{\{booking_link\}\}/g, reconnectionTemplates.bookingLink);
     const subject = isSms ? null : reconnectionTemplates.email.subject;
 
     const dialog = CrmApp.openModal({
-      title: isSms ? 'Send Initial Text — Existing Client Reconnection / SMS Permission' : 'Send Initial Email — Existing Client Reconnection / Policy Review',
+      title: isSms ? `Send Initial Text — ${smsTemplate.label}` : 'Send Initial Email — Existing Client Reconnection / Policy Review',
       wide: true,
       bodyHtml: `
         <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px; flex-wrap:wrap;">
@@ -728,7 +738,7 @@ async function render() {
       const bodyText = dialog.querySelector('#reconnection-body').value;
       try {
         const result = isSms
-          ? await CrmApp.postJSON(`/api/app/clients/${contactId}/existing-client-sms`, 'POST', { message: bodyText, confirmResend })
+          ? await CrmApp.postJSON(`/api/app/clients/${contactId}/existing-client-sms`, 'POST', { message: bodyText, confirmResend, templateKey: smsTemplateKey })
           : await CrmApp.postJSON(`/api/app/clients/${contactId}/existing-client-email`, 'POST', { subject: dialog.querySelector('#reconnection-subject').value, body: bodyText });
 
         if (result.outcome === 'sent') {
@@ -804,7 +814,9 @@ async function render() {
   }
 
   if (isProsperityExistingClient) {
-    document.getElementById('action-reconnection-sms').addEventListener('click', () => reconnectionModal('sms'));
+    document.querySelectorAll('[data-sms-template]').forEach(btn => {
+      btn.addEventListener('click', () => reconnectionModal('sms', btn.dataset.smsTemplate));
+    });
     document.getElementById('action-reconnection-email').addEventListener('click', () => reconnectionModal('email'));
   }
 

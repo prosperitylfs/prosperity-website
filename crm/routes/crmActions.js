@@ -60,9 +60,12 @@ router.post('/clients/:id/request-company-change', handle(req => clientService.r
 // ── Existing Client Reconnection outreach (Revenue MVP) ─────────────────
 // See crm/lib/existingClientOutreach.js's own header comment: this is the
 // ONLY place in the app that can trigger its narrow consent-gate exception,
-// and only for the two fixed templates it defines.
+// and only for the fixed templates in its EXISTING_CLIENT_SMS_TEMPLATES
+// registry -- `templateKey` selects which one; the lib function itself
+// rejects anything not in that registry.
 router.post('/clients/:id/existing-client-sms', handle(req => existingClientOutreach.sendReconnectionSms(db, {
   contactId: Number(req.params.id), message: req.body.message, confirmResend: !!req.body.confirmResend,
+  templateKey: req.body.templateKey,
 })));
 router.post('/clients/:id/existing-client-email', handle(req => existingClientOutreach.sendReconnectionEmail(db, {
   contactId: Number(req.params.id), subject: req.body.subject, body: req.body.body,
@@ -71,6 +74,7 @@ router.post('/existing-client-outreach/bulk', handle(req => existingClientOutrea
   contactIds: Array.isArray(req.body.contactIds) ? req.body.contactIds.map(Number) : [],
   channel: req.body.channel, message: req.body.message, subject: req.body.subject, body: req.body.body,
   confirmResend: !!req.body.confirmResend,
+  templateKey: req.body.templateKey,
 }).then(results => ({ results }))));
 
 // ── Cases ────────────────────────────────────────────────────────────────

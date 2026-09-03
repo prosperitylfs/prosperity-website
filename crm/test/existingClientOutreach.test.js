@@ -16,7 +16,10 @@ const {
   RECONNECTION_SMS_MESSAGE_TYPE, getReconnectionTemplates, fillFirstName,
   checkReconnectionSmsEligibility, sendReconnectionSms, sendReconnectionEmail,
   getExistingClientsForOutreach, bulkSendReconnectionOutreach,
+  EXISTING_CLIENT_SMS_TEMPLATES, PROSPERITY_LIFE_INSURANCE_BOOKING_URL,
 } = require('../lib/existingClientOutreach');
+
+const LIFE_INSURANCE_AWARENESS_KEY = 'existingClientLifeInsuranceAwarenessSms';
 
 function setup() {
   const db = createLegacyDb();
@@ -88,12 +91,18 @@ function seedLead(db, overrides = {}) {
 
 // ── Templates ────────────────────────────────────────────────────────────
 
-test('getReconnectionTemplates returns the Prosperity SMS + email templates and the office phone', () => {
+test('getReconnectionTemplates returns both Prosperity SMS templates, the email template, the office phone, and the booking link', () => {
   const templates = getReconnectionTemplates();
-  assert.match(templates.sms.body, /Reply YES to allow text communication/);
+  assert.equal(templates.smsTemplates.length, 2);
+  const reconnection = templates.smsTemplates.find(t => t.templateKey === 'existingClientReconnectionSms');
+  const awareness = templates.smsTemplates.find(t => t.templateKey === 'existingClientLifeInsuranceAwarenessSms');
+  assert.match(reconnection.body, /Reply YES to allow text communication/);
+  assert.match(awareness.body, /Life Insurance Awareness Month/);
+  assert.match(awareness.body, /\{\{booking_link\}\}/);
   assert.match(templates.email.subject, /Policy Review/);
   assert.match(templates.email.body, /September is Life Insurance Awareness Month/);
   assert.equal(templates.officePhone, '+1 414-441-1177');
+  assert.equal(templates.bookingLink, 'https://cal.com/lorettastewart/life-insurance-consultation-prosperitylfs');
 });
 
 test('fillFirstName substitutes {{first_name}}, falling back to "there" when missing', () => {
@@ -161,6 +170,91 @@ test('the initial message cannot be sent twice unless confirmResend is explicitl
   assert.equal(resend.outcome, 'sent');
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sms_messages WHERE contact_id = ?').get(contact.id).n, 2);
 }));
+
+// ── Second SMS template: Existing Client – Life Insurance Awareness Month ──
+// (the "reusable architecture" registry, EXISTING_CLIENT_SMS_TEMPLATES)
+
+test('the Life Insurance Awareness Month template can be sent via templateKey, uses its own message_type, and is deduped independently of the Reconnection template', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contact = seedExistingClient(db);
+
+  const result = await sendReconnectionSms(db, {
+    contactId: contact.id, message: 'Hi Renee, Life Insurance Awareness Month...', templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+  }, { twilioClientFactory: fakeTwilioClient('ok') });
+  assert.equal(result.outcome, 'sent');
+  assert.equal(result.sms.message_type, 'existing_client_life_insurance_awareness');
+  assert.notEqual(result.sms.message_type, RECONNECTION_SMS_MESSAGE_TYPE);
+
+  // Having received THIS template does not block the OTHER one for the same contact.
+  const reconnectionResult = await sendReconnectionSms(db, {
+    contactId: contact.id, message: 'Hi Renee, may I text you?',
+  }, { twilioClientFactory: fakeTwilioClient('ok') }); // default templateKey = Reconnection
+  assert.equal(reconnectionResult.outcome, 'sent');
+
+  // A second send of the SAME (awareness) template is blocked as already_sent, independently.
+  const repeat = await sendReconnectionSms(db, {
+    contactId: contact.id, message: 'again', templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+  }, { twilioClientFactory: fakeTwilioClient('ok') });
+  assert.equal(repeat.outcome, 'blocked');
+  assert.equal(repeat.code, 'already_sent');
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sms_messages WHERE contact_id = ?').get(contact.id).n, 2, 'both distinct templates were sent, no duplicate of either');
+}));
+
+test('sendReconnectionSms rejects an unknown templateKey', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contact = seedExistingClient(db);
+  await assert.rejects(
+    () => sendReconnectionSms(db, { contactId: contact.id, message: 'Hi', templateKey: 'not_a_real_template' }, { twilioClientFactory: fakeTwilioClient('ok') }),
+    /unknown SMS templateKey/
+  );
+}));
+
+test('the Life Insurance Awareness Month template is also blocked for a Lead/Prospect and for a contact who opted out', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const lead = seedLead(db);
+  const leadResult = await sendReconnectionSms(db, { contactId: lead.id, message: 'Hi', templateKey: LIFE_INSURANCE_AWARENESS_KEY }, { twilioClientFactory: fakeTwilioClient('ok') });
+  assert.equal(leadResult.outcome, 'blocked');
+  assert.equal(leadResult.code, 'not_existing_client');
+
+  const optedOut = seedExistingClient(db, { phone: '414-555-9601' });
+  db.prepare('UPDATE contacts SET sms_opted_out_at = CURRENT_TIMESTAMP WHERE id = ?').run(optedOut.id);
+  const optedOutResult = await sendReconnectionSms(db, { contactId: optedOut.id, message: 'Hi', templateKey: LIFE_INSURANCE_AWARENESS_KEY }, { twilioClientFactory: fakeTwilioClient('ok') });
+  assert.equal(optedOutResult.outcome, 'blocked');
+  assert.equal(optedOutResult.code, 'opted_out');
+}));
+
+test('the bulk-select list\'s SMS Eligible column reflects template-independent eligibility -- having already received one template does not mark a contact ineligible in the list', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contact = seedExistingClient(db);
+  await sendReconnectionSms(db, { contactId: contact.id, message: 'Hi Renee, may I text you?' }, { twilioClientFactory: fakeTwilioClient('ok') });
+
+  const list = getExistingClientsForOutreach(db, {});
+  const row = list.find(c => c.contactId === contact.id);
+  assert.equal(row.smsEligible, true, 'already having received the Reconnection template must not show as globally ineligible');
+}));
+
+test('bulkSendReconnectionOutreach passes templateKey through so selected recipients get the Life Insurance Awareness Month template', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const a = seedExistingClient(db, { firstName: 'Renee', phone: '414-555-9602' });
+  const b = seedExistingClient(db, { firstName: 'Marcus', phone: '414-555-9603' });
+
+  const results = await bulkSendReconnectionOutreach(db, {
+    contactIds: [a.id, b.id], channel: 'sms', message: 'Hi {{first_name}}, Life Insurance Awareness Month...',
+    templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+  }, { twilioClientFactory: fakeTwilioClient('ok') });
+
+  assert.equal(results.filter(r => r.outcome === 'sent').length, 2);
+  const rowA = db.prepare('SELECT message_type, body FROM sms_messages WHERE contact_id = ?').get(a.id);
+  assert.equal(rowA.message_type, 'existing_client_life_insurance_awareness');
+  assert.match(rowA.body, /Hi Renee,/);
+}));
+
+test('EXISTING_CLIENT_SMS_TEMPLATES registry and PROSPERITY_LIFE_INSURANCE_BOOKING_URL are exported for the compose UI', () => {
+  assert.equal(EXISTING_CLIENT_SMS_TEMPLATES.length, 2);
+  assert.ok(EXISTING_CLIENT_SMS_TEMPLATES.some(t => t.templateKey === LIFE_INSURANCE_AWARENESS_KEY));
+  assert.equal(PROSPERITY_LIFE_INSURANCE_BOOKING_URL, 'https://cal.com/lorettastewart/life-insurance-consultation-prosperitylfs');
+});
 
 // ── H: initial email ─────────────────────────────────────────────────────
 

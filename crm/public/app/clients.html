@@ -310,9 +310,14 @@ async function render() {
   let reconnectionTemplatesCache = null;
 
   function outreachRowHtml(item) {
+    // Name links to the SAME client.html?id= route every other client
+    // list/link in this app already uses (see e.g. the verification-needed
+    // banner and the main Clients table below) -- not a new detail page,
+    // and not a whole-row click target, so the checkbox's own click never
+    // risks navigating away.
     return `<tr>
       <td><input type="checkbox" class="outreach-checkbox" data-id="${item.contactId}" ${selectedOutreachIds.has(item.contactId) ? 'checked' : ''}></td>
-      <td>${CrmApp.escapeHtml(item.contactName)}</td>
+      <td><a href="client.html?id=${item.contactId}">${CrmApp.escapeHtml(item.contactName)}</a></td>
       <td>${CrmApp.escapeHtml(item.email || '—')}</td>
       <td>${CrmApp.escapeHtml(item.phone || '—')}</td>
       <td>${item.smsEligible ? '<span class="pill status-open">SMS Eligible</span>' : `<span class="pill status-blocked">${CrmApp.escapeHtml(item.smsBlockedReason || 'Not eligible')}</span>`}</td>

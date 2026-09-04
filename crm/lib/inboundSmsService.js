@@ -31,8 +31,6 @@ const { BRANDS } = require('../config/brands');
 const { stageUnresolvedIntake } = require('./caseMatching');
 const { isRescheduleRequest, processRescheduleRequest } = require('./rescheduleRequestService');
 const { sendLegacySms } = require('./legacySmsSend');
-const { PROSPERITY_LIFE_INSURANCE_BOOKING_URL } = require('./existingClientOutreach');
-
 const STOP_KEYWORDS = new Set(['stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit']);
 const START_KEYWORDS = new Set(['start', 'yes', 'unstop']);
 const HELP_KEYWORDS = new Set(['help', 'info']);
@@ -79,13 +77,21 @@ const NO_KEYWORDS = new Set(['no']);
 // regardless of which path set it.
 const INBOUND_SMS_CONSENT_SOURCE = 'Inbound SMS';
 
+// 2026-09-17: a short branded link (prosperitylfs.com/review — a plain
+// redirect straight to the same Cal.com page, added to the website's
+// _redirects) used ONLY in this one automated SMS reply. Deliberately a
+// SEPARATE constant from PROSPERITY_LIFE_INSURANCE_BOOKING_URL above
+// (crm/lib/existingClientOutreach.js), which stays the long Cal.com URL and
+// is still used as-is everywhere else (the compose UI's {{booking_link}}
+// substitution, which also feeds the reconnection EMAIL template) — this
+// change is scoped to the YES/REVIEW text reply only, nothing else.
+const PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL = 'https://prosperitylfs.com/review';
+
 // The automated reply sent for a YES or REVIEW keyword (BOOKING_LINK_REPLY_
-// KEYWORDS above) — reuses the SAME PROSPERITY_LIFE_INSURANCE_BOOKING_URL
-// constant crm/lib/existingClientOutreach.js already exports for
-// {{booking_link}} substitution elsewhere; never a separately hard-coded
-// URL. 2026-09-16: updated to Loretta's exact approved reply wording.
+// KEYWORDS above). 2026-09-16: updated to Loretta's exact approved reply
+// wording. 2026-09-17: URL switched to the short branded link above.
 const REVIEW_BOOKING_LINK_REPLY = `Great! You can schedule your policy review at a time that works for you here:
-${PROSPERITY_LIFE_INSURANCE_BOOKING_URL}
+${PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL}
 
 I look forward to speaking with you!`;
 
@@ -550,5 +556,6 @@ module.exports = {
   REVIEW_KEYWORDS,
   BOOKING_LINK_REPLY_KEYWORDS,
   REVIEW_BOOKING_LINK_REPLY,
+  PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL,
   INBOUND_SMS_CONSENT_SOURCE,
 };

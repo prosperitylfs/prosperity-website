@@ -22,14 +22,13 @@ const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
 const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
 const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
-const { handleInboundSmsUnified } = require('../lib/inboundSmsService');
+const { handleInboundSmsUnified, PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL } = require('../lib/inboundSmsService');
 const { resolveUnknownSmsReview, archiveReviewItem } = require('../lib/reviewResolution');
 const { getClientDetail } = require('../lib/dashboardQueries');
 const { createClient } = require('../lib/clientService');
 const { createDraft } = require('../lib/communicationDraftService');
 const { updateTemplate } = require('../lib/templateManagerService');
 const { BRANDS } = require('../config/brands');
-const { PROSPERITY_LIFE_INSURANCE_BOOKING_URL } = require('../lib/existingClientOutreach');
 
 function setup() {
   const db = createLegacyDb();
@@ -351,7 +350,7 @@ test('D. an Existing Client replying YES: SMS consent becomes YES, the reply is 
 
   const detail = getClientDetail(db, client.contact.id);
   assert.ok(detail.smsThread.some(m => m.body === 'YES' && m.direction === 'inbound'), 'the inbound YES message itself must be preserved in communication history');
-  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_BOOKING_URL));
+  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL));
   assert.equal(bookingReplies.length, 1, 'the automated booking-link reply must appear exactly once in SMS History -- no duplicate booking-link text');
 });
 
@@ -488,7 +487,7 @@ test('H. an Existing Client replying REVIEW: SMS consent becomes YES exactly lik
 
   const detail = getClientDetail(db, client.contact.id);
   assert.ok(detail.smsThread.some(m => m.body === 'REVIEW' && m.direction === 'inbound'), 'the inbound REVIEW message itself must be preserved in communication history');
-  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_BOOKING_URL));
+  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL));
   assert.equal(bookingReplies.length, 1, 'the automated booking-link reply must appear exactly once in SMS History -- no duplicate booking-link text');
 });
 
@@ -521,7 +520,7 @@ test('Template Manager: renaming/rewording the Life Insurance Awareness Month SM
   assert.equal(sendOutcome.ok, true, 'the automated booking-link reply still fires after the template was renamed');
 
   const detail = getClientDetail(db, client.contact.id);
-  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_BOOKING_URL));
+  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL));
   assert.equal(bookingReplies.length, 1);
 });
 
@@ -557,7 +556,7 @@ test('YES now DOES trigger the automated booking-link reply, exactly like REVIEW
   const sendOutcome = await result.reviewBookingLinkPromise;
   assert.equal(sendOutcome.ok, true);
   const detail = getClientDetail(db, client.contact.id);
-  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_BOOKING_URL));
+  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL));
   assert.equal(bookingReplies.length, 1, 'a YES must automatically send the booking link exactly once');
 });
 

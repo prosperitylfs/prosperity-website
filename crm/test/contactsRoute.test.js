@@ -163,13 +163,18 @@ test('granting SMS consent stores the source/notes and auto-stamps sms_consent_a
   assert.ok(stamped >= before - 5000, 'consent date must be "now", never fabricated/backdated');
 });
 
-test('email_consent is preserved exactly as before, independent of sms_consent', async () => {
+// Email Consent was removed as a CRM concept entirely (2026-09-14) -- the
+// email_consent COLUMN still exists (crm/db/database.js, never dropped),
+// but this route no longer accepts or writes it, even if a caller sends
+// it. sms_consent is completely independent and still works exactly as
+// before.
+test('email_consent is no longer accepted by this route even if a caller sends it -- it stays at its default, and sms_consent is unaffected', async () => {
   const { status, body } = await post({
-    first_name: 'Em', email: 'em@example.com', brand_slug: 'prosperity', email_consent: true,
+    first_name: 'Em', email: 'em@example.com', brand_slug: 'prosperity', email_consent: true, sms_consent: true, sms_consent_source: 'Website Form',
   });
   assert.equal(status, 201);
-  assert.equal(body.email_consent, 1);
-  assert.equal(body.sms_consent, 0, 'email_consent must never imply sms_consent');
+  assert.equal(body.email_consent, 0, 'email_consent is never written by this route anymore, regardless of what was sent');
+  assert.equal(body.sms_consent, 1, 'sms_consent is completely unaffected by the email_consent removal');
 });
 
 test('a duplicate email is still rejected with 409 exactly as before, before any brand logic runs', async () => {

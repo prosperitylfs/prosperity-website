@@ -187,10 +187,6 @@
                 <input id="ac-sms_consent" type="checkbox">
                 <span>SMS Consent</span>
               </label>
-              <label class="crm-check-label">
-                <input id="ac-email_consent" type="checkbox">
-                <span>Email Consent</span>
-              </label>
             </div>
             <div class="crm-grid">
               <div class="crm-field">
@@ -261,7 +257,6 @@
       if (el) el.value = '';
     });
     document.getElementById('ac-sms_consent').checked = false;
-    document.getElementById('ac-email_consent').checked = false;
     document.getElementById('ac-error').classList.add('hidden');
 
     document.getElementById(MODAL_ID).classList.remove('hidden');
@@ -325,7 +320,6 @@
       relationship_type:        val('relationship_type'),
       general_notes:            val('general_notes'),
       sms_consent:   document.getElementById('ac-sms_consent').checked,
-      email_consent: document.getElementById('ac-email_consent').checked,
       sms_consent_source: val('sms_consent_source'),
       sms_consent_notes:  val('sms_consent_notes'),
     };

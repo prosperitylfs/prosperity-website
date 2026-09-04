@@ -42,13 +42,14 @@ function createDraft(db, fields, actor) {
   if (fields.channel === 'text' && contact.sms_opted_out_at) {
     throw new Error('createDraft: this client replied STOP and must not receive nonessential texts');
   }
-  // Consent validation -- required before a text/email draft can even be
-  // saved, matching "Validate consent and required fields."
+  // Consent validation -- required before a text draft can even be saved,
+  // matching "Validate consent and required fields." Email has no consent
+  // gate here (or anywhere in this app) -- Email Consent was removed as a
+  // CRM concept entirely (2026-09-14); sending an email was never gated on
+  // it elsewhere either (crm/routes/email.js,
+  // crm/lib/existingClientOutreach.js's sendReconnectionEmail).
   if (fields.channel === 'text' && !contact.sms_consent) {
     throw new Error('createDraft: this client has not given SMS consent — cannot draft a text');
-  }
-  if (fields.channel === 'email' && !contact.email_consent) {
-    throw new Error('createDraft: this client has not given email consent — cannot draft an email');
   }
   if (fields.channel === 'email' && !toStringOrNull(fields.subject)) {
     throw new Error('createDraft: an email draft requires a subject');

@@ -228,7 +228,6 @@ router.post('/', (req, res) => {
       best_time_to_contact:     body.best_time_to_contact || null,
       lead_status:              body.lead_status   || 'New Lead',
       sms_consent:              body.sms_consent   ? 1 : 0,
-      email_consent:            body.email_consent ? 1 : 0,
       general_notes:            body.general_notes || null,
       relationship_type:        body.relationship_type   || null,
       sms_consent_source:       body.sms_consent ? (body.sms_consent_source || null) : null,
@@ -460,7 +459,7 @@ router.patch('/:id', (req, res) => {
   const allowed = [
     'first_name', 'last_name', 'phone', 'alt_phone', 'email',
     'role', 'tags', 'notes', 'lead_type', 'lead_source', 'phone_e164',
-    'lead_status', 'sms_consent', 'email_consent', 'appointment_booked', 'appointment_date', 'last_contacted',
+    'lead_status', 'sms_consent', 'appointment_booked', 'appointment_date', 'last_contacted',
     'retirement_assets', 'account_types', 'retirement_timeline', 'interested_in', 'existing_advisor',
     'coverage_goal', 'existing_coverage', 'mortgage_protection', 'final_expense', 'children_grandchildren',
     'retirement_account_type', 'current_institution', 'estimated_rollover_amount',
@@ -515,7 +514,6 @@ router.patch('/:id', (req, res) => {
   // whatever JSON a caller sends, so both are normalized the same way the
   // POST handler above already does.
   if (updates.sms_consent !== undefined)   updates.sms_consent   = updates.sms_consent   ? 1 : 0;
-  if (updates.email_consent !== undefined) updates.email_consent = updates.email_consent ? 1 : 0;
 
   if (updates.phone !== undefined) {
     const { display, e164 } = normalizePhone(updates.phone);

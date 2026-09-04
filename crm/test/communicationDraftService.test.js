@@ -30,10 +30,22 @@ test('a text draft requires SMS consent', () => {
   assert.throws(() => createDraft(db, { contactId: client.contact.id, channel: 'text', body: 'Hi' }, 'Loretta Stewart'), /SMS consent/);
 });
 
-test('an email draft requires email consent and a subject', () => {
+// Email Consent was removed as a CRM concept entirely (2026-09-14) -- an
+// email draft no longer requires it, unlike a text draft, which still
+// requires SMS consent exactly as before (see the test above).
+test('an email draft can be created WITHOUT email consent -- Email Consent is no longer required in this CRM', () => {
   const { db } = setup();
   const client = createClient(db, { firstName: 'Eli', email: 'eli@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
-  assert.throws(() => createDraft(db, { contactId: client.contact.id, channel: 'email', body: 'Hi' }, 'Loretta Stewart'), /email consent/);
+  assert.equal(client.contact.email_consent, 0, 'starts with no email consent on file, and that must not block the draft');
+  const draft = createDraft(db, { contactId: client.contact.id, channel: 'email', subject: 'Hello', body: 'Hi' }, 'Loretta Stewart');
+  assert.equal(draft.status, 'draft');
+  assert.equal(draft.channel, 'email');
+});
+
+test('an email draft still requires a subject', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Eli2', email: 'eli2@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  assert.throws(() => createDraft(db, { contactId: client.contact.id, channel: 'email', body: 'Hi' }, 'Loretta Stewart'), /subject/);
 });
 
 test('a valid draft resolves the correct sender company and stores as status=draft', () => {

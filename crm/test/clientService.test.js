@@ -250,12 +250,22 @@ test('an existing pre-migration contact (sms_consent already 1, no source/date o
   assert.equal(updated.sms_consent_at, null, 'must not backdate/fabricate a consent date for a pre-existing record');
 });
 
-test('email_consent follows the same explicit-tri-state rule as sms_consent', () => {
+// Email Consent was removed as a CRM concept entirely (2026-09-14) -- the
+// email_consent COLUMN still exists (crm/db/database.js, never dropped),
+// but createClient/updateClient no longer accept or write it, even if a
+// caller sends it. sms_consent is completely unaffected.
+test('emailConsent is no longer accepted by createClient/updateClient even if a caller sends it -- sms_consent is unaffected', () => {
   const { db } = setup();
-  const created = createClient(db, { firstName: 'Fay', email: 'fay@example.com', brandSlug: 'prosperity', emailConsent: true }, 'Loretta Stewart');
-  assert.equal(created.contact.email_consent, 1);
-  const updated = updateClient(db, created.contact.id, { emailConsent: false });
-  assert.equal(updated.email_consent, 0);
+  const created = createClient(db, {
+    firstName: 'Fay', email: 'fay@example.com', brandSlug: 'prosperity',
+    emailConsent: true, smsConsent: true, smsConsentSource: 'Website Form',
+  }, 'Loretta Stewart');
+  assert.equal(created.contact.email_consent, 0, 'email_consent is never written anymore, regardless of what was sent');
+  assert.equal(created.contact.sms_consent, 1, 'sms_consent is completely unaffected by the email_consent removal');
+
+  const updated = updateClient(db, created.contact.id, { emailConsent: true });
+  assert.equal(updated.email_consent, 0, 'still never written on update either');
+  assert.equal(updated.sms_consent, 1, 'unrelated update never resets sms_consent');
 });
 
 // ── Edit Client expansion (2026-09-08): the full "complete contact profile"

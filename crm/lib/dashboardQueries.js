@@ -782,7 +782,6 @@ function getClientDetail(db, contactId) {
       smsConsentSource: contact.sms_consent_source || null,
       smsConsentAt: contact.sms_consent_at ? toIsoUtc(contact.sms_consent_at) : null,
       smsConsentNotes: contact.sms_consent_notes || null,
-      emailConsent: !!contact.email_consent,
       smsOptedOutAt: contact.sms_opted_out_at ? toIsoUtc(contact.sms_opted_out_at) : null,
       archivedAt: contact.archived_at ? toIsoUtc(contact.archived_at) : null,
     },

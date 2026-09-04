@@ -169,7 +169,6 @@ async function render() {
           <div class="form-section-title">Consent</div>
           <div class="form-grid">
             <div class="form-field full"><label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" name="smsConsent" id="edit-client-sms-consent" style="width:auto;" ${c.smsConsent ? 'checked' : ''}> SMS consent on file <span class="hint">(required before this client can be texted from the CRM)</span></label></div>
-            <div class="form-field full"><label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" name="emailConsent" id="edit-client-email-consent" style="width:auto;" ${c.emailConsent ? 'checked' : ''}> Email consent on file</label></div>
             <div class="form-field full text-faint" style="line-height:1.7;">
               Consent method: ${esc(c.smsConsentSource || '—')}<br>
               Consent date: ${c.smsConsentAt ? esc(new Date(c.smsConsentAt).toLocaleString()) : '—'}<br>
@@ -197,17 +196,16 @@ async function render() {
     dialog.querySelector('#edit-client-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fields = Object.fromEntries(new FormData(e.target).entries());
-      // Read both consent checkboxes directly rather than trusting
-      // FormData, which omits an unchecked box entirely -- this keeps
-      // smsConsent/emailConsent explicit true/false every time, so
-      // unchecking one actually revokes it instead of silently leaving the
-      // old value in place. Consent METHOD/DATE/BRAND are never sent from
-      // here at all (no input carries those names) -- the server-side
-      // audit trail (crm/lib/clientService.js) is only ever touched by the
-      // consent checkbox transitioning off->on, and only re-stamps its own
+      // Read the consent checkbox directly rather than trusting FormData,
+      // which omits an unchecked box entirely -- this keeps smsConsent
+      // explicit true/false every time, so unchecking it actually revokes
+      // consent instead of silently leaving the old value in place. Consent
+      // METHOD/DATE/BRAND are never sent from here at all (no input carries
+      // those names) -- the server-side audit trail
+      // (crm/lib/clientService.js) is only ever touched by the consent
+      // checkbox transitioning off->on, and only re-stamps its own
       // timestamp when that happens; it is never client-supplied.
       fields.smsConsent = dialog.querySelector('#edit-client-sms-consent').checked;
-      fields.emailConsent = dialog.querySelector('#edit-client-email-consent').checked;
       try {
         await CrmApp.postJSON(`/api/app/clients/${contactId}`, 'PATCH', fields);
         CrmApp.toast('Client updated.');
@@ -326,7 +324,6 @@ async function render() {
         <dt>Consent Date</dt><dd>${c.smsConsentAt ? CrmApp.friendlyDateTime(c.smsConsentAt) : '—'}</dd>
         <dt>Consent Method</dt><dd>${CrmApp.escapeHtml(c.smsConsentSource || '—')}</dd>
         <dt>Consent Brand</dt><dd>${c.smsConsent && c.smsConsentSource ? CrmApp.escapeHtml(consentBrandLabel) : '—'}</dd>
-        <dt>Email Consent</dt><dd>${c.emailConsent ? 'Yes' : 'No'}</dd>
         <dt>Lead Status</dt><dd>${CrmApp.escapeHtml(c.leadStatus || '—')}</dd>
         <dt>General notes</dt><dd style="white-space:pre-wrap;">${CrmApp.escapeHtml(c.generalNotes || '—')}</dd>
       </dl>
@@ -1308,11 +1305,13 @@ async function render() {
 
 
   function composeDraftModal(channel) {
-    const consentOk = channel === 'text' ? c.smsConsent : channel === 'email' ? c.emailConsent : true;
+    // Email consent was removed from this CRM entirely -- only SMS still
+    // gates draft creation here.
+    const consentOk = channel === 'text' ? c.smsConsent : true;
     const dialog = CrmApp.openModal({
       title: channel === 'text' ? 'Draft Text' : 'Draft Email',
       bodyHtml: !consentOk ? `
-        <p class="confirm-message">This client has not given ${channel === 'text' ? 'SMS' : 'email'} consent — a draft cannot be created.</p>
+        <p class="confirm-message">This client has not given SMS consent — a draft cannot be created.</p>
         <div class="crmapp-modal-actions"><button type="button" class="btn" id="draft-close-noconsent">Close</button></div>
       ` : `
         <div id="draft-brand-field" class="form-field full" style="display:none;">

@@ -79,9 +79,9 @@ function createClient(db, fields, actor) {
 
 // Explicit-tri-state boolean: undefined ("this field was never part of the
 // request") is distinguished from a real false, so COALESCE below only
-// overwrites sms_consent/email_consent when the caller actually meant to —
-// a caller that never mentions consent at all (e.g. an unrelated field
-// update) must never accidentally reset it.
+// overwrites sms_consent when the caller actually meant to — a caller that
+// never mentions consent at all (e.g. an unrelated field update) must never
+// accidentally reset it.
 function toBoolIntOrNull(v) {
   if (v === undefined) return null;
   return v ? 1 : 0;
@@ -144,14 +144,25 @@ function toFloatOrNull(v) {
 // "Retirement & Annuity Planning" tab and its own header comment for the
 // full old-CRM-vs-new-CRM field mapping.
 //
-// sms_consent/email_consent ARE accepted here (Revenue MVP requirement: a
-// manually-added existing client must be markable as consented, or the
-// Text/Email actions in crm/lib/communicationDraftService.js can never be
-// used for them at all — there was previously no path to ever set this to
-// true for a manually-entered contact). Loretta is the one deciding
-// whether real consent exists (existing-business-relationship, verbal, a
-// prior opt-in reply, etc.) — this only gives the CRM a place to record
-// that decision, it never infers or assumes consent itself.
+// sms_consent IS accepted here (Revenue MVP requirement: a manually-added
+// existing client must be markable as consented, or the Text action in
+// crm/lib/communicationDraftService.js can never be used for them at all —
+// there was previously no path to ever set this to true for a
+// manually-entered contact). Loretta is the one deciding whether real
+// consent exists (existing-business-relationship, verbal, a prior opt-in
+// reply, etc.) — this only gives the CRM a place to record that decision,
+// it never infers or assumes consent itself.
+//
+// 2026-09-14: email_consent is deliberately NOT accepted here (or anywhere
+// else in the active app) -- Email Consent was removed as a CRM concept
+// entirely. Sending an email never required it in this app to begin with
+// (crm/routes/email.js, crm/lib/existingClientOutreach.js's
+// sendReconnectionEmail); the one place that DID gate on it
+// (crm/lib/communicationDraftService.js's createDraft, for the plain Email
+// button) no longer does. The email_consent COLUMN itself is left in place
+// on `contacts` (unused, never a destructive migration) -- see
+// crm/db/database.js. This has no effect on sms_consent, which keeps its
+// full audit trail (source/at/notes) exactly as before.
 //
 // relationship_type is fully independent of sms_consent — selecting any
 // relationship category (e.g. "Active Client") must never itself grant or
@@ -233,7 +244,6 @@ function applyContactFields(db, contactId, fields, normalized, opts = {}) {
       sms_consent_source   = COALESCE(@sms_consent_source, sms_consent_source),
       sms_consent_notes    = COALESCE(@sms_consent_notes, sms_consent_notes),
       sms_consent_at       = CASE WHEN @is_new_consent_grant = 1 THEN CURRENT_TIMESTAMP ELSE sms_consent_at END,
-      email_consent        = COALESCE(@email_consent, email_consent),
       updated_at           = CURRENT_TIMESTAMP
     WHERE id = @id
   `).run({
@@ -267,7 +277,7 @@ function applyContactFields(db, contactId, fields, normalized, opts = {}) {
     estimated_income: toFloatOrNull(fields.estimatedIncome),
     surrender_period: toStringOrNull(fields.surrenderPeriod),
     income_rider: toBoolIntOrNull(fields.incomeRider),
-    sms_consent: toBoolIntOrNull(fields.smsConsent), email_consent: toBoolIntOrNull(fields.emailConsent),
+    sms_consent: toBoolIntOrNull(fields.smsConsent),
     sms_consent_source: toStringOrNull(fields.smsConsentSource),
     sms_consent_notes: toStringOrNull(fields.smsConsentNotes),
     is_new_consent_grant: isNewConsentGrant ? 1 : 0,

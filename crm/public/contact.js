@@ -150,7 +150,6 @@ const SECTIONS = {
   ],
   marketing: [
     { id: 'f-sms_consent',        key: 'sms_consent',        type: 'bool' },
-    { id: 'f-email_consent',      key: 'email_consent',      type: 'bool' },
     { id: 'f-sms_consent_source', key: 'sms_consent_source', type: 'select' },
     { id: 'f-sms_consent_notes',  key: 'sms_consent_notes',  type: 'text' },
     // sms_consent_at is deliberately NOT listed here -- it is read-only
@@ -263,8 +262,8 @@ async function saveCrmSection(event, key) {
       wireSmsCompose(updated);
     }
     // Marketing's edit panel now sits directly inside the Contact Info
-    // card, right next to the read-only SMS/Email Consent summary rows --
-    // refresh those too so they never look stale right after a save, and
+    // card, right next to the read-only SMS Consent summary row -- refresh
+    // that too so it never looks stale right after a save, and
     // refresh the SMS composer's own consent gate (crm/public/contact.js's
     // wireSmsCompose) since a consent change here can flip whether texting
     // is currently allowed.
@@ -742,13 +741,12 @@ function renderInfo(contact) {
     ['Phone',          contact.phone     ? formatPhone(contact.phone)     : null, null],
     ['Alt Phone',      contact.alt_phone ? formatPhone(contact.alt_phone) : null, null],
     ['Lead Source',    contact.lead_source, null],
-    ['Email Consent',      contact.email_consent ? 'Yes' : 'No', null],
-    // Always renders (Yes/No/Opted Out), matching Email Consent's row
-    // above -- previously this showed 'Yes' or was OMITTED ENTIRELY when
-    // false (falsy values are filtered out of this list below), making a
-    // contact with no SMS consent look identical to one this row simply
-    // never existed for. Opt-out is authoritative and checked first here,
-    // same precedence as crm/lib/legacySmsSend.js's checkConsentGate().
+    // Always renders (Yes/No/Opted Out) -- previously this showed 'Yes' or
+    // was OMITTED ENTIRELY when false (falsy values are filtered out of
+    // this list below), making a contact with no SMS consent look
+    // identical to one this row simply never existed for. Opt-out is
+    // authoritative and checked first here, same precedence as
+    // crm/lib/legacySmsSend.js's checkConsentGate().
     ['SMS Consent',        contact.sms_opted_out_at ? 'Opted Out' : (contact.sms_consent ? 'Yes' : 'No'), null],
     ['SMS Consent Source', contact.sms_consent_source, null],
     ['SMS Consent Date',   contact.sms_consent_at ? formatDate(contact.sms_consent_at, true) : null, null],

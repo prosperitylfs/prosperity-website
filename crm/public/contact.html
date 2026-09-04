@@ -140,10 +140,6 @@
                   <input id="f-sms_consent" type="checkbox">
                   <span>SMS Consent</span>
                 </label>
-                <label class="crm-check-label">
-                  <input id="f-email_consent" type="checkbox">
-                  <span>Email Consent</span>
-                </label>
               </div>
             </div>
             <div class="crm-field">
@@ -199,9 +195,9 @@
               <input id="f-home_phone" type="tel" class="crm-input" placeholder="(414) 555-0100">
             </div>
             <!-- Preferred Contact Method input hidden here (not deleted) --
-                 SMS Consent, Email Consent, and phone type (Mobile/Landline)
-                 already cover this workflow, and nothing else in the CRM
-                 reads preferred_contact_method. The database column and the
+                 SMS Consent and phone type (Mobile/Landline) already cover
+                 this workflow, and nothing else in the CRM reads
+                 preferred_contact_method. The database column and the
                  PATCH allowlist in crm/routes/contacts.js are untouched, so
                  existing stored values remain intact and this can be
                  restored by re-adding this markup with no backend changes. -->

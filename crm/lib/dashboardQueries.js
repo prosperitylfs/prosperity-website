@@ -141,7 +141,15 @@ function buildClientListOrderBy(sort) {
   if (sort === 'lastActivity') {
     return `${lastActivityExpr} IS NULL, ${lastActivityExpr} DESC, ct.last_name COLLATE NOCASE, ct.first_name COLLATE NOCASE, ct.id`;
   }
-  return 'ct.last_name COLLATE NOCASE, ct.first_name COLLATE NOCASE, ct.id';
+  // A blank/missing last_name (empty string, not just NULL -- e.g. a
+  // contact entered with only a first name) sorts BEFORE every real value
+  // under plain COLLATE NOCASE, since '' < any non-empty string -- putting
+  // such contacts at the very top of an "alphabetical by last name" list
+  // instead of the bottom, where a person reading it would expect them.
+  // The leading boolean expression (0 = has a last name, 1 = blank) sorts
+  // ascending, so real last names always come first; last_name/first_name
+  // remain the actual sort keys for everyone else.
+  return `(ct.last_name IS NULL OR ct.last_name = ''), ct.last_name COLLATE NOCASE, ct.first_name COLLATE NOCASE, ct.id`;
 }
 
 function getCaseList(db, { brandId = null, statusFilter = 'active', search = '', page = 1, pageSize = 25, sort = 'name' } = {}) {

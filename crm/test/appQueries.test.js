@@ -231,6 +231,44 @@ test('getCaseList sorts by dueDate at the database level (nearest due first, no-
   assert.deepEqual(names, ['Soonest', 'Later', 'NoDue'], 'nearest due date first, no-due-date contacts last');
 });
 
+// ── Default "Sort: Name" = last name A-Z, then first name A-Z ────────────
+
+test('getCaseList default sort (name) orders by LAST NAME A-Z, then FIRST NAME A-Z for matching last names', () => {
+  const { db, prosperityId } = setup();
+  const productId = getProductId(db, prosperityId, 'Life insurance');
+  const people = [
+    { first: 'Kamren', last: 'Rainey' }, { first: 'Nadia', last: 'Rainey' },
+    { first: 'Dieera', last: 'Robinson' }, { first: 'Dianne', last: 'Simmons' },
+    { first: 'Ralph', last: 'Small' },
+  ];
+  for (const p of people) {
+    const c = dedupeContact(db, { email: `${p.first.toLowerCase()}.sort@example.com`, first_name: p.first, last_name: p.last });
+    const link = resolveContactBrand(db, { contactId: c.id, brandId: prosperityId });
+    matchOrCreateCase(db, { contactBrandId: link.id, productId, eventType: 'new_inquiry' });
+  }
+
+  const list = getCaseList(db, { brandId: 'prosperity', sort: 'name', pageSize: 10 });
+  assert.deepEqual(list.contacts.map(x => x.contactName), [
+    'Kamren Rainey', 'Nadia Rainey', 'Dieera Robinson', 'Dianne Simmons', 'Ralph Small',
+  ]);
+});
+
+test('getCaseList default sort (name) puts a contact with a blank last name LAST, not first', () => {
+  const { db, prosperityId } = setup();
+  const productId = getProductId(db, prosperityId, 'Life insurance');
+  const blank = dedupeContact(db, { email: 'blanklast@example.com', first_name: 'Zack', last_name: '' });
+  const named = dedupeContact(db, { email: 'named@example.com', first_name: 'Amy', last_name: 'Abbott' });
+  for (const c of [blank, named]) {
+    const link = resolveContactBrand(db, { contactId: c.id, brandId: prosperityId });
+    matchOrCreateCase(db, { contactBrandId: link.id, productId, eventType: 'new_inquiry' });
+  }
+
+  const list = getCaseList(db, { brandId: 'prosperity', sort: 'name', pageSize: 10 });
+  // Plain COLLATE NOCASE would put '' (blank last name) before 'Abbott' --
+  // the fix pushes a blank last name to the end instead.
+  assert.deepEqual(list.contacts.map(x => x.contactName), ['Amy Abbott', 'Zack']);
+});
+
 test('getDashboardSummary counts review-required items and respects the company filter', () => {
   const { db, prosperityId, insuranceLadyId } = setup();
   db.prepare(`

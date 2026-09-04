@@ -318,7 +318,12 @@ function getExistingClientsForOutreach(db, { search = '' } = {}) {
     JOIN contact_brands cb ON cb.contact_id = ct.id AND cb.status = 'Active'
     JOIN brands b          ON b.id = cb.brand_id AND b.slug = 'prosperity'
     WHERE ${clauses.join(' AND ')}
-    ORDER BY ct.last_name COLLATE NOCASE, ct.first_name COLLATE NOCASE, ct.id
+    -- A blank/missing last_name sorts to the END, not the start -- '' < any
+    -- non-empty string under COLLATE NOCASE, which would otherwise put
+    -- contacts with no last name on file ahead of everyone else instead of
+    -- alphabetically among them. Same fix as crm/lib/dashboardQueries.js's
+    -- buildClientListOrderBy.
+    ORDER BY (ct.last_name IS NULL OR ct.last_name = ''), ct.last_name COLLATE NOCASE, ct.first_name COLLATE NOCASE, ct.id
   `).all(...params);
 
   return rows.map(r => {

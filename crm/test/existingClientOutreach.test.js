@@ -631,6 +631,40 @@ test('getExistingClientsForOutreach lists only Prosperity Existing Clients, neve
   assert.equal(rennee.smsEligible, true);
 });
 
+// ── Default sort = last name A-Z, then first name A-Z (same rule/fix as
+//    crm/lib/dashboardQueries.js's getCaseList) ───────────────────────────
+
+test('getExistingClientsForOutreach orders by LAST NAME A-Z, then FIRST NAME A-Z for matching last names', () => {
+  const db = setup();
+  const people = [
+    { first: 'Kamren', last: 'Rainey' }, { first: 'Nadia', last: 'Rainey' },
+    { first: 'Dieera', last: 'Robinson' }, { first: 'Dianne', last: 'Simmons' },
+    { first: 'Ralph', last: 'Small' },
+  ];
+  for (const p of people) seedExistingClient(db, { firstName: p.first, lastName: p.last, phone: `414-555-92${people.indexOf(p)}0` });
+
+  const list = getExistingClientsForOutreach(db, {});
+  assert.deepEqual(list.map(c => c.contactName), [
+    'Kamren Rainey', 'Nadia Rainey', 'Dieera Robinson', 'Dianne Simmons', 'Ralph Small',
+  ]);
+});
+
+test('getExistingClientsForOutreach puts a contact with a blank last name LAST, not first', () => {
+  const db = setup();
+  // seedExistingClient's own lastName || 'Jones' fallback would silently
+  // replace an intentionally blank last name, so this uses createClient
+  // directly to keep it genuinely blank.
+  const blank = createClient(db, {
+    firstName: 'Zack', lastName: '', email: 'zack.blank@example.com', phone: '414-555-9310',
+    relationshipType: 'active_client', brandSlug: 'prosperity',
+  }, 'Loretta Stewart').contact;
+  const named = seedExistingClient(db, { firstName: 'Amy', lastName: 'Abbott', phone: '414-555-9311' });
+
+  const list = getExistingClientsForOutreach(db, {});
+  const names = list.filter(c => [blank.id, named.id].includes(c.contactId)).map(c => c.contactName);
+  assert.deepEqual(names, ['Amy Abbott', 'Zack']);
+});
+
 // ── Eligibility also honors lead_type = 'Existing Client', the CRM's OTHER
 // pre-existing "this is an existing client" signal (crm/lib/leadNormalize.js)
 // -- never a new field, and a contact only needs ONE of the two. ──────────

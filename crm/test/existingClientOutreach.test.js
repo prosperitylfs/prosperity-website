@@ -492,6 +492,86 @@ test('I. selected Existing Clients receive the SMS with individual personalizati
   assert.match(row2.body, /Hi Marcus,/);
 }));
 
+// ── Allow resend (bulk path) -- crm/public/app/clients.html's new checkbox
+// on the quick-send confirmation, wired to the SAME confirmResend param
+// sendReconnectionSms already implements. These exercise it through
+// bulkSendReconnectionOutreach specifically (the actual call path the UI
+// uses), not just the single-send function already covered above. ────────
+
+test('1. bulk resend WITHOUT confirmResend is skipped as already_sent', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contact = seedExistingClient(db, { phone: '414-555-9301' });
+  await bulkSendReconnectionOutreach(db, {
+    contactIds: [contact.id], channel: 'sms', message: 'Hi {{first_name}}, first send.', templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+  }, { twilioClientFactory: fakeTwilioClient('ok') });
+
+  const results = await bulkSendReconnectionOutreach(db, {
+    contactIds: [contact.id], channel: 'sms', message: 'Hi {{first_name}}, resend attempt.', templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+  }, { twilioClientFactory: fakeTwilioClient('ok') });
+
+  assert.equal(results[0].outcome, 'blocked');
+  assert.equal(results[0].code, 'already_sent');
+}));
+
+test('2. bulk resend WITH confirmResend:true is sent', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contact = seedExistingClient(db, { phone: '414-555-9302' });
+  await bulkSendReconnectionOutreach(db, {
+    contactIds: [contact.id], channel: 'sms', message: 'Hi {{first_name}}, first send.', templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+  }, { twilioClientFactory: fakeTwilioClient('ok') });
+
+  const results = await bulkSendReconnectionOutreach(db, {
+    contactIds: [contact.id], channel: 'sms', message: 'Hi {{first_name}}, resend attempt.', templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+    confirmResend: true,
+  }, { twilioClientFactory: fakeTwilioClient('ok') });
+
+  assert.equal(results[0].outcome, 'sent');
+}));
+
+test('3. confirmResend:true does NOT override an opted-out contact -- still blocked', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contact = seedExistingClient(db, { phone: '414-555-9303' });
+  db.prepare('UPDATE contacts SET sms_opted_out_at = CURRENT_TIMESTAMP WHERE id = ?').run(contact.id);
+
+  const results = await bulkSendReconnectionOutreach(db, {
+    contactIds: [contact.id], channel: 'sms', message: 'Hi {{first_name}}, reconnecting.', templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+    confirmResend: true,
+  }, { twilioClientFactory: fakeTwilioClient('ok') });
+
+  assert.equal(results[0].outcome, 'blocked');
+  assert.equal(results[0].code, 'opted_out');
+}));
+
+test('4. confirmResend:true does NOT override an SMS-ineligible contact (no phone) -- still blocked', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contact = seedExistingClient(db, { phone: null });
+
+  const results = await bulkSendReconnectionOutreach(db, {
+    contactIds: [contact.id], channel: 'sms', message: 'Hi {{first_name}}, reconnecting.', templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+    confirmResend: true,
+  }, { twilioClientFactory: fakeTwilioClient('ok') });
+
+  assert.equal(results[0].outcome, 'blocked');
+  assert.equal(results[0].code, 'no_phone');
+}));
+
+test('5. a bulk resend preserves the original send -- SMS history has BOTH messages, nothing deleted', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contact = seedExistingClient(db, { phone: '414-555-9304' });
+  await bulkSendReconnectionOutreach(db, {
+    contactIds: [contact.id], channel: 'sms', message: 'Hi {{first_name}}, first send.', templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+  }, { twilioClientFactory: fakeTwilioClient('ok') });
+  await bulkSendReconnectionOutreach(db, {
+    contactIds: [contact.id], channel: 'sms', message: 'Hi {{first_name}}, resend.', templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+    confirmResend: true,
+  }, { twilioClientFactory: fakeTwilioClient('ok') });
+
+  const rows = db.prepare('SELECT body FROM sms_messages WHERE contact_id = ? ORDER BY id').all(contact.id);
+  assert.equal(rows.length, 2, 'both the original send and the resend must be present -- neither is deleted or overwritten');
+  assert.match(rows[0].body, /first send/);
+  assert.match(rows[1].body, /resend/);
+}));
+
 test('I. selected Existing Clients receive the email individually, with independent personalization and status', async () => {
   const db = setup();
   const a = seedExistingClient(db, { firstName: 'Renee', phone: '414-555-9401' });

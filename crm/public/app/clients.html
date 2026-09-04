@@ -589,17 +589,30 @@ async function render() {
     const representativeName = selected.length ? selected[0].firstName : null;
     const previewText = tmpl.body.replace(/\{\{first_name\}\}/g, representativeName || 'there');
 
+    // "Allow resend" bypasses ONLY the "already received this template"
+    // dedup check -- crm/lib/existingClientOutreach.js's sendReconnectionSms
+    // already implements this exactly (confirmResend only short-circuits
+    // the already_sent eligibility code; opted-out/no-phone/not-an-Existing-
+    // Client still block regardless). This checkbox is just the missing
+    // front-end control for that already-existing, already-safe backend
+    // parameter -- unchecked by default, so ordinary sends are completely
+    // unaffected.
     const ok = await CrmApp.confirmAction(
       `Send <strong>${CrmApp.escapeHtml(tmpl.label)}</strong> to ${count} selected Existing Client${count === 1 ? '' : 's'}?<br><br>` +
-      `<div style="white-space:pre-wrap; background:var(--surface-alt); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; font-size:13.5px; max-height:180px; overflow-y:auto; text-align:left;">${CrmApp.escapeHtml(previewText)}</div>`,
+      `<div style="white-space:pre-wrap; background:var(--surface-alt); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; font-size:13.5px; max-height:180px; overflow-y:auto; text-align:left;">${CrmApp.escapeHtml(previewText)}</div>` +
+      `<label style="display:flex; align-items:center; gap:8px; font-weight:400; margin-top:10px; text-align:left;">` +
+        `<input type="checkbox" id="quick-send-allow-resend"> Allow resend to contacts who already received this template` +
+      `</label>`,
       { confirmLabel: 'Send to Selected' }
     );
     if (!ok) return;
+    const allowResendEl = document.getElementById('quick-send-allow-resend');
+    const confirmResend = !!(allowResendEl && allowResendEl.checked);
 
     let result;
     try {
       result = await CrmApp.postJSON('/api/app/existing-client-outreach/bulk', 'POST', {
-        contactIds: [...selectedOutreachIds], channel: 'sms', message: tmpl.body, templateKey,
+        contactIds: [...selectedOutreachIds], channel: 'sms', message: tmpl.body, templateKey, confirmResend,
       });
     } catch (err) {
       CrmApp.toast(err.message, { error: true });

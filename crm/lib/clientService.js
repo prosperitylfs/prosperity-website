@@ -328,6 +328,16 @@ const DIRECT_CONTACT_TABLES = [
   'follow_up_tasks', 'appointments', 'communication_drafts',
 ];
 
+// The subset of DIRECT_CONTACT_TABLES that crm/db/migrateBrands.js's
+// addDownstreamReferences() gave a contact_brand_id AND case_id column to
+// (no ON DELETE action on either). communication_drafts is excluded — its
+// case_id was declared inline with ON DELETE SET NULL, a real native
+// cascade, not one of the ALTER-TABLE-added no-action columns.
+const TABLES_WITH_BRAND_CASE_REFS = [
+  'communications', 'comm_calls', 'sms_messages', 'emails', 'contact_notes',
+  'follow_up_tasks', 'appointments',
+];
+
 // Permanently and irreversibly deletes a client (contact) and every record
 // that exists only because of that client — the opposite of archiveClient,
 // which is reversible and touches nothing but contacts.archived_at. This is
@@ -414,8 +424,49 @@ function deleteClientPermanently(db, contactId, actor, { confirmDelete } = {}) {
     if (contactBrandIds.length) {
       caseIds = db.prepare(`SELECT id FROM cases WHERE contact_brand_id IN (${cbPh})`).all(...contactBrandIds).map(r => r.id);
     }
+    const casePh = caseIds.map(() => '?').join(',');
+
+    // The live bug: comm_calls/sms_messages/emails/appointments/
+    // follow_up_tasks/contact_notes/communications each gained a
+    // contact_brand_id AND case_id column (crm/db/migrateBrands.js's
+    // addDownstreamReferences), neither with an ON DELETE action. Deleting
+    // THIS contact's own rows in those tables (below, via contact_id) does
+    // not help here -- a row belonging to a DIFFERENT contact (e.g. left
+    // behind with a stale case_id/contact_brand_id after a "same person"
+    // duplicate merge, which reassigns contact_id but never touches these
+    // two columns -- see crm/lib/reviewResolution.js's
+    // reassignContactOwnedRecords) can still point at this contact's
+    // case/contact_brand with no ownership relationship to this contact at
+    // all. Clearing them on EVERY matching row, regardless of who owns it,
+    // before the cases/contact_brands deletes below, closes that gap
+    // completely rather than special-casing one more scenario.
+    for (const table of TABLES_WITH_BRAND_CASE_REFS) {
+      if (!tableExists(db, table)) continue;
+      if (caseIds.length) {
+        step(`clear ${table}.case_id`, () =>
+          db.prepare(`UPDATE ${table} SET case_id = NULL WHERE case_id IN (${casePh})`).run(...caseIds));
+      }
+      if (contactBrandIds.length) {
+        step(`clear ${table}.contact_brand_id`, () =>
+          db.prepare(`UPDATE ${table} SET contact_brand_id = NULL WHERE contact_brand_id IN (${cbPh})`).run(...contactBrandIds));
+      }
+    }
+
+    // Same reasoning for sms_messages.appointment_id (crm/db/database.js) --
+    // no ON DELETE action, and a stray row belonging to another contact
+    // could reference one of this contact's appointments (e.g. the same
+    // stale-reference-after-merge scenario above).
+    let apptIds = [];
+    if (tableExists(db, 'appointments')) {
+      apptIds = db.prepare('SELECT id FROM appointments WHERE contact_id = ?').all(contactId).map(r => r.id);
+    }
+    if (apptIds.length && tableExists(db, 'sms_messages')) {
+      const apptPh = apptIds.map(() => '?').join(',');
+      step('clear sms_messages.appointment_id', () =>
+        db.prepare(`UPDATE sms_messages SET appointment_id = NULL WHERE appointment_id IN (${apptPh})`).run(...apptIds));
+    }
+
     if (caseIds.length) {
-      const casePh = caseIds.map(() => '?').join(',');
       step('delete policies', () => db.prepare(`DELETE FROM policies WHERE case_id IN (${casePh})`).run(...caseIds));
       step('delete case_external_refs', () => db.prepare(`DELETE FROM case_external_refs WHERE case_id IN (${casePh})`).run(...caseIds));
       step('delete case_brand_transfers', () => db.prepare(`DELETE FROM case_brand_transfers WHERE case_id IN (${casePh})`).run(...caseIds));

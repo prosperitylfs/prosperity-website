@@ -646,17 +646,71 @@ test('reproduces and fixes the live bug: deleting a client with an already-RESOL
   assert.equal(intakeAfter.status, 'Resolved', 'resolution status/audit fields themselves are untouched');
 });
 
-test('improved error logging: a failed delete names the exact step that failed', () => {
+// Reproduces the SECOND live bug report (after 0b1816e): the exact live
+// error was "failed at step \"delete contact_brands\" (contact #32):
+// FOREIGN KEY constraint failed". Root cause: comm_calls/sms_messages/
+// emails/appointments/follow_up_tasks/contact_notes/communications each
+// have a contact_brand_id AND case_id column (crm/db/migrateBrands.js's
+// addDownstreamReferences, no ON DELETE action) -- and a ROW BELONGING TO
+// A DIFFERENT CONTACT can still carry a stale reference to this contact's
+// case/contact_brand (e.g. left behind by a "same person" duplicate merge,
+// which reassigns contact_id via crm/lib/reviewResolution.js's
+// reassignContactOwnedRecords but never touches contact_brand_id/case_id).
+// Deleting only THIS contact's own rows (by contact_id) never touches that
+// other contact's row, so the old code still hit the FK check. Must now
+// succeed, clearing the stray cross-reference rather than leaving it
+// dangling or blocking the delete.
+test('reproduces and fixes the live bug (round 2): a stray cross-contact case_id/contact_brand_id reference no longer blocks deletion', () => {
   const { db, prosperityId } = setup();
+  const created = createClient(db, { firstName: 'Loretta', lastName: 'CrossLinkRepro', email: 'crosslinkrepro@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const contactId = created.contact.id;
+  const contactBrandId = created.contactBrand.id;
+  const caseResult = createCaseForClient(db, { contactId, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+
+  // A genuinely different contact's own sms_messages/comm_calls rows (owned
+  // by THEIR contact_id) still carry a stale case_id/contact_brand_id
+  // pointing at the client being deleted -- exactly the state a "same
+  // person" merge can leave behind.
+  const other = createClient(db, { firstName: 'Other', email: 'other-crosslink@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  db.prepare(`INSERT INTO sms_messages (contact_id, direction, body, case_id) VALUES (?, 'outbound', 'stale cross-link', ?)`).run(other.contact.id, caseResult.id);
+  db.prepare(`INSERT INTO comm_calls (contact_id, direction, status, contact_brand_id) VALUES (?, 'outbound', 'completed', ?)`).run(other.contact.id, contactBrandId);
+
+  const result = deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true });
+  assert.equal(result.outcome, 'deleted');
+
+  // The other contact and its own rows are completely untouched, except
+  // the now-dangling case_id/contact_brand_id pointer, which is cleared.
+  assert.ok(db.prepare('SELECT * FROM contacts WHERE id = ?').get(other.contact.id), 'the other contact must be completely unaffected');
+  const staleSms = db.prepare('SELECT * FROM sms_messages WHERE contact_id = ?').get(other.contact.id);
+  assert.ok(staleSms, 'the other contact\'s own sms row must survive');
+  assert.equal(staleSms.case_id, null, 'the stale case_id must be cleared, not left dangling');
+  assert.equal(staleSms.body, 'stale cross-link', 'nothing else about the row is touched');
+  const staleCall = db.prepare('SELECT * FROM comm_calls WHERE contact_id = ?').get(other.contact.id);
+  assert.ok(staleCall, 'the other contact\'s own call row must survive');
+  assert.equal(staleCall.contact_brand_id, null, 'the stale contact_brand_id must be cleared, not left dangling');
+});
+
+test('improved error logging: a failed delete names the exact step that failed', () => {
+  const { db } = setup();
   const created = createClient(db, { firstName: 'Loud', lastName: 'Failure', email: 'loudfailure@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
   const contactId = created.contact.id;
-  const caseResult = createCaseForClient(db, { contactId, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
-  const other = createClient(db, { firstName: 'Other', email: 'other-logging@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
-  db.prepare(`INSERT INTO sms_messages (contact_id, direction, body, case_id) VALUES (?, 'outbound', 'cross-linked', ?)`).run(other.contact.id, caseResult.id);
+
+  // A synthetic, not-yet-known child table (standing in for any future gap
+  // this audit hasn't discovered yet) with a real, unhandled foreign key
+  // to contacts -- proves the step-naming safety net holds even for a
+  // table deleteClientPermanently has no explicit knowledge of.
+  db.exec(`
+    CREATE TABLE test_unknown_child_table (
+      id INTEGER PRIMARY KEY,
+      contact_id INTEGER NOT NULL,
+      FOREIGN KEY (contact_id) REFERENCES contacts(id)
+    );
+  `);
+  db.prepare('INSERT INTO test_unknown_child_table (contact_id) VALUES (?)').run(contactId);
 
   assert.throws(
     () => deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true }),
-    /failed at step "delete cases"/,
+    /failed at step "delete contacts"/,
     'the thrown error must name the specific step that failed, not just the bare SQLite message'
   );
 });
@@ -680,14 +734,18 @@ test('deleteClientPermanently is transactional: a foreign-key failure partway th
   db.prepare(`INSERT INTO contact_notes (contact_id, body) VALUES (?, 'must survive')`).run(contactId);
   const caseResult = createCaseForClient(db, { contactId, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
 
-  // Simulate a data-integrity edge case: some OTHER contact's sms_messages
-  // row still references this contact's case via case_id (a column added
-  // without an ON DELETE action -- crm/db/migrateBrands.js's
-  // addDownstreamReferences). Deleting the case out from under that row
-  // must trip a real foreign-key violation and roll back the ENTIRE
-  // transaction -- not silently orphan or partially delete anything.
-  const other = createClient(db, { firstName: 'Other', email: 'other-fk@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
-  db.prepare(`INSERT INTO sms_messages (contact_id, direction, body, case_id) VALUES (?, 'outbound', 'cross-linked', ?)`).run(other.contact.id, caseResult.id);
+  // A synthetic, not-yet-known child table with a real, unhandled foreign
+  // key to contacts (standing in for any future gap this audit hasn't
+  // discovered yet) -- the failure must roll back EVERYTHING already done
+  // in this transaction, not just stop where it failed.
+  db.exec(`
+    CREATE TABLE test_unknown_child_table_2 (
+      id INTEGER PRIMARY KEY,
+      contact_id INTEGER NOT NULL,
+      FOREIGN KEY (contact_id) REFERENCES contacts(id)
+    );
+  `);
+  db.prepare('INSERT INTO test_unknown_child_table_2 (contact_id) VALUES (?)').run(contactId);
 
   assert.throws(() => deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true }), /FOREIGN KEY/);
   // The transaction must have rolled back completely -- contact, note, and

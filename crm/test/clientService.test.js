@@ -258,6 +258,65 @@ test('email_consent follows the same explicit-tri-state rule as sms_consent', ()
   assert.equal(updated.email_consent, 0);
 });
 
+// ── Edit Client expansion (2026-09-08): the full "complete contact profile"
+//    field set, minus lead_type (source/history, never editable) and every
+//    case/policy-shaped or purely historical/activity column ────────────
+
+test('updateClient accepts every new profile field and round-trips them exactly', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Nadia', email: 'nadia@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const updated = updateClient(db, created.contact.id, {
+    middleName: 'R', homePhone: '414-555-2000', altPhone: '414-555-2001',
+    preferredContactMethod: 'Text', bestTimeToContact: 'Evenings',
+    age: '54', maritalStatus: 'Married', spouseName: 'Pat Nadia', spouseDateOfBirth: '1974-03-02',
+    numberOfChildren: '2', numberOfGrandchildren: '1', familyNotes: 'Two kids in college',
+    occupation: 'Teacher', employer: 'MPS', referredBy: 'Existing client Renee',
+    leadStatus: 'Client',
+  });
+  assert.equal(updated.middle_name, 'R');
+  assert.equal(updated.home_phone, '414-555-2000');
+  assert.equal(updated.alt_phone, '414-555-2001');
+  assert.equal(updated.preferred_contact_method, 'Text');
+  assert.equal(updated.best_time_to_contact, 'Evenings');
+  assert.equal(updated.age, 54);
+  assert.equal(updated.marital_status, 'Married');
+  assert.equal(updated.spouse_name, 'Pat Nadia');
+  assert.equal(updated.spouse_date_of_birth, '1974-03-02');
+  assert.equal(updated.number_of_children, 2);
+  assert.equal(updated.number_of_grandchildren, 1);
+  assert.equal(updated.family_notes, 'Two kids in college');
+  assert.equal(updated.occupation, 'Teacher');
+  assert.equal(updated.employer, 'MPS');
+  assert.equal(updated.referred_by, 'Existing client Renee');
+  assert.equal(updated.lead_status, 'Client');
+});
+
+test('updateClient leaves every new profile field untouched when the request never mentions them', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Otis', email: 'otis@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  updateClient(db, created.contact.id, { occupation: 'Electrician', numberOfChildren: '3' });
+  const untouched = updateClient(db, created.contact.id, { firstName: 'Otis Jr' });
+  assert.equal(untouched.occupation, 'Electrician');
+  assert.equal(untouched.number_of_children, 3);
+});
+
+test('updateClient never accepts or writes lead_type -- it stays a source/history field, not part of the editable profile', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Pam', email: 'pam@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  db.prepare(`UPDATE contacts SET lead_type = 'Retirement Guide Lead' WHERE id = ?`).run(created.contact.id);
+  const updated = updateClient(db, created.contact.id, { leadType: 'Existing Client', firstName: 'Pamela' });
+  assert.equal(updated.first_name, 'Pamela');
+  assert.equal(updated.lead_type, 'Retirement Guide Lead', 'lead_type must be completely unaffected -- it is not an accepted field at all');
+});
+
+test('a blank/empty numeric profile field leaves the existing value unchanged rather than writing 0', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Quinn', email: 'quinn@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  updateClient(db, created.contact.id, { age: '40' });
+  const stillForty = updateClient(db, created.contact.id, { age: '' });
+  assert.equal(stillForty.age, 40, 'an empty string must COALESCE to "unchanged", matching every other field here');
+});
+
 test('archiving a client preserves cases, policies, notes, and audit history', () => {
   const { db } = setup();
   const created = createClient(db, { firstName: 'Theo', email: 'theo@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');

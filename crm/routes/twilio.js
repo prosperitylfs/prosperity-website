@@ -9,6 +9,7 @@ const db      = require('../db/database');
 const { createAutoTask, ctDueDateAndTime } = require('../lib/autoTasks');
 const { requireValidTwilioSignature } = require('../lib/twilioSignature');
 const { handleInboundSmsUnified } = require('../lib/inboundSmsService');
+const { handleOutboundSmsStatusCallback } = require('../lib/smsStatusService');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -638,19 +639,23 @@ router.post('/sms/inbound', (req, res) => {
 
 // ─── POST /api/twilio/sms/status ─────────────────────────────────────────────
 // Twilio delivery-status callback for outbound SMS.
-// Configured automatically via statusCallback in messages.create().
-// Always UPDATEs the existing sms_messages row — never inserts a new row.
+// Configured automatically via statusCallback in messages.create()
+// (crm/lib/legacySmsSend.js — the path crm/lib/existingClientOutreach.js and
+// every other legacy-path automated SMS in this CRM sends through).
+// Delegates to the SAME crm/lib/smsStatusService.js used by
+// crm/routes/twilioProsperitySms.js's own /sms/status (for the newer,
+// brand-aware live Twilio adapter) so both callback URLs share one
+// implementation instead of two that can drift apart — this route used to
+// have its own inline copy that updated status but silently discarded
+// Twilio's ErrorCode, so a 'failed'/'undelivered' result never recorded WHY.
+// Always an UPDATE, never an INSERT — see that module's own comment.
 router.post('/sms/status', (req, res) => {
   const { MessageSid, MessageStatus, ErrorCode } = req.body;
-  if (!MessageSid || !MessageStatus) { res.sendStatus(204); return; }
+  const result = handleOutboundSmsStatusCallback(db, { MessageSid, MessageStatus, ErrorCode });
 
-  const status = MessageStatus.toLowerCase();
-  const result = db.prepare('UPDATE sms_messages SET status = ? WHERE twilio_sid = ?')
-    .run(status, MessageSid);
-
-  if (result.changes) {
-    console.log(`[twilio/sms/status] ${MessageSid} → ${status}${ErrorCode ? '  error=' + ErrorCode : ''}`);
-  } else {
+  if (result.outcome === 'updated') {
+    console.log(`[twilio/sms/status] ${MessageSid} → ${result.status}${ErrorCode ? '  error=' + ErrorCode : ''}`);
+  } else if (result.outcome === 'no_matching_message') {
     console.warn(`[twilio/sms/status] no sms_messages row found for sid=${MessageSid}`);
   }
 

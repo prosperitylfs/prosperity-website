@@ -80,6 +80,11 @@ test('a failed provider call marks the row failed with a failure reason, and ret
     assert.equal(result.sms.status, 'failed');
     assert.match(result.sms.body, /\[FAILED\]/);
     assert.match(result.sms.body, /unreachable/);
+    // failure_reason (a real column, also used by crm/lib/smsStatusService.js
+    // for the async undelivered/failed callback path) must be populated too,
+    // not just stuffed into the body -- this is what lets the SMS thread's
+    // failure bubble and the Message Delivery Status report show WHY.
+    assert.equal(result.sms.failure_reason, 'The number is unreachable | Code: 21211');
   });
 });
 

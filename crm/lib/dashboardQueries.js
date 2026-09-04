@@ -713,14 +713,29 @@ function getClientDetail(db, contactId) {
       name: contactDisplayName(contact),
       firstName: contact.first_name,
       lastName: contact.last_name,
+      middleName: contact.middle_name || null,
       email: contact.email,
       phone: contact.phone,
       phoneE164: contact.phone_e164,
+      homePhone: contact.home_phone || null,
+      altPhone: contact.alt_phone || null,
+      preferredContactMethod: contact.preferred_contact_method || null,
+      bestTimeToContact: contact.best_time_to_contact || null,
       address: contact.street_address || null,
       city: contact.city || null,
       state: contact.state || null,
       zip: contact.zip_code || null,
       dateOfBirth: contact.date_of_birth || null,
+      age: contact.age ?? null,
+      maritalStatus: contact.marital_status || null,
+      spouseName: contact.spouse_name || null,
+      spouseDateOfBirth: contact.spouse_date_of_birth || null,
+      numberOfChildren: contact.number_of_children ?? null,
+      numberOfGrandchildren: contact.number_of_grandchildren ?? null,
+      familyNotes: contact.family_notes || null,
+      occupation: contact.occupation || null,
+      employer: contact.employer || null,
+      referredBy: contact.referred_by || null,
       originalSource: contact.lead_source || null,
       generalNotes: contact.general_notes || null,
       leadStatus: contact.lead_status,
@@ -1004,13 +1019,19 @@ function normalizeMessageStatus(raw) {
   return 'Queued';
 }
 
-// SMS failures store their detail inside sms_messages.body itself, prefixed
-// "[FAILED] ..." (see crm/routes/twilio.js sendMissedCallSms) — there is no
-// separate error/reason column in the schema. Emails have no equivalent
-// stored detail at all. Never returns provider credentials or a raw API
-// response — only ever this app's own stored text.
-function extractFailureReason(channel, status, body) {
+// sms_messages.failure_reason (see crm/lib/smsStatusService.js and
+// crm/lib/legacySmsSend.js) is the current, preferred source -- populated
+// for both a synchronous Twilio API rejection and an async
+// undelivered/failed status-callback result. storedFailureReason is passed
+// in from the row for that. Older rows written before failure_reason
+// existed fall back to the "[FAILED] ..." prefix historically stuffed into
+// sms_messages.body itself (see crm/lib/legacySmsSend.js's still-unchanged
+// body-prefix). Emails have no equivalent stored detail at all. Never
+// returns provider credentials or a raw API response — only ever this
+// app's own stored text.
+function extractFailureReason(channel, status, body, storedFailureReason) {
   if (normalizeMessageStatus(status) !== 'Failed') return null;
+  if (storedFailureReason) return storedFailureReason;
   if (channel === 'sms' && body && body.startsWith('[FAILED]')) {
     const match = body.match(/^\[FAILED\]\s*([\s\S]+?)(?:\n\n|$)/);
     return match ? match[1].trim() : 'No further detail is stored for this message.';
@@ -1020,7 +1041,7 @@ function extractFailureReason(channel, status, body) {
 
 function getMessageDeliveryStatus(db, { brandId = null } = {}) {
   const smsRows = db.prepare(`
-    SELECT 'sms' AS channel, id, to_number AS recipient, status, body, sent_at AS timestamp, contact_brand_id, case_id
+    SELECT 'sms' AS channel, id, to_number AS recipient, status, body, failure_reason, sent_at AS timestamp, contact_brand_id, case_id
     FROM sms_messages
   `).all();
   const emailRows = db.prepare(`
@@ -1045,7 +1066,7 @@ function getMessageDeliveryStatus(db, { brandId = null } = {}) {
       channel: row.channel,
       recipient: row.recipient,
       status,
-      failureReason: status === 'Failed' ? extractFailureReason(row.channel, row.status, row.body) : null,
+      failureReason: status === 'Failed' ? extractFailureReason(row.channel, row.status, row.body, row.failure_reason) : null,
       timestamp: toIsoUtc(row.timestamp),
       brandId: rowBrandId,
       brandShortName: brand ? brand.shortName : null,

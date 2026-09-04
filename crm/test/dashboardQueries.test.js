@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const { createLegacyDb } = require('../testSupport/legacyDb');
 const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
+const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
 const { dedupeContact, resolveContactBrand, matchOrCreateCase } = require('../lib/caseMatching');
 const {
   getCaseList, getBrandReviewQueue, getCaseReviewQueue,
@@ -16,6 +17,7 @@ function setup() {
   const db = createLegacyDb();
   const { insuranceLadyId, prosperityId } = runMigrations(db);
   runDashboardMigrations(db);
+  runRevenueMvpMigrations(db); // adds sms_messages.failure_reason, among others
   return { db, insuranceLadyId, prosperityId };
 }
 
@@ -390,6 +392,23 @@ test('failed SMS surfaces its stored [FAILED] reason; failed email states no det
   const email = rows.find(r => r.channel === 'email');
   assert.match(sms.failureReason, /Error 30003/);
   assert.equal(email.failureReason, 'No further detail is stored for this message.');
+});
+
+test('a real failure_reason column value is preferred over the [FAILED]-prefixed body -- the current path (legacySmsSend.js / smsStatusService.js), not just the legacy fallback', () => {
+  const { db, insuranceLadyId } = setup();
+  const contact = dedupeContact(db, { email: 'failreason2.fake@example.test', first_name: 'Fake', last_name: 'FailReasonColumn' });
+  const link = resolveContactBrand(db, { contactId: contact.id, brandId: insuranceLadyId });
+  const c = matchOrCreateCase(db, { contactBrandId: link.id, productId: productId(db, insuranceLadyId, 'Follow-up/service'), externalRef: 'fake-fail-2', eventType: 'booking_created' });
+
+  db.prepare(`
+    INSERT INTO sms_messages (contact_id, direction, from_number, to_number, body, status, failure_reason, contact_brand_id, case_id)
+    VALUES (?, 'outbound', '+18559305239', '+15555550102', 'hi', 'undelivered', 'Message undelivered -- Twilio error code 30006.', ?, ?)
+  `).run(contact.id, link.id, c.case.id);
+
+  const rows = getMessageDeliveryStatus(db, { brandId: 'all' });
+  const sms = rows.find(r => r.channel === 'sms' && r.recipient === '+15555550102');
+  assert.equal(sms.status, 'Failed', 'undelivered normalizes to the same Failed status as failed');
+  assert.equal(sms.failureReason, 'Message undelivered -- Twilio error code 30006.');
 });
 
 test('Last Activity reflects the most recent related record, not just cases.updated_at', () => {

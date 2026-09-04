@@ -132,8 +132,15 @@ async function sendLegacySms(db, { contactId, body, fromNumber: fromNumberOverri
       twilioErr.moreInfo ? `Info: ${twilioErr.moreInfo}` : null,
     ].filter(Boolean).join(' | ');
 
-    db.prepare('UPDATE sms_messages SET status = ?, body = ? WHERE id = ?')
-      .run('failed', `[FAILED] ${errDetail}\n\nOriginal message: ${body}`, smsId);
+    // failure_reason is also set here (in addition to the [FAILED]-prefixed
+    // body, unchanged for backward compatibility) so a synchronous Twilio
+    // API rejection is captured the same consistent way an async
+    // undelivered/failed status-callback result already is (see
+    // crm/lib/smsStatusService.js) -- both now populate the same column,
+    // which the SMS thread's failure bubble (crm/public/app/client.html)
+    // and Message Delivery Status report already read.
+    db.prepare('UPDATE sms_messages SET status = ?, body = ?, failure_reason = ? WHERE id = ?')
+      .run('failed', `[FAILED] ${errDetail}\n\nOriginal message: ${body}`, errDetail, smsId);
 
     return {
       ok: false, status: 500, error: twilioErr.message, code: twilioErr.code || null,

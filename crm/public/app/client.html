@@ -74,26 +74,116 @@ async function render() {
 
   async function reloadPage() { location.reload(); }
 
+  // Relationship/client type options mirror crm/lib/clientService.js's own
+  // RELATIONSHIP_TYPES exactly (that module is the source of truth; this is
+  // just a matching label list for the <select>, same pattern the Add
+  // Contact UIs already use). Lead status is a much looser, long-lived free
+  // -text field (legacy dashboard, crm/public/app.js's PIPELINE_STATUSES) --
+  // offered as a dropdown of the known values, but the contact's OWN current
+  // value is always included even if it isn't one of them, so saving never
+  // silently rewrites an unrecognized existing status.
+  const RELATIONSHIP_TYPE_OPTIONS = [
+    { value: '', label: '(not set)' },
+    { value: 'lead', label: 'Lead' },
+    { value: 'active_client', label: 'Active Client' },
+    { value: 'former_client', label: 'Former Client' },
+    { value: 'prior_applicant', label: 'Prior Applicant' },
+    { value: 'declined_applicant', label: 'Declined Applicant' },
+  ];
+  const KNOWN_LEAD_STATUSES = [
+    'New Lead', 'Contacted', 'Appointment Scheduled', 'Appointment Completed',
+    'Follow-Up Needed', 'Illustration Sent', 'Application Submitted',
+    'Underwriting', 'Client', 'Sold', 'Long-Term Nurture',
+  ];
+
   function editClientModal() {
+    const esc = CrmApp.escapeHtml;
+    const field = (label, name, value, opts = {}) => `
+      <div class="form-field${opts.full ? ' full' : ''}"><label>${label}</label>
+        <input class="input" name="${name}" ${opts.type ? `type="${opts.type}"` : ''} ${opts.attrs || ''} value="${esc(value || '')}">
+      </div>`;
+    const textarea = (label, name, value, rows) => `
+      <div class="form-field full"><label>${label}</label><textarea class="input" name="${name}" rows="${rows || 3}">${esc(value || '')}</textarea></div>`;
+
+    const currentLeadStatus = c.leadStatus || 'New Lead';
+    const leadStatusOptions = KNOWN_LEAD_STATUSES.includes(currentLeadStatus)
+      ? KNOWN_LEAD_STATUSES : [currentLeadStatus, ...KNOWN_LEAD_STATUSES];
+
     const dialog = CrmApp.openModal({
       title: 'Edit Client',
+      wide: true,
       bodyHtml: `
         <form id="edit-client-form">
+          <div class="form-section-title">Identity &amp; Contact</div>
           <div class="form-grid">
-            <div class="form-field"><label>First name</label><input class="input" name="firstName" value="${CrmApp.escapeHtml(c.firstName || '')}"></div>
-            <div class="form-field"><label>Last name</label><input class="input" name="lastName" value="${CrmApp.escapeHtml(c.lastName || '')}"></div>
-            <div class="form-field"><label>Phone</label><input class="input" name="phone" type="tel" value="${CrmApp.escapeHtml(c.phone || '')}"></div>
-            <div class="form-field"><label>Email</label><input class="input" name="email" type="email" value="${CrmApp.escapeHtml(c.email || '')}"></div>
-            <div class="form-field full"><label>Address</label><input class="input" name="address" value="${CrmApp.escapeHtml(c.address || '')}"></div>
-            <div class="form-field"><label>City</label><input class="input" name="city" value="${CrmApp.escapeHtml(c.city || '')}"></div>
-            <div class="form-field"><label>State</label><input class="input" name="state" maxlength="2" value="${CrmApp.escapeHtml(c.state || '')}"></div>
-            <div class="form-field"><label>ZIP code</label><input class="input" name="zip" value="${CrmApp.escapeHtml(c.zip || '')}"></div>
-            <div class="form-field"><label>Date of birth</label><input class="input" name="dateOfBirth" type="date" value="${CrmApp.escapeHtml(c.dateOfBirth || '')}"></div>
-            <div class="form-field"><label>Original source</label><input class="input" name="originalSource" value="${CrmApp.escapeHtml(c.originalSource || '')}"></div>
-            <div class="form-field full"><label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" name="smsConsent" id="edit-client-sms-consent" style="width:auto;" ${c.smsConsent ? 'checked' : ''}> SMS consent on file <span class="hint">(required before this client can be texted from the CRM)</span></label></div>
-            <div class="form-field full"><label>General notes</label><textarea class="input" name="generalNotes">${CrmApp.escapeHtml(c.generalNotes || '')}</textarea></div>
+            ${field('First name', 'firstName', c.firstName)}
+            ${field('Last name', 'lastName', c.lastName)}
+            ${field('Middle name', 'middleName', c.middleName)}
+            ${field('Mobile phone', 'phone', c.phone, { type: 'tel' })}
+            ${field('Home phone', 'homePhone', c.homePhone, { type: 'tel' })}
+            ${field('Alternate phone', 'altPhone', c.altPhone, { type: 'tel' })}
+            ${field('Email', 'email', c.email, { type: 'email' })}
+            ${field('Preferred contact method', 'preferredContactMethod', c.preferredContactMethod)}
+            ${field('Best time to contact', 'bestTimeToContact', c.bestTimeToContact)}
           </div>
-          <div class="text-faint" style="margin-top:10px;">Permanent company (${primaryBrand ? CrmApp.escapeHtml(primaryBrand.brandShortName) : 'none'}) cannot be edited here — use "Request Company Change" instead.</div>
+
+          <div class="form-section-title">Address</div>
+          <div class="form-grid">
+            ${field('Street address', 'address', c.address, { full: true })}
+            ${field('City', 'city', c.city)}
+            ${field('State', 'state', c.state, { attrs: 'maxlength="2"' })}
+            ${field('ZIP code', 'zip', c.zip)}
+          </div>
+
+          <div class="form-section-title">Personal</div>
+          <div class="form-grid">
+            ${field('Date of birth', 'dateOfBirth', c.dateOfBirth, { type: 'date' })}
+            ${field('Age', 'age', c.age, { type: 'number', attrs: 'min="0"' })}
+            ${field('Marital status', 'maritalStatus', c.maritalStatus)}
+            ${field('Occupation', 'occupation', c.occupation)}
+            ${field('Employer', 'employer', c.employer)}
+            ${field('Spouse name', 'spouseName', c.spouseName)}
+            ${field('Spouse date of birth', 'spouseDateOfBirth', c.spouseDateOfBirth, { type: 'date' })}
+            ${field('Number of children', 'numberOfChildren', c.numberOfChildren, { type: 'number', attrs: 'min="0"' })}
+            ${field('Number of grandchildren', 'numberOfGrandchildren', c.numberOfGrandchildren, { type: 'number', attrs: 'min="0"' })}
+            ${textarea('Family notes', 'familyNotes', c.familyNotes)}
+          </div>
+
+          <div class="form-section-title">Classification</div>
+          <div class="form-grid">
+            ${field('Original source', 'originalSource', c.originalSource)}
+            ${field('Referred by', 'referredBy', c.referredBy)}
+            <div class="form-field"><label>Lead status</label>
+              <select class="input" name="leadStatus">
+                ${leadStatusOptions.map(s => `<option value="${esc(s)}" ${s === currentLeadStatus ? 'selected' : ''}>${esc(s)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-field"><label>Relationship / client type</label>
+              <select class="input" name="relationshipType">
+                ${RELATIONSHIP_TYPE_OPTIONS.map(o => `<option value="${o.value}" ${o.value === (c.relationshipType || '') ? 'selected' : ''}>${o.label}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-section-title">Consent</div>
+          <div class="form-grid">
+            <div class="form-field full"><label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" name="smsConsent" id="edit-client-sms-consent" style="width:auto;" ${c.smsConsent ? 'checked' : ''}> SMS consent on file <span class="hint">(required before this client can be texted from the CRM)</span></label></div>
+            <div class="form-field full"><label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" name="emailConsent" id="edit-client-email-consent" style="width:auto;" ${c.emailConsent ? 'checked' : ''}> Email consent on file</label></div>
+            <div class="form-field full text-faint" style="line-height:1.7;">
+              Consent method: ${esc(c.smsConsentSource || '—')}<br>
+              Consent date: ${c.smsConsentAt ? esc(new Date(c.smsConsentAt).toLocaleString()) : '—'}<br>
+              Consent brand: ${primaryBrand ? esc(primaryBrand.brandShortName) : '—'}
+              ${c.smsOptedOutAt ? `<br><span class="text-danger">Opted out (STOP) at ${esc(new Date(c.smsOptedOutAt).toLocaleString())}</span>` : ''}
+            </div>
+            ${textarea('Consent notes', 'smsConsentNotes', c.smsConsentNotes)}
+          </div>
+
+          <div class="form-section-title">Notes</div>
+          <div class="form-grid">
+            ${textarea('General notes', 'generalNotes', c.generalNotes, 4)}
+          </div>
+
+          <div class="text-faint" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">Permanent company (${primaryBrand ? esc(primaryBrand.brandShortName) : 'none'}) cannot be edited here — use "Request Company Change" instead.</div>
           <div class="form-error" id="edit-client-error"></div>
           <div class="crmapp-modal-actions">
             <button type="button" class="btn" id="edit-client-cancel">Cancel</button>
@@ -106,11 +196,17 @@ async function render() {
     dialog.querySelector('#edit-client-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fields = Object.fromEntries(new FormData(e.target).entries());
-      // Read the checkbox directly rather than trusting FormData, which
-      // omits an unchecked box entirely -- this keeps smsConsent an
-      // explicit true/false every time, so unchecking it actually revokes
-      // consent instead of silently leaving the old value in place.
+      // Read both consent checkboxes directly rather than trusting
+      // FormData, which omits an unchecked box entirely -- this keeps
+      // smsConsent/emailConsent explicit true/false every time, so
+      // unchecking one actually revokes it instead of silently leaving the
+      // old value in place. Consent METHOD/DATE/BRAND are never sent from
+      // here at all (no input carries those names) -- the server-side
+      // audit trail (crm/lib/clientService.js) is only ever touched by the
+      // consent checkbox transitioning off->on, and only re-stamps its own
+      // timestamp when that happens; it is never client-supplied.
       fields.smsConsent = dialog.querySelector('#edit-client-sms-consent').checked;
+      fields.emailConsent = dialog.querySelector('#edit-client-email-consent').checked;
       try {
         await CrmApp.postJSON(`/api/app/clients/${contactId}`, 'PATCH', fields);
         CrmApp.toast('Client updated.');

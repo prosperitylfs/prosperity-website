@@ -49,6 +49,21 @@ function createLegacyDb(dbPath = ':memory:') {
       sms_consent_source   TEXT,
       sms_consent_at       DATETIME,
       sms_consent_notes    TEXT,
+      -- "Complete contact profile" fields (crm/db/database.js), added for
+      -- the Edit Client expansion -- mirrors that file's addCol() calls.
+      home_phone               TEXT,
+      preferred_contact_method TEXT,
+      age                      INTEGER,
+      marital_status           TEXT,
+      spouse_name              TEXT,
+      spouse_date_of_birth     TEXT,
+      number_of_children       INTEGER,
+      number_of_grandchildren  INTEGER,
+      family_notes             TEXT,
+      occupation               TEXT,
+      employer                 TEXT,
+      referred_by              TEXT,
+      best_time_to_contact     TEXT,
       archived_at      DATETIME,
       created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP

@@ -9,6 +9,7 @@ const { createLegacyDb } = require('../testSupport/legacyDb');
 const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
+const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
 const { dedupeContact, resolveContactBrand, matchOrCreateCase } = require('../lib/caseMatching');
 const {
   getCaseList,
@@ -24,6 +25,7 @@ function setup() {
   const { insuranceLadyId, prosperityId } = runMigrations(db);
   runDashboardMigrations(db);
   runCrmAppMigrations(db);
+  runRevenueMvpMigrations(db); // adds sms_messages.failure_reason, among others
   return { db, insuranceLadyId, prosperityId };
 }
 
@@ -67,6 +69,37 @@ test('getClientDetail exposes leadType and relationshipType, both null when unse
   const detail2 = getClientDetail(db, contact2.id);
   assert.equal(detail2.contact.leadType, null);
   assert.equal(detail2.contact.relationshipType, null);
+});
+
+test('getClientDetail exposes the full "complete contact profile" field set added for the Edit Client expansion (2026-09-08)', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'fullprofile@example.com', first_name: 'Renee' });
+  db.prepare(`
+    UPDATE contacts SET
+      middle_name = 'A', home_phone = '414-555-3000', alt_phone = '414-555-3001',
+      preferred_contact_method = 'Email', best_time_to_contact = 'Mornings',
+      age = 61, marital_status = 'Widowed', spouse_name = 'Prior spouse', spouse_date_of_birth = '1962-01-01',
+      number_of_children = 4, number_of_grandchildren = 6, family_notes = 'Very involved family',
+      occupation = 'Retired nurse', employer = NULL, referred_by = 'Friend from church'
+    WHERE id = ?
+  `).run(contact.id);
+
+  const detail = getClientDetail(db, contact.id);
+  assert.equal(detail.contact.middleName, 'A');
+  assert.equal(detail.contact.homePhone, '414-555-3000');
+  assert.equal(detail.contact.altPhone, '414-555-3001');
+  assert.equal(detail.contact.preferredContactMethod, 'Email');
+  assert.equal(detail.contact.bestTimeToContact, 'Mornings');
+  assert.equal(detail.contact.age, 61);
+  assert.equal(detail.contact.maritalStatus, 'Widowed');
+  assert.equal(detail.contact.spouseName, 'Prior spouse');
+  assert.equal(detail.contact.spouseDateOfBirth, '1962-01-01');
+  assert.equal(detail.contact.numberOfChildren, 4);
+  assert.equal(detail.contact.numberOfGrandchildren, 6);
+  assert.equal(detail.contact.familyNotes, 'Very involved family');
+  assert.equal(detail.contact.occupation, 'Retired nurse');
+  assert.equal(detail.contact.employer, null);
+  assert.equal(detail.contact.referredBy, 'Friend from church');
 });
 
 test('getClientDetail surfaces contactConflict on the flagged (new) contact, and null on an unrelated contact', () => {

@@ -26,6 +26,7 @@ process.env.CALCOM_WEBHOOK_SECRET = SECRET;
 const db = require('../db/database');
 const { runMigrations: runBrandsMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
+const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
 const calcomRouter = require('../routes/calcom');
 const { getDashboardSummary, getClientDetail } = require('../lib/dashboardQueries');
 const { resolveContactConflict } = require('../lib/reviewResolution');
@@ -46,6 +47,9 @@ before(() => {
   // 'contact_conflict' review items (see the "New contact-matching rule"
   // tests below).
   runDashboardMigrations(db);
+  // sms_messages.failure_reason -- getDashboardSummary/getMessageDeliveryStatus
+  // now always select it (crm/lib/dashboardQueries.js).
+  runRevenueMvpMigrations(db);
   const app = express();
   app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
   app.use('/api/calcom', calcomRouter);

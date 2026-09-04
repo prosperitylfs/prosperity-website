@@ -87,8 +87,35 @@ function toBoolIntOrNull(v) {
   return v ? 1 : 0;
 }
 
+// Same tri-state idea as toStringOrNull, for the handful of numeric profile
+// fields (age, number_of_children, number_of_grandchildren) -- an empty
+// string/undefined/non-numeric input COALESCEs to "leave unchanged" rather
+// than writing 0 or NaN.
+function toIntOrNull(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
 // Never accepts a brand/company field — structurally impossible to change
-// the permanent company through this function.
+// the permanent company through this function. Also never accepts
+// lead_type: unlike relationship_type (below), lead_type stays a
+// source/history field recording how this contact originally entered the
+// CRM (see the RELATIONSHIP_TYPES comment above) and is deliberately left
+// out of the editable field set entirely, not merely unwritten here.
+//
+// 2026-09-08 expansion (Edit Client): every other "complete contact
+// profile" column crm/db/database.js already defines on `contacts` --
+// middle_name, home_phone, alt_phone, preferred_contact_method,
+// best_time_to_contact, age, marital_status, spouse_name/date_of_birth,
+// number_of_children/grandchildren, family_notes, occupation, employer,
+// referred_by, lead_status -- is now accepted the same COALESCE way as the
+// fields already here. Deliberately excludes every case/policy-shaped
+// column also on this table (insurance_company, policy_type, face_amount,
+// coverage_goal, retirement_assets, etc.) -- those belong to Cases/Policies
+// (crm/lib/caseService.js / policyService.js), not the client profile, and
+// every purely historical/activity column (last_contacted,
+// next_follow_up_date, last_called_at, commission_estimate, etc.).
 //
 // sms_consent/email_consent ARE accepted here (Revenue MVP requirement: a
 // manually-added existing client must be markable as consented, or the
@@ -135,32 +162,60 @@ function applyContactFields(db, contactId, fields, normalized, opts = {}) {
 
   db.prepare(`
     UPDATE contacts SET
-      first_name         = COALESCE(@first_name, first_name),
-      last_name          = COALESCE(@last_name, last_name),
-      email              = COALESCE(@email, email),
-      phone              = COALESCE(@phone, phone),
-      phone_e164         = COALESCE(@phone_e164, phone_e164),
-      street_address     = COALESCE(@street_address, street_address),
-      city               = COALESCE(@city, city),
-      state              = COALESCE(@state, state),
-      zip_code           = COALESCE(@zip_code, zip_code),
-      date_of_birth      = COALESCE(@date_of_birth, date_of_birth),
-      lead_source        = COALESCE(@lead_source, lead_source),
-      general_notes      = COALESCE(@general_notes, general_notes),
-      relationship_type  = COALESCE(@relationship_type, relationship_type),
-      sms_consent        = COALESCE(@sms_consent, sms_consent),
-      sms_consent_source = COALESCE(@sms_consent_source, sms_consent_source),
-      sms_consent_notes  = COALESCE(@sms_consent_notes, sms_consent_notes),
-      sms_consent_at     = CASE WHEN @is_new_consent_grant = 1 THEN CURRENT_TIMESTAMP ELSE sms_consent_at END,
-      email_consent      = COALESCE(@email_consent, email_consent),
-      updated_at         = CURRENT_TIMESTAMP
+      first_name           = COALESCE(@first_name, first_name),
+      last_name            = COALESCE(@last_name, last_name),
+      middle_name          = COALESCE(@middle_name, middle_name),
+      email                = COALESCE(@email, email),
+      phone                = COALESCE(@phone, phone),
+      phone_e164           = COALESCE(@phone_e164, phone_e164),
+      home_phone           = COALESCE(@home_phone, home_phone),
+      alt_phone            = COALESCE(@alt_phone, alt_phone),
+      preferred_contact_method = COALESCE(@preferred_contact_method, preferred_contact_method),
+      best_time_to_contact = COALESCE(@best_time_to_contact, best_time_to_contact),
+      street_address       = COALESCE(@street_address, street_address),
+      city                 = COALESCE(@city, city),
+      state                = COALESCE(@state, state),
+      zip_code             = COALESCE(@zip_code, zip_code),
+      date_of_birth        = COALESCE(@date_of_birth, date_of_birth),
+      age                  = COALESCE(@age, age),
+      marital_status       = COALESCE(@marital_status, marital_status),
+      spouse_name          = COALESCE(@spouse_name, spouse_name),
+      spouse_date_of_birth = COALESCE(@spouse_date_of_birth, spouse_date_of_birth),
+      number_of_children      = COALESCE(@number_of_children, number_of_children),
+      number_of_grandchildren = COALESCE(@number_of_grandchildren, number_of_grandchildren),
+      family_notes         = COALESCE(@family_notes, family_notes),
+      occupation           = COALESCE(@occupation, occupation),
+      employer             = COALESCE(@employer, employer),
+      referred_by          = COALESCE(@referred_by, referred_by),
+      lead_source          = COALESCE(@lead_source, lead_source),
+      lead_status          = COALESCE(@lead_status, lead_status),
+      general_notes        = COALESCE(@general_notes, general_notes),
+      relationship_type    = COALESCE(@relationship_type, relationship_type),
+      sms_consent          = COALESCE(@sms_consent, sms_consent),
+      sms_consent_source   = COALESCE(@sms_consent_source, sms_consent_source),
+      sms_consent_notes    = COALESCE(@sms_consent_notes, sms_consent_notes),
+      sms_consent_at       = CASE WHEN @is_new_consent_grant = 1 THEN CURRENT_TIMESTAMP ELSE sms_consent_at END,
+      email_consent        = COALESCE(@email_consent, email_consent),
+      updated_at           = CURRENT_TIMESTAMP
     WHERE id = @id
   `).run({
     first_name: toStringOrNull(fields.firstName), last_name: toStringOrNull(fields.lastName),
+    middle_name: toStringOrNull(fields.middleName),
     email: normalized.email, phone: normalized.phoneDisplay, phone_e164: normalized.phoneE164,
+    home_phone: toStringOrNull(fields.homePhone), alt_phone: toStringOrNull(fields.altPhone),
+    preferred_contact_method: toStringOrNull(fields.preferredContactMethod),
+    best_time_to_contact: toStringOrNull(fields.bestTimeToContact),
     street_address: toStringOrNull(fields.address), city: toStringOrNull(fields.city),
     state: toStringOrNull(fields.state), zip_code: toStringOrNull(fields.zip),
-    date_of_birth: toStringOrNull(fields.dateOfBirth), lead_source: toStringOrNull(fields.originalSource),
+    date_of_birth: toStringOrNull(fields.dateOfBirth), age: toIntOrNull(fields.age),
+    marital_status: toStringOrNull(fields.maritalStatus),
+    spouse_name: toStringOrNull(fields.spouseName), spouse_date_of_birth: toStringOrNull(fields.spouseDateOfBirth),
+    number_of_children: toIntOrNull(fields.numberOfChildren),
+    number_of_grandchildren: toIntOrNull(fields.numberOfGrandchildren),
+    family_notes: toStringOrNull(fields.familyNotes),
+    occupation: toStringOrNull(fields.occupation), employer: toStringOrNull(fields.employer),
+    referred_by: toStringOrNull(fields.referredBy),
+    lead_source: toStringOrNull(fields.originalSource), lead_status: toStringOrNull(fields.leadStatus),
     general_notes: toStringOrNull(fields.generalNotes),
     relationship_type: toStringOrNull(fields.relationshipType),
     sms_consent: toBoolIntOrNull(fields.smsConsent), email_consent: toBoolIntOrNull(fields.emailConsent),

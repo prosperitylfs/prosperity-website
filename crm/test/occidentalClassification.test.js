@@ -9,12 +9,14 @@ const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
 const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
+const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
 const { runImport } = require('../lib/importService');
 const { getDashboardSummary } = require('../lib/dashboardQueries');
 
 function setup() {
   const db = createLegacyDb();
   runMigrations(db); runDashboardMigrations(db); runCrmAppMigrations(db); runCrmCoreMigrations(db);
+  runRevenueMvpMigrations(db); // adds sms_messages.failure_reason, among others
   return db;
 }
 

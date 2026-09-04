@@ -624,17 +624,18 @@ test('getExistingClientsForOutreach lists only Prosperity Existing Clients, neve
 
   const list = getExistingClientsForOutreach(db, {});
   const names = list.map(c => c.contactName);
-  assert.ok(names.includes('Renee Jones'));
+  assert.ok(names.includes('Jones, Renee'));
   assert.ok(!names.some(n => n.includes('SomeLead')));
   assert.ok(!names.some(n => n.includes('IL Client')));
   const rennee = list.find(c => c.contactId === prosperityClient.id);
   assert.equal(rennee.smsEligible, true);
 });
 
-// ── Default sort = last name A-Z, then first name A-Z (same rule/fix as
+// ── Default sort = last name A-Z, then first name A-Z, displayed as
+//    "Last Name, First Name" (same rule/fix as
 //    crm/lib/dashboardQueries.js's getCaseList) ───────────────────────────
 
-test('getExistingClientsForOutreach orders by LAST NAME A-Z, then FIRST NAME A-Z for matching last names', () => {
+test('getExistingClientsForOutreach orders by LAST NAME A-Z, then FIRST NAME A-Z, and displays "Last, First"', () => {
   const db = setup();
   const people = [
     { first: 'Kamren', last: 'Rainey' }, { first: 'Nadia', last: 'Rainey' },
@@ -645,7 +646,7 @@ test('getExistingClientsForOutreach orders by LAST NAME A-Z, then FIRST NAME A-Z
 
   const list = getExistingClientsForOutreach(db, {});
   assert.deepEqual(list.map(c => c.contactName), [
-    'Kamren Rainey', 'Nadia Rainey', 'Dieera Robinson', 'Dianne Simmons', 'Ralph Small',
+    'Rainey, Kamren', 'Rainey, Nadia', 'Robinson, Dieera', 'Simmons, Dianne', 'Small, Ralph',
   ]);
 });
 
@@ -662,7 +663,7 @@ test('getExistingClientsForOutreach puts a contact with a blank last name LAST, 
 
   const list = getExistingClientsForOutreach(db, {});
   const names = list.filter(c => [blank.id, named.id].includes(c.contactId)).map(c => c.contactName);
-  assert.deepEqual(names, ['Amy Abbott', 'Zack']);
+  assert.deepEqual(names, ['Abbott, Amy', 'Zack']);
 });
 
 // ── Eligibility also honors lead_type = 'Existing Client', the CRM's OTHER

@@ -333,9 +333,18 @@ function getExistingClientsForOutreach(db, { search = '' } = {}) {
     // actual send time instead (with the resend-confirm flow), since it
     // now depends on WHICH of the (possibly several) templates is chosen.
     const smsCheck = checkReconnectionSmsBaseEligibility(r);
+    // "Last Name, First Name" -- matches the Clients page and Dashboard
+    // "Recently Active Contacts" (crm/lib/dashboardQueries.js's
+    // contactDisplayNameLastFirst); mirrored locally rather than imported
+    // to keep this file independent, same as elsewhere in this module.
+    // firstName below is unaffected -- still used as-is for {{first_name}}
+    // personalization at send time.
+    const first = (r.first_name || '').trim();
+    const last = (r.last_name || '').trim();
+    const contactName = last && first ? `${last}, ${first}` : (last || first || 'Unnamed');
     return {
       contactId: r.id,
-      contactName: [r.first_name, r.last_name].filter(Boolean).join(' ').trim() || 'Unnamed',
+      contactName,
       firstName: r.first_name || null,
       email: r.email || null,
       phone: r.phone || null,

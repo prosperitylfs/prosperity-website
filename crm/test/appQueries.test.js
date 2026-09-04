@@ -231,9 +231,10 @@ test('getCaseList sorts by dueDate at the database level (nearest due first, no-
   assert.deepEqual(names, ['Soonest', 'Later', 'NoDue'], 'nearest due date first, no-due-date contacts last');
 });
 
-// ── Default "Sort: Name" = last name A-Z, then first name A-Z ────────────
+// ── Default "Sort: Name" = last name A-Z, then first name A-Z, displayed
+//    as "Last Name, First Name" ─────────────────────────────────────────
 
-test('getCaseList default sort (name) orders by LAST NAME A-Z, then FIRST NAME A-Z for matching last names', () => {
+test('getCaseList default sort (name) orders by LAST NAME A-Z, then FIRST NAME A-Z, and displays "Last, First"', () => {
   const { db, prosperityId } = setup();
   const productId = getProductId(db, prosperityId, 'Life insurance');
   const people = [
@@ -249,7 +250,7 @@ test('getCaseList default sort (name) orders by LAST NAME A-Z, then FIRST NAME A
 
   const list = getCaseList(db, { brandId: 'prosperity', sort: 'name', pageSize: 10 });
   assert.deepEqual(list.contacts.map(x => x.contactName), [
-    'Kamren Rainey', 'Nadia Rainey', 'Dieera Robinson', 'Dianne Simmons', 'Ralph Small',
+    'Rainey, Kamren', 'Rainey, Nadia', 'Robinson, Dieera', 'Simmons, Dianne', 'Small, Ralph',
   ]);
 });
 
@@ -265,8 +266,46 @@ test('getCaseList default sort (name) puts a contact with a blank last name LAST
 
   const list = getCaseList(db, { brandId: 'prosperity', sort: 'name', pageSize: 10 });
   // Plain COLLATE NOCASE would put '' (blank last name) before 'Abbott' --
-  // the fix pushes a blank last name to the end instead.
-  assert.deepEqual(list.contacts.map(x => x.contactName), ['Amy Abbott', 'Zack']);
+  // the fix pushes a blank last name to the end instead. A contact with no
+  // last name shows just their first name (no dangling comma).
+  assert.deepEqual(list.contacts.map(x => x.contactName), ['Abbott, Amy', 'Zack']);
+});
+
+// ── Dashboard "Recently Active Contacts": which 8 contacts appear is still
+//    driven by recency; the DISPLAY order of that set matches the same
+//    last-name sort/format as the two tests above. ───────────────────────
+
+test('getRecentlyActiveClients selects by recency but DISPLAYS the result sorted "Last, First", blank last name last', () => {
+  const { db } = setup();
+  const { getRecentlyActiveClients } = require('../lib/dashboardQueries');
+
+  // Deliberately created in an order that is NOT alphabetical, and each
+  // given a distinct, increasing updated_at so recency-selection is
+  // unambiguous and clearly different from the alphabetical display order.
+  const small = dedupeContact(db, { email: 'small.recent@example.com', first_name: 'Ralph', last_name: 'Small' });
+  const rainey = dedupeContact(db, { email: 'rainey.recent@example.com', first_name: 'Kamren', last_name: 'Rainey' });
+  const blank = dedupeContact(db, { email: 'blank.recent@example.com', first_name: 'Zack', last_name: '' });
+  db.prepare(`UPDATE contacts SET updated_at = '2026-01-01 00:00:00' WHERE id = ?`).run(small.id);
+  db.prepare(`UPDATE contacts SET updated_at = '2026-01-02 00:00:00' WHERE id = ?`).run(rainey.id);
+  db.prepare(`UPDATE contacts SET updated_at = '2026-01-03 00:00:00' WHERE id = ?`).run(blank.id);
+
+  const list = getRecentlyActiveClients(db, { limit: 3 });
+  // All three of the most-recently-active contacts are selected (recency
+  // still decides WHICH contacts appear -- unchanged), but listed here in
+  // last-name order, blank last name last -- not in recency order.
+  assert.deepEqual(list.map(x => x.contactName), ['Rainey, Kamren', 'Small, Ralph', 'Zack']);
+});
+
+test('getRecentlyActiveClients recency selection is unaffected by the display re-sort -- a genuinely older contact is excluded even though it would sort first alphabetically', () => {
+  const { db } = setup();
+  const { getRecentlyActiveClients } = require('../lib/dashboardQueries');
+  const aaron = dedupeContact(db, { email: 'aaron.old@example.com', first_name: 'Aaron', last_name: 'Aardvark' });
+  const zed = dedupeContact(db, { email: 'zed.new@example.com', first_name: 'Zed', last_name: 'Zorro' });
+  db.prepare(`UPDATE contacts SET updated_at = '2020-01-01 00:00:00' WHERE id = ?`).run(aaron.id);
+  db.prepare(`UPDATE contacts SET updated_at = '2026-01-01 00:00:00' WHERE id = ?`).run(zed.id);
+
+  const list = getRecentlyActiveClients(db, { limit: 1 });
+  assert.deepEqual(list.map(x => x.contactName), ['Zorro, Zed'], 'the more recently active contact must still be the one selected, even though it would sort last alphabetically');
 });
 
 test('getDashboardSummary counts review-required items and respects the company filter', () => {

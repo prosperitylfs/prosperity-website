@@ -11,6 +11,21 @@ function contactDisplayName(contact) {
   return name || 'Unknown';
 }
 
+// "Last Name, First Name" -- used ONLY by the three screens explicitly
+// asked to display/sort this way: getCaseList (Clients page),
+// getRecentlyActiveClients (Dashboard "Recently Active Contacts"), and
+// crm/lib/existingClientOutreach.js's getExistingClientsForOutreach
+// (Existing Client Outreach), which mirrors this same logic locally.
+// Every other caller of contactDisplayName above is unchanged and still
+// shows "First Last". A missing last name never leaves a dangling comma --
+// falls back to whichever single name is available, or 'Unknown'.
+function contactDisplayNameLastFirst(contact) {
+  const first = (contact.first_name || '').trim();
+  const last = (contact.last_name || '').trim();
+  if (last && first) return `${last}, ${first}`;
+  return last || first || 'Unknown';
+}
+
 // SQLite's CURRENT_TIMESTAMP produces 'YYYY-MM-DD HH:MM:SS' (UTC, no
 // timezone marker). Normalize every timestamp this module emits to a real
 // ISO-8601 UTC string so downstream formatting (friendly dates/times) never
@@ -256,14 +271,14 @@ function getCaseList(db, { brandId = null, statusFilter = 'active', search = '',
       lastActivity,
     };
     if (!contactsMap.has(row.contact_id)) {
-      contactsMap.set(row.contact_id, { contactId: row.contact_id, contactName: contactDisplayName(row), cases: [] });
+      contactsMap.set(row.contact_id, { contactId: row.contact_id, contactName: contactDisplayNameLastFirst(row), cases: [] });
     }
     contactsMap.get(row.contact_id).cases.push(caseObj);
   }
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const contactsOut = pageContacts.map(pc => {
-    const entry = contactsMap.get(pc.contact_id) || { contactId: pc.contact_id, contactName: contactDisplayName(pc), cases: [] };
+    const entry = contactsMap.get(pc.contact_id) || { contactId: pc.contact_id, contactName: contactDisplayNameLastFirst(pc), cases: [] };
     const activeCaseCount = entry.cases.filter(c => c.caseStatus !== 'Archived').length;
     const brandIds = [...new Set(entry.cases.map(c => c.brandId))];
     const dueCases = entry.cases.filter(c => c.dueDate).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
@@ -999,14 +1014,29 @@ function getUpcomingAppointments(db, { limit = 10 } = {}) {
   }));
 }
 
+// WHICH 8 contacts appear is still driven entirely by recency (the query
+// below, unchanged) -- only the DISPLAY ORDER of that already-selected set
+// is then re-sorted by last name/first name, matching the Clients page and
+// Existing Client Outreach, per Loretta's explicit confirmation that
+// recency must keep choosing the contacts shown here.
 function getRecentlyActiveClients(db, { limit = 8 } = {}) {
-  return db.prepare(`
+  const rows = db.prepare(`
     SELECT ct.id AS contact_id, ct.first_name, ct.last_name, MAX(ct.updated_at) AS ts
     FROM contacts ct
     GROUP BY ct.id
     ORDER BY ts DESC
     LIMIT ?
-  `).all(limit).map(r => ({ contactId: r.contact_id, contactName: contactDisplayName(r), lastActivity: toIsoUtc(r.ts) }));
+  `).all(limit);
+
+  const sorted = [...rows].sort((a, b) => {
+    const aBlank = !a.last_name, bBlank = !b.last_name;
+    if (aBlank !== bBlank) return aBlank ? 1 : -1; // blank last name sorts last
+    const lastCmp = (a.last_name || '').localeCompare(b.last_name || '', undefined, { sensitivity: 'base' });
+    if (lastCmp !== 0) return lastCmp;
+    return (a.first_name || '').localeCompare(b.first_name || '', undefined, { sensitivity: 'base' });
+  });
+
+  return sorted.map(r => ({ contactId: r.contact_id, contactName: contactDisplayNameLastFirst(r), lastActivity: toIsoUtc(r.ts) }));
 }
 
 // ── Policies (see crm/db/migrateCrmApp.js — real, empty-by-default table) ──

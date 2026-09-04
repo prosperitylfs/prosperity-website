@@ -7,8 +7,11 @@ const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
 const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
-const { createClient, updateClient, archiveClient, restoreClient, requestCompanyChange, RELATIONSHIP_TYPES } = require('../lib/clientService');
+const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
+const { createClient, updateClient, archiveClient, restoreClient, deleteClientPermanently, requestCompanyChange, RELATIONSHIP_TYPES } = require('../lib/clientService');
 const { resolveContactBrand } = require('../lib/caseMatching');
+const { createCaseForClient } = require('../lib/caseService');
+const { createPolicy } = require('../lib/policyService');
 
 function setup() {
   const db = createLegacyDb();
@@ -16,7 +19,52 @@ function setup() {
   runDashboardMigrations(db);
   runCrmAppMigrations(db);
   runCrmCoreMigrations(db);
+  runRevenueMvpMigrations(db);
+  // legacyDb.js deliberately omits retirement_intakes (see
+  // test/retirementIntakeService.test.js's own setup) -- created inline
+  // here, identically, so the delete tests below can cover it too.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS retirement_intakes (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id     INTEGER NOT NULL,
+      appointment_id INTEGER NOT NULL,
+      token          TEXT NOT NULL,
+      status         TEXT NOT NULL DEFAULT 'Not Sent',
+      sent_at        DATETIME,
+      completed_at   DATETIME,
+      responses_json TEXT,
+      created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (contact_id)     REFERENCES contacts(id)     ON DELETE CASCADE,
+      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+    );
+  `);
   return { db, insuranceLadyId, prosperityId };
+}
+
+function getProductId(db, brandId, name) {
+  return db.prepare('SELECT id FROM products WHERE brand_id = ? AND name = ?').get(brandId, name).id;
+}
+
+// Every table that can hold a row keyed to a contact_id, used to assert "no
+// orphaned records remain" after a permanent delete in one place rather
+// than repeating the same list in every test below.
+const ALL_CONTACT_TABLES = [
+  'communications', 'comm_calls', 'sms_messages', 'emails', 'contact_notes',
+  'follow_up_tasks', 'appointments', 'activities', 'retirement_intakes',
+  'communication_drafts', 'contact_brands',
+];
+function countAllContactRows(db, contactId) {
+  const counts = {};
+  for (const table of ALL_CONTACT_TABLES) {
+    counts[table] = db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE contact_id = ?`).get(contactId).n;
+  }
+  return counts;
+}
+function assertNoRowsRemain(counts, label) {
+  for (const [table, n] of Object.entries(counts)) {
+    assert.equal(n, 0, `${label}: ${table} still has ${n} row(s) referencing the deleted contact`);
+  }
 }
 
 test('manual client creation requires an explicit company selection', () => {
@@ -401,4 +449,167 @@ test('archiving a client preserves cases, policies, notes, and audit history', (
 
   const restored = restoreClient(db, created.contact.id, 'Loretta Stewart');
   assert.equal(restored.archived_at, null);
+});
+
+// ── Permanent delete (Delete Client) ─────────────────────────────────────
+// Separate, permanent, irreversible -- distinct from archive above, which
+// stays exactly as it was and is untouched by any of this.
+
+test('deleteClientPermanently requires an explicit confirmDelete flag', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Deleteless', email: 'deleteless@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  assert.throws(() => deleteClientPermanently(db, created.contact.id, 'Loretta Stewart', {}), /confirmation is required/);
+  assert.throws(() => deleteClientPermanently(db, created.contact.id, 'Loretta Stewart', { confirmDelete: false }), /confirmation is required/);
+  // Nothing was deleted by either rejected attempt.
+  assert.ok(db.prepare('SELECT * FROM contacts WHERE id = ?').get(created.contact.id));
+});
+
+test('deleteClientPermanently requires an actor for the audit trail', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Noactor', email: 'noactor@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  assert.throws(() => deleteClientPermanently(db, created.contact.id, null, { confirmDelete: true }), /actor is required/);
+});
+
+test('deleteClientPermanently rejects a contact id that does not exist', () => {
+  const { db } = setup();
+  assert.throws(() => deleteClientPermanently(db, 999999, 'Loretta Stewart', { confirmDelete: true }), /does not exist/);
+});
+
+test('1. delete a client with no linked records at all', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Bare', lastName: 'Record', email: 'bare@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const contactId = created.contact.id;
+
+  const result = deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true });
+  assert.equal(result.outcome, 'deleted');
+  assert.equal(result.contactId, contactId);
+  assert.equal(db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId), undefined);
+});
+
+test('2. delete a client with texts and communications', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Sasha', email: 'sasha@example.com', phone: '4145557100', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const contactId = created.contact.id;
+  db.prepare(`INSERT INTO sms_messages (contact_id, direction, body) VALUES (?, 'inbound', 'hi')`).run(contactId);
+  db.prepare(`INSERT INTO sms_messages (contact_id, direction, body) VALUES (?, 'outbound', 'hello back')`).run(contactId);
+  db.prepare(`INSERT INTO communications (contact_id, comm_type, direction, body) VALUES (?, 'sms', 'inbound', 'logged comm')`).run(contactId);
+
+  deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true });
+  assertNoRowsRemain(countAllContactRows(db, contactId), 'texts/communications');
+  assert.equal(db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId), undefined);
+});
+
+test('3. delete a client with a Case (and its external refs) cleans up the whole chain', () => {
+  const { db, prosperityId } = setup();
+  const created = createClient(db, { firstName: 'Case', lastName: 'Owner', email: 'caseowner@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const contactId = created.contact.id;
+  const caseResult = createCaseForClient(db, { contactId, productId: getProductId(db, prosperityId, 'Life insurance'), externalRef: 'cal-uid-123', refType: 'calcom_booking_uid' }, 'Loretta Stewart');
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM case_external_refs WHERE case_id = ?').get(caseResult.id).n, 1);
+
+  deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true });
+  assert.equal(db.prepare('SELECT * FROM cases WHERE id = ?').get(caseResult.id), undefined);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM case_external_refs WHERE case_id = ?').get(caseResult.id).n, 0);
+  assertNoRowsRemain(countAllContactRows(db, contactId), 'case chain');
+});
+
+test('4. delete a client with a Policy removes the policy along with its case', () => {
+  const { db, prosperityId } = setup();
+  const created = createClient(db, { firstName: 'Polly', lastName: 'Insured', email: 'polly@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const contactId = created.contact.id;
+  const caseResult = createCaseForClient(db, { contactId, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+  const policy = createPolicy(db, { caseId: caseResult.id, carrier: 'Test Carrier', policyNumber: 'POL-1' }, 'Loretta Stewart');
+  assert.ok(db.prepare('SELECT * FROM policies WHERE id = ?').get(policy.id));
+
+  deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true });
+  assert.equal(db.prepare('SELECT * FROM policies WHERE id = ?').get(policy.id), undefined, 'policy must be gone once its case is gone');
+  assert.equal(db.prepare('SELECT * FROM cases WHERE id = ?').get(caseResult.id), undefined);
+});
+
+test('5. delete a client with notes/tasks/appointments/calls/activities removes them all, no orphans', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Full', lastName: 'Record', email: 'fullrecord@example.com', phone: '4145557200', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const contactId = created.contact.id;
+
+  db.prepare(`INSERT INTO contact_notes (contact_id, body) VALUES (?, 'A note')`).run(contactId);
+  db.prepare(`INSERT INTO follow_up_tasks (contact_id, task_type, due_date) VALUES (?, 'Call', '2026-10-01')`).run(contactId);
+  db.prepare(`INSERT INTO appointments (contact_id, appt_type, appt_datetime) VALUES (?, 'Phone Call', '2026-10-02T14:00:00')`).run(contactId);
+  db.prepare(`INSERT INTO comm_calls (contact_id, direction, status) VALUES (?, 'outbound', 'completed')`).run(contactId);
+  db.prepare(`INSERT INTO emails (contact_id, to_email, subject, body) VALUES (?, 'fullrecord@example.com', 'Hi', 'Body')`).run(contactId);
+  const activityResult = db.prepare(`INSERT INTO activities (contact_id, activity_type, summary, created_by) VALUES (?, 'Note', 'Did a thing', 'Loretta Stewart')`).run(contactId);
+  db.prepare(`INSERT INTO activity_edits (activity_id, previous_summary, edited_by) VALUES (?, 'old summary', 'Loretta Stewart')`).run(activityResult.lastInsertRowid);
+  const apptResult = db.prepare('SELECT id FROM appointments WHERE contact_id = ?').get(contactId);
+  db.prepare(`INSERT INTO retirement_intakes (contact_id, appointment_id, token) VALUES (?, ?, 'tok-1')`).run(contactId, apptResult.id);
+  db.prepare(`INSERT INTO communication_drafts (contact_id, channel, body, status) VALUES (?, 'text', 'draft body', 'draft')`).run(contactId);
+
+  deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true });
+
+  assertNoRowsRemain(countAllContactRows(db, contactId), 'notes/tasks/appointments/calls/activities');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM activity_edits WHERE activity_id = ?').get(activityResult.lastInsertRowid).n, 0, 'activity_edits must not be orphaned');
+  assert.equal(db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId), undefined);
+});
+
+test('6/7. deleting one client does not touch an unrelated client\'s own records, and clears (not deletes) shared audit references instead of orphaning them', () => {
+  const { db, prosperityId } = setup();
+  const target = createClient(db, { firstName: 'Target', email: 'target@example.com', phone: '4145557300', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const bystander = createClient(db, { firstName: 'Bystander', email: 'bystander@example.com', phone: '4145557301', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  db.prepare(`INSERT INTO contact_notes (contact_id, body) VALUES (?, 'target note')`).run(target.contact.id);
+  db.prepare(`INSERT INTO contact_notes (contact_id, body) VALUES (?, 'bystander note')`).run(bystander.contact.id);
+  const bystanderCase = createCaseForClient(db, { contactId: bystander.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+
+  // A shared import_batches/import_rows audit row referencing the target
+  // contact -- represents a real CSV import event, must survive with its
+  // contact_id reference cleared, not be deleted or left dangling.
+  const batch = db.prepare(`INSERT INTO import_batches (filename, status) VALUES ('test.csv', 'committed')`).run();
+  const row = db.prepare(`INSERT INTO import_rows (batch_id, row_number, raw_row, outcome, contact_id) VALUES (?, 1, '{}', 'created', ?)`).run(batch.lastInsertRowid, target.contact.id);
+
+  deleteClientPermanently(db, target.contact.id, 'Loretta Stewart', { confirmDelete: true });
+
+  // Bystander is completely untouched.
+  assert.ok(db.prepare('SELECT * FROM contacts WHERE id = ?').get(bystander.contact.id));
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contact_notes WHERE contact_id = ?').get(bystander.contact.id).n, 1);
+  assert.ok(db.prepare('SELECT * FROM cases WHERE id = ?').get(bystanderCase.id), 'bystander case must survive');
+
+  // The import_rows audit row survives, but its now-invalid contact
+  // reference is cleared rather than left dangling or deleted outright.
+  const rowAfter = db.prepare('SELECT * FROM import_rows WHERE id = ?').get(row.lastInsertRowid);
+  assert.ok(rowAfter, 'import_rows audit row must survive the delete');
+  assert.equal(rowAfter.contact_id, null);
+  assert.equal(rowAfter.outcome, 'created', 'the rest of the audit row is untouched');
+});
+
+test('8. Archive Client still works exactly as before, completely independent of Delete', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'StillWorks', email: 'stillworks@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  db.prepare(`INSERT INTO contact_notes (contact_id, body) VALUES (?, 'A note')`).run(created.contact.id);
+  const archived = archiveClient(db, created.contact.id, 'Loretta Stewart');
+  assert.ok(archived.archived_at);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contact_notes WHERE contact_id = ?').get(created.contact.id).n, 1, 'archive must still fully preserve history');
+  const restored = restoreClient(db, created.contact.id, 'Loretta Stewart');
+  assert.equal(restored.archived_at, null);
+  assert.ok(db.prepare('SELECT * FROM contacts WHERE id = ?').get(created.contact.id), 'archived/restored contact must never be deleted');
+});
+
+test('deleteClientPermanently is transactional: a foreign-key failure partway through leaves the client and all its data fully intact', () => {
+  const { db, prosperityId } = setup();
+  const created = createClient(db, { firstName: 'Rollback', lastName: 'Test', email: 'rollback@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const contactId = created.contact.id;
+  db.prepare(`INSERT INTO contact_notes (contact_id, body) VALUES (?, 'must survive')`).run(contactId);
+  const caseResult = createCaseForClient(db, { contactId, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+
+  // Simulate a data-integrity edge case: some OTHER contact's sms_messages
+  // row still references this contact's case via case_id (a column added
+  // without an ON DELETE action -- crm/db/migrateBrands.js's
+  // addDownstreamReferences). Deleting the case out from under that row
+  // must trip a real foreign-key violation and roll back the ENTIRE
+  // transaction -- not silently orphan or partially delete anything.
+  const other = createClient(db, { firstName: 'Other', email: 'other-fk@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  db.prepare(`INSERT INTO sms_messages (contact_id, direction, body, case_id) VALUES (?, 'outbound', 'cross-linked', ?)`).run(other.contact.id, caseResult.id);
+
+  assert.throws(() => deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true }), /FOREIGN KEY/);
+  // The transaction must have rolled back completely -- contact, note, and
+  // case all still present, nothing partially deleted.
+  assert.ok(db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId), 'contact must still exist after a failed delete');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contact_notes WHERE contact_id = ?').get(contactId).n, 1, 'note must still exist -- no partial delete');
+  assert.ok(db.prepare('SELECT * FROM cases WHERE id = ?').get(caseResult.id), 'case must still exist -- no partial delete');
 });

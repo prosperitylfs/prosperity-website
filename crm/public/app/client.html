@@ -267,6 +267,53 @@ async function render() {
     reloadPage();
   }
 
+  // Permanent delete — a separate, deliberately harder-to-trigger flow than
+  // Archive above. Archive stays the normal, reversible option; this is
+  // only for test records, duplicates, and accidental entries that truly
+  // need to be gone. Requires typing DELETE (case-sensitive, exact match)
+  // before the final button even enables, on top of the initial click and
+  // this warning modal itself — three separate deliberate steps, matching
+  // the "at minimum: click, warning, type DELETE, final confirm" requirement.
+  function deleteClientModal() {
+    const dialog = CrmApp.openModal({
+      title: 'Permanently Delete Client',
+      bodyHtml: `
+        <p class="confirm-message">
+          This permanently deletes <strong>${CrmApp.escapeHtml(c.name)}</strong> and related data
+          (cases, policies, texts, communications, notes, tasks, appointments, call logs, and activity history).
+          <strong>This action cannot be undone.</strong>
+        </p>
+        <p class="confirm-message">Type <strong>DELETE</strong> to confirm.</p>
+        <input type="text" class="input" id="delete-client-confirm-input" autocomplete="off" placeholder="Type DELETE" style="width:100%; margin-top:6px;" />
+        <div class="form-error" id="delete-client-error"></div>
+        <div class="crmapp-modal-actions">
+          <button type="button" class="btn" data-act="cancel">Cancel</button>
+          <button type="button" class="btn" id="delete-client-confirm-btn" disabled
+            style="background:var(--danger);border-color:var(--danger);color:#fff;">Permanently Delete Client</button>
+        </div>
+      `,
+    });
+    const input = dialog.querySelector('#delete-client-confirm-input');
+    const confirmBtn = dialog.querySelector('#delete-client-confirm-btn');
+    const errorEl = dialog.querySelector('#delete-client-error');
+    input.addEventListener('input', () => { confirmBtn.disabled = input.value !== 'DELETE'; });
+    dialog.querySelector('[data-act="cancel"]').addEventListener('click', () => dialog.close());
+    confirmBtn.addEventListener('click', async () => {
+      if (input.value !== 'DELETE') return;
+      confirmBtn.disabled = true;
+      try {
+        await CrmApp.postJSON(`/api/app/clients/${contactId}/delete`, 'POST', { confirmDelete: true });
+        dialog.close();
+        sessionStorage.setItem('crmapp-toast-next', 'Client permanently deleted.');
+        location.href = 'clients.html';
+      } catch (err) {
+        confirmBtn.disabled = false;
+        errorEl.textContent = err.message || 'Delete failed. Nothing was changed.';
+      }
+    });
+    input.focus();
+  }
+
   function overviewHtml() {
     return `
       <div class="grid grid-3">
@@ -1214,6 +1261,7 @@ async function render() {
             <button class="btn ghost small" id="action-edit-client">Edit Client</button>
             <button class="btn ghost small" id="action-company-change">Request Company Change</button>
             <button class="btn ghost small" id="action-archive-client">${c.archivedAt ? 'Restore Client' : 'Archive Client'}</button>
+            <button class="btn ghost small text-danger" id="action-delete-client" title="Permanently delete this client — cannot be undone">Delete Client</button>
           </div>
         </div>
         <div class="detail-actions">
@@ -1532,6 +1580,7 @@ async function render() {
   document.getElementById('action-edit-client').addEventListener('click', editClientModal);
   document.getElementById('action-company-change').addEventListener('click', requestCompanyChangeModal);
   document.getElementById('action-archive-client').addEventListener('click', toggleArchiveClient);
+  document.getElementById('action-delete-client').addEventListener('click', deleteClientModal);
   document.getElementById('action-add-life-policy').addEventListener('click', addLifeInsurancePolicyModal);
 
   // Retirement & Annuity Planning tab: each card saves independently

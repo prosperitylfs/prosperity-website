@@ -201,6 +201,15 @@
     }
 
     refreshBadges();
+
+    // One-shot toast surviving a navigation (e.g. Delete Client redirecting
+    // to clients.html) -- sessionStorage rather than a query param so it
+    // never lingers in the URL or reappears on refresh.
+    const pendingToast = sessionStorage.getItem('crmapp-toast-next');
+    if (pendingToast) {
+      sessionStorage.removeItem('crmapp-toast-next');
+      toast(pendingToast);
+    }
   }
 
   async function refreshBadges() {

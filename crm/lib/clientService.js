@@ -313,6 +313,102 @@ function restoreClient(db, contactId, actor) {
   return db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
 }
 
+function tableExists(db, name) {
+  return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
+}
+
+// Tables holding records "owned" directly by a contact via a contact_id
+// column — same set crm/lib/reviewResolution.js's CONTACT_OWNED_TABLES
+// reassigns on a duplicate merge, minus contact_brands (handled separately
+// below, since deleting it must cascade through cases/policies first) and
+// retirement_intakes (deleted separately below since it also has its own
+// appointment_id reference, and must go before appointments).
+const DIRECT_CONTACT_TABLES = [
+  'communications', 'comm_calls', 'sms_messages', 'emails', 'contact_notes',
+  'follow_up_tasks', 'appointments', 'communication_drafts',
+];
+
+// Permanently and irreversibly deletes a client (contact) and every record
+// that exists only because of that client — the opposite of archiveClient,
+// which is reversible and touches nothing but contacts.archived_at. This is
+// a real DELETE across the whole contact-owned data graph, run in one
+// transaction: either every row for this client is gone, or (on any error)
+// none of them are — never a partial delete.
+//
+// Deletion is fully explicit and ordered (children before parents) rather
+// than relying on the schema's mixed FK behavior: most contact_id columns
+// cascade natively, but the contact_brand_id/case_id columns several tables
+// gained via ALTER TABLE (crm/db/migrateBrands.js's addDownstreamReferences)
+// have no ON DELETE action, so a naive single DELETE FROM contacts could
+// fail a foreign-key check partway through. Explicit ordering here sidesteps
+// that entirely — nothing is ever left with a dangling reference.
+//
+// Two tables that reference a contact but are NOT this client's own data —
+// import_rows (a CSV import's audit trail) and unresolved_intake (the
+// shared Brand/Case Review queue) — have their reference to this contact
+// cleared (SET NULL) rather than being deleted, so those historical/queue
+// records survive with an honest "no longer linked to an existing client"
+// state instead of vanishing or dangling.
+function deleteClientPermanently(db, contactId, actor, { confirmDelete } = {}) {
+  if (!actor) throw new Error('deleteClientPermanently: actor is required for the audit trail');
+  if (!confirmDelete) throw new Error('deleteClientPermanently: explicit confirmation is required to permanently delete a client');
+  const existing = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
+  if (!existing) throw new Error(`deleteClientPermanently: contact ${contactId} does not exist`);
+
+  const run = db.transaction(() => {
+    const contactBrandIds = db.prepare('SELECT id FROM contact_brands WHERE contact_id = ?').all(contactId).map(r => r.id);
+
+    let caseIds = [];
+    if (contactBrandIds.length) {
+      const ph = contactBrandIds.map(() => '?').join(',');
+      caseIds = db.prepare(`SELECT id FROM cases WHERE contact_brand_id IN (${ph})`).all(...contactBrandIds).map(r => r.id);
+    }
+    if (caseIds.length) {
+      const ph = caseIds.map(() => '?').join(',');
+      db.prepare(`DELETE FROM policies WHERE case_id IN (${ph})`).run(...caseIds);
+      db.prepare(`DELETE FROM case_external_refs WHERE case_id IN (${ph})`).run(...caseIds);
+      db.prepare(`DELETE FROM case_brand_transfers WHERE case_id IN (${ph})`).run(...caseIds);
+      db.prepare(`DELETE FROM cases WHERE id IN (${ph})`).run(...caseIds);
+    }
+    if (contactBrandIds.length) {
+      const ph = contactBrandIds.map(() => '?').join(',');
+      db.prepare(`DELETE FROM contact_brands WHERE id IN (${ph})`).run(...contactBrandIds);
+    }
+
+    if (tableExists(db, 'activity_edits')) {
+      db.prepare('DELETE FROM activity_edits WHERE activity_id IN (SELECT id FROM activities WHERE contact_id = ?)').run(contactId);
+    }
+    if (tableExists(db, 'activities')) {
+      db.prepare('DELETE FROM activities WHERE contact_id = ?').run(contactId);
+    }
+    if (tableExists(db, 'retirement_intakes')) {
+      db.prepare('DELETE FROM retirement_intakes WHERE contact_id = ?').run(contactId);
+    }
+
+    for (const table of DIRECT_CONTACT_TABLES) {
+      if (!tableExists(db, table)) continue;
+      db.prepare(`DELETE FROM ${table} WHERE contact_id = ?`).run(contactId);
+    }
+
+    if (tableExists(db, 'import_rows')) {
+      db.prepare('UPDATE import_rows SET contact_id = NULL WHERE contact_id = ?').run(contactId);
+    }
+    if (tableExists(db, 'unresolved_intake')) {
+      db.prepare('UPDATE unresolved_intake SET candidate_contact_id = NULL WHERE candidate_contact_id = ?').run(contactId);
+      if (contactBrandIds.length) {
+        const ph = contactBrandIds.map(() => '?').join(',');
+        db.prepare(`UPDATE unresolved_intake SET resolved_contact_brand_id = NULL WHERE resolved_contact_brand_id IN (${ph})`).run(...contactBrandIds);
+      }
+    }
+
+    db.prepare('DELETE FROM contacts WHERE id = ?').run(contactId);
+  });
+  run();
+
+  console.log(`[clientService] Client #${contactId} (${existing.first_name || ''} ${existing.last_name || ''}) permanently deleted by ${actor}`);
+  return { outcome: 'deleted', contactId };
+}
+
 // The permanent company "cannot be casually edited" -- this is the ONLY
 // path that can even propose a change, and it never applies one. It stages
 // a review record (reviewType='company_change') showing the existing
@@ -350,4 +446,4 @@ function requestCompanyChange(db, { contactId, requestedBrandSlug, reason, actor
   return unresolvedIntake;
 }
 
-module.exports = { createClient, updateClient, archiveClient, restoreClient, requestCompanyChange, RELATIONSHIP_TYPES };
+module.exports = { createClient, updateClient, archiveClient, restoreClient, deleteClientPermanently, requestCompanyChange, RELATIONSHIP_TYPES };

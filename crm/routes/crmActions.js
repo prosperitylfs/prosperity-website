@@ -54,6 +54,13 @@ router.post('/clients', handle((req, res) => { created(res); return clientServic
 router.patch('/clients/:id', handle(req => clientService.updateClient(db, Number(req.params.id), req.body)));
 router.post('/clients/:id/archive', handle(req => clientService.archiveClient(db, Number(req.params.id), ACTOR)));
 router.post('/clients/:id/restore', handle(req => clientService.restoreClient(db, Number(req.params.id), ACTOR)));
+// Permanent delete — distinct from archive above. Requires an explicit
+// confirmDelete:true in the body (the UI only sends this after its own
+// type-DELETE-to-confirm modal) as a second, backend-enforced guard against
+// an accidental or scripted call — never inferred, never optional.
+router.post('/clients/:id/delete', handle(req => clientService.deleteClientPermanently(db, Number(req.params.id), ACTOR, {
+  confirmDelete: req.body.confirmDelete === true,
+})));
 router.post('/clients/:id/request-company-change', handle(req => clientService.requestCompanyChange(db, {
   contactId: Number(req.params.id), requestedBrandSlug: req.body.requestedBrandSlug, reason: req.body.reason, actor: ACTOR,
 })));

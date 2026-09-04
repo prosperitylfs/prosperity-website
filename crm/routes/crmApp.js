@@ -130,11 +130,20 @@ router.get('/review', (req, res) => {
   });
 });
 
+// status=Failed means UNRESOLVED failures needing attention (the Dashboard
+// "Failed Communications" count/link both mean exactly this). status=Resolved
+// is a separate, explicit view of failures Loretta has already handled
+// (resolveFailedCommunication) -- not a real delivery status, since the
+// underlying row's status stays 'failed' forever; this is purely a second
+// dimension layered on top of it. status=all (or omitted) is unaffected --
+// every communication, resolved or not.
 router.get('/communications', (req, res) => {
   const brandId = parseCompanyParam(req.query.company);
-  const status = ['Queued', 'Sent', 'Delivered', 'Failed'].includes(req.query.status) ? req.query.status : null;
+  const statusParam = req.query.status;
   let items = getMessageDeliveryStatus(db, { brandId });
-  if (status) items = items.filter(i => i.status === status);
+  if (statusParam === 'Failed') items = items.filter(i => i.status === 'Failed' && !i.resolvedAt);
+  else if (statusParam === 'Resolved') items = items.filter(i => i.status === 'Failed' && !!i.resolvedAt);
+  else if (['Queued', 'Sent', 'Delivered'].includes(statusParam)) items = items.filter(i => i.status === statusParam);
   res.json({ items });
 });
 

@@ -10,7 +10,7 @@ const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
 const { dedupeContact, resolveContactBrand, matchOrCreateCase } = require('../lib/caseMatching');
 const {
   getCaseList, getBrandReviewQueue, getCaseReviewQueue,
-  getMessageDeliveryStatus, normalizeMessageStatus,
+  getMessageDeliveryStatus, resolveFailedCommunication, normalizeMessageStatus,
 } = require('../lib/dashboardQueries');
 
 function setup() {
@@ -409,6 +409,85 @@ test('a real failure_reason column value is preferred over the [FAILED]-prefixed
   const sms = rows.find(r => r.channel === 'sms' && r.recipient === '+15555550102');
   assert.equal(sms.status, 'Failed', 'undelivered normalizes to the same Failed status as failed');
   assert.equal(sms.failureReason, 'Message undelivered -- Twilio error code 30006.');
+});
+
+// ── Failed Communications: resolveFailedCommunication ────────────────────
+
+test('a fresh Failed sms_messages row has resolvedAt = null', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'freshfail.fake@example.test', first_name: 'Fake', last_name: 'FreshFail' });
+  db.prepare(`INSERT INTO sms_messages (contact_id, direction, to_number, body, status) VALUES (?, 'outbound', '+15555550200', 'hi', 'failed')`).run(contact.id);
+
+  const rows = getMessageDeliveryStatus(db, { brandId: 'all' });
+  assert.equal(rows[0].status, 'Failed');
+  assert.equal(rows[0].resolvedAt, null);
+});
+
+test('resolveFailedCommunication marks a Failed SMS resolved without touching status, body, or the original Twilio failure reason', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'resolvesms.fake@example.test', first_name: 'Fake', last_name: 'ResolveSms' });
+  const ins = db.prepare(`
+    INSERT INTO sms_messages (contact_id, direction, to_number, body, status, failure_reason)
+    VALUES (?, 'outbound', '+15555550201', 'hi', 'failed', 'Error 30006: landline or unreachable carrier')
+  `).run(contact.id);
+
+  const before = new Date();
+  const resolved = resolveFailedCommunication(db, { channel: 'sms', id: ins.lastInsertRowid }, 'Loretta Stewart');
+  assert.equal(resolved.status, 'failed', 'status column itself is never changed');
+  assert.equal(resolved.body, 'hi', 'the original message body is untouched');
+  assert.equal(resolved.failure_reason, 'Error 30006: landline or unreachable carrier', 'the original Twilio failure reason is preserved');
+  assert.ok(resolved.failure_resolved_at);
+  assert.ok(new Date(resolved.failure_resolved_at.replace(' ', 'T') + 'Z') >= new Date(before.getTime() - 2000));
+
+  const rows = getMessageDeliveryStatus(db, { brandId: 'all' });
+  assert.equal(rows[0].status, 'Failed', 'getMessageDeliveryStatus still reports Failed -- resolving never changes the delivery status itself');
+  assert.ok(rows[0].resolvedAt);
+  assert.match(rows[0].failureReason, /30006/, 'the failure reason is still surfaced after resolving');
+});
+
+test('resolveFailedCommunication works for the email channel the same way', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'resolveemail.fake@example.test', first_name: 'Fake', last_name: 'ResolveEmail' });
+  const ins = db.prepare(`INSERT INTO emails (contact_id, to_email, subject, body, status) VALUES (?, 'resolveemail.fake@example.test', 'subj', 'body', 'failed')`).run(contact.id);
+
+  const resolved = resolveFailedCommunication(db, { channel: 'email', id: ins.lastInsertRowid }, 'Loretta Stewart');
+  assert.equal(resolved.status, 'failed');
+  assert.ok(resolved.failure_resolved_at);
+
+  const rows = getMessageDeliveryStatus(db, { brandId: 'all' });
+  assert.equal(rows[0].status, 'Failed');
+  assert.ok(rows[0].resolvedAt);
+});
+
+test('resolveFailedCommunication rejects a non-Failed message', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'notfailed.fake@example.test', first_name: 'Fake', last_name: 'NotFailed' });
+  const ins = db.prepare(`INSERT INTO sms_messages (contact_id, direction, to_number, body, status) VALUES (?, 'outbound', '+15555550202', 'hi', 'sent')`).run(contact.id);
+  assert.throws(() => resolveFailedCommunication(db, { channel: 'sms', id: ins.lastInsertRowid }, 'Loretta Stewart'), /not currently Failed/);
+});
+
+test('resolveFailedCommunication requires an actor and a known channel, and rejects a nonexistent id', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'guard.fake@example.test', first_name: 'Fake', last_name: 'Guard' });
+  const ins = db.prepare(`INSERT INTO sms_messages (contact_id, direction, to_number, body, status) VALUES (?, 'outbound', '+15555550203', 'hi', 'failed')`).run(contact.id);
+  assert.throws(() => resolveFailedCommunication(db, { channel: 'sms', id: ins.lastInsertRowid }, null), /actor is required/);
+  assert.throws(() => resolveFailedCommunication(db, { channel: 'fax', id: ins.lastInsertRowid }, 'Loretta Stewart'), /unknown channel/);
+  assert.throws(() => resolveFailedCommunication(db, { channel: 'sms', id: 999999 }, 'Loretta Stewart'), /does not exist/);
+});
+
+test('resolving one Failed communication never affects a different one', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'other.fake@example.test', first_name: 'Fake', last_name: 'Other' });
+  const a = db.prepare(`INSERT INTO sms_messages (contact_id, direction, to_number, body, status) VALUES (?, 'outbound', '+15555550204', 'a', 'failed')`).run(contact.id);
+  const b = db.prepare(`INSERT INTO sms_messages (contact_id, direction, to_number, body, status) VALUES (?, 'outbound', '+15555550205', 'b', 'failed')`).run(contact.id);
+
+  resolveFailedCommunication(db, { channel: 'sms', id: a.lastInsertRowid }, 'Loretta Stewart');
+
+  const rows = getMessageDeliveryStatus(db, { brandId: 'all' });
+  const rowA = rows.find(r => r.id === a.lastInsertRowid);
+  const rowB = rows.find(r => r.id === b.lastInsertRowid);
+  assert.ok(rowA.resolvedAt);
+  assert.equal(rowB.resolvedAt, null, 'the unrelated Failed communication must remain unresolved');
 });
 
 test('Last Activity reflects the most recent related record, not just cases.updated_at', () => {

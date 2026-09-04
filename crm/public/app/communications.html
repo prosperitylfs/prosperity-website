@@ -29,7 +29,7 @@ async function render() {
       <div class="card-body no-pad">
         <div class="table-scroll">
           <table class="data-table desktop-only">
-            <thead><tr><th>Company</th><th>Channel</th><th>Recipient</th><th>Status</th><th>Related Case</th><th>When</th></tr></thead>
+            <thead><tr><th>Company</th><th>Channel</th><th>Recipient</th><th>Status</th><th>Related Case</th><th>When</th><th></th></tr></thead>
             <tbody id="rows"></tbody>
           </table>
         </div>
@@ -37,7 +37,13 @@ async function render() {
       </div>
     </div>`;
 
-  const STATUSES = ['all', 'Queued', 'Sent', 'Delivered', 'Failed'];
+  // 'Failed' = unresolved failures still needing attention (matches the
+  // Dashboard "Failed Communications" count/link). 'Resolved' is a separate
+  // view of failures already handled -- see crm/lib/dashboardQueries.js's
+  // resolveFailedCommunication; the underlying status stays 'failed'
+  // forever, so this is a second dimension layered on top, not a real
+  // delivery status.
+  const STATUSES = ['all', 'Queued', 'Sent', 'Delivered', 'Failed', 'Resolved'];
   const filterBar = document.getElementById('status-filters');
   filterBar.style.background = 'none'; filterBar.style.padding = '0';
   function renderFilterBar() {
@@ -57,22 +63,28 @@ async function render() {
     if (statusFilter !== 'all') qs.set('status', statusFilter);
     let data;
     try { data = await CrmApp.fetchJSON('/api/app/communications?' + qs.toString()); }
-    catch (e) { document.getElementById('rows').innerHTML = `<tr><td colspan="6"><div class="empty-state">Could not load communications: ${CrmApp.escapeHtml(e.message)}</div></td></tr>`; return; }
+    catch (e) { document.getElementById('rows').innerHTML = `<tr><td colspan="7"><div class="empty-state">Could not load communications: ${CrmApp.escapeHtml(e.message)}</div></td></tr>`; return; }
 
     const rows = document.getElementById('rows');
     const mobileRows = document.getElementById('mobile-rows');
     if (!data.items.length) {
-      rows.innerHTML = `<tr><td colspan="6"><div class="empty-state">No communications found.</div></td></tr>`;
+      rows.innerHTML = `<tr><td colspan="7"><div class="empty-state">No communications found.</div></td></tr>`;
       mobileRows.innerHTML = `<div class="empty-state">No communications found.</div>`;
       return;
     }
-    rows.innerHTML = data.items.map(m => `<tr class="${m.status === 'Failed' ? '' : ''}">
+    // A row is an ACTIVE (unresolved) failure only when its status is
+    // Failed AND it has no resolvedAt yet -- resolveFailedCommunication
+    // never changes status itself, only resolvedAt.
+    const isActiveFailure = m => m.status === 'Failed' && !m.resolvedAt;
+
+    rows.innerHTML = data.items.map(m => `<tr>
       <td>${m.brandId ? CrmApp.companyBadge(m.brandId, m.brandShortName) : '<span class="text-faint">Unassigned</span>'}</td>
       <td style="text-transform:capitalize;">${CrmApp.escapeHtml(m.channel)}</td>
       <td>${CrmApp.escapeHtml(m.recipient || '—')}</td>
-      <td><span class="pill status-${m.status.toLowerCase()}">${m.status}</span>${m.status === 'Failed' && m.failureReason ? `<div class="text-danger" style="font-size:11.5px; margin-top:3px;">${CrmApp.escapeHtml(m.failureReason)}</div>` : ''}</td>
+      <td><span class="pill status-${m.status.toLowerCase()}">${m.status}</span>${m.resolvedAt ? '<span class="pill status-open" style="margin-left:6px;">Resolved</span>' : ''}${m.status === 'Failed' && m.failureReason ? `<div class="text-danger" style="font-size:11.5px; margin-top:3px;">${CrmApp.escapeHtml(m.failureReason)}</div>` : ''}</td>
       <td>${CrmApp.escapeHtml(m.relatedCase || '—')}</td>
       <td>${CrmApp.friendlyDateTime(m.timestamp)}</td>
+      <td>${isActiveFailure(m) ? `<button type="button" class="btn small resolve-failure-btn" data-channel="${CrmApp.escapeHtml(m.channel)}" data-id="${m.id}">Resolve</button>` : ''}</td>
     </tr>`).join('');
 
     mobileRows.innerHTML = data.items.map(m => `<div class="mobile-client-row" style="cursor:default;">
@@ -80,9 +92,24 @@ async function render() {
         <div class="mobile-client-name" style="text-transform:capitalize;">${CrmApp.escapeHtml(m.channel)} to ${CrmApp.escapeHtml(m.recipient || '—')}</div>
         <div class="mobile-client-meta">${m.brandId ? CrmApp.companyBadge(m.brandId, m.brandShortName) : ''}<span class="text-faint">${CrmApp.friendlyDateTime(m.timestamp)}</span></div>
         ${m.status === 'Failed' && m.failureReason ? `<div class="text-danger" style="font-size:12px; margin-top:4px;">${CrmApp.escapeHtml(m.failureReason)}</div>` : ''}
+        ${isActiveFailure(m) ? `<button type="button" class="btn small resolve-failure-btn" data-channel="${CrmApp.escapeHtml(m.channel)}" data-id="${m.id}" style="margin-top:6px;">Resolve</button>` : ''}
       </div>
       <span class="pill status-${m.status.toLowerCase()}">${m.status}</span>
     </div>`).join('');
+
+    document.querySelectorAll('.resolve-failure-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await CrmApp.postJSON(`/api/app/communications/${btn.dataset.channel}/${btn.dataset.id}/resolve`, 'POST');
+          CrmApp.toast('Marked resolved.');
+          load();
+        } catch (err) {
+          CrmApp.toast(err.message, { error: true });
+          btn.disabled = false;
+        }
+      });
+    });
   }
 
   renderFilterBar();

@@ -265,6 +265,45 @@ test('getDashboardSummary counts pending contact_conflict items as verificationN
   assert.equal(summary.reviewRequired, 0, 'contact_conflict must not be double-counted inside the generic reviewRequired total');
 });
 
+// ── Failed Communications dashboard count ─────────────────────────────────
+// The Dashboard "Failed Communications" tile/count must represent only
+// communications that STILL NEED attention -- once resolved
+// (crm/lib/dashboardQueries.js's resolveFailedCommunication), a failure
+// stops counting even though its sms_messages/emails row (status='failed')
+// is never deleted or changed.
+
+test('getDashboardSummary.failedComms counts only Failed communications, and drops to 0 once none remain unresolved', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'failedcomms@example.com', first_name: 'Fern' });
+
+  const before = getDashboardSummary(db, { brandId: null });
+  assert.equal(before.failedComms, 0);
+
+  const ins = db.prepare(`INSERT INTO sms_messages (contact_id, direction, to_number, body, status) VALUES (?, 'outbound', '+15555550300', 'hi', 'failed')`).run(contact.id);
+  const afterFail = getDashboardSummary(db, { brandId: null });
+  assert.equal(afterFail.failedComms, 1);
+
+  const { resolveFailedCommunication } = require('../lib/dashboardQueries');
+  resolveFailedCommunication(db, { channel: 'sms', id: ins.lastInsertRowid }, 'Loretta Stewart');
+
+  const afterResolve = getDashboardSummary(db, { brandId: null });
+  assert.equal(afterResolve.failedComms, 0, 'a resolved failure must no longer count toward Failed Communications');
+});
+
+test('getDashboardSummary.failedComms only counts UNRESOLVED failures when several exist', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'failedcomms2@example.com', first_name: 'Gale' });
+  const a = db.prepare(`INSERT INTO sms_messages (contact_id, direction, to_number, body, status) VALUES (?, 'outbound', '+15555550301', 'a', 'failed')`).run(contact.id);
+  db.prepare(`INSERT INTO sms_messages (contact_id, direction, to_number, body, status) VALUES (?, 'outbound', '+15555550302', 'b', 'failed')`).run(contact.id);
+
+  assert.equal(getDashboardSummary(db, { brandId: null }).failedComms, 2);
+
+  const { resolveFailedCommunication } = require('../lib/dashboardQueries');
+  resolveFailedCommunication(db, { channel: 'sms', id: a.lastInsertRowid }, 'Loretta Stewart');
+
+  assert.equal(getDashboardSummary(db, { brandId: null }).failedComms, 1, 'only the resolved one drops out -- the other still-unresolved failure keeps counting');
+});
+
 test('getWorkList never selects a sender and every item is openable (has a target)', () => {
   const { db, prosperityId } = setup();
   const contact = dedupeContact(db, { email: 'worklist@example.com', first_name: 'Sana' });

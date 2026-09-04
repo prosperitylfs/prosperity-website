@@ -845,7 +845,11 @@ function getDashboardSummary(db, { brandId = null } = {}) {
     WHERE c.status = 'Open' ${bClause}
   `).get(...bParams).n;
 
-  const failedComms = getMessageDeliveryStatus(db, { brandId }).filter(m => m.status === 'Failed').length;
+  // Only UNRESOLVED failures -- a Failed communication Loretta has already
+  // handled (resolveFailedCommunication) no longer needs her attention, so
+  // it must not keep inflating this count even though the underlying
+  // sms_messages/emails row (and its status='failed') is never deleted.
+  const failedComms = getMessageDeliveryStatus(db, { brandId }).filter(m => m.status === 'Failed' && !m.resolvedAt).length;
 
   const reviewRequired =
     getBrandReviewQueue(db).length +
@@ -1077,11 +1081,11 @@ function extractFailureReason(channel, status, body, storedFailureReason) {
 
 function getMessageDeliveryStatus(db, { brandId = null } = {}) {
   const smsRows = db.prepare(`
-    SELECT 'sms' AS channel, id, to_number AS recipient, status, body, failure_reason, sent_at AS timestamp, contact_brand_id, case_id
+    SELECT 'sms' AS channel, id, to_number AS recipient, status, body, failure_reason, failure_resolved_at, sent_at AS timestamp, contact_brand_id, case_id
     FROM sms_messages
   `).all();
   const emailRows = db.prepare(`
-    SELECT 'email' AS channel, id, to_email AS recipient, status, NULL AS body, sent_at AS timestamp, contact_brand_id, case_id
+    SELECT 'email' AS channel, id, to_email AS recipient, status, NULL AS body, NULL AS failure_reason, failure_resolved_at, sent_at AS timestamp, contact_brand_id, case_id
     FROM emails
   `).all();
 
@@ -1103,6 +1107,11 @@ function getMessageDeliveryStatus(db, { brandId = null } = {}) {
       recipient: row.recipient,
       status,
       failureReason: status === 'Failed' ? extractFailureReason(row.channel, row.status, row.body, row.failure_reason) : null,
+      // Set only once Loretta has explicitly handled a Failed communication
+      // (resolveFailedCommunication below) -- status itself never changes,
+      // so the original record and its failure reason stay in history
+      // forever; this is purely "does this still need my attention."
+      resolvedAt: status === 'Failed' ? toIsoUtc(row.failure_resolved_at) : null,
       timestamp: toIsoUtc(row.timestamp),
       brandId: rowBrandId,
       brandShortName: brand ? brand.shortName : null,
@@ -1114,12 +1123,35 @@ function getMessageDeliveryStatus(db, { brandId = null } = {}) {
   return filtered.sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
 }
 
+// Marks a Failed sms_messages/emails row as resolved -- Loretta has handled
+// the underlying problem (e.g. corrected the phone number and resent) and
+// this no longer needs to appear as an active failure. Never touches
+// status, body, or any other column -- the original record and its Twilio
+// error detail are fully preserved; failure_resolved_at is the only thing
+// that changes. Never resends anything, never touches consent, never
+// touches the contact -- purely a bookkeeping marker on this one row.
+function resolveFailedCommunication(db, { channel, id }, actor) {
+  if (!actor) throw new Error('resolveFailedCommunication: actor is required for the audit trail');
+  if (channel !== 'sms' && channel !== 'email') {
+    throw new Error(`resolveFailedCommunication: unknown channel '${channel}'`);
+  }
+  const table = channel === 'sms' ? 'sms_messages' : 'emails';
+  const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
+  if (!row) throw new Error(`resolveFailedCommunication: ${channel} message ${id} does not exist`);
+  if (normalizeMessageStatus(row.status) !== 'Failed') {
+    throw new Error(`resolveFailedCommunication: ${channel} message ${id} is not currently Failed (status: ${row.status})`);
+  }
+  db.prepare(`UPDATE ${table} SET failure_resolved_at = CURRENT_TIMESTAMP WHERE id = ?`).run(id);
+  return db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
+}
+
 module.exports = {
   getCaseList,
   getBrandReviewQueue,
   getCaseReviewQueue,
   getOpenCasesForContactBrand,
   getMessageDeliveryStatus,
+  resolveFailedCommunication,
   normalizeMessageStatus,
   getCompanyConflictQueue,
   getContactConflictQueue,

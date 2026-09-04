@@ -148,6 +148,7 @@ function createLegacyDb(dbPath = ':memory:') {
       gmail_message_id TEXT,
       thread_id        TEXT,
       direction        TEXT NOT NULL DEFAULT 'outbound',
+      failure_resolved_at DATETIME,
       sent_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
     );
@@ -165,6 +166,7 @@ function createLegacyDb(dbPath = ':memory:') {
       appointment_id INTEGER,
       message_type   TEXT,
       appointment_occurrence_at TEXT,
+      failure_resolved_at DATETIME,
       sent_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
     );

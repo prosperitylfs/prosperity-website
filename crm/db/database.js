@@ -338,6 +338,13 @@ addCol('sms_messages', 'message_type',   'TEXT');
 // without re-sending for the time that no longer applies. NULL for any SMS
 // not tied to a specific appointment occurrence.
 addCol('sms_messages', 'appointment_occurrence_at', 'TEXT');
+// Failed Communications resolution (crm/lib/dashboardQueries.js's
+// resolveFailedCommunication / getMessageDeliveryStatus, Dashboard "Failed
+// Communications" count). A nullable timestamp marking that Loretta has
+// handled a failed send (e.g. corrected the phone number and resent) --
+// status stays 'failed' forever so the original record and its Twilio
+// error detail are never lost; this is the ONLY thing that changes.
+addCol('sms_messages', 'failure_resolved_at', 'DATETIME');
 try {
   db.prepare('CREATE INDEX IF NOT EXISTS idx_sms_appointment_id ON sms_messages(appointment_id)').run();
 } catch (e) { if (!e.message.includes('already exists')) throw e; }
@@ -376,6 +383,8 @@ try {
 addCol('emails', 'from_email', 'TEXT');
 addCol('emails', 'thread_id',  'TEXT');
 addCol('emails', 'direction',  "TEXT NOT NULL DEFAULT 'outbound'");
+// Same Failed Communications resolution marker as sms_messages above.
+addCol('emails', 'failure_resolved_at', 'DATETIME');
 // Unique index enables INSERT OR IGNORE deduplication by Gmail message ID
 try {
   db.prepare(

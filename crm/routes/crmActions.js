@@ -28,6 +28,7 @@ const callLogService = require('../lib/callLogService');
 const taskCalendarSync = require('../lib/taskCalendarSync');
 const existingClientOutreach = require('../lib/existingClientOutreach');
 const templateManagerService = require('../lib/templateManagerService');
+const dashboardQueries = require('../lib/dashboardQueries');
 
 function handle(fn) {
   return (req, res) => {
@@ -238,6 +239,13 @@ router.patch('/calls/:id', handle(async req => {
 router.post('/communications/draft', handle((req, res) => { created(res); return draftService.createDraft(db, req.body, ACTOR); }));
 router.post('/communications/draft/:id/confirm-send', handle(req => draftService.confirmSend(db, Number(req.params.id), ACTOR)));
 router.post('/communications/call-preview', handle(req => draftService.previewCall(db, req.body)));
+// Marks a Failed sms/email as resolved (Failed Communications workflow) --
+// never resends, never touches status/consent/the contact. See
+// crm/lib/dashboardQueries.js's resolveFailedCommunication for exactly
+// what this does and doesn't change.
+router.post('/communications/:channel/:id/resolve', handle(req => dashboardQueries.resolveFailedCommunication(db, {
+  channel: req.params.channel, id: Number(req.params.id),
+}, ACTOR)));
 
 // ── CSV import ───────────────────────────────────────────────────────────
 router.get('/import/sample-csv', (req, res) => {

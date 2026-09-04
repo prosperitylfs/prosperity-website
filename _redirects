@@ -4,7 +4,7 @@ https://www.prosperitylfs.com/* https://prosperitylfs.com/:splat 301
 # Short branded link for the Life Insurance policy-review booking page —
 # redirects straight to the existing Cal.com booking page, never through
 # /book. Placed before the SPA fallback below so it takes priority.
-/review https://cal.com/lorettastewart/life-insurance-consultation-prosperitylfs 301
+/review https://cal.com/lorettastewart/policy-review 301
 
 # PDF and static asset bypass
 /*.pdf 200

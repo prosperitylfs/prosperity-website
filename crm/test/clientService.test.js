@@ -12,6 +12,7 @@ const { createClient, updateClient, archiveClient, restoreClient, deleteClientPe
 const { resolveContactBrand } = require('../lib/caseMatching');
 const { createCaseForClient } = require('../lib/caseService');
 const { createPolicy } = require('../lib/policyService');
+const { matchOrCreateCase, stageUnresolvedIntake } = require('../lib/caseMatching');
 
 function setup() {
   const db = createLegacyDb();
@@ -576,6 +577,88 @@ test('6/7. deleting one client does not touch an unrelated client\'s own records
   assert.ok(rowAfter, 'import_rows audit row must survive the delete');
   assert.equal(rowAfter.contact_id, null);
   assert.equal(rowAfter.outcome, 'created', 'the rest of the audit row is untouched');
+});
+
+// Reproduces the exact live bug report: a client with a "Case Review
+// Required" queue item (unresolved_intake.review_type='case') pending
+// against its OWN brand relationship -- e.g. a Cal.com booking that
+// resolved to a known client but no matchable product -- previously made
+// deleteClientPermanently fail with "FOREIGN KEY constraint failed"
+// because unresolved_intake.contact_brand_id (crm/db/migrateDashboard.js)
+// still pointed at the contact_brands row being deleted.
+test('reproduces and fixes the live bug: deleting a client with a pending Case Review Required item against its own relationship', () => {
+  const { db, prosperityId } = setup();
+  const created = createClient(db, { firstName: 'Loretta', lastName: 'LiveBugRepro', email: 'livebugrepro@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const contactId = created.contact.id;
+  const contactBrandId = created.contactBrand.id;
+
+  // A booking/event resolves to this exact client's brand relationship but
+  // no product could be determined -- stages a Case Review Required item
+  // with contact_brand_id set, exactly like the real intake pipeline does.
+  const staged = matchOrCreateCase(db, {
+    contactBrandId, eventType: 'new_inquiry', source: 'test_repro', rawPayload: {},
+  });
+  assert.equal(staged.outcome, 'review_required');
+  assert.equal(staged.unresolvedIntake.contact_brand_id, contactBrandId);
+  assert.equal(staged.unresolvedIntake.status, 'Pending', 'reproduces the bug whether the item is still pending...');
+
+  // Before the fix this threw "FOREIGN KEY constraint failed" -- must now
+  // succeed cleanly.
+  const result = deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true });
+  assert.equal(result.outcome, 'deleted');
+  assert.equal(db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId), undefined);
+
+  // The review-queue item itself survives (it is shared/queue data, not
+  // this client's own data) with its now-invalid brand-relationship
+  // reference cleared, not left dangling.
+  const intakeAfter = db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(staged.unresolvedIntake.id);
+  assert.ok(intakeAfter, 'the review-queue item must survive the delete');
+  assert.equal(intakeAfter.contact_brand_id, null);
+});
+
+// Same reproduction, but the item was already Resolved before the client
+// is deleted -- resolved_contact_brand_id (not contact_brand_id) is the
+// column that matters once resolved, and it must be cleared too.
+test('reproduces and fixes the live bug: deleting a client with an already-RESOLVED Case Review Required item', () => {
+  const { db, prosperityId } = setup();
+  const created = createClient(db, { firstName: 'Loretta', lastName: 'ResolvedRepro', email: 'resolvedrepro@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const contactId = created.contact.id;
+  const contactBrandId = created.contactBrand.id;
+  const productId = getProductId(db, prosperityId, 'Life insurance');
+
+  const intake = stageUnresolvedIntake(db, {
+    source: 'test_repro', rawPayload: {}, reviewType: 'case', contactBrandId,
+    reason: 'no product/service category could be determined',
+  });
+  db.prepare(`
+    UPDATE unresolved_intake
+    SET status = 'Resolved', resolved_contact_brand_id = ?, resolved_by = 'Loretta Stewart', resolved_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(contactBrandId, intake.id);
+
+  const result = deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true });
+  assert.equal(result.outcome, 'deleted');
+
+  const intakeAfter = db.prepare('SELECT * FROM unresolved_intake WHERE id = ?').get(intake.id);
+  assert.ok(intakeAfter, 'the resolved review-queue item must survive the delete');
+  assert.equal(intakeAfter.contact_brand_id, null);
+  assert.equal(intakeAfter.resolved_contact_brand_id, null);
+  assert.equal(intakeAfter.status, 'Resolved', 'resolution status/audit fields themselves are untouched');
+});
+
+test('improved error logging: a failed delete names the exact step that failed', () => {
+  const { db, prosperityId } = setup();
+  const created = createClient(db, { firstName: 'Loud', lastName: 'Failure', email: 'loudfailure@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const contactId = created.contact.id;
+  const caseResult = createCaseForClient(db, { contactId, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+  const other = createClient(db, { firstName: 'Other', email: 'other-logging@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  db.prepare(`INSERT INTO sms_messages (contact_id, direction, body, case_id) VALUES (?, 'outbound', 'cross-linked', ?)`).run(other.contact.id, caseResult.id);
+
+  assert.throws(
+    () => deleteClientPermanently(db, contactId, 'Loretta Stewart', { confirmDelete: true }),
+    /failed at step "delete cases"/,
+    'the thrown error must name the specific step that failed, not just the bare SQLite message'
+  );
 });
 
 test('8. Archive Client still works exactly as before, completely independent of Delete', () => {

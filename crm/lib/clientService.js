@@ -337,11 +337,29 @@ const DIRECT_CONTACT_TABLES = [
 //
 // Deletion is fully explicit and ordered (children before parents) rather
 // than relying on the schema's mixed FK behavior: most contact_id columns
-// cascade natively, but the contact_brand_id/case_id columns several tables
-// gained via ALTER TABLE (crm/db/migrateBrands.js's addDownstreamReferences)
-// have no ON DELETE action, so a naive single DELETE FROM contacts could
-// fail a foreign-key check partway through. Explicit ordering here sidesteps
-// that entirely — nothing is ever left with a dangling reference.
+// cascade natively, but several contact_brand_id/case_id/appointment_id
+// columns gained via ALTER TABLE (crm/db/migrateBrands.js's
+// addDownstreamReferences, crm/db/migrateDashboard.js, crm/db/database.js's
+// own addCol calls) have no ON DELETE action, so a naive single DELETE FROM
+// contacts can fail a foreign-key check partway through. Explicit ordering
+// here sidesteps that entirely — nothing is ever left with a dangling
+// reference. Two such columns were found and fixed by this audit:
+//   - unresolved_intake.contact_brand_id (migrateDashboard.js) -- populated
+//     by caseMatching.js's stageUnresolvedIntake whenever a "Case Review
+//     Required" item is staged for an already-known brand relationship
+//     (e.g. a booking with no resolvable product). This is the column that
+//     caused the live "FOREIGN KEY constraint failed" error: a client with
+//     any such review-queue history (resolved or still pending) had a row
+//     still pointing at its contact_brands relationship when the delete
+//     tried to remove that relationship.
+//   - unresolved_intake.resolved_contact_brand_id (migrateBrands.js) IS
+//     declared with an inline ON DELETE SET NULL, so it was never actually
+//     at risk -- cleared explicitly anyway below, for the same reason
+//     everything else here is explicit rather than cascade-reliant:
+//     determinism and testability, not correctness by accident.
+// This unresolved_intake cleanup, along with import_rows, now runs FIRST,
+// before any contact_brands/cases rows are deleted -- clearing a reference
+// before removing what it points to, never after.
 //
 // Two tables that reference a contact but are NOT this client's own data —
 // import_rows (a CSV import's audit trail) and unresolved_intake (the
@@ -355,53 +373,75 @@ function deleteClientPermanently(db, contactId, actor, { confirmDelete } = {}) {
   const existing = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
   if (!existing) throw new Error(`deleteClientPermanently: contact ${contactId} does not exist`);
 
+  // Runs one DELETE/UPDATE, wrapping any failure with exactly which step
+  // caused it -- otherwise all a foreign-key failure ever surfaces is the
+  // bare SQLite message with no indication of which table was involved.
+  function step(label, fn) {
+    try {
+      fn();
+    } catch (err) {
+      console.error(`[clientService] deleteClientPermanently: contact #${contactId} failed at step "${label}": ${err.message}`);
+      const wrapped = new Error(`deleteClientPermanently: failed at step "${label}" (contact #${contactId}): ${err.message}`);
+      wrapped.cause = err;
+      throw wrapped;
+    }
+  }
+
   const run = db.transaction(() => {
     const contactBrandIds = db.prepare('SELECT id FROM contact_brands WHERE contact_id = ?').all(contactId).map(r => r.id);
+    const cbPh = contactBrandIds.map(() => '?').join(',');
+
+    // Reference-clearing for shared/queue records must happen BEFORE any
+    // contact_brands/cases rows are removed below -- these columns point AT
+    // contact_brands, so clearing the pointer has to come before deleting
+    // what it points to, never after.
+    if (tableExists(db, 'import_rows')) {
+      step('clear import_rows.contact_id', () =>
+        db.prepare('UPDATE import_rows SET contact_id = NULL WHERE contact_id = ?').run(contactId));
+    }
+    if (tableExists(db, 'unresolved_intake')) {
+      step('clear unresolved_intake.candidate_contact_id', () =>
+        db.prepare('UPDATE unresolved_intake SET candidate_contact_id = NULL WHERE candidate_contact_id = ?').run(contactId));
+      if (contactBrandIds.length) {
+        step('clear unresolved_intake.contact_brand_id', () =>
+          db.prepare(`UPDATE unresolved_intake SET contact_brand_id = NULL WHERE contact_brand_id IN (${cbPh})`).run(...contactBrandIds));
+        step('clear unresolved_intake.resolved_contact_brand_id', () =>
+          db.prepare(`UPDATE unresolved_intake SET resolved_contact_brand_id = NULL WHERE resolved_contact_brand_id IN (${cbPh})`).run(...contactBrandIds));
+      }
+    }
 
     let caseIds = [];
     if (contactBrandIds.length) {
-      const ph = contactBrandIds.map(() => '?').join(',');
-      caseIds = db.prepare(`SELECT id FROM cases WHERE contact_brand_id IN (${ph})`).all(...contactBrandIds).map(r => r.id);
+      caseIds = db.prepare(`SELECT id FROM cases WHERE contact_brand_id IN (${cbPh})`).all(...contactBrandIds).map(r => r.id);
     }
     if (caseIds.length) {
-      const ph = caseIds.map(() => '?').join(',');
-      db.prepare(`DELETE FROM policies WHERE case_id IN (${ph})`).run(...caseIds);
-      db.prepare(`DELETE FROM case_external_refs WHERE case_id IN (${ph})`).run(...caseIds);
-      db.prepare(`DELETE FROM case_brand_transfers WHERE case_id IN (${ph})`).run(...caseIds);
-      db.prepare(`DELETE FROM cases WHERE id IN (${ph})`).run(...caseIds);
+      const casePh = caseIds.map(() => '?').join(',');
+      step('delete policies', () => db.prepare(`DELETE FROM policies WHERE case_id IN (${casePh})`).run(...caseIds));
+      step('delete case_external_refs', () => db.prepare(`DELETE FROM case_external_refs WHERE case_id IN (${casePh})`).run(...caseIds));
+      step('delete case_brand_transfers', () => db.prepare(`DELETE FROM case_brand_transfers WHERE case_id IN (${casePh})`).run(...caseIds));
+      step('delete cases', () => db.prepare(`DELETE FROM cases WHERE id IN (${casePh})`).run(...caseIds));
     }
     if (contactBrandIds.length) {
-      const ph = contactBrandIds.map(() => '?').join(',');
-      db.prepare(`DELETE FROM contact_brands WHERE id IN (${ph})`).run(...contactBrandIds);
+      step('delete contact_brands', () => db.prepare(`DELETE FROM contact_brands WHERE id IN (${cbPh})`).run(...contactBrandIds));
     }
 
     if (tableExists(db, 'activity_edits')) {
-      db.prepare('DELETE FROM activity_edits WHERE activity_id IN (SELECT id FROM activities WHERE contact_id = ?)').run(contactId);
+      step('delete activity_edits', () =>
+        db.prepare('DELETE FROM activity_edits WHERE activity_id IN (SELECT id FROM activities WHERE contact_id = ?)').run(contactId));
     }
     if (tableExists(db, 'activities')) {
-      db.prepare('DELETE FROM activities WHERE contact_id = ?').run(contactId);
+      step('delete activities', () => db.prepare('DELETE FROM activities WHERE contact_id = ?').run(contactId));
     }
     if (tableExists(db, 'retirement_intakes')) {
-      db.prepare('DELETE FROM retirement_intakes WHERE contact_id = ?').run(contactId);
+      step('delete retirement_intakes', () => db.prepare('DELETE FROM retirement_intakes WHERE contact_id = ?').run(contactId));
     }
 
     for (const table of DIRECT_CONTACT_TABLES) {
       if (!tableExists(db, table)) continue;
-      db.prepare(`DELETE FROM ${table} WHERE contact_id = ?`).run(contactId);
+      step(`delete ${table}`, () => db.prepare(`DELETE FROM ${table} WHERE contact_id = ?`).run(contactId));
     }
 
-    if (tableExists(db, 'import_rows')) {
-      db.prepare('UPDATE import_rows SET contact_id = NULL WHERE contact_id = ?').run(contactId);
-    }
-    if (tableExists(db, 'unresolved_intake')) {
-      db.prepare('UPDATE unresolved_intake SET candidate_contact_id = NULL WHERE candidate_contact_id = ?').run(contactId);
-      if (contactBrandIds.length) {
-        const ph = contactBrandIds.map(() => '?').join(',');
-        db.prepare(`UPDATE unresolved_intake SET resolved_contact_brand_id = NULL WHERE resolved_contact_brand_id IN (${ph})`).run(...contactBrandIds);
-      }
-    }
-
-    db.prepare('DELETE FROM contacts WHERE id = ?').run(contactId);
+    step('delete contacts', () => db.prepare('DELETE FROM contacts WHERE id = ?').run(contactId));
   });
   run();
 

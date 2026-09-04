@@ -30,10 +30,20 @@ const { normalizePhone } = require('./leadNormalize');
 const { BRANDS } = require('../config/brands');
 const { stageUnresolvedIntake } = require('./caseMatching');
 const { isRescheduleRequest, processRescheduleRequest } = require('./rescheduleRequestService');
+const { sendLegacySms } = require('./legacySmsSend');
+const { PROSPERITY_LIFE_INSURANCE_BOOKING_URL } = require('./existingClientOutreach');
 
 const STOP_KEYWORDS = new Set(['stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit']);
 const START_KEYWORDS = new Set(['start', 'yes', 'unstop']);
 const HELP_KEYWORDS = new Set(['help', 'info']);
+// REVIEW: a reply to the Existing Client - Life Insurance Awareness Month
+// SMS template requesting a policy review. Treated exactly like YES for
+// consent purposes (same audit stamping as START_KEYWORDS below) PLUS it
+// triggers an automated booking-link reply (see triggerReviewBookingLinkReply
+// / REVIEW_BOOKING_LINK_REPLY below) — never sent automatically for a plain
+// YES. Matched the same exact-whole-message, trimmed+lowercased way as
+// every other keyword set here.
+const REVIEW_KEYWORDS = new Set(['review']);
 // NO: an explicit "not right now" reply -- distinct from STOP. Sets
 // sms_consent = 0 (blocks ordinary future SMS the same way START/YES sets
 // it to 1) but deliberately does NOT set sms_opted_out_at -- that column is
@@ -54,6 +64,12 @@ const NO_KEYWORDS = new Set(['no']);
 // vocabulary) so "Inbound SMS" reads identically everywhere in the CRM
 // regardless of which path set it.
 const INBOUND_SMS_CONSENT_SOURCE = 'Inbound SMS';
+
+// The automated reply sent for a REVIEW keyword — reuses the SAME
+// PROSPERITY_LIFE_INSURANCE_BOOKING_URL constant crm/lib/existingClientOutreach.js
+// already exports for {{booking_link}} substitution elsewhere; never a
+// separately hard-coded URL.
+const REVIEW_BOOKING_LINK_REPLY = `Thanks! Here's my booking link to schedule your policy review: ${PROSPERITY_LIFE_INSURANCE_BOOKING_URL}`;
 
 function findActiveProsperityContactByPhone(db, e164) {
   if (!e164) return null;
@@ -244,7 +260,27 @@ function createLegacySmsReplyTask(db, contactId) {
 
 function isConsentCommand(body) {
   const lower = (body || '').trim().toLowerCase();
-  return STOP_KEYWORDS.has(lower) || START_KEYWORDS.has(lower) || HELP_KEYWORDS.has(lower) || NO_KEYWORDS.has(lower);
+  return STOP_KEYWORDS.has(lower) || START_KEYWORDS.has(lower) || HELP_KEYWORDS.has(lower) || NO_KEYWORDS.has(lower) || REVIEW_KEYWORDS.has(lower);
+}
+
+// Fires the automated booking-link reply for a REVIEW keyword reply — the
+// same fire-and-forget pattern as triggerRescheduleRequest below (and for
+// the identical reason: this module's functions stay synchronous). Reuses
+// sendLegacySms, the SAME send-and-log primitive every other automated SMS
+// in this codebase uses, sent from the SAME number the inbound REVIEW text
+// arrived TO (the Prosperity number — this is only ever called from the
+// Prosperity-number branch) so the reply threads on the client's phone.
+// sms_consent is already stamped to 1 synchronously, immediately before
+// this is called, so sendLegacySms's own consent gate passes normally.
+function triggerReviewBookingLinkReply(db, { contactId, To }, deps) {
+  const send = deps.sendLegacySms || sendLegacySms;
+  return send(db, {
+    contactId, body: REVIEW_BOOKING_LINK_REPLY, fromNumber: To || undefined,
+    messageType: 'existing_client_review_booking_link_reply',
+  }, deps).catch(err => {
+    console.error(`[inboundSmsService] REVIEW booking-link reply failed for contact #${contactId}:`, err.message);
+    return { ok: false, status: 500, error: err.message };
+  });
 }
 
 // Kicks off the reschedule-request workflow WITHOUT awaiting it here --
@@ -376,6 +412,18 @@ function handleProsperityInboundSms(db, { From, To, Body, MessageSid }, deps = {
         WHERE id = ?
       `).run(INBOUND_SMS_CONSENT_SOURCE, match.id);
       consentAction = 'opted_in';
+    } else if (REVIEW_KEYWORDS.has(bodyLower)) {
+      // REVIEW grants consent exactly like YES/START above (identical audit
+      // stamping) AND additionally requests a policy review — the automated
+      // booking-link reply is fired below, once the normal result object is
+      // built, so it's included as consentAction === 'review_requested'.
+      db.prepare(`
+        UPDATE contacts
+        SET sms_consent = 1, sms_opted_out_at = NULL,
+            sms_consent_source = ?, sms_consent_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(INBOUND_SMS_CONSENT_SOURCE, match.id);
+      consentAction = 'review_requested';
     } else if (NO_KEYWORDS.has(bodyLower)) {
       // Deliberately mirrors the START/YES branch's audit stamping, minus
       // sms_opted_out_at -- see NO_KEYWORDS' own comment for why NO and
@@ -391,14 +439,19 @@ function handleProsperityInboundSms(db, { From, To, Body, MessageSid }, deps = {
     }
 
     // A follow-up task is only ever created for a genuine, non-command
-    // reply — STOP/START/HELP must never generate a "reply to this lead"
-    // task.
+    // reply — STOP/START/HELP/REVIEW must never generate a "reply to this
+    // lead" task.
     const autoTaskId = !isCommand ? createLegacySmsReplyTask(db, match.id) : null;
 
-    return {
+    const result = {
       outcome: 'processed', contactId: match.id, contactCreated: false, contactBrandId: match.contact_brand_id,
       autoTaskId, consentAction, reviewStaged: null, isProsperityNumber: true,
     };
+    if (consentAction === 'review_requested') {
+      result.reviewRequested = true;
+      result.reviewBookingLinkPromise = triggerReviewBookingLinkReply(db, { contactId: match.id, To }, deps);
+    }
+    return result;
   }
 
   // No confirmed active Prosperity relationship. Nothing about any contact
@@ -447,7 +500,7 @@ function handleProsperityInboundSms(db, { From, To, Body, MessageSid }, deps = {
 //   { outcome: 'duplicate_ignored', contactId }
 //   { outcome: 'already_staged', unresolvedIntakeId }
 //   { outcome: 'staged_for_review', unresolvedIntakeId, candidateContactId }
-//   { outcome: 'processed', contactId, contactCreated, contactBrandId, autoTaskId, consentAction, reviewStaged, isProsperityNumber, rescheduleRequested?, rescheduleRequestPromise? }
+//   { outcome: 'processed', contactId, contactCreated, contactBrandId, autoTaskId, consentAction, reviewStaged, isProsperityNumber, rescheduleRequested?, rescheduleRequestPromise?, reviewRequested?, reviewBookingLinkPromise? }
 //
 // This function itself remains fully SYNCHRONOUS (see triggerRescheduleRequest's
 // own comment for why) -- `deps` is an optional 3rd param (every existing
@@ -472,5 +525,7 @@ module.exports = {
   START_KEYWORDS,
   HELP_KEYWORDS,
   NO_KEYWORDS,
+  REVIEW_KEYWORDS,
+  REVIEW_BOOKING_LINK_REPLY,
   INBOUND_SMS_CONSENT_SOURCE,
 };

@@ -28,6 +28,7 @@ const { getClientDetail } = require('../lib/dashboardQueries');
 const { createClient } = require('../lib/clientService');
 const { createDraft } = require('../lib/communicationDraftService');
 const { BRANDS } = require('../config/brands');
+const { PROSPERITY_LIFE_INSURANCE_BOOKING_URL } = require('../lib/existingClientOutreach');
 
 function setup() {
   const db = createLegacyDb();
@@ -405,6 +406,87 @@ test('G. after YES, an ordinary Prosperity SMS passes the existing consent gate 
   const { checkConsentGate } = require('../lib/legacySmsSend');
   const gate = checkConsentGate(contact);
   assert.equal(gate.blocked, false, 'the SAME consent gate every other SMS in this CRM uses must now pass, with no special-casing needed');
+});
+
+// ── H: Existing Client replying REVIEW (Life Insurance Awareness Month) ────
+// REVIEW is a reply option added to the Existing Client - Life Insurance
+// Awareness Month SMS template: it grants SMS consent exactly like YES, AND
+// also triggers an automated reply carrying the Prosperity booking link.
+
+const OK_REVIEW_SEND_DEPS = { sendLegacySms: async (db, { contactId, body, fromNumber, messageType }) => {
+  const twilioSid = 'SMfake-review-' + Math.random().toString(36).slice(2);
+  const ins = db.prepare(`
+    INSERT INTO sms_messages (contact_id, direction, from_number, to_number, body, status, twilio_sid, message_type)
+    VALUES (?, 'outbound', ?, ?, ?, 'sent', ?, ?)
+  `).run(contactId, fromNumber, PROSPERITY_NUMBER, body, twilioSid, messageType);
+  return { ok: true, sms: db.prepare('SELECT * FROM sms_messages WHERE id = ?').get(ins.lastInsertRowid) };
+}};
+
+test('H. an Existing Client replying REVIEW: SMS consent becomes YES exactly like a plain YES, the reply is preserved in history, and the client receives the Prosperity booking link automatically', async () => {
+  const db = setup();
+  const client = createClient(db, {
+    firstName: 'Renee', lastName: 'Jones', phone: '4145559105', brandSlug: 'prosperity', relationshipType: 'active_client',
+  }, 'Loretta Stewart');
+  assert.equal(client.contact.sms_consent, 0, 'starts with no consent on file');
+  const contactBrandIdBefore = db.prepare(`SELECT id FROM contact_brands WHERE contact_id = ? AND status = 'Active'`).get(client.contact.id).id;
+
+  const before = new Date();
+  const result = handleInboundSmsUnified(db, {
+    From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'REVIEW', MessageSid: 'SM_review_1',
+  }, OK_REVIEW_SEND_DEPS);
+
+  assert.equal(result.consentAction, 'review_requested');
+  assert.equal(result.reviewRequested, true);
+  assert.equal(result.autoTaskId, null, 'REVIEW must not create an ordinary reply task, same as STOP/START/NO/HELP');
+
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+  assert.equal(contact.sms_consent, 1, 'REVIEW grants SMS consent exactly like YES');
+  assert.equal(contact.sms_consent_source, 'Inbound SMS');
+  assert.ok(contact.sms_consent_at);
+  assert.ok(new Date(contact.sms_consent_at.replace(' ', 'T') + 'Z') >= new Date(before.getTime() - 2000), 'timestamp must reflect roughly now');
+  assert.equal(contact.sms_opted_out_at, null);
+
+  // Client remains assigned to the same brand -- REVIEW never reassigns.
+  const contactBrandIdAfter = db.prepare(`SELECT id FROM contact_brands WHERE contact_id = ? AND status = 'Active'`).get(client.contact.id).id;
+  assert.equal(contactBrandIdAfter, contactBrandIdBefore);
+
+  const sendOutcome = await result.reviewBookingLinkPromise;
+  assert.equal(sendOutcome.ok, true);
+
+  const detail = getClientDetail(db, client.contact.id);
+  assert.ok(detail.smsThread.some(m => m.body === 'REVIEW' && m.direction === 'inbound'), 'the inbound REVIEW message itself must be preserved in communication history');
+  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_BOOKING_URL));
+  assert.equal(bookingReplies.length, 1, 'the automated booking-link reply must appear exactly once in SMS History -- no duplicate booking-link text');
+});
+
+test('REVIEW is matched case-insensitively and tolerates surrounding whitespace ("Review", "review", " REVIEW ")', () => {
+  const db = setup();
+  for (const [i, body] of ['Review', 'review', ' REVIEW '].entries()) {
+    const client = createClient(db, { firstName: 'Case', lastName: `ReviewTest${i}`, phone: `414555921${i}`, brandSlug: 'prosperity' }, 'Loretta Stewart');
+    const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: body, MessageSid: `SM_review_case_${i}` }, OK_REVIEW_SEND_DEPS);
+    assert.equal(result.consentAction, 'review_requested', `"${body}" must be recognized as REVIEW`);
+  }
+});
+
+test('an unrelated sentence merely containing "review" is NOT treated as the REVIEW command', () => {
+  const db = setup();
+  const client = createClient(db, { firstName: 'Not', lastName: 'ReviewCommand', phone: '4145559215', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'I would like a review sometime', MessageSid: 'SM_review_sentence_1' });
+  assert.equal(result.consentAction, null, 'only a message whose ENTIRE body is "review" counts');
+  assert.equal(result.reviewRequested, undefined);
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+  assert.equal(contact.sms_consent, 0);
+});
+
+test('YES still does NOT trigger the automated booking-link reply -- only REVIEW does', () => {
+  const db = setup();
+  const client = createClient(db, { firstName: 'Yes', lastName: 'Only', phone: '4145559106', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'YES', MessageSid: 'SM_yes_only_1' }, OK_REVIEW_SEND_DEPS);
+  assert.equal(result.consentAction, 'opted_in');
+  assert.equal(result.reviewRequested, undefined);
+  assert.equal(result.reviewBookingLinkPromise, undefined);
+  const detail = getClientDetail(db, client.contact.id);
+  assert.equal(detail.smsThread.filter(m => m.direction === 'outbound').length, 0, 'a plain YES must never automatically send the booking link');
 });
 
 test('SCENARIO 14: both inbound endpoint paths remain behaviorally identical (same shared handler, same outcome)', () => {

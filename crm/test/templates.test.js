@@ -63,13 +63,18 @@ test('existingClientReconnectionSms (Prosperity-only) footer is STOP-only, no HE
   assert.doesNotMatch(tmpl.body, /HELP/);
 });
 
-test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s 2026-09-05 approved copy exactly, apart from straight apostrophes', () => {
+test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s 2026-09-07 approved copy exactly, apart from straight apostrophes', () => {
   const tmpl = TEMPLATES.prosperity.existingClientLifeInsuranceAwarenessSms;
   assert.match(tmpl.body, /Life Insurance Awareness Month/);
   assert.match(tmpl.body, /I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you\./);
-  assert.match(tmpl.body, /Reply YES if I may text you, or NO if you prefer not to receive text messages\. If you'd like my booking link, just let me know and I'll send it to you\./);
+  assert.match(tmpl.body, /Reply YES if I may text you, or NO if you prefer not to receive text messages\./);
+  // 2026-09-07 revision: a REVIEW reply option was added (grants consent
+  // like YES, plus requests the booking link) -- see
+  // crm/lib/inboundSmsService.js's REVIEW_KEYWORDS.
+  assert.match(tmpl.body, /If you'd like to schedule a policy review, reply REVIEW and I'll send you my booking link\. Replying REVIEW will also give me permission to communicate with you by text regarding your policy, appointments, and service needs\./);
   // {{booking_link}} was deliberately REMOVED in the 2026-09-04 revision --
-  // this initial message no longer offers a self-service booking link.
+  // this initial message no longer offers a self-service booking link; the
+  // link is only ever sent automatically in reply to an inbound REVIEW text.
   assert.doesNotMatch(tmpl.body, /\{\{booking_link\}\}/);
   // Footer changed to STOP-only in the 2026-09-05 revision -- the HELP
   // language was removed entirely; this template never used the shared

@@ -210,12 +210,16 @@ Reply STOP to opt out.`,
     // Reply HELP/STOP footer used on existingClientReconnectionSms above;
     // STOP keyword handling (crm/lib/inboundSmsService.js) works the same
     // regardless of which opt-out wording the outbound message shows.
+    // 2026-09-07 revision: added a REVIEW reply option (in addition to
+    // YES/NO) that both grants SMS consent (same as YES) AND requests the
+    // booking link -- see REVIEW_KEYWORDS in crm/lib/inboundSmsService.js.
     existingClientLifeInsuranceAwarenessSms: {
       category: 'operational', channel: 'sms',
-      // {{booking_link}} deliberately removed (2026-09-04 revision) -- this
-      // initial message no longer offers a self-service booking link at
-      // all; Loretta follows up by phone instead, and only sends the
-      // booking link separately if the client asks for it in their reply.
+      // {{booking_link}} is not substituted into the outbound message body
+      // (2026-09-04 revision, still true after the 2026-09-07 REVIEW
+      // addition) -- Loretta follows up by phone, and the booking link is
+      // only ever sent automatically in reply to an inbound REVIEW text
+      // (crm/lib/inboundSmsService.js), never in this initial outbound one.
       placeholders: ['first_name'],
       body: `Hi {{first_name}}, this is Loretta Stewart, your insurance agent. I'm reaching out to reconnect and make sure you have my current office contact information. This is my new office and texting number, so please save it so you'll recognize me when I call and have it whenever you need assistance with your policy.
 
@@ -223,7 +227,9 @@ Since September is Life Insurance Awareness Month, it's also a good time to make
 
 I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you.
 
-I'd also like your permission to communicate with you by text regarding your policy, appointments, and service needs. Reply YES if I may text you, or NO if you prefer not to receive text messages. If you'd like my booking link, just let me know and I'll send it to you.
+I'd also like your permission to communicate with you by text regarding your policy, appointments, and service needs. Reply YES if I may text you, or NO if you prefer not to receive text messages.
+
+If you'd like to schedule a policy review, reply REVIEW and I'll send you my booking link. Replying REVIEW will also give me permission to communicate with you by text regarding your policy, appointments, and service needs.
 
 Loretta Stewart
 Prosperity Life & Financial Solutions

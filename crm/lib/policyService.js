@@ -22,8 +22,8 @@ function createPolicy(db, fields, actor) {
   if (!actor) throw new Error('createPolicy: actor is required for the audit trail');
   requireCase(db, fields.caseId);
   const result = db.prepare(`
-    INSERT INTO policies (case_id, carrier, policy_number, policy_status, effective_date, premium, premium_frequency, coverage_amount, beneficiary, renewal_date, application_date, notes)
-    VALUES (@case_id, @carrier, @policy_number, @policy_status, @effective_date, @premium, @premium_frequency, @coverage_amount, @beneficiary, @renewal_date, @application_date, @notes)
+    INSERT INTO policies (case_id, carrier, policy_number, policy_type, policy_status, effective_date, premium, premium_frequency, coverage_amount, beneficiary, renewal_date, application_date, notes)
+    VALUES (@case_id, @carrier, @policy_number, @policy_type, @policy_status, @effective_date, @premium, @premium_frequency, @coverage_amount, @beneficiary, @renewal_date, @application_date, @notes)
   `).run(policyParams(fields));
   return db.prepare('SELECT * FROM policies WHERE id = ?').get(result.lastInsertRowid);
 }
@@ -33,6 +33,7 @@ function policyParams(fields) {
     case_id: fields.caseId,
     carrier: toStringOrNull(fields.carrier),
     policy_number: toStringOrNull(fields.policyNumber),
+    policy_type: toStringOrNull(fields.policyType),
     policy_status: toStringOrNull(fields.policyStatus) || 'Pending',
     effective_date: toStringOrNull(fields.effectiveDate),
     premium: fields.premium != null && fields.premium !== '' ? Number(fields.premium) : null,
@@ -46,7 +47,10 @@ function policyParams(fields) {
 }
 
 // caseId is never editable through this function -- a policy cannot be
-// re-parented to a different case/client/company via update.
+// re-parented to a different case/client/company via update. Only the ONE
+// row matching WHERE id = @id is ever touched -- editing one policy is
+// structurally incapable of affecting any other policy row, including
+// other policies under the same case.
 function updatePolicy(db, policyId, fields) {
   const existing = db.prepare('SELECT * FROM policies WHERE id = ?').get(policyId);
   if (!existing) throw new Error(`updatePolicy: policy ${policyId} does not exist`);
@@ -54,6 +58,7 @@ function updatePolicy(db, policyId, fields) {
     UPDATE policies SET
       carrier           = COALESCE(@carrier, carrier),
       policy_number     = COALESCE(@policy_number, policy_number),
+      policy_type       = COALESCE(@policy_type, policy_type),
       policy_status     = COALESCE(@policy_status, policy_status),
       effective_date    = COALESCE(@effective_date, effective_date),
       premium           = COALESCE(@premium, premium),

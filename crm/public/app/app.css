@@ -198,11 +198,11 @@ table.data-table tbody tr.clickable:hover { background: var(--surface-alt); }
   display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
   font-size: 11.5px; font-weight: 700;
 }
-.pill.status-open, .pill.status-active, .pill.status-sent, .pill.status-delivered { background: var(--success-tint); color: var(--success); }
-.pill.status-pending, .pill.status-queued, .pill.status-received { background: var(--warning-tint); color: var(--warning); }
-.pill.status-archived, .pill.status-closed { background: var(--neutral-tint); color: var(--text-dim); }
+.pill.status-open, .pill.status-active, .pill.status-in-force, .pill.status-sent, .pill.status-delivered { background: var(--success-tint); color: var(--success); }
+.pill.status-pending, .pill.status-applied, .pill.status-queued, .pill.status-received { background: var(--warning-tint); color: var(--warning); }
+.pill.status-archived, .pill.status-closed, .pill.status-surrendered, .pill.status-terminated { background: var(--neutral-tint); color: var(--text-dim); }
 .pill.status-failed, .pill.overdue { background: var(--danger-tint); color: var(--danger); }
-.pill.status-blocked, .pill.status-logged { background: var(--neutral-tint); color: var(--text-dim); }
+.pill.status-blocked, .pill.status-logged, .pill.status-lapsed, .pill.status-cancelled { background: var(--neutral-tint); color: var(--text-dim); }
 
 .text-dim { color: var(--text-dim); }
 .text-faint { color: var(--text-faint); font-size: 12.5px; }

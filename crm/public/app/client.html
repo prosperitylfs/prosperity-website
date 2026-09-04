@@ -368,10 +368,190 @@ async function render() {
     </div>`;
   }
 
+  // Life Insurance section (dedicated, under Cases and Policies -- never a
+  // separate tab, never a competing record store). A life insurance POLICY
+  // is any row in the SAME `policies` table used by every other product --
+  // "life insurance" is identified by which Case it's filed under, via that
+  // case's product name. A brand's life-insurance-shaped product names:
+  const LIFE_INSURANCE_PRODUCTS_BY_BRAND = {
+    prosperity: ['Life insurance'],
+    'insurance-lady': ['Online life-insurance application', 'Cash-building life insurance', 'Whole life/final expense'],
+  };
+  // Matches the old standalone CRM's Policy Type dropdown exactly (see
+  // crm/public/contact.html's card-life section) -- more granular than a
+  // case's product name, which is why policy_type is its own column.
+  const POLICY_TYPES = ['Term Life', 'Whole Life', 'Universal Life', 'Indexed Universal Life (IUL)', 'Final Expense', 'Mortgage Protection', 'Other'];
+  // Broadened from the original Pending/Active/Lapsed/Cancelled to also
+  // cover Applied, In Force (the term Loretta actually uses for an
+  // in-effect policy), Surrendered, and Terminated -- so a lapsed,
+  // surrendered, cancelled, or terminated policy has an exact, correct
+  // status to preserve as a historical record rather than an approximate
+  // one. Free TEXT column, no CHECK constraint (crm/lib/policyService.js),
+  // so this is purely an additive list of options -- an existing "Active"
+  // value on an older row still round-trips correctly (see selectOptions'
+  // own fallback-preserves-unknown-value behavior, used here too).
+  const POLICY_STATUSES = ['Pending', 'Applied', 'In Force', 'Lapsed', 'Surrendered', 'Cancelled', 'Terminated'];
+
+  // All life-insurance-category cases across every company this client is
+  // linked to, each annotated with its own policies (already loaded by
+  // getClientDetail -- SELECT * FROM policies WHERE case_id = ?, no
+  // archived_at filter, so a Lapsed/Cancelled/Surrendered/Terminated policy
+  // stays listed here exactly like an In Force one; only an actually
+  // archived_at policy -- a mistaken entry, not a real historical status --
+  // would ever disappear from this list).
+  function lifeInsuranceCases() {
+    const result = [];
+    for (const cb of detail.contactBrands) {
+      const liProducts = LIFE_INSURANCE_PRODUCTS_BY_BRAND[cb.brandId] || [];
+      for (const cs of cb.cases) {
+        if (liProducts.includes(cs.productName)) result.push({ ...cs, brandId: cb.brandId, brandShortName: cb.brandShortName });
+      }
+    }
+    return result;
+  }
+
+  function lifeInsuranceHtml() {
+    const cases = lifeInsuranceCases();
+    const policies = cases.flatMap(cs => cs.policies.map(p => ({ ...p, caseProductName: cs.productName, caseId: cs.caseId, brandShortName: cs.brandShortName })));
+    // A life-insurance case with zero policies yet is a pending
+    // application, never shown as if it were an issued/in-force policy.
+    const pendingCases = cases.filter(cs => cs.policies.length === 0 && cs.status !== 'Archived');
+
+    const policyCard = (p) => `
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-body">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+            <strong style="font-size:14.5px;">${CrmApp.escapeHtml(p.carrier || 'Carrier not on file')}</strong>
+            <span class="pill status-${(p.policy_status || '').toLowerCase().replace(/\s+/g, '-')}">${CrmApp.escapeHtml(p.policy_status || 'Pending')}</span>
+          </div>
+          <div style="margin-top:6px; font-size:15px; font-weight:700;">Policy #: ${CrmApp.escapeHtml(p.policy_number || '— not on file —')}</div>
+          <dl class="kv-list" style="margin-top:8px;">
+            ${p.policy_type ? `<dt>Policy type</dt><dd>${CrmApp.escapeHtml(p.policy_type)}</dd>` : ''}
+            ${p.caseProductName ? `<dt>Product</dt><dd>${CrmApp.escapeHtml(p.caseProductName)}</dd>` : ''}
+            <dt>Face amount</dt><dd>${p.coverage_amount != null ? '$' + Number(p.coverage_amount).toLocaleString() : '—'}</dd>
+            <dt>Premium</dt><dd>${p.premium != null ? '$' + Number(p.premium).toLocaleString() + (p.premium_frequency ? ' / ' + p.premium_frequency.toLowerCase() : '') : '—'}</dd>
+            <dt>Issue / effective date</dt><dd>${CrmApp.escapeHtml(p.effective_date || '—')}</dd>
+            <dt>Application date</dt><dd>${CrmApp.escapeHtml(p.application_date || '—')}</dd>
+            ${p.beneficiary ? `<dt>Beneficiary</dt><dd>${CrmApp.escapeHtml(p.beneficiary)}</dd>` : ''}
+          </dl>
+          <div style="margin-top:10px;"><button class="btn small ghost" data-edit-policy="${p.id}" data-case-id="${p.caseId}">View / Edit</button></div>
+        </div>
+      </div>`;
+
+    return `<div class="card" style="margin-bottom:14px;">
+      <div class="card-header">
+        <h2>Life Insurance</h2>
+        <button class="btn small primary" id="action-add-life-policy">+ Add Life Insurance Policy</button>
+      </div>
+      <div class="card-body">
+        ${policies.length
+          ? `<div class="grid grid-2">${policies.map(policyCard).join('')}</div>`
+          : '<div class="empty-state">No life insurance policies on file.</div>'}
+        ${pendingCases.length ? `
+          <div style="margin-top:${policies.length ? '16px' : '4px'};">
+            <div class="text-faint" style="font-weight:700; text-transform:uppercase; font-size:11.5px; letter-spacing:.03em;">Pending life insurance applications</div>
+            ${pendingCases.map(cs => `
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 0; border-top:1px solid var(--border);">
+                <div>
+                  <strong>${CrmApp.escapeHtml(cs.productName || 'Life insurance')}</strong>
+                  <span class="text-faint"> — ${CrmApp.companyBadge(cs.brandId, cs.brandShortName)} · ${CrmApp.escapeHtml(cs.status)} · opened ${CrmApp.friendlyDate(cs.openedAt)}</span>
+                </div>
+                <button class="btn small ghost" data-edit-case="${cs.caseId}" data-status="${cs.status}" data-title="${CrmApp.escapeHtml(cs.productName || '')}">View Case</button>
+              </div>`).join('')}
+          </div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  // Add Life Insurance Policy: resolves (or creates) the right Case for the
+  // chosen life-insurance product, THEN creates the policy under it --
+  // reuses the exact same POST /api/app/cases and POST /api/app/policies
+  // endpoints newCaseModal/policyFormModal already use elsewhere on this
+  // page. Never invents a policy-without-a-case shortcut.
+  function lifeInsuranceCaseChoices() {
+    const choices = [];
+    for (const cb of detail.contactBrands) {
+      const liProducts = LIFE_INSURANCE_PRODUCTS_BY_BRAND[cb.brandId] || [];
+      for (const cs of cb.cases) {
+        if (cs.status === 'Archived') continue;
+        if (liProducts.includes(cs.productName)) {
+          choices.push({ type: 'existing', caseId: cs.caseId, label: `${cb.brandShortName} — ${cs.productName} (existing case)` });
+        }
+      }
+      for (const productName of liProducts) {
+        const exists = cb.cases.some(cs => cs.status !== 'Archived' && cs.productName === productName);
+        if (!exists) choices.push({ type: 'new', brandId: cb.brandId, productName, label: `${cb.brandShortName} — ${productName} (new case)` });
+      }
+    }
+    return choices;
+  }
+
+  function addLifeInsurancePolicyModal() {
+    const choices = lifeInsuranceCaseChoices();
+    if (!choices.length) { CrmApp.toast('This client has no company relationship to file a life insurance policy under.', { error: true }); return; }
+    const esc = CrmApp.escapeHtml;
+    const dialog = CrmApp.openModal({
+      title: 'Add Life Insurance Policy', wide: true,
+      bodyHtml: `
+        <form id="add-life-policy-form">
+          <div class="form-grid">
+            <div class="form-field full"><label>Case / product</label>
+              <select class="input" name="caseChoice">${choices.map((ch, i) => `<option value="${i}">${esc(ch.label)}</option>`).join('')}</select>
+            </div>
+            <div class="form-field"><label>Insurance carrier / company</label><input class="input" name="carrier"></div>
+            <div class="form-field"><label>Policy number</label><input class="input" name="policyNumber"></div>
+            <div class="form-field"><label>Policy type</label><select class="input" name="policyType">${selectOptions(POLICY_TYPES)}</select></div>
+            <div class="form-field"><label>Policy status</label>
+              <select class="input" name="policyStatus">${POLICY_STATUSES.map(s => `<option ${s === 'Pending' ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
+            </div>
+            <div class="form-field"><label>Face amount / death benefit</label><input class="input" name="coverageAmount" type="number" min="0" step="0.01"></div>
+            <div class="form-field"><label>Premium</label><input class="input" name="premium" type="number" min="0" step="0.01"></div>
+            <div class="form-field"><label>Premium frequency</label>
+              <select class="input" name="premiumFrequency">${['Monthly', 'Quarterly', 'Annual', 'One-time'].map(f => `<option>${f}</option>`).join('')}</select>
+            </div>
+            <div class="form-field"><label>Application date</label><input class="input" name="applicationDate" type="date"></div>
+            <div class="form-field"><label>Policy issue / effective date</label><input class="input" name="effectiveDate" type="date"></div>
+            <div class="form-field full"><label>Beneficiary</label><input class="input" name="beneficiary"></div>
+            <div class="form-field full"><label>Policy notes</label><textarea class="input" name="notes"></textarea></div>
+          </div>
+          <div class="form-error" id="add-life-policy-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="add-life-policy-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Add Policy</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#add-life-policy-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#add-life-policy-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      const errorEl = dialog.querySelector('#add-life-policy-error');
+      errorEl.textContent = '';
+      const choice = choices[Number(fields.caseChoice)];
+      delete fields.caseChoice;
+      try {
+        let caseId = choice.caseId;
+        if (choice.type === 'new') {
+          const newCase = await CrmApp.postJSON('/api/app/cases', 'POST', {
+            contactId: Number(contactId), title: choice.productName, productName: choice.productName,
+          });
+          caseId = newCase.id;
+        }
+        await CrmApp.postJSON('/api/app/policies', 'POST', { ...fields, caseId: Number(caseId) });
+        CrmApp.toast('Life insurance policy added.');
+        dialog.close();
+        reloadPage();
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    });
+  }
+
   function casesHtml() {
     const legacyBanner = legacyInsuranceBannerHtml();
-    if (!detail.contactBrands.length) return legacyBanner + '<div class="empty-state">No company relationship established yet.</div>';
-    return legacyBanner + detail.contactBrands.map(cb => `
+    if (!detail.contactBrands.length) return legacyBanner + lifeInsuranceHtml() + '<div class="empty-state">No company relationship established yet.</div>';
+    return legacyBanner + lifeInsuranceHtml() + detail.contactBrands.map(cb => `
       <div class="card" style="margin-bottom:14px;">
         <div class="card-header">
           <h2>${CrmApp.companyBadge(cb.brandId, cb.brandShortName)}</h2>
@@ -498,28 +678,34 @@ async function render() {
 
   function policyFormModal({ caseId, policyId, existing } = {}) {
     const p = existing || {};
+    const esc = CrmApp.escapeHtml;
+    // Policy Number is called out as its own prominent, full-width field at
+    // the top of the form (not buried in the general grid) -- it's the one
+    // piece of information that must always be clearly visible when
+    // viewing or editing an individual policy.
     const dialog = CrmApp.openModal({
       title: policyId ? 'Edit Policy' : 'Add Policy', wide: true,
       bodyHtml: `
         <form id="policy-form">
-          <div class="form-grid">
-            <div class="form-field"><label>Carrier</label><input class="input" name="carrier" value="${CrmApp.escapeHtml(p.carrier || '')}"></div>
-            <div class="form-field"><label>Policy number</label><input class="input" name="policyNumber" value="${CrmApp.escapeHtml(p.policy_number || '')}"></div>
+          <div class="form-field full"><label>Policy number</label><input class="input" name="policyNumber" style="font-weight:700;" value="${esc(p.policy_number || '')}"></div>
+          <div class="form-grid" style="margin-top:10px;">
+            <div class="form-field"><label>Carrier</label><input class="input" name="carrier" value="${esc(p.carrier || '')}"></div>
+            <div class="form-field"><label>Policy type</label><select class="input" name="policyType">${selectOptions(POLICY_TYPES, p.policy_type)}</select></div>
             <div class="form-field"><label>Policy status</label>
               <select class="input" name="policyStatus">
-                ${['Pending', 'Active', 'Lapsed', 'Cancelled'].map(s => `<option ${p.policy_status === s ? 'selected' : ''}>${s}</option>`).join('')}
+                ${(POLICY_STATUSES.includes(p.policy_status) ? POLICY_STATUSES : [p.policy_status, ...POLICY_STATUSES].filter(Boolean)).map(s => `<option ${p.policy_status === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
               </select>
             </div>
-            <div class="form-field"><label>Effective date</label><input class="input" name="effectiveDate" type="date" value="${CrmApp.escapeHtml(p.effective_date || '')}"></div>
-            <div class="form-field"><label>Application date</label><input class="input" name="applicationDate" type="date" value="${CrmApp.escapeHtml(p.application_date || '')}"></div>
+            <div class="form-field"><label>Effective date</label><input class="input" name="effectiveDate" type="date" value="${esc(p.effective_date || '')}"></div>
+            <div class="form-field"><label>Application date</label><input class="input" name="applicationDate" type="date" value="${esc(p.application_date || '')}"></div>
             <div class="form-field"><label>Coverage / account value (face amount)</label><input class="input" name="coverageAmount" type="number" value="${p.coverage_amount || ''}"></div>
             <div class="form-field"><label>Premium / contribution</label><input class="input" name="premium" type="number" value="${p.premium || ''}"></div>
             <div class="form-field"><label>Payment frequency</label>
               <select class="input" name="premiumFrequency">${['Monthly', 'Quarterly', 'Annual', 'One-time'].map(f => `<option ${p.premium_frequency === f ? 'selected' : ''}>${f}</option>`).join('')}</select>
             </div>
-            <div class="form-field"><label>Renewal / review date</label><input class="input" name="renewalDate" type="date" value="${CrmApp.escapeHtml(p.renewal_date || '')}"></div>
-            <div class="form-field full"><label>Beneficiary summary</label><input class="input" name="beneficiary" value="${CrmApp.escapeHtml(p.beneficiary || '')}"></div>
-            <div class="form-field full"><label>Notes</label><textarea class="input" name="notes">${CrmApp.escapeHtml(p.notes || '')}</textarea></div>
+            <div class="form-field"><label>Renewal / review date</label><input class="input" name="renewalDate" type="date" value="${esc(p.renewal_date || '')}"></div>
+            <div class="form-field full"><label>Beneficiary summary</label><input class="input" name="beneficiary" value="${esc(p.beneficiary || '')}"></div>
+            <div class="form-field full"><label>Notes</label><textarea class="input" name="notes">${esc(p.notes || '')}</textarea></div>
           </div>
           <div class="form-error" id="policy-error"></div>
           <div class="crmapp-modal-actions">
@@ -762,10 +948,16 @@ async function render() {
   const RETIREMENT_TIMELINES = ['Already Retired', 'Within 1 Year', '1-3 Years', '3-5 Years', '5-10 Years', '10+ Years'];
   const ANNUITY_TYPES = ['Fixed Annuity', 'Fixed Indexed Annuity (FIA)', 'Multi-Year Guaranteed (MYGA)', 'Variable Annuity', 'SPIA', 'QLAC'];
 
+  // current is always included as its own selected option even when it
+  // isn't one of the known `options` -- so saving an unrelated field on a
+  // record with an older/unrecognized value (e.g. a policy already marked
+  // "Active" before "In Force" existed as an option) never silently
+  // rewrites it to whatever the browser defaults an unmatched <select> to.
   function selectOptions(options, current) {
     const esc = CrmApp.escapeHtml;
+    const list = current && !options.includes(current) ? [current, ...options] : options;
     return `<option value="">— Select —</option>` +
-      options.map(o => `<option ${o === current ? 'selected' : ''}>${esc(o)}</option>`).join('');
+      list.map(o => `<option ${o === current ? 'selected' : ''}>${esc(o)}</option>`).join('');
   }
 
   function planningHtml() {
@@ -1332,6 +1524,7 @@ async function render() {
   document.getElementById('action-edit-client').addEventListener('click', editClientModal);
   document.getElementById('action-company-change').addEventListener('click', requestCompanyChangeModal);
   document.getElementById('action-archive-client').addEventListener('click', toggleArchiveClient);
+  document.getElementById('action-add-life-policy').addEventListener('click', addLifeInsurancePolicyModal);
 
   // Retirement & Annuity Planning tab: each card saves independently
   // (mirrors the old standalone CRM's per-section Save Changes pattern) by

@@ -60,3 +60,60 @@ test('archive and restore a policy round-trip', () => {
   const restored = restorePolicy(db, policy.id, 'Loretta Stewart');
   assert.equal(restored.archived_at, null);
 });
+
+// ── Life Insurance section (2026-09-10): policy_type field, and multiple
+//    independent policies per client ─────────────────────────────────────
+
+test('createPolicy accepts and stores policy_type; updatePolicy can change it without touching anything else', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Reid', email: 'reid@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const c = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+  const policy = createPolicy(db, { caseId: c.id, carrier: 'Mutual of Omaha', policyType: 'Whole Life' }, 'Loretta Stewart');
+  assert.equal(policy.policy_type, 'Whole Life');
+  const updated = updatePolicy(db, policy.id, { policyType: 'Term Life' });
+  assert.equal(updated.policy_type, 'Term Life');
+  assert.equal(updated.carrier, 'Mutual of Omaha', 'an unrelated field must be untouched by a policy_type-only update');
+});
+
+test('a client can have THREE separate life insurance policies under the same case, each with its own Policy Number, and each keeps its own identity', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Sana', email: 'sana@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const c = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+
+  const p1 = createPolicy(db, { caseId: c.id, carrier: 'Mutual of Omaha', policyNumber: 'MOO-111', policyType: 'Whole Life', coverageAmount: 25000, premium: 100, premiumFrequency: 'Monthly', policyStatus: 'In Force' }, 'Loretta Stewart');
+  const p2 = createPolicy(db, { caseId: c.id, carrier: 'Royal Neighbors of America', policyNumber: 'RNA-222', policyType: 'Whole Life', coverageAmount: 20000, premium: 75, premiumFrequency: 'Monthly', policyStatus: 'In Force' }, 'Loretta Stewart');
+  const p3 = createPolicy(db, { caseId: c.id, carrier: 'Occidental', policyNumber: 'OCC-333', policyType: 'Term Life', coverageAmount: 100000, premium: 60, premiumFrequency: 'Monthly', policyStatus: 'In Force' }, 'Loretta Stewart');
+
+  assert.notEqual(p1.id, p2.id);
+  assert.notEqual(p2.id, p3.id);
+  assert.notEqual(p1.id, p3.id);
+
+  const rows = db.prepare('SELECT * FROM policies WHERE case_id = ? ORDER BY id ASC').all(c.id);
+  assert.equal(rows.length, 3, 'adding a second and third policy must never overwrite the first -- three separate rows must exist');
+  assert.deepEqual(rows.map(r => r.policy_number), ['MOO-111', 'RNA-222', 'OCC-333']);
+  assert.deepEqual(rows.map(r => r.carrier), ['Mutual of Omaha', 'Royal Neighbors of America', 'Occidental']);
+
+  // Editing policy #2 must not change #1 or #3.
+  updatePolicy(db, p2.id, { policyStatus: 'Lapsed', premium: 80 });
+  const after = db.prepare('SELECT * FROM policies WHERE case_id = ? ORDER BY id ASC').all(c.id);
+  assert.equal(after[0].policy_number, 'MOO-111');
+  assert.equal(after[0].policy_status, 'In Force', 'policy #1 must be unaffected by editing policy #2');
+  assert.equal(after[0].premium, 100);
+  assert.equal(after[1].policy_number, 'RNA-222');
+  assert.equal(after[1].policy_status, 'Lapsed');
+  assert.equal(after[1].premium, 80);
+  assert.equal(after[2].policy_number, 'OCC-333');
+  assert.equal(after[2].policy_status, 'In Force', 'policy #3 must be unaffected by editing policy #2');
+  assert.equal(after[2].premium, 60);
+});
+
+test('a lapsed/cancelled policy is never deleted -- it remains a distinct row alongside in-force policies', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Theo', email: 'theolife@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const c = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+  createPolicy(db, { caseId: c.id, carrier: 'Carrier A', policyNumber: 'A-1', policyStatus: 'In Force' }, 'Loretta Stewart');
+  const lapsed = createPolicy(db, { caseId: c.id, carrier: 'Carrier B', policyNumber: 'B-1', policyStatus: 'Lapsed' }, 'Loretta Stewart');
+  const rows = db.prepare('SELECT * FROM policies WHERE case_id = ?').all(c.id);
+  assert.equal(rows.length, 2, 'a Lapsed status must not remove the policy -- it stays a historical record');
+  assert.ok(rows.some(r => r.id === lapsed.id && r.policy_status === 'Lapsed'));
+});

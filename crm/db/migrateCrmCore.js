@@ -46,6 +46,12 @@ function runCrmCoreMigrations(db) {
   addCol(db, 'contact_notes', 'updated_at', 'DATETIME');
   addCol(db, 'policies', 'archived_at', 'DATETIME');
   addCol(db, 'policies', 'notes', 'TEXT');
+  // 2026-09-10: the Life Insurance section (crm/public/app/client.html)
+  // needs a per-policy Policy Type (Term Life, Whole Life, IUL, etc.) --
+  // more granular than the case's product name, and there was no existing
+  // equivalent column on `policies` to reuse under another name (confirmed
+  // by audit -- see crm/lib/policyService.js's own comment).
+  addCol(db, 'policies', 'policy_type', 'TEXT');
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS activities (

@@ -381,13 +381,18 @@ async function render() {
     const selected = outreachContacts.filter(c => selectedOutreachIds.has(c.contactId));
     const count = selectedOutreachIds.size;
     let channel = 'sms';
-    // Defaults to each channel's first registered template
-    // (crm/lib/existingClientOutreach.js's EXISTING_CLIENT_SMS_TEMPLATES /
-    // EXISTING_CLIENT_EMAIL_TEMPLATES) -- the Template <select> below lets
-    // her choose a different one; a future template needs no changes here,
-    // it just becomes another <option>.
-    let templateKey = reconnectionTemplatesCache && reconnectionTemplatesCache.smsTemplates.length
-      ? reconnectionTemplatesCache.smsTemplates[0].templateKey : null;
+    // Defaults to the approved Existing Client Reconnect SMS
+    // (existingClientLifeInsuranceAwarenessSms -- the canonical, currently
+    // approved reconnect text) so "Send Message" is ready to go against the
+    // right template with no extra clicks; falls back to the first
+    // registered template if that one is somehow ever absent. The Template
+    // <select> below still lets her choose a different one if she wants to.
+    const DEFAULT_BULK_SMS_TEMPLATE_KEY = 'existingClientLifeInsuranceAwarenessSms';
+    let templateKey = null;
+    if (reconnectionTemplatesCache && reconnectionTemplatesCache.smsTemplates.length) {
+      const preferred = reconnectionTemplatesCache.smsTemplates.find(t => t.templateKey === DEFAULT_BULK_SMS_TEMPLATE_KEY);
+      templateKey = preferred ? preferred.templateKey : reconnectionTemplatesCache.smsTemplates[0].templateKey;
+    }
 
     const dialog = CrmApp.openModal({
       title: 'Send Message to Selected Existing Clients',
@@ -492,23 +497,31 @@ async function render() {
       const isSms = channel === 'sms';
       const bodyText = dialog.querySelector('#bulk-body').value;
       const subject = isSms ? undefined : dialog.querySelector('#bulk-subject').value;
-      const ok = await CrmApp.confirmAction(`Send this ${isSms ? 'text' : 'email'} to ${count} selected Existing Client${count === 1 ? '' : 's'}?`, { confirmLabel: 'Send to Selected' });
+      const templateLabel = currentTemplate() ? currentTemplate().label : (isSms ? 'text' : 'email');
+      const ok = await CrmApp.confirmAction(
+        `Send <strong>${CrmApp.escapeHtml(templateLabel)}</strong> to ${count} selected Existing Client${count === 1 ? '' : 's'}?`,
+        { confirmLabel: 'Send to Selected' }
+      );
       if (!ok) return;
       try {
         const result = await CrmApp.postJSON('/api/app/existing-client-outreach/bulk', 'POST', {
           contactIds: [...selectedOutreachIds], channel, message: bodyText, subject, body: bodyText,
           templateKey: isSms ? templateKey : undefined,
         });
+        const sentCount = result.results.filter(r => r.outcome === 'sent').length;
+        const skippedCount = result.results.length - sentCount;
         const resultsEl = dialog.querySelector('#bulk-send-results');
-        resultsEl.innerHTML = result.results.map(r => {
-          const label = r.outcome === 'sent' ? 'SENT' : r.outcome === 'failed' ? `FAILED: ${r.reason || ''}` : `BLOCKED: ${r.reason || ''}`;
-          const statusClass = r.outcome === 'sent' ? 'open' : r.outcome === 'failed' ? 'failed' : 'blocked';
-          return `<div style="display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--border);">
-            <span>${CrmApp.escapeHtml(r.contactName)}</span>
-            <span class="pill status-${statusClass}">${CrmApp.escapeHtml(label)}</span>
-          </div>`;
-        }).join('');
-        CrmApp.toast(`${result.results.filter(r => r.outcome === 'sent').length} of ${result.results.length} sent.`);
+        resultsEl.innerHTML =
+          `<div style="font-weight:600; margin-bottom:8px;">${result.results.length} selected — ${sentCount} sent, ${skippedCount} skipped</div>` +
+          result.results.map(r => {
+            const label = r.outcome === 'sent' ? 'SENT' : r.outcome === 'failed' ? `FAILED: ${r.reason || ''}` : `SKIPPED: ${r.reason || ''}`;
+            const statusClass = r.outcome === 'sent' ? 'open' : r.outcome === 'failed' ? 'failed' : 'blocked';
+            return `<div style="display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--border);">
+              <span>${CrmApp.escapeHtml(r.contactName)}</span>
+              <span class="pill status-${statusClass}">${CrmApp.escapeHtml(label)}</span>
+            </div>`;
+          }).join('');
+        CrmApp.toast(`${result.results.length} selected — ${sentCount} sent, ${skippedCount} skipped.`);
         loadOutreachContacts(document.getElementById('outreach-search').value);
       } catch (err) {
         errorEl.textContent = err.message;

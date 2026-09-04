@@ -319,7 +319,12 @@ test('LEGACY (non-Prosperity number, unchanged): a retry never duplicates the me
 // cover the newly-added consent AUDIT TRAIL stamping (source/timestamp)
 // and the newly-added NO keyword.
 
-test('D. an Existing Client replying YES: SMS consent becomes YES, with an exact timestamp, source "Inbound SMS", and the reply itself preserved in history', () => {
+// 2026-09-16: the Life Insurance Awareness Month campaign's approved copy
+// now reads "reply YES and I'll send you my booking link" -- so a plain
+// YES now grants consent AND automatically sends the booking link, exactly
+// like REVIEW (see test H below). consentAction is 'review_requested' for
+// both -- there is no behavioral difference between them any more.
+test('D. an Existing Client replying YES: SMS consent becomes YES, the reply is preserved in history, and the client receives the Prosperity booking link automatically', async () => {
   const db = setup();
   const client = createClient(db, {
     firstName: 'Renee', lastName: 'Jones', phone: '4145559101', brandSlug: 'prosperity', relationshipType: 'active_client',
@@ -327,8 +332,12 @@ test('D. an Existing Client replying YES: SMS consent becomes YES, with an exact
   assert.equal(client.contact.sms_consent, 0, 'starts with no consent on file');
 
   const before = new Date();
-  const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'YES', MessageSid: 'SM_yes_1' });
-  assert.equal(result.consentAction, 'opted_in');
+  const result = handleInboundSmsUnified(db, {
+    From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'YES', MessageSid: 'SM_yes_1',
+  }, OK_REVIEW_SEND_DEPS);
+  assert.equal(result.consentAction, 'review_requested');
+  assert.equal(result.reviewRequested, true);
+  assert.equal(result.autoTaskId, null, 'YES must not create an ordinary reply task, same as STOP/START/NO/HELP');
 
   const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
   assert.equal(contact.sms_consent, 1);
@@ -337,16 +346,39 @@ test('D. an Existing Client replying YES: SMS consent becomes YES, with an exact
   assert.ok(new Date(contact.sms_consent_at.replace(' ', 'T') + 'Z') >= new Date(before.getTime() - 2000), 'timestamp must reflect roughly now, not a stale/default value');
   assert.equal(contact.sms_opted_out_at, null);
 
+  const sendOutcome = await result.reviewBookingLinkPromise;
+  assert.equal(sendOutcome.ok, true);
+
   const detail = getClientDetail(db, client.contact.id);
   assert.ok(detail.smsThread.some(m => m.body === 'YES' && m.direction === 'inbound'), 'the inbound YES message itself must be preserved in communication history');
+  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_BOOKING_URL));
+  assert.equal(bookingReplies.length, 1, 'the automated booking-link reply must appear exactly once in SMS History -- no duplicate booking-link text');
 });
 
 test('YES is matched case-insensitively and tolerates surrounding whitespace ("Yes", "yes", " YES ")', () => {
   const db = setup();
   for (const [i, body] of ['Yes', 'yes', ' YES '].entries()) {
     const client = createClient(db, { firstName: 'Case', lastName: `Test${i}`, phone: `414555920${i}`, brandSlug: 'prosperity' }, 'Loretta Stewart');
-    const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: body, MessageSid: `SM_yes_case_${i}` });
-    assert.equal(result.consentAction, 'opted_in', `"${body}" must be recognized as YES`);
+    const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: body, MessageSid: `SM_yes_case_${i}` }, OK_REVIEW_SEND_DEPS);
+    assert.equal(result.consentAction, 'review_requested', `"${body}" must be recognized as YES`);
+  }
+});
+
+// START/UNSTOP: the general Twilio-standard re-subscribe keywords, a
+// different signal than this campaign's own "reply YES" prompt -- these
+// must keep granting consent alone, with NO automatic booking-link send.
+test('a plain START or UNSTOP still grants consent only, with NO automatic booking-link reply', () => {
+  const db = setup();
+  for (const [i, body] of ['START', 'UNSTOP'].entries()) {
+    const client = createClient(db, { firstName: 'Start', lastName: `Only${i}`, phone: `414555922${i}`, brandSlug: 'prosperity' }, 'Loretta Stewart');
+    const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: body, MessageSid: `SM_start_only_${i}` }, OK_REVIEW_SEND_DEPS);
+    assert.equal(result.consentAction, 'opted_in', `"${body}" must still be recognized as plain consent, not a booking-link request`);
+    assert.equal(result.reviewRequested, undefined);
+    assert.equal(result.reviewBookingLinkPromise, undefined);
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+    assert.equal(contact.sms_consent, 1);
+    const detail = getClientDetail(db, client.contact.id);
+    assert.equal(detail.smsThread.filter(m => m.direction === 'outbound').length, 0, `"${body}" must never automatically send the booking link`);
   }
 });
 
@@ -512,15 +544,21 @@ test('an unrelated sentence merely containing "review" is NOT treated as the REV
   assert.equal(contact.sms_consent, 0);
 });
 
-test('YES still does NOT trigger the automated booking-link reply -- only REVIEW does', () => {
+// 2026-09-16: superseded by test D above (YES now triggers the same
+// automated booking-link reply as REVIEW) -- kept here, inverted, as an
+// explicit regression guard against ever silently reverting to the old
+// YES-is-consent-only behavior.
+test('YES now DOES trigger the automated booking-link reply, exactly like REVIEW', async () => {
   const db = setup();
   const client = createClient(db, { firstName: 'Yes', lastName: 'Only', phone: '4145559106', brandSlug: 'prosperity' }, 'Loretta Stewart');
   const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'YES', MessageSid: 'SM_yes_only_1' }, OK_REVIEW_SEND_DEPS);
-  assert.equal(result.consentAction, 'opted_in');
-  assert.equal(result.reviewRequested, undefined);
-  assert.equal(result.reviewBookingLinkPromise, undefined);
+  assert.equal(result.consentAction, 'review_requested');
+  assert.equal(result.reviewRequested, true);
+  const sendOutcome = await result.reviewBookingLinkPromise;
+  assert.equal(sendOutcome.ok, true);
   const detail = getClientDetail(db, client.contact.id);
-  assert.equal(detail.smsThread.filter(m => m.direction === 'outbound').length, 0, 'a plain YES must never automatically send the booking link');
+  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_BOOKING_URL));
+  assert.equal(bookingReplies.length, 1, 'a YES must automatically send the booking link exactly once');
 });
 
 test('SCENARIO 14: both inbound endpoint paths remain behaviorally identical (same shared handler, same outcome)', () => {

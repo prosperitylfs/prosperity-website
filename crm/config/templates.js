@@ -216,26 +216,27 @@ Reply STOP to opt out.`,
     // 2026-09-11 revision: opening paragraph reworded per Loretta's exact
     // approved copy -- everything from "Since September..." onward is
     // byte-for-byte unchanged from the 2026-09-07 revision above.
+    // 2026-09-16 revision: replaced with Loretta's new exact approved copy
+    // for the live Life Insurance Awareness Month send -- shorter, and YES
+    // is now the single reply that both grants consent AND requests the
+    // booking link (matching REVIEW's existing behavior -- see YES's
+    // updated handling alongside REVIEW_KEYWORDS in
+    // crm/lib/inboundSmsService.js). Curly apostrophes in the source copy
+    // (I’m/you’ll/it’s/you’d) replaced with plain straight ones, same
+    // technical adjustment as every other template in this file (see the
+    // GSM-7 comment above) -- the wording itself is otherwise verbatim.
     existingClientLifeInsuranceAwarenessSms: {
       category: 'operational', channel: 'sms',
-      // {{booking_link}} is not substituted into the outbound message body
-      // (2026-09-04 revision, still true after the 2026-09-07 REVIEW
-      // addition) -- Loretta follows up by phone, and the booking link is
-      // only ever sent automatically in reply to an inbound REVIEW text
-      // (crm/lib/inboundSmsService.js), never in this initial outbound one.
+      // {{booking_link}} is not substituted into the outbound message body --
+      // it is only ever sent automatically in reply to an inbound YES or
+      // REVIEW text (crm/lib/inboundSmsService.js), never in this initial
+      // outbound one.
       placeholders: ['first_name'],
-      body: `Hi {{first_name}}, this is Loretta Stewart, your insurance agent. I'm reaching out to reconnect and make sure you have my current office and texting number. Please save this number so you'll recognize me when I call and have it whenever you need assistance with your policy.
+      body: `Hi {{first_name}}, this is Loretta Stewart, your insurance agent. I'm reconnecting with my clients and wanted to give you my current office/texting number. Please save it so you'll have it whenever you need assistance with your policy.
 
-Since September is Life Insurance Awareness Month, it's also a good time to make sure the information on your policy is still current. Life changes over the years, and things such as your contact information, beneficiaries, or coverage needs may have changed since we last spoke.
+September is Life Insurance Awareness Month, so it's a great time to make sure your policy, beneficiaries, and coverage are still up to date.
 
-I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you.
-
-I'd also like your permission to communicate with you by text regarding your policy, appointments, and service needs. Reply YES if I may text you, or NO if you prefer not to receive text messages.
-
-If you'd like to schedule a policy review, reply REVIEW and I'll send you my booking link. Replying REVIEW will also give me permission to communicate with you by text regarding your policy, appointments, and service needs.
-
-Loretta Stewart
-Prosperity Life & Financial Solutions
+If you'd like to schedule a policy review, reply YES and I'll send you my booking link. By replying YES, you agree to receive texts regarding your policy, appointments, and service needs.
 
 Reply STOP to opt out.`,
     },

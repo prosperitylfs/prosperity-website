@@ -44,6 +44,20 @@ const HELP_KEYWORDS = new Set(['help', 'info']);
 // YES. Matched the same exact-whole-message, trimmed+lowercased way as
 // every other keyword set here.
 const REVIEW_KEYWORDS = new Set(['review']);
+// 2026-09-16: the Life Insurance Awareness Month campaign's approved copy
+// (crm/config/templates.js's existingClientLifeInsuranceAwarenessSms) now
+// reads "reply YES and I'll send you my booking link" -- so a plain YES
+// must now trigger the SAME automated booking-link reply REVIEW already
+// does, not just grant consent. Checked ahead of the plain START_KEYWORDS
+// branch below in handleProsperityInboundSms (the live handler), so YES is
+// caught here first; START_KEYWORDS still independently contains 'yes' for
+// handleInboundProsperitySms (the older, no-longer-wired handler, left
+// completely unchanged) and for isConsentCommand's shared "is this a
+// command" check, unaffected by this. 'start'/'unstop' are NOT included
+// here -- those are the general Twilio-standard re-subscribe keywords, a
+// different signal than this campaign's own "yes, send me the link" reply,
+// and still grant consent alone via the plain START_KEYWORDS branch.
+const BOOKING_LINK_REPLY_KEYWORDS = new Set(['yes', 'review']);
 // NO: an explicit "not right now" reply -- distinct from STOP. Sets
 // sms_consent = 0 (blocks ordinary future SMS the same way START/YES sets
 // it to 1) but deliberately does NOT set sms_opted_out_at -- that column is
@@ -65,11 +79,15 @@ const NO_KEYWORDS = new Set(['no']);
 // regardless of which path set it.
 const INBOUND_SMS_CONSENT_SOURCE = 'Inbound SMS';
 
-// The automated reply sent for a REVIEW keyword — reuses the SAME
-// PROSPERITY_LIFE_INSURANCE_BOOKING_URL constant crm/lib/existingClientOutreach.js
-// already exports for {{booking_link}} substitution elsewhere; never a
-// separately hard-coded URL.
-const REVIEW_BOOKING_LINK_REPLY = `Thanks! Here's my booking link to schedule your policy review: ${PROSPERITY_LIFE_INSURANCE_BOOKING_URL}`;
+// The automated reply sent for a YES or REVIEW keyword (BOOKING_LINK_REPLY_
+// KEYWORDS above) — reuses the SAME PROSPERITY_LIFE_INSURANCE_BOOKING_URL
+// constant crm/lib/existingClientOutreach.js already exports for
+// {{booking_link}} substitution elsewhere; never a separately hard-coded
+// URL. 2026-09-16: updated to Loretta's exact approved reply wording.
+const REVIEW_BOOKING_LINK_REPLY = `Great! You can schedule your policy review at a time that works for you here:
+${PROSPERITY_LIFE_INSURANCE_BOOKING_URL}
+
+I look forward to speaking with you!`;
 
 function findActiveProsperityContactByPhone(db, e164) {
   if (!e164) return null;
@@ -396,27 +414,13 @@ function handleProsperityInboundSms(db, { From, To, Body, MessageSid }, deps = {
     if (STOP_KEYWORDS.has(bodyLower)) {
       db.prepare(`UPDATE contacts SET sms_consent = 0, sms_opted_out_at = CURRENT_TIMESTAMP WHERE id = ?`).run(match.id);
       consentAction = 'opted_out';
-    } else if (START_KEYWORDS.has(bodyLower)) {
-      // sms_consent_source/_at are stamped here too (not just sms_consent
-      // itself) so the audit trail crm/lib/clientService.js's manual entry
-      // already writes for a human-recorded consent grant is equally
-      // complete for an inbound one -- "SMS Consent: YES / Consent Method:
-      // Inbound SMS / Consent Date: <this exact reply's timestamp>" reads
-      // the same regardless of which path set it. Always re-stamped on
-      // every YES/START (even if already 1) since each reply is itself a
-      // fresh, explicit re-affirmation worth its own timestamp.
-      db.prepare(`
-        UPDATE contacts
-        SET sms_consent = 1, sms_opted_out_at = NULL,
-            sms_consent_source = ?, sms_consent_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).run(INBOUND_SMS_CONSENT_SOURCE, match.id);
-      consentAction = 'opted_in';
-    } else if (REVIEW_KEYWORDS.has(bodyLower)) {
-      // REVIEW grants consent exactly like YES/START above (identical audit
-      // stamping) AND additionally requests a policy review — the automated
-      // booking-link reply is fired below, once the normal result object is
-      // built, so it's included as consentAction === 'review_requested'.
+    } else if (BOOKING_LINK_REPLY_KEYWORDS.has(bodyLower)) {
+      // YES or REVIEW: grants consent exactly like plain START/UNSTOP below
+      // (identical audit stamping) AND additionally requests a policy
+      // review — the automated booking-link reply is fired below, once the
+      // normal result object is built, so it's included as
+      // consentAction === 'review_requested'. Checked ahead of
+      // START_KEYWORDS so YES lands here, not in the consent-only branch.
       db.prepare(`
         UPDATE contacts
         SET sms_consent = 1, sms_opted_out_at = NULL,
@@ -424,6 +428,24 @@ function handleProsperityInboundSms(db, { From, To, Body, MessageSid }, deps = {
         WHERE id = ?
       `).run(INBOUND_SMS_CONSENT_SOURCE, match.id);
       consentAction = 'review_requested';
+    } else if (START_KEYWORDS.has(bodyLower)) {
+      // sms_consent_source/_at are stamped here too (not just sms_consent
+      // itself) so the audit trail crm/lib/clientService.js's manual entry
+      // already writes for a human-recorded consent grant is equally
+      // complete for an inbound one -- "SMS Consent: YES / Consent Method:
+      // Inbound SMS / Consent Date: <this exact reply's timestamp>" reads
+      // the same regardless of which path set it. Always re-stamped on
+      // every START/UNSTOP (even if already 1) since each reply is itself a
+      // fresh, explicit re-affirmation worth its own timestamp. A plain
+      // YES never reaches here -- BOOKING_LINK_REPLY_KEYWORDS above catches
+      // it first.
+      db.prepare(`
+        UPDATE contacts
+        SET sms_consent = 1, sms_opted_out_at = NULL,
+            sms_consent_source = ?, sms_consent_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(INBOUND_SMS_CONSENT_SOURCE, match.id);
+      consentAction = 'opted_in';
     } else if (NO_KEYWORDS.has(bodyLower)) {
       // Deliberately mirrors the START/YES branch's audit stamping, minus
       // sms_opted_out_at -- see NO_KEYWORDS' own comment for why NO and
@@ -526,6 +548,7 @@ module.exports = {
   HELP_KEYWORDS,
   NO_KEYWORDS,
   REVIEW_KEYWORDS,
+  BOOKING_LINK_REPLY_KEYWORDS,
   REVIEW_BOOKING_LINK_REPLY,
   INBOUND_SMS_CONSENT_SOURCE,
 };

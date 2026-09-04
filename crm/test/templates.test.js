@@ -30,8 +30,17 @@ test('Prosperity templates reference only Prosperity identity, never Insurance L
 
 test('every template clearly identifies its own company by name', () => {
   const expectedName = { 'insurance-lady': /Insurance Lady/i, prosperity: /Prosperity/i };
+  // 2026-09-16: existingClientLifeInsuranceAwarenessSms is Loretta's exact
+  // approved copy for the live Life Insurance Awareness Month send -- a
+  // short, personal "this is Loretta Stewart, your insurance agent" text
+  // that deliberately never names the company. Brand safety here comes
+  // from the send path itself (crm/lib/existingClientOutreach.js is
+  // Prosperity-only end to end, and Insurance Lady templates are still
+  // fully covered by the tests above), not from this text.
+  const exemptFromCompanyName = new Set(['existingClientLifeInsuranceAwarenessSms']);
   for (const brandId of ['insurance-lady', 'prosperity']) {
     for (const [key, tmpl] of Object.entries(TEMPLATES[brandId])) {
+      if (exemptFromCompanyName.has(key)) continue;
       const text = (tmpl.body || '') + (tmpl.subject || '') + (tmpl.text || '');
       assert.match(text, expectedName[brandId], `${brandId}.${key} does not name its own company`);
     }
@@ -63,28 +72,19 @@ test('existingClientReconnectionSms (Prosperity-only) footer is STOP-only, no HE
   assert.doesNotMatch(tmpl.body, /HELP/);
 });
 
-test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s 2026-09-11 approved copy exactly, apart from straight apostrophes', () => {
+test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s 2026-09-16 approved copy exactly, apart from straight apostrophes', () => {
   const tmpl = TEMPLATES.prosperity.existingClientLifeInsuranceAwarenessSms;
-  // 2026-09-11 reword: opening paragraph only -- everything else in this
-  // test (and everything from "Since September..." onward in the body) is
-  // unchanged from the 2026-09-07 approved copy.
-  assert.match(tmpl.body, /^Hi \{\{first_name\}\}, this is Loretta Stewart, your insurance agent\. I'm reaching out to reconnect and make sure you have my current office and texting number\. Please save this number so you'll recognize me when I call and have it whenever you need assistance with your policy\./);
-  assert.doesNotMatch(tmpl.body, /current office contact information/);
-  assert.match(tmpl.body, /Life Insurance Awareness Month/);
-  assert.match(tmpl.body, /I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you\./);
-  assert.match(tmpl.body, /Reply YES if I may text you, or NO if you prefer not to receive text messages\./);
-  // 2026-09-07 revision: a REVIEW reply option was added (grants consent
-  // like YES, plus requests the booking link) -- see
-  // crm/lib/inboundSmsService.js's REVIEW_KEYWORDS.
-  assert.match(tmpl.body, /If you'd like to schedule a policy review, reply REVIEW and I'll send you my booking link\. Replying REVIEW will also give me permission to communicate with you by text regarding your policy, appointments, and service needs\./);
-  // {{booking_link}} was deliberately REMOVED in the 2026-09-04 revision --
-  // this initial message no longer offers a self-service booking link; the
-  // link is only ever sent automatically in reply to an inbound REVIEW text.
+  assert.equal(tmpl.body, `Hi {{first_name}}, this is Loretta Stewart, your insurance agent. I'm reconnecting with my clients and wanted to give you my current office/texting number. Please save it so you'll have it whenever you need assistance with your policy.
+
+September is Life Insurance Awareness Month, so it's a great time to make sure your policy, beneficiaries, and coverage are still up to date.
+
+If you'd like to schedule a policy review, reply YES and I'll send you my booking link. By replying YES, you agree to receive texts regarding your policy, appointments, and service needs.
+
+Reply STOP to opt out.`);
+  // {{booking_link}} is not substituted into this initial outbound message
+  // -- it is only ever sent automatically in reply to an inbound YES or
+  // REVIEW text (crm/lib/inboundSmsService.js).
   assert.doesNotMatch(tmpl.body, /\{\{booking_link\}\}/);
-  // Footer changed to STOP-only in the 2026-09-05 revision -- the HELP
-  // language was removed entirely; this template never used the shared
-  // "Reply HELP for help or STOP to opt out." footer used elsewhere.
-  assert.match(tmpl.body, /Reply STOP to opt out\.$/);
   assert.doesNotMatch(tmpl.body, /HELP/);
   assert.deepEqual(tmpl.placeholders, ['first_name']);
   assert.equal(TEMPLATES['insurance-lady'].existingClientLifeInsuranceAwarenessSms, undefined, 'must never exist for Insurance Lady');

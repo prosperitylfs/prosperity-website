@@ -106,15 +106,14 @@ test('getReconnectionTemplates returns both Prosperity SMS templates, the email 
   // therefore dedup/history) are unchanged, so this is still the SAME
   // template, never a duplicate.
   assert.equal(awareness.label, 'Existing Client - Reconnect Life Insurance Awareness Month');
-  // 2026-09-11 reword: opening paragraph only -- everything from "Since
-  // September..." onward is unchanged.
-  assert.match(awareness.body, /^Hi \{\{first_name\}\}, this is Loretta Stewart, your insurance agent\. I'm reaching out to reconnect and make sure you have my current office and texting number\. Please save this number so you'll recognize me when I call and have it whenever you need assistance with your policy\./);
-  assert.doesNotMatch(awareness.body, /current office contact information/);
+  // 2026-09-16: replaced with Loretta's new exact approved copy -- see
+  // crm/config/templates.js and test/templates.test.js for the full text.
+  assert.match(awareness.body, /^Hi \{\{first_name\}\}, this is Loretta Stewart, your insurance agent\. I'm reconnecting with my clients and wanted to give you my current office\/texting number\./);
   assert.match(awareness.body, /Life Insurance Awareness Month/);
-  assert.match(awareness.body, /I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you\./);
-  // {{booking_link}} was deliberately REMOVED from this SMS template in the
-  // 2026-09-04 revision -- Loretta follows up by phone and sends the link
-  // manually only if the client asks for it in their reply.
+  assert.match(awareness.body, /reply YES and I'll send you my booking link/);
+  // {{booking_link}} is not substituted into this initial outbound message --
+  // it is only ever sent automatically in reply to an inbound YES or REVIEW
+  // text (crm/lib/inboundSmsService.js).
   assert.doesNotMatch(awareness.body, /\{\{booking_link\}\}/);
   // Footer changed to STOP-only in the 2026-09-05 revision -- no HELP language.
   assert.match(awareness.body, /Reply STOP to opt out\.$/);

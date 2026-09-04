@@ -412,20 +412,29 @@ async function render() {
 
   function lifeInsuranceHtml() {
     const cases = lifeInsuranceCases();
-    const policies = cases.flatMap(cs => cs.policies.map(p => ({ ...p, caseProductName: cs.productName, caseId: cs.caseId, brandShortName: cs.brandShortName })));
+    const policies = cases.flatMap(cs => cs.policies.map(p => ({ ...p, caseProductName: cs.productName, caseId: cs.caseId, brandShortName: cs.brandShortName })))
+      // Stable chronological order (oldest first) regardless of which case
+      // each policy is filed under, so "Policy #1/#2/#3" always means "the
+      // order they were added in" -- id is autoincrement, so this is the
+      // same order as created_at without relying on timestamp precision.
+      // This display number is ONLY a position label; the real database
+      // identifier used for editing is still p.id (data-edit-policy below),
+      // never this number.
+      .sort((a, b) => a.id - b.id);
     // A life-insurance case with zero policies yet is a pending
     // application, never shown as if it were an issued/in-force policy.
     const pendingCases = cases.filter(cs => cs.policies.length === 0 && cs.status !== 'Archived');
 
-    const policyCard = (p) => `
+    const policyCard = (p, index) => `
       <div class="card" style="margin-bottom:12px;">
         <div class="card-body">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
-            <strong style="font-size:14.5px;">${CrmApp.escapeHtml(p.carrier || 'Carrier not on file')}</strong>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span class="text-faint" style="font-weight:700; text-transform:uppercase; font-size:11.5px; letter-spacing:.03em;">Policy #${index + 1}</span>
             <span class="pill status-${(p.policy_status || '').toLowerCase().replace(/\s+/g, '-')}">${CrmApp.escapeHtml(p.policy_status || 'Pending')}</span>
           </div>
-          <div style="margin-top:6px; font-size:15px; font-weight:700;">Policy #: ${CrmApp.escapeHtml(p.policy_number || '— not on file —')}</div>
-          <dl class="kv-list" style="margin-top:8px;">
+          <div style="margin-top:6px; font-size:17px; font-weight:800; line-height:1.3;">${CrmApp.escapeHtml(p.carrier || 'Carrier not on file')}</div>
+          <div style="margin-top:2px; font-size:15px; font-weight:700; color: var(--accent);">Policy Number: ${CrmApp.escapeHtml(p.policy_number || '— not on file —')}</div>
+          <dl class="kv-list" style="margin-top:10px;">
             ${p.policy_type ? `<dt>Policy type</dt><dd>${CrmApp.escapeHtml(p.policy_type)}</dd>` : ''}
             ${p.caseProductName ? `<dt>Product</dt><dd>${CrmApp.escapeHtml(p.caseProductName)}</dd>` : ''}
             <dt>Face amount</dt><dd>${p.coverage_amount != null ? '$' + Number(p.coverage_amount).toLocaleString() : '—'}</dd>
@@ -441,7 +450,7 @@ async function render() {
     return `<div class="card" style="margin-bottom:14px;">
       <div class="card-header">
         <h2>Life Insurance</h2>
-        <button class="btn small primary" id="action-add-life-policy">+ Add Life Insurance Policy</button>
+        <button class="btn small primary" id="action-add-life-policy">${policies.length ? '+ Add Another Life Insurance Policy' : '+ Add Life Insurance Policy'}</button>
       </div>
       <div class="card-body">
         ${policies.length

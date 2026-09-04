@@ -214,6 +214,88 @@ test('A. Existing Client + no recorded consent + no opt-out: initial SMS CAN be 
   assert.equal(result.sms.message_type, RECONNECTION_SMS_MESSAGE_TYPE);
 }));
 
+// ── 2026-09-13 fix: sendReconnectionSms must send from the SAME Prosperity
+//    number the confirmed-working regular Text button uses
+//    (BRANDS.prosperity.phone.e164 / TWILIO_FROM_NUMBER_PROSPERITY), never
+//    the separate legacy TWILIO_FROM_NUMBER default -- proven here by
+//    deliberately setting TWILIO_FROM_NUMBER to something ELSE (and then
+//    leaving it unset entirely) and confirming the actual Twilio 'from'
+//    param sent is still the correct Prosperity number regardless. ────────
+
+function capturingFakeTwilioClient(capturedParams) {
+  return () => ({
+    messages: {
+      create: async (params) => {
+        capturedParams.push(params);
+        return { sid: 'SMfake-' + Math.random().toString(36).slice(2), status: 'sent' };
+      },
+    },
+  });
+}
+
+test('sendReconnectionSms sends from BRANDS.prosperity.phone.e164, NOT the legacy TWILIO_FROM_NUMBER default, even when that env var is set to a different number', () =>
+  withEnv({ TWILIO_ACCOUNT_SID: 'ACfake', TWILIO_AUTH_TOKEN: 'tokenfake', TWILIO_FROM_NUMBER: '+15555550100' }, async () => {
+    const db = setup();
+    const contact = seedExistingClient(db);
+    const captured = [];
+    const result = await sendReconnectionSms(
+      db, { contactId: contact.id, message: 'Hi Renee, may I text you?' },
+      { twilioClientFactory: capturingFakeTwilioClient(captured) }
+    );
+    assert.equal(result.outcome, 'sent');
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].from, '+14144411177', 'must send from the Prosperity number, not the mismatched TWILIO_FROM_NUMBER');
+    assert.notEqual(captured[0].from, '+15555550100');
+    assert.equal(result.sms.from_number, '+14144411177', 'the logged sms_messages row must also record the correct sender');
+  })
+);
+
+test('sendReconnectionSms still sends from BRANDS.prosperity.phone.e164 when TWILIO_FROM_NUMBER is entirely unset', () =>
+  withEnv({ TWILIO_ACCOUNT_SID: 'ACfake', TWILIO_AUTH_TOKEN: 'tokenfake', TWILIO_FROM_NUMBER: undefined }, async () => {
+    const db = setup();
+    const contact = seedExistingClient(db);
+    const captured = [];
+    const result = await sendReconnectionSms(
+      db, { contactId: contact.id, message: 'Hi Renee, may I text you?' },
+      { twilioClientFactory: capturingFakeTwilioClient(captured) }
+    );
+    assert.equal(result.outcome, 'sent', 'must not be blocked as "Twilio not configured" -- the Prosperity-specific fromNumber is supplied directly, independent of TWILIO_FROM_NUMBER');
+    assert.equal(captured[0].from, '+14144411177');
+  })
+);
+
+test('RESEND specifically (confirmResend: true, the reported bug) also sends from the correct Prosperity number and creates a genuinely new Twilio request/SID', () =>
+  withEnv({ TWILIO_ACCOUNT_SID: 'ACfake', TWILIO_AUTH_TOKEN: 'tokenfake', TWILIO_FROM_NUMBER: '+15555550100' }, async () => {
+    const db = setup();
+    const contact = seedExistingClient(db);
+    const captured = [];
+    const deps = { twilioClientFactory: capturingFakeTwilioClient(captured) };
+
+    const first = await sendReconnectionSms(db, { contactId: contact.id, message: 'Hi Renee, first send.' }, deps);
+    assert.equal(first.outcome, 'sent');
+
+    // A second attempt without confirmResend is correctly blocked as a
+    // duplicate -- the warning dialog this proves is still in place.
+    const blocked = await sendReconnectionSms(db, { contactId: contact.id, message: 'Hi Renee, resend attempt.' }, deps);
+    assert.equal(blocked.outcome, 'blocked');
+    assert.equal(blocked.code, 'already_sent');
+
+    // Clicking Resend (confirmResend: true) must create a genuinely NEW
+    // outbound request with its own new Twilio SID, sent from the correct
+    // Prosperity number -- and it must NOT be blocked again.
+    const resent = await sendReconnectionSms(db, { contactId: contact.id, message: 'Hi Renee, resend attempt.', confirmResend: true }, deps);
+    assert.equal(resent.outcome, 'sent', 'Resend must not be stopped by duplicate protection a second time');
+    assert.equal(captured.length, 2, 'exactly two real outbound Twilio requests were made -- original + resend');
+    assert.notEqual(resent.sms.id, first.sms.id, 'the resend is a genuinely new sms_messages row, not a reuse of the first');
+    assert.notEqual(resent.sms.twilio_sid, first.sms.twilio_sid, 'the resend has its own new Twilio SID');
+    assert.equal(captured[1].from, '+14144411177', 'the resend also sends from the correct Prosperity number');
+
+    const rows = db.prepare('SELECT * FROM sms_messages WHERE contact_id = ? ORDER BY id ASC').all(contact.id);
+    assert.equal(rows.length, 2, 'both the original send and the resend are recorded in Texts history');
+    assert.ok(rows.every(r => r.status === 'sent'));
+  })
+);
+
 test('B. Lead/Prospect + no consent: special Existing Client SMS workflow is BLOCKED', () => withEnv(TWILIO_ENV, async () => {
   const db = setup();
   const lead = seedLead(db);

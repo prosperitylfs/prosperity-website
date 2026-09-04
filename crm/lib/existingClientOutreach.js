@@ -14,8 +14,14 @@
 //
 // Reuses existing infrastructure throughout:
 //   - crm/lib/legacySmsSend.js's sendLegacySms for the actual Twilio
-//     send + sms_messages logging (same Prosperity TWILIO_FROM_NUMBER
-//     every other Prosperity SMS in this CRM already uses).
+//     send + sms_messages logging, given an explicit fromNumber override
+//     (BRANDS.prosperity.phone.e164, see sendReconnectionSms's own
+//     2026-09-13 comment) -- the SAME number crm/lib/prosperitySmsGateway.js
+//     (the confirmed-working regular Text button path) uses, deliberately
+//     NOT sendLegacySms's own default (the separate, legacy
+//     TWILIO_FROM_NUMBER env var some OTHER Prosperity SMS in this CRM
+//     still uses, e.g. crm/lib/appointmentConfirmationSms.js -- unrelated,
+//     untouched here).
 //   - crm/lib/gmailSend.js's sendGmailEmail for the actual Gmail send +
 //     emails/communications logging (same Prosperity Gmail identity every
 //     other CRM email already uses).
@@ -243,8 +249,23 @@ async function sendReconnectionSms(db, { contactId, message, confirmResend = fal
     return { outcome: 'blocked', code: check.code, reason: check.reason };
   }
 
+  // 2026-09-13 fix: explicit fromNumber, matching the SAME Prosperity
+  // number the confirmed-working regular Text button uses (crm/lib/
+  // prosperitySmsGateway.js -> crm/lib/providers/liveTwilioAdapter.js,
+  // which is deliberately hard-wired to ONLY TWILIO_FROM_NUMBER_PROSPERITY
+  // -- see that file's own comment). Without this override, sendLegacySms
+  // instead defaults to the separate, legacy TWILIO_FROM_NUMBER env var --
+  // a real send request that Twilio can still accept (so the UI showed
+  // "Text sent." with no visible error) without ever reaching the
+  // client's phone, which is exactly the reported bug: Send/Resend
+  // "succeeding" here while the confirmed-working Text button worked.
+  // BRANDS.prosperity.phone.e164 is a static constant, not read from
+  // TWILIO_FROM_NUMBER_PROSPERITY itself, but the two are required to be
+  // identical by liveTwilioAdapter.js's own validation, so this is the
+  // exact same number that path already proved works.
   const result = await sendLegacySms(db, {
     contactId, body: message, messageType: entry.smsMessageType, requireConsent: false,
+    fromNumber: BRANDS.prosperity.phone.e164,
   }, deps);
   if (result.ok) return { outcome: 'sent', sms: result.sms };
   // A 503 (Twilio not configured) or a Twilio API error is an operational

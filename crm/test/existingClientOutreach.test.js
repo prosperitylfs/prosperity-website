@@ -101,6 +101,14 @@ test('getReconnectionTemplates returns both Prosperity SMS templates, the email 
   // on either Existing Client Outreach SMS template.
   assert.match(reconnection.body, /Reply STOP to opt out\.$/);
   assert.doesNotMatch(reconnection.body, /HELP/);
+  // 2026-09-11 rename: label only -- templateKey/smsMessageType (and
+  // therefore dedup/history) are unchanged, so this is still the SAME
+  // template, never a duplicate.
+  assert.equal(awareness.label, 'Existing Client - Reconnect Life Insurance Awareness Month');
+  // 2026-09-11 reword: opening paragraph only -- everything from "Since
+  // September..." onward is unchanged.
+  assert.match(awareness.body, /^Hi \{\{first_name\}\}, this is Loretta Stewart, your insurance agent\. I'm reaching out to reconnect and make sure you have my current office and texting number\. Please save this number so you'll recognize me when I call and have it whenever you need assistance with your policy\./);
+  assert.doesNotMatch(awareness.body, /current office contact information/);
   assert.match(awareness.body, /Life Insurance Awareness Month/);
   assert.match(awareness.body, /I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you\./);
   // {{booking_link}} was deliberately REMOVED from this SMS template in the
@@ -192,7 +200,7 @@ test('the initial message cannot be sent twice unless confirmResend is explicitl
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sms_messages WHERE contact_id = ?').get(contact.id).n, 2);
 }));
 
-// ── Second SMS template: Existing Client – Life Insurance Awareness Month ──
+// ── Second SMS template: Existing Client - Reconnect Life Insurance Awareness Month ──
 // (the "reusable architecture" registry, EXISTING_CLIENT_SMS_TEMPLATES)
 
 test('the Life Insurance Awareness Month template can be sent via templateKey, uses its own message_type, and is deduped independently of the Reconnection template', () => withEnv(TWILIO_ENV, async () => {

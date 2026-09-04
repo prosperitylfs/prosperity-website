@@ -60,7 +60,13 @@ const PROSPERITY_LIFE_INSURANCE_BOOKING_URL = 'https://cal.com/lorettastewart/li
 
 const EXISTING_CLIENT_SMS_TEMPLATES = [
   { templateKey: 'existingClientReconnectionSms', label: 'Existing Client Reconnection / SMS Permission', smsMessageType: RECONNECTION_SMS_MESSAGE_TYPE },
-  { templateKey: 'existingClientLifeInsuranceAwarenessSms', label: 'Existing Client – Life Insurance Awareness Month', smsMessageType: 'existing_client_life_insurance_awareness' },
+  // 2026-09-11: label renamed from 'Existing Client – Life Insurance
+  // Awareness Month' to 'Existing Client - Reconnect Life Insurance
+  // Awareness Month' -- a rename only. templateKey and smsMessageType are
+  // deliberately unchanged, so this stays the exact same template (same
+  // dedup/message_type history, same crm/config/templates.js entry), never
+  // a second/duplicate one.
+  { templateKey: 'existingClientLifeInsuranceAwarenessSms', label: 'Existing Client - Reconnect Life Insurance Awareness Month', smsMessageType: 'existing_client_life_insurance_awareness' },
 ];
 const DEFAULT_SMS_TEMPLATE_KEY = EXISTING_CLIENT_SMS_TEMPLATES[0].templateKey;
 

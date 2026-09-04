@@ -63,8 +63,13 @@ test('existingClientReconnectionSms (Prosperity-only) footer is STOP-only, no HE
   assert.doesNotMatch(tmpl.body, /HELP/);
 });
 
-test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s 2026-09-07 approved copy exactly, apart from straight apostrophes', () => {
+test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s 2026-09-11 approved copy exactly, apart from straight apostrophes', () => {
   const tmpl = TEMPLATES.prosperity.existingClientLifeInsuranceAwarenessSms;
+  // 2026-09-11 reword: opening paragraph only -- everything else in this
+  // test (and everything from "Since September..." onward in the body) is
+  // unchanged from the 2026-09-07 approved copy.
+  assert.match(tmpl.body, /^Hi \{\{first_name\}\}, this is Loretta Stewart, your insurance agent\. I'm reaching out to reconnect and make sure you have my current office and texting number\. Please save this number so you'll recognize me when I call and have it whenever you need assistance with your policy\./);
+  assert.doesNotMatch(tmpl.body, /current office contact information/);
   assert.match(tmpl.body, /Life Insurance Awareness Month/);
   assert.match(tmpl.body, /I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you\./);
   assert.match(tmpl.body, /Reply YES if I may text you, or NO if you prefer not to receive text messages\./);

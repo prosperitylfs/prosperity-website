@@ -36,8 +36,8 @@ const { PROSPERITY_LIFE_INSURANCE_BOOKING_URL } = require('./existingClientOutre
 const STOP_KEYWORDS = new Set(['stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit']);
 const START_KEYWORDS = new Set(['start', 'yes', 'unstop']);
 const HELP_KEYWORDS = new Set(['help', 'info']);
-// REVIEW: a reply to the Existing Client - Life Insurance Awareness Month
-// SMS template requesting a policy review. Treated exactly like YES for
+// REVIEW: a reply to the Existing Client - Reconnect Life Insurance
+// Awareness Month SMS template requesting a policy review. Treated exactly like YES for
 // consent purposes (same audit stamping as START_KEYWORDS below) PLUS it
 // triggers an automated booking-link reply (see triggerReviewBookingLinkReply
 // / REVIEW_BOOKING_LINK_REPLY below) — never sent automatically for a plain

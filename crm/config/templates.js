@@ -213,6 +213,9 @@ Reply STOP to opt out.`,
     // 2026-09-07 revision: added a REVIEW reply option (in addition to
     // YES/NO) that both grants SMS consent (same as YES) AND requests the
     // booking link -- see REVIEW_KEYWORDS in crm/lib/inboundSmsService.js.
+    // 2026-09-11 revision: opening paragraph reworded per Loretta's exact
+    // approved copy -- everything from "Since September..." onward is
+    // byte-for-byte unchanged from the 2026-09-07 revision above.
     existingClientLifeInsuranceAwarenessSms: {
       category: 'operational', channel: 'sms',
       // {{booking_link}} is not substituted into the outbound message body
@@ -221,7 +224,7 @@ Reply STOP to opt out.`,
       // only ever sent automatically in reply to an inbound REVIEW text
       // (crm/lib/inboundSmsService.js), never in this initial outbound one.
       placeholders: ['first_name'],
-      body: `Hi {{first_name}}, this is Loretta Stewart, your insurance agent. I'm reaching out to reconnect and make sure you have my current office contact information. This is my new office and texting number, so please save it so you'll recognize me when I call and have it whenever you need assistance with your policy.
+      body: `Hi {{first_name}}, this is Loretta Stewart, your insurance agent. I'm reaching out to reconnect and make sure you have my current office and texting number. Please save this number so you'll recognize me when I call and have it whenever you need assistance with your policy.
 
 Since September is Life Insurance Awareness Month, it's also a good time to make sure the information on your policy is still current. Life changes over the years, and things such as your contact information, beneficiaries, or coverage needs may have changed since we last spoke.
 

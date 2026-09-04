@@ -736,6 +736,43 @@ function getClientDetail(db, contactId) {
       occupation: contact.occupation || null,
       employer: contact.employer || null,
       referredBy: contact.referred_by || null,
+      // Retirement planning (client-level; no dedicated Retirement Case
+      // structure exists, so this stays here -- see clientService.js's
+      // applyContactFields comment).
+      retirementAccountType: contact.retirement_account_type || null,
+      currentInstitution: contact.current_institution || null,
+      estimatedRolloverAmount: contact.estimated_rollover_amount ?? null,
+      retirementTimeline: contact.retirement_timeline || null,
+      hasCurrentAdvisor: !!contact.has_current_advisor,
+      interestedInRothConversion: !!contact.interested_in_roth_conversion,
+      retirementDateGoal: contact.retirement_date_goal || null,
+      // Annuity PLANNING fields with no `policies` table equivalent --
+      // editable here. annuityCarrier/annuityPremium below ARE superseded
+      // by a real Policy once one exists, so they're read-only/legacy only.
+      annuityType: contact.annuity_type || null,
+      estimatedIncome: contact.estimated_income ?? null,
+      surrenderPeriod: contact.surrender_period || null,
+      incomeRider: !!contact.income_rider,
+      // Legacy, read-only: pre-Policies-module insurance/annuity data,
+      // never written by any current code path (Cases/Policies -- see
+      // crm/lib/policyService.js -- is the real system of record now) but
+      // preserved and surfaced so old data already on a contact record is
+      // never silently hidden. null for any contact created after Policies
+      // existed.
+      legacyInsurance: {
+        insuranceCompany: contact.insurance_company || null,
+        policyType: contact.policy_type || null,
+        faceAmount: contact.face_amount ?? null,
+        monthlyPremium: contact.monthly_premium ?? null,
+        annualPremium: contact.annual_premium ?? null,
+        policyStatus: contact.policy_status || null,
+        applicationDate: contact.application_date || null,
+        policyIssueDate: contact.policy_issue_date || null,
+      },
+      legacyAnnuity: {
+        annuityCarrier: contact.annuity_carrier || null,
+        annuityPremium: contact.annuity_premium ?? null,
+      },
       originalSource: contact.lead_source || null,
       generalNotes: contact.general_notes || null,
       leadStatus: contact.lead_status,

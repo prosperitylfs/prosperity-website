@@ -300,6 +300,69 @@ test('updateClient leaves every new profile field untouched when the request nev
   assert.equal(untouched.number_of_children, 3);
 });
 
+// ── Retirement & Annuity Planning (2026-09-09, restoring the old standalone
+//    CRM's client-detail sections) ─────────────────────────────────────────
+
+test('updateClient accepts every retirement-planning field and round-trips them exactly', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Reba', email: 'reba@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const updated = updateClient(db, created.contact.id, {
+    retirementAccountType: '401(k)', currentInstitution: 'Fidelity',
+    estimatedRolloverAmount: '250000.50', retirementTimeline: '1-3 Years',
+    hasCurrentAdvisor: true, interestedInRothConversion: true,
+    retirementDateGoal: '2030-06-01',
+  });
+  assert.equal(updated.retirement_account_type, '401(k)');
+  assert.equal(updated.current_institution, 'Fidelity');
+  assert.equal(updated.estimated_rollover_amount, 250000.5);
+  assert.equal(updated.retirement_timeline, '1-3 Years');
+  assert.equal(updated.has_current_advisor, 1);
+  assert.equal(updated.interested_in_roth_conversion, 1);
+  assert.equal(updated.retirement_date_goal, '2030-06-01');
+});
+
+test('updateClient accepts the annuity PLANNING fields (type, income goal, surrender period, income rider)', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Saul', email: 'saul@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const updated = updateClient(db, created.contact.id, {
+    annuityType: 'Fixed Indexed Annuity (FIA)', estimatedIncome: '18000', surrenderPeriod: '7 years', incomeRider: true,
+  });
+  assert.equal(updated.annuity_type, 'Fixed Indexed Annuity (FIA)');
+  assert.equal(updated.estimated_income, 18000);
+  assert.equal(updated.surrender_period, '7 years');
+  assert.equal(updated.income_rider, 1);
+});
+
+test('updateClient never accepts insurance_company/policy_type/face_amount/premiums/policy_status/dates or annuity_carrier/annuity_premium -- these are superseded by the Policies module, not the client profile', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Tara', email: 'tara@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  db.prepare(`
+    UPDATE contacts SET insurance_company = 'Legacy Co', policy_type = 'Term Life', face_amount = 100000,
+      annuity_carrier = 'Legacy Annuity Co', annuity_premium = 5000
+    WHERE id = ?
+  `).run(created.contact.id);
+  const updated = updateClient(db, created.contact.id, {
+    insuranceCompany: 'New Co', policyType: 'Whole Life', faceAmount: '999999',
+    annuityCarrier: 'New Annuity Co', annuityPremium: '1',
+    firstName: 'Tara Marie',
+  });
+  assert.equal(updated.first_name, 'Tara Marie');
+  assert.equal(updated.insurance_company, 'Legacy Co', 'must be completely unaffected -- not an accepted field');
+  assert.equal(updated.policy_type, 'Term Life');
+  assert.equal(updated.face_amount, 100000);
+  assert.equal(updated.annuity_carrier, 'Legacy Annuity Co');
+  assert.equal(updated.annuity_premium, 5000);
+});
+
+test('a blank estimated rollover/income amount leaves the existing value unchanged, matching every other numeric profile field', () => {
+  const { db } = setup();
+  const created = createClient(db, { firstName: 'Uma', email: 'uma@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  updateClient(db, created.contact.id, { estimatedRolloverAmount: '100000', estimatedIncome: '9000' });
+  const unchanged = updateClient(db, created.contact.id, { estimatedRolloverAmount: '', estimatedIncome: '' });
+  assert.equal(unchanged.estimated_rollover_amount, 100000);
+  assert.equal(unchanged.estimated_income, 9000);
+});
+
 test('updateClient never accepts or writes lead_type -- it stays a source/history field, not part of the editable profile', () => {
   const { db } = setup();
   const created = createClient(db, { firstName: 'Pam', email: 'pam@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');

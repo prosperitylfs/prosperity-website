@@ -102,6 +102,57 @@ test('getClientDetail exposes the full "complete contact profile" field set adde
   assert.equal(detail.contact.referredBy, 'Friend from church');
 });
 
+test('getClientDetail exposes Retirement & Annuity Planning fields, and separately surfaces legacy pre-Policies insurance/annuity data read-only', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'planning@example.com', first_name: 'Wade' });
+  db.prepare(`
+    UPDATE contacts SET
+      retirement_account_type = '401(k)', current_institution = 'Fidelity',
+      estimated_rollover_amount = 250000, retirement_timeline = '1-3 Years',
+      has_current_advisor = 1, interested_in_roth_conversion = 0, retirement_date_goal = '2030-06-01',
+      annuity_type = 'SPIA', estimated_income = 12000, surrender_period = '5 years', income_rider = 1,
+      insurance_company = 'Legacy Co', policy_type = 'Term Life', face_amount = 100000,
+      monthly_premium = 45, annual_premium = 540, policy_status = 'Issued / In-Force',
+      application_date = '2018-01-01', policy_issue_date = '2018-02-01',
+      annuity_carrier = 'Legacy Annuity Co', annuity_premium = 5000
+    WHERE id = ?
+  `).run(contact.id);
+
+  const detail = getClientDetail(db, contact.id);
+  assert.equal(detail.contact.retirementAccountType, '401(k)');
+  assert.equal(detail.contact.currentInstitution, 'Fidelity');
+  assert.equal(detail.contact.estimatedRolloverAmount, 250000);
+  assert.equal(detail.contact.retirementTimeline, '1-3 Years');
+  assert.equal(detail.contact.hasCurrentAdvisor, true);
+  assert.equal(detail.contact.interestedInRothConversion, false);
+  assert.equal(detail.contact.retirementDateGoal, '2030-06-01');
+  assert.equal(detail.contact.annuityType, 'SPIA');
+  assert.equal(detail.contact.estimatedIncome, 12000);
+  assert.equal(detail.contact.surrenderPeriod, '5 years');
+  assert.equal(detail.contact.incomeRider, true);
+
+  assert.deepEqual(detail.contact.legacyInsurance, {
+    insuranceCompany: 'Legacy Co', policyType: 'Term Life', faceAmount: 100000,
+    monthlyPremium: 45, annualPremium: 540, policyStatus: 'Issued / In-Force',
+    applicationDate: '2018-01-01', policyIssueDate: '2018-02-01',
+  });
+  assert.deepEqual(detail.contact.legacyAnnuity, { annuityCarrier: 'Legacy Annuity Co', annuityPremium: 5000 });
+});
+
+test('getClientDetail returns all-null Retirement/Annuity Planning fields and legacy insurance/annuity for a contact that never had any of it set', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'noplanning@example.com', first_name: 'Xena' });
+  const detail = getClientDetail(db, contact.id);
+  assert.equal(detail.contact.retirementAccountType, null);
+  assert.equal(detail.contact.hasCurrentAdvisor, false);
+  assert.equal(detail.contact.incomeRider, false);
+  assert.deepEqual(detail.contact.legacyInsurance, {
+    insuranceCompany: null, policyType: null, faceAmount: null, monthlyPremium: null,
+    annualPremium: null, policyStatus: null, applicationDate: null, policyIssueDate: null,
+  });
+  assert.deepEqual(detail.contact.legacyAnnuity, { annuityCarrier: null, annuityPremium: null });
+});
+
 test('getClientDetail surfaces contactConflict on the flagged (new) contact, and null on an unrelated contact', () => {
   const { db } = setup();
   const existing = dedupeContact(db, { email: 'detail.existing@example.com', first_name: 'Renee', last_name: 'Jones', phone: '(414) 688-7619', phone_e164: '+14146887619' });

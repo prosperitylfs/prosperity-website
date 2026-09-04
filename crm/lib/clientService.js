@@ -97,6 +97,14 @@ function toIntOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+// Same idea, for the REAL-typed planning amount fields (estimated rollover
+// amount, estimated annuity income) that can carry cents.
+function toFloatOrNull(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 // Never accepts a brand/company field — structurally impossible to change
 // the permanent company through this function. Also never accepts
 // lead_type: unlike relationship_type (below), lead_type stays a
@@ -116,6 +124,25 @@ function toIntOrNull(v) {
 // (crm/lib/caseService.js / policyService.js), not the client profile, and
 // every purely historical/activity column (last_contacted,
 // next_follow_up_date, last_called_at, commission_estimate, etc.).
+//
+// 2026-09-09 expansion (Retirement & Annuity Planning, restoring the old
+// standalone CRM's client-detail sections): accepts the RETIREMENT-planning
+// subset -- retirement_account_type, current_institution,
+// estimated_rollover_amount, retirement_timeline, has_current_advisor,
+// interested_in_roth_conversion, retirement_date_goal -- and the ANNUITY
+// subset that has no equivalent on the `policies` table --
+// annuity_type, estimated_income, surrender_period, income_rider.
+// Deliberately does NOT accept insurance_company/policy_type/face_amount/
+// monthly_premium/annual_premium/policy_status/application_date/
+// policy_issue_date, or annuity_carrier/annuity_premium: the `policies`
+// table (crm/lib/policyService.js, linked via cases) is already the real
+// system of record for carrier, premium, coverage/face amount, status, and
+// dates once an actual policy exists -- these columns stay on `contacts`
+// (never dropped, so old data is never lost) but are surfaced read-only,
+// not through this editable path, to avoid a second, competing "source of
+// truth" for the same numbers. See crm/public/app/client.html's
+// "Retirement & Annuity Planning" tab and its own header comment for the
+// full old-CRM-vs-new-CRM field mapping.
 //
 // sms_consent/email_consent ARE accepted here (Revenue MVP requirement: a
 // manually-added existing client must be markable as consented, or the
@@ -191,6 +218,17 @@ function applyContactFields(db, contactId, fields, normalized, opts = {}) {
       lead_status          = COALESCE(@lead_status, lead_status),
       general_notes        = COALESCE(@general_notes, general_notes),
       relationship_type    = COALESCE(@relationship_type, relationship_type),
+      retirement_account_type   = COALESCE(@retirement_account_type, retirement_account_type),
+      current_institution       = COALESCE(@current_institution, current_institution),
+      estimated_rollover_amount = COALESCE(@estimated_rollover_amount, estimated_rollover_amount),
+      retirement_timeline       = COALESCE(@retirement_timeline, retirement_timeline),
+      has_current_advisor       = COALESCE(@has_current_advisor, has_current_advisor),
+      interested_in_roth_conversion = COALESCE(@interested_in_roth_conversion, interested_in_roth_conversion),
+      retirement_date_goal      = COALESCE(@retirement_date_goal, retirement_date_goal),
+      annuity_type          = COALESCE(@annuity_type, annuity_type),
+      estimated_income      = COALESCE(@estimated_income, estimated_income),
+      surrender_period      = COALESCE(@surrender_period, surrender_period),
+      income_rider          = COALESCE(@income_rider, income_rider),
       sms_consent          = COALESCE(@sms_consent, sms_consent),
       sms_consent_source   = COALESCE(@sms_consent_source, sms_consent_source),
       sms_consent_notes    = COALESCE(@sms_consent_notes, sms_consent_notes),
@@ -218,6 +256,17 @@ function applyContactFields(db, contactId, fields, normalized, opts = {}) {
     lead_source: toStringOrNull(fields.originalSource), lead_status: toStringOrNull(fields.leadStatus),
     general_notes: toStringOrNull(fields.generalNotes),
     relationship_type: toStringOrNull(fields.relationshipType),
+    retirement_account_type: toStringOrNull(fields.retirementAccountType),
+    current_institution: toStringOrNull(fields.currentInstitution),
+    estimated_rollover_amount: toFloatOrNull(fields.estimatedRolloverAmount),
+    retirement_timeline: toStringOrNull(fields.retirementTimeline),
+    has_current_advisor: toBoolIntOrNull(fields.hasCurrentAdvisor),
+    interested_in_roth_conversion: toBoolIntOrNull(fields.interestedInRothConversion),
+    retirement_date_goal: toStringOrNull(fields.retirementDateGoal),
+    annuity_type: toStringOrNull(fields.annuityType),
+    estimated_income: toFloatOrNull(fields.estimatedIncome),
+    surrender_period: toStringOrNull(fields.surrenderPeriod),
+    income_rider: toBoolIntOrNull(fields.incomeRider),
     sms_consent: toBoolIntOrNull(fields.smsConsent), email_consent: toBoolIntOrNull(fields.emailConsent),
     sms_consent_source: toStringOrNull(fields.smsConsentSource),
     sms_consent_notes: toStringOrNull(fields.smsConsentNotes),

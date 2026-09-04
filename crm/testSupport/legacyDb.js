@@ -64,6 +64,33 @@ function createLegacyDb(dbPath = ':memory:') {
       employer                 TEXT,
       referred_by              TEXT,
       best_time_to_contact     TEXT,
+      -- Retirement/Insurance/Annuity fields (crm/db/database.js) restored
+      -- by the "Retirement & Annuity Planning" tab -- retirement_* and
+      -- annuity_type/estimated_income/surrender_period/income_rider are
+      -- editable through crm/lib/clientService.js's applyContactFields;
+      -- insurance_*/policy_*/annuity_carrier/annuity_premium are legacy,
+      -- read-only (superseded by the policies table).
+      retirement_account_type   TEXT,
+      current_institution       TEXT,
+      estimated_rollover_amount REAL,
+      retirement_timeline       TEXT,
+      has_current_advisor       INTEGER DEFAULT 0,
+      interested_in_roth_conversion INTEGER DEFAULT 0,
+      retirement_date_goal      TEXT,
+      annuity_type      TEXT,
+      estimated_income  REAL,
+      surrender_period  TEXT,
+      income_rider      INTEGER DEFAULT 0,
+      insurance_company TEXT,
+      policy_type       TEXT,
+      face_amount       REAL,
+      monthly_premium   REAL,
+      annual_premium    REAL,
+      policy_status     TEXT,
+      application_date  TEXT,
+      policy_issue_date TEXT,
+      annuity_carrier   TEXT,
+      annuity_premium   REAL,
       archived_at      DATETIME,
       created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP

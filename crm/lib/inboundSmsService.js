@@ -77,15 +77,20 @@ const NO_KEYWORDS = new Set(['no']);
 // regardless of which path set it.
 const INBOUND_SMS_CONSENT_SOURCE = 'Inbound SMS';
 
-// 2026-09-17: a short branded link (prosperitylfs.com/review — a plain
-// redirect straight to the same Cal.com page, added to the website's
-// _redirects) used ONLY in this one automated SMS reply. Deliberately a
-// SEPARATE constant from PROSPERITY_LIFE_INSURANCE_BOOKING_URL above
-// (crm/lib/existingClientOutreach.js), which stays the long Cal.com URL and
-// is still used as-is everywhere else (the compose UI's {{booking_link}}
-// substitution, which also feeds the reconnection EMAIL template) — this
-// change is scoped to the YES/REVIEW text reply only, nothing else.
-const PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL = 'https://prosperitylfs.com/review';
+// 2026-09-17: a short branded link (prosperitylfs.com/policyreview — a
+// plain redirect straight to the Policy Review Cal.com event, added to the
+// website's _redirects) used ONLY in this one automated SMS reply.
+// Deliberately a SEPARATE constant from PROSPERITY_LIFE_INSURANCE_BOOKING_URL
+// above (crm/lib/existingClientOutreach.js), which stays the long Cal.com
+// URL and is still used as-is everywhere else (the compose UI's
+// {{booking_link}} substitution, which also feeds the reconnection EMAIL
+// template) — this change is scoped to the YES/REVIEW text reply only,
+// nothing else. Switched from /review to /policyreview (same-day) because
+// /review was stuck on its old cached target in some clients' browsers
+// (301s are hard-cached client-side); /policyreview is a brand-new path
+// with no caching history, and its own redirect is a 302 for exactly that
+// reason.
+const PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL = 'https://prosperitylfs.com/policyreview';
 
 // The automated reply sent for a YES or REVIEW keyword (BOOKING_LINK_REPLY_
 // KEYWORDS above). 2026-09-16: updated to Loretta's exact approved reply

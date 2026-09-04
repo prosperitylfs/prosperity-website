@@ -6,6 +6,12 @@ https://www.prosperitylfs.com/* https://prosperitylfs.com/:splat 301
 # /book. Placed before the SPA fallback below so it takes priority.
 /review https://cal.com/lorettastewart/policy-review 301
 
+# New short link for the Policy Review Cal.com event, added because /review
+# above was stuck in some clients' browsers on its old cached target. 302
+# (temporary) deliberately, not 301, so browsers do not hard-cache this one
+# while it's still new.
+/policyreview https://cal.com/lorettastewart/policy-review 302
+
 # PDF and static asset bypass
 /*.pdf 200
 /assets/* 200

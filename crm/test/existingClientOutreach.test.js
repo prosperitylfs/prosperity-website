@@ -97,6 +97,10 @@ test('getReconnectionTemplates returns both Prosperity SMS templates, the email 
   const reconnection = templates.smsTemplates.find(t => t.templateKey === 'existingClientReconnectionSms');
   const awareness = templates.smsTemplates.find(t => t.templateKey === 'existingClientLifeInsuranceAwarenessSms');
   assert.match(reconnection.body, /Reply YES to allow text communication/);
+  // Footer changed to STOP-only in the 2026-09-06 revision -- no HELP language
+  // on either Existing Client Outreach SMS template.
+  assert.match(reconnection.body, /Reply STOP to opt out\.$/);
+  assert.doesNotMatch(reconnection.body, /HELP/);
   assert.match(awareness.body, /Life Insurance Awareness Month/);
   assert.match(awareness.body, /I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you\./);
   // {{booking_link}} was deliberately REMOVED from this SMS template in the

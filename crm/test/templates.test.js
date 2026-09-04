@@ -57,9 +57,10 @@ test('SMS templates that solicit a reply include STOP language', () => {
   }
 });
 
-test('existingClientReconnectionSms (Prosperity-only) includes STOP/HELP language', () => {
-  assert.match(TEMPLATES.prosperity.existingClientReconnectionSms.body, /STOP/);
-  assert.match(TEMPLATES.prosperity.existingClientReconnectionSms.body, /HELP/);
+test('existingClientReconnectionSms (Prosperity-only) footer is STOP-only, no HELP language (2026-09-06 revision)', () => {
+  const tmpl = TEMPLATES.prosperity.existingClientReconnectionSms;
+  assert.match(tmpl.body, /Reply STOP to opt out\.$/);
+  assert.doesNotMatch(tmpl.body, /HELP/);
 });
 
 test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s 2026-09-05 approved copy exactly, apart from straight apostrophes', () => {

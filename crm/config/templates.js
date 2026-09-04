@@ -175,10 +175,12 @@ Prosperity Life & Financial Solutions LLC`,
     // dedicated, narrowly-scoped sender calls these two keys. Loretta's
     // approved exact copy, with one technical adjustment: the em dash before
     // the signature was changed to a plain hyphen (matches every other SMS
-    // template in this file, see the GSM-7 comment above) and the standard
-    // Reply HELP/STOP footer already used on every other Prosperity SMS was
-    // appended, since this is the one message in this workflow sent to
-    // someone who has NOT yet re-confirmed consent.
+    // template in this file, see the GSM-7 comment above). Footer is
+    // "Reply STOP to opt out." only (2026-09-06 revision) -- the HELP
+    // language was removed from the visible footer on both Existing Client
+    // Outreach SMS templates; inbound HELP keyword handling
+    // (crm/lib/inboundSmsService.js) is untouched and still works the same
+    // regardless of what the outbound message's footer says.
     existingClientReconnectionSms: {
       category: 'operational', channel: 'sms',
       placeholders: ['first_name'],
@@ -195,7 +197,7 @@ Reply YES to allow text communication.
 - Loretta Stewart
 Prosperity Life & Financial Solutions
 
-Reply HELP for help or STOP to opt out.`,
+Reply STOP to opt out.`,
     },
     // Loretta's exact approved copy (verbatim) -- the only technical
     // adjustment made is replacing the curly apostrophes the source text

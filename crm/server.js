@@ -277,6 +277,19 @@ window.CRM = {
   );
 });
 
+// ─── Root route ───────────────────────────────────────────────────────────────
+// The bare "/" used to fall through to the static server's default
+// public/index.html — the OLD pre-redesign dashboard. That file is left in
+// place untouched (still reachable directly at /index.html) as a fallback
+// during the transition; only the *default landing page* changes. A 302
+// (not 301) so browsers don't permanently cache this redirect while the new
+// CRM is still being verified. Registered after app.use(dashboardAuth)
+// above, so this inherits the exact same Basic Auth gate as every other
+// private dashboard route — no auth bypass introduced.
+app.get('/', (req, res) => {
+  res.redirect('/app/dashboard.html');
+});
+
 // ─── Serve CRM Dashboard (static) ────────────────────────────────────────────
 // No-cache on HTML/JS/CSS so the browser always fetches the latest version.
 app.use(express.static(path.join(__dirname, 'public'), {

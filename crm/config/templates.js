@@ -203,11 +203,11 @@ Reply HELP for help or STOP to opt out.`,
     // other template in this file: a curly apostrophe forces UCS-2 SMS
     // encoding (same reasoning as the em-dash comment above), which would
     // roughly halve this already-long message's per-segment character
-    // budget. The wording itself is unchanged. Deliberately has NO
-    // Reply HELP/STOP footer, unlike existingClientReconnectionSms above --
-    // Loretta's approved copy didn't include one; STOP keyword handling
-    // (crm/lib/inboundSmsService.js) still works regardless of whether the
-    // outbound message itself mentions it.
+    // budget. The wording itself is unchanged. Footer is "Reply STOP to
+    // opt out." only (2026-09-05 revision) -- deliberately NOT the
+    // Reply HELP/STOP footer used on existingClientReconnectionSms above;
+    // STOP keyword handling (crm/lib/inboundSmsService.js) works the same
+    // regardless of which opt-out wording the outbound message shows.
     existingClientLifeInsuranceAwarenessSms: {
       category: 'operational', channel: 'sms',
       // {{booking_link}} deliberately removed (2026-09-04 revision) -- this
@@ -224,7 +224,9 @@ I'll be reaching out by phone over the next few days to reconnect and discuss yo
 I'd also like your permission to communicate with you by text regarding your policy, appointments, and service needs. Reply YES if I may text you, or NO if you prefer not to receive text messages. If you'd like my booking link, just let me know and I'll send it to you.
 
 Loretta Stewart
-Prosperity Life & Financial Solutions`,
+Prosperity Life & Financial Solutions
+
+Reply STOP to opt out.`,
     },
     existingClientReconnectionEmail: {
       category: 'operational', channel: 'email',

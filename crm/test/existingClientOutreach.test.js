@@ -103,6 +103,9 @@ test('getReconnectionTemplates returns both Prosperity SMS templates, the email 
   // 2026-09-04 revision -- Loretta follows up by phone and sends the link
   // manually only if the client asks for it in their reply.
   assert.doesNotMatch(awareness.body, /\{\{booking_link\}\}/);
+  // Footer changed to STOP-only in the 2026-09-05 revision -- no HELP language.
+  assert.match(awareness.body, /Reply STOP to opt out\.$/);
+  assert.doesNotMatch(awareness.body, /HELP/);
 
   assert.equal(templates.emailTemplates.length, 2);
   const policyReview = templates.emailTemplates.find(t => t.templateKey === 'existingClientReconnectionEmail');

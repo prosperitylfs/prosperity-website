@@ -62,7 +62,7 @@ test('existingClientReconnectionSms (Prosperity-only) includes STOP/HELP languag
   assert.match(TEMPLATES.prosperity.existingClientReconnectionSms.body, /HELP/);
 });
 
-test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s 2026-09-04 approved copy exactly, apart from straight apostrophes', () => {
+test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\'s 2026-09-05 approved copy exactly, apart from straight apostrophes', () => {
   const tmpl = TEMPLATES.prosperity.existingClientLifeInsuranceAwarenessSms;
   assert.match(tmpl.body, /Life Insurance Awareness Month/);
   assert.match(tmpl.body, /I'll be reaching out by phone over the next few days to reconnect and discuss your policy with you\./);
@@ -70,6 +70,11 @@ test('existingClientLifeInsuranceAwarenessSms (Prosperity-only) matches Loretta\
   // {{booking_link}} was deliberately REMOVED in the 2026-09-04 revision --
   // this initial message no longer offers a self-service booking link.
   assert.doesNotMatch(tmpl.body, /\{\{booking_link\}\}/);
+  // Footer changed to STOP-only in the 2026-09-05 revision -- the HELP
+  // language was removed entirely; this template never used the shared
+  // "Reply HELP for help or STOP to opt out." footer used elsewhere.
+  assert.match(tmpl.body, /Reply STOP to opt out\.$/);
+  assert.doesNotMatch(tmpl.body, /HELP/);
   assert.deepEqual(tmpl.placeholders, ['first_name']);
   assert.equal(TEMPLATES['insurance-lady'].existingClientLifeInsuranceAwarenessSms, undefined, 'must never exist for Insurance Lady');
 });

@@ -30,7 +30,7 @@ const {
   getReportsSummary,
 } = require('../lib/dashboardQueries');
 const { BRANDS } = require('../config/brands');
-const { getSenderGuardrailForCase, getSenderGuardrailForManualSelection } = require('../lib/senderGuardrail');
+const { getSenderGuardrailForCase, getSenderGuardrailForManualSelection, defaultManualBrandForContact } = require('../lib/senderGuardrail');
 const { listTasks } = require('../lib/taskService');
 const { getReconnectionTemplates, getExistingClientsForOutreach } = require('../lib/existingClientOutreach');
 
@@ -95,8 +95,14 @@ router.get('/clients/:id', (req, res) => {
 // Shows exactly what Call/Text/Email would use if the (still-disabled)
 // action button were ever wired to a real send in a future checkpoint.
 router.get('/clients/:id/sender-preview', (req, res) => {
+  const contactId = parseInt(req.params.id, 10);
   const caseId = req.query.caseId ? parseInt(req.query.caseId, 10) : null;
-  const manualBrand = req.query.manualBrand || null;
+  // No explicit ?manualBrand given and no case to resolve from -- fall back
+  // to the contact's own current brand assignment (contact_brands) instead
+  // of always landing in the ambiguous "choose a business" dead end. Still
+  // only ever a preview/default; the actual send always re-resolves this
+  // itself (see crm/lib/prosperitySmsGateway.js).
+  const manualBrand = req.query.manualBrand || (caseId ? null : defaultManualBrandForContact(db, contactId));
   const result = caseId
     ? getSenderGuardrailForCase(db, { caseId })
     : getSenderGuardrailForManualSelection(db, { manualBrandSelection: manualBrand });

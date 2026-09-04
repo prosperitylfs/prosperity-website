@@ -167,8 +167,27 @@ function getSenderGuardrailForManualSelection(db, { manualBrandSelection } = {})
     blocked: false,
     brandId: brandResult.brandId,
     brand: brandResult.brand,
+    brandChoices,
     channels: evaluateAllChannels(brandResult.brandId, brandResult.brand),
   };
 }
 
-module.exports = { getSenderGuardrailForCase, getSenderGuardrailForManualSelection };
+// Given a contactId (not a case), finds this contact's OWN current brand
+// assignment straight from contact_brands — the same source of truth
+// crm/lib/communicationDraftService.js and crm/lib/prosperitySmsGateway.js
+// already use to resolve the real outbound sender at send time. Returns the
+// brand slug only when it is unambiguous, which is the normal case: the
+// "permanent company" rule in crm/lib/caseMatching.js's
+// findConflictingActiveBrand means a contact is never actively linked to
+// both brands at once. Returns null for a contact with no active brand link
+// at all (a genuine "choose a business" situation, unchanged).
+function defaultManualBrandForContact(db, contactId) {
+  const rows = db.prepare(`
+    SELECT DISTINCT b.slug AS brandId
+    FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id
+    WHERE cb.contact_id = ? AND cb.status = 'Active'
+  `).all(contactId);
+  return rows.length === 1 ? rows[0].brandId : null;
+}
+
+module.exports = { getSenderGuardrailForCase, getSenderGuardrailForManualSelection, defaultManualBrandForContact };

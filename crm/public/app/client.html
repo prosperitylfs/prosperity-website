@@ -897,6 +897,10 @@ async function render() {
         <p class="confirm-message">This client has not given ${channel === 'text' ? 'SMS' : 'email'} consent — a draft cannot be created.</p>
         <div class="crmapp-modal-actions"><button type="button" class="btn" id="draft-close-noconsent">Close</button></div>
       ` : `
+        <div id="draft-brand-field" class="form-field full" style="display:none;">
+          <label>Business</label>
+          <select class="input" id="draft-brand-select"></select>
+        </div>
         <div id="draft-sender-preview"></div>
         <form id="draft-form">
           ${channel === 'email' ? '<div class="form-field full"><label>Subject</label><input class="input" name="subject"></div>' : ''}
@@ -913,26 +917,52 @@ async function render() {
       dialog.querySelector('#draft-close-noconsent').addEventListener('click', () => dialog.close());
       return;
     }
+    const caseId = activeCases[0] ? activeCases[0].caseId : null;
     let senderIdentity = null;
-    (async () => {
-      const caseId = activeCases[0] ? activeCases[0].caseId : null;
-      const result = await CrmApp.fetchJSON(caseId ? `/api/app/clients/${contactId}/sender-preview?caseId=${caseId}` : `/api/app/clients/${contactId}/sender-preview`);
-      const previewEl = dialog.querySelector('#draft-sender-preview');
+    const brandField = dialog.querySelector('#draft-brand-field');
+    const brandSelect = dialog.querySelector('#draft-brand-select');
+    const previewEl = dialog.querySelector('#draft-sender-preview');
+
+    // The business selector only applies to the no-case, manual-selection
+    // path (crm/lib/senderGuardrail.js's getSenderGuardrailForManualSelection)
+    // — a case already fixes its own brand and has nothing to choose here.
+    // Re-fetching with an explicit manualBrand previews (never sends) as
+    // that brand; omitting it lets the server default to the contact's own
+    // current brand assignment (see defaultManualBrandForContact).
+    async function loadSenderPreview(manualBrand) {
+      const params = new URLSearchParams();
+      if (caseId) params.set('caseId', caseId);
+      else if (manualBrand) params.set('manualBrand', manualBrand);
+      const qs = params.toString();
+      const result = await CrmApp.fetchJSON(`/api/app/clients/${contactId}/sender-preview${qs ? '?' + qs : ''}`);
+
+      if (!caseId && result.brandChoices && result.brandChoices.length) {
+        if (!brandSelect.options.length) {
+          brandSelect.innerHTML = result.brandChoices.map(b => `<option value="${CrmApp.escapeHtml(b.id)}">${CrmApp.escapeHtml(b.shortName)}</option>`).join('');
+        }
+        if (result.brandId) brandSelect.value = result.brandId;
+        brandField.style.display = '';
+      }
+
       if (result.scenario === 'no_relationship') {
+        senderIdentity = null;
         previewEl.innerHTML = `<div class="sender-preview blocked">${CrmApp.escapeHtml(result.message)}</div>`;
       } else {
         const chan = result.channels[channel];
         senderIdentity = chan.identity || null;
         previewEl.innerHTML = `<div class="sender-preview${chan.blocked ? ' blocked' : ''}">${CrmApp.escapeHtml(chan.message)}</div>`;
       }
-    })();
+    }
+    loadSenderPreview(null);
+    brandSelect.addEventListener('change', () => loadSenderPreview(brandSelect.value));
+
     dialog.querySelector('#draft-cancel').addEventListener('click', () => dialog.close());
     dialog.querySelector('#draft-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fields = Object.fromEntries(new FormData(e.target).entries());
       fields.contactId = Number(contactId);
       fields.channel = channel;
-      fields.caseId = activeCases[0] ? activeCases[0].caseId : null;
+      fields.caseId = caseId;
       try {
         const draft = await CrmApp.postJSON('/api/app/communications/draft', 'POST', fields);
         showSendConfirmation(dialog, draft, senderIdentity);

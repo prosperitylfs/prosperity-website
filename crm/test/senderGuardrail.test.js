@@ -6,7 +6,7 @@ const { createLegacyDb } = require('../testSupport/legacyDb');
 const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { dedupeContact, resolveContactBrand, matchOrCreateCase } = require('../lib/caseMatching');
-const { getSenderGuardrailForCase, getSenderGuardrailForManualSelection } = require('../lib/senderGuardrail');
+const { getSenderGuardrailForCase, getSenderGuardrailForManualSelection, defaultManualBrandForContact } = require('../lib/senderGuardrail');
 
 function setup() {
   const db = createLegacyDb();
@@ -229,4 +229,43 @@ test('manual selection: an unknown brand id resolves to no_relationship rather t
   assert.equal(result.scenario, 'no_relationship');
   assert.equal(result.blocked, true);
   assert.equal(result.brandId, null);
+});
+
+test('manual selection: a resolved brand also carries brandChoices, so a caller can render a selector', () => {
+  const { db } = setup();
+  withEnv(FULLY_CONFIGURED_ENV, () => {
+    const result = getSenderGuardrailForManualSelection(db, { manualBrandSelection: 'prosperity' });
+    assert.deepEqual(result.brandChoices.map(b => b.id).sort(), ['insurance-lady', 'prosperity']);
+  });
+});
+
+// ── Default brand for a contact with no case (client-record Text/Email button) ──
+
+test('defaultManualBrandForContact: a contact with exactly one active brand relationship resolves to it unambiguously', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'default-brand-prosperity@example.test', first_name: 'Renee', last_name: 'Client' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+
+  assert.equal(defaultManualBrandForContact(db, contact.id), 'prosperity');
+});
+
+test('defaultManualBrandForContact: a contact with no active brand relationship returns null, still a genuine "choose a business" situation', () => {
+  const { db } = setup();
+  const contact = dedupeContact(db, { email: 'default-brand-none@example.test', first_name: 'Sam', last_name: 'Unlinked' });
+
+  assert.equal(defaultManualBrandForContact(db, contact.id), null);
+});
+
+test('defaultManualBrandForContact feeding into getSenderGuardrailForManualSelection resolves the contact\'s Draft Text/Email preview without any case', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'default-brand-flow@example.test', first_name: 'Pat', last_name: 'Existing' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+
+  withEnv(FULLY_CONFIGURED_ENV, () => {
+    const defaultBrand = defaultManualBrandForContact(db, contact.id);
+    const result = getSenderGuardrailForManualSelection(db, { manualBrandSelection: defaultBrand });
+    assert.equal(result.scenario, 'resolved');
+    assert.equal(result.brandId, 'prosperity');
+    assert.equal(result.channels.text.message, 'This text will be sent from +1 414-441-1177 as Prosperity.');
+  });
 });

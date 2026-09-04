@@ -30,9 +30,19 @@ async function render() {
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.8 10.6l5.3 5.3 1.4-1.4-5.3-5.3A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"/></svg>
             <input class="input" id="outreach-search" type="text" placeholder="Search Existing Clients">
           </div>
-          <button class="btn primary" id="outreach-send-btn" disabled>Send Message</button>
         </div>
-        <div class="text-faint" style="margin-top:8px;">Manually select Prosperity Existing Clients to send the Existing Client Reconnection email and/or initial text.</div>
+        <div class="search-row" style="margin-top:10px; align-items:center;">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400; white-space:nowrap;">
+            <input type="checkbox" id="outreach-select-all-toolbar"> Select All
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; font-weight:400; white-space:nowrap;">
+            <span>Template:</span>
+            <select class="filter-select" id="outreach-template-select"></select>
+          </label>
+          <button class="btn primary" id="outreach-send-btn" disabled>Send to Selected</button>
+          <button class="btn ghost small" id="outreach-compose-link" style="margin-left:auto;" disabled>Edit message / send email&hellip;</button>
+        </div>
+        <div class="text-faint" style="margin-top:8px;">Manually select Prosperity Existing Clients, choose a template above, then Send to Selected.</div>
         <div style="margin-top:12px; max-height:280px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm);">
           <table class="data-table" style="margin:0;">
             <thead><tr>
@@ -327,6 +337,7 @@ async function render() {
   function updateOutreachSelectedCount() {
     document.getElementById('outreach-selected-count').textContent = `${selectedOutreachIds.size} selected`;
     document.getElementById('outreach-send-btn').disabled = selectedOutreachIds.size === 0;
+    document.getElementById('outreach-compose-link').disabled = selectedOutreachIds.size === 0;
   }
 
   async function loadOutreachContacts(search) {
@@ -351,13 +362,46 @@ async function render() {
     updateOutreachSelectedCount();
   }
 
-  document.getElementById('outreach-select-all').addEventListener('change', (e) => {
+  // Two Select All controls -- the original header checkbox and the newly
+  // added, clearly labeled toolbar one -- share this one function so they
+  // always act identically and stay visually in sync with each other.
+  function setAllOutreachSelected(checked) {
     outreachContacts.forEach(item => {
-      if (e.target.checked) selectedOutreachIds.add(item.contactId); else selectedOutreachIds.delete(item.contactId);
+      if (checked) selectedOutreachIds.add(item.contactId); else selectedOutreachIds.delete(item.contactId);
     });
-    document.querySelectorAll('.outreach-checkbox').forEach(cb => { cb.checked = e.target.checked; });
+    document.querySelectorAll('.outreach-checkbox').forEach(cb => { cb.checked = checked; });
+    document.getElementById('outreach-select-all').checked = checked;
+    document.getElementById('outreach-select-all-toolbar').checked = checked;
     updateOutreachSelectedCount();
-  });
+  }
+  document.getElementById('outreach-select-all').addEventListener('change', (e) => setAllOutreachSelected(e.target.checked));
+  document.getElementById('outreach-select-all-toolbar').addEventListener('change', (e) => setAllOutreachSelected(e.target.checked));
+
+  // Visible Template dropdown, directly in the Existing Client Outreach
+  // section -- reads the SAME canonical registry
+  // (crm/lib/existingClientOutreach.js's EXISTING_CLIENT_SMS_TEMPLATES) the
+  // compose modal already uses; never a second/duplicate template. Defaults
+  // to the currently approved Existing Client Reconnect SMS
+  // (existingClientLifeInsuranceAwarenessSms), falling back to the first
+  // registered template only if that one is ever absent.
+  const DEFAULT_OUTREACH_SMS_TEMPLATE_KEY = 'existingClientLifeInsuranceAwarenessSms';
+  async function loadOutreachTemplates() {
+    if (!reconnectionTemplatesCache) {
+      try { reconnectionTemplatesCache = await CrmApp.fetchJSON('/api/app/existing-client-outreach/templates'); }
+      catch { reconnectionTemplatesCache = null; }
+    }
+    const selectEl = document.getElementById('outreach-template-select');
+    if (!reconnectionTemplatesCache || !reconnectionTemplatesCache.smsTemplates.length) {
+      selectEl.innerHTML = '<option value="">(Could not load templates)</option>';
+      return;
+    }
+    const list = reconnectionTemplatesCache.smsTemplates;
+    const defaultKey = list.some(t => t.templateKey === DEFAULT_OUTREACH_SMS_TEMPLATE_KEY)
+      ? DEFAULT_OUTREACH_SMS_TEMPLATE_KEY : list[0].templateKey;
+    selectEl.innerHTML = list.map(t =>
+      `<option value="${CrmApp.escapeHtml(t.templateKey)}" ${t.templateKey === defaultKey ? 'selected' : ''}>${CrmApp.escapeHtml(t.label)}</option>`
+    ).join('');
+  }
 
   let outreachSearchTimer;
   document.getElementById('outreach-search').addEventListener('input', (e) => {
@@ -381,17 +425,14 @@ async function render() {
     const selected = outreachContacts.filter(c => selectedOutreachIds.has(c.contactId));
     const count = selectedOutreachIds.size;
     let channel = 'sms';
-    // Defaults to the approved Existing Client Reconnect SMS
-    // (existingClientLifeInsuranceAwarenessSms -- the canonical, currently
-    // approved reconnect text) so "Send Message" is ready to go against the
-    // right template with no extra clicks; falls back to the first
-    // registered template if that one is somehow ever absent. The Template
-    // <select> below still lets her choose a different one if she wants to.
-    const DEFAULT_BULK_SMS_TEMPLATE_KEY = 'existingClientLifeInsuranceAwarenessSms';
-    let templateKey = null;
-    if (reconnectionTemplatesCache && reconnectionTemplatesCache.smsTemplates.length) {
-      const preferred = reconnectionTemplatesCache.smsTemplates.find(t => t.templateKey === DEFAULT_BULK_SMS_TEMPLATE_KEY);
-      templateKey = preferred ? preferred.templateKey : reconnectionTemplatesCache.smsTemplates[0].templateKey;
+    // Starts from whatever template is currently selected in the section's
+    // own visible Template dropdown, so opening this (via "Edit message /
+    // send email...") stays consistent with it rather than re-deriving its
+    // own separate default.
+    const toolbarTemplateKey = document.getElementById('outreach-template-select').value;
+    let templateKey = toolbarTemplateKey || null;
+    if (!templateKey && reconnectionTemplatesCache && reconnectionTemplatesCache.smsTemplates.length) {
+      templateKey = reconnectionTemplatesCache.smsTemplates[0].templateKey;
     }
 
     const dialog = CrmApp.openModal({
@@ -529,13 +570,77 @@ async function render() {
     });
   }
 
-  document.getElementById('outreach-send-btn').addEventListener('click', async () => {
-    if (!reconnectionTemplatesCache) {
-      try { reconnectionTemplatesCache = await CrmApp.fetchJSON('/api/app/existing-client-outreach/templates'); } catch { reconnectionTemplatesCache = null; }
+  // Primary path: pick the template from the section's own visible
+  // dropdown above, click Send to Selected, confirm ONCE (showing the
+  // template name, recipient count, and the exact personalized-preview
+  // message), then send -- no compose modal required for this, the common
+  // case. Sends through the SAME /bulk endpoint bulkSendModal below uses,
+  // so personalization, individual sends, consent/eligibility/STOP
+  // enforcement, and SMS History logging are all identical either way.
+  async function quickSendToSelected() {
+    await loadOutreachTemplates();
+    const templateKey = document.getElementById('outreach-template-select').value;
+    const tmpl = reconnectionTemplatesCache && templateKey
+      ? reconnectionTemplatesCache.smsTemplates.find(t => t.templateKey === templateKey) : null;
+    if (!tmpl) { CrmApp.toast('Could not load the message template.', { error: true }); return; }
+
+    const selected = outreachContacts.filter(c => selectedOutreachIds.has(c.contactId));
+    const count = selected.length;
+    const representativeName = selected.length ? selected[0].firstName : null;
+    const previewText = tmpl.body.replace(/\{\{first_name\}\}/g, representativeName || 'there');
+
+    const ok = await CrmApp.confirmAction(
+      `Send <strong>${CrmApp.escapeHtml(tmpl.label)}</strong> to ${count} selected Existing Client${count === 1 ? '' : 's'}?<br><br>` +
+      `<div style="white-space:pre-wrap; background:var(--surface-alt); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; font-size:13.5px; max-height:180px; overflow-y:auto; text-align:left;">${CrmApp.escapeHtml(previewText)}</div>`,
+      { confirmLabel: 'Send to Selected' }
+    );
+    if (!ok) return;
+
+    let result;
+    try {
+      result = await CrmApp.postJSON('/api/app/existing-client-outreach/bulk', 'POST', {
+        contactIds: [...selectedOutreachIds], channel: 'sms', message: tmpl.body, templateKey,
+      });
+    } catch (err) {
+      CrmApp.toast(err.message, { error: true });
+      return;
     }
+
+    const sentCount = result.results.filter(r => r.outcome === 'sent').length;
+    const skippedCount = result.results.length - sentCount;
+    const resultsDialog = CrmApp.openModal({
+      title: 'Send Results',
+      bodyHtml: `
+        <div style="font-weight:600; margin-bottom:8px;">${result.results.length} selected — ${sentCount} sent, ${skippedCount} skipped</div>
+        <div style="max-height:280px; overflow-y:auto;">
+          ${result.results.map(r => {
+            const label = r.outcome === 'sent' ? 'SENT' : r.outcome === 'failed' ? `FAILED: ${r.reason || ''}` : `SKIPPED: ${r.reason || ''}`;
+            const statusClass = r.outcome === 'sent' ? 'open' : r.outcome === 'failed' ? 'failed' : 'blocked';
+            return `<div style="display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--border);">
+              <span>${CrmApp.escapeHtml(r.contactName)}</span>
+              <span class="pill status-${statusClass}">${CrmApp.escapeHtml(label)}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="crmapp-modal-actions"><button type="button" class="btn primary" id="send-results-close">Close</button></div>
+      `,
+    });
+    resultsDialog.querySelector('#send-results-close').addEventListener('click', () => CrmApp.closeModal());
+    CrmApp.toast(`${result.results.length} selected — ${sentCount} sent, ${skippedCount} skipped.`);
+    loadOutreachContacts(document.getElementById('outreach-search').value);
+  }
+
+  document.getElementById('outreach-send-btn').addEventListener('click', quickSendToSelected);
+
+  // Secondary path: opens the full compose modal (edit the message, or
+  // switch to Email) -- unchanged, kept for the cases the quick send above
+  // deliberately doesn't cover.
+  document.getElementById('outreach-compose-link').addEventListener('click', async () => {
+    await loadOutreachTemplates();
     bulkSendModal();
   });
 
+  loadOutreachTemplates();
   loadOutreachContacts('');
 
   load();

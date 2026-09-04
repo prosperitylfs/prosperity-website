@@ -27,6 +27,7 @@ const reviewResolution = require('../lib/reviewResolution');
 const callLogService = require('../lib/callLogService');
 const taskCalendarSync = require('../lib/taskCalendarSync');
 const existingClientOutreach = require('../lib/existingClientOutreach');
+const templateManagerService = require('../lib/templateManagerService');
 
 function handle(fn) {
   return (req, res) => {
@@ -76,6 +77,24 @@ router.post('/existing-client-outreach/bulk', handle(req => existingClientOutrea
   confirmResend: !!req.body.confirmResend,
   templateKey: req.body.templateKey,
 }).then(results => ({ results }))));
+
+// ── Template Manager ─────────────────────────────────────────────────────
+// Edits an EXISTING template's name/body(/subject) -- never its
+// templateKey, never which channel it is. See
+// crm/lib/templateManagerService.js's own header comment.
+router.patch('/templates/:templateKey', handle(req => templateManagerService.updateTemplate(db, {
+  templateKey: req.params.templateKey, channel: req.body.channel,
+  label: req.body.label, subject: req.body.subject, body: req.body.body,
+})));
+// Creates a genuinely new template with its own fresh, stable templateKey
+// (never client-supplied) -- appears in the appropriate Existing Client
+// Outreach dropdown immediately, without ever overwriting an existing one.
+router.post('/templates', handle((req, res) => {
+  created(res);
+  return templateManagerService.createTemplate(db, {
+    channel: req.body.channel, label: req.body.label, subject: req.body.subject, body: req.body.body,
+  });
+}));
 
 // ── Cases ────────────────────────────────────────────────────────────────
 // productName -> productId is resolved here, scoped to the CLIENT'S OWN

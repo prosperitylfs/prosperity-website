@@ -426,4 +426,40 @@ addCol('contacts', 'sms_consent_source',  'TEXT');
 addCol('contacts', 'sms_consent_at',      'DATETIME');
 addCol('contacts', 'sms_consent_notes',   'TEXT');
 
+// Template Manager (crm/lib/templateManagerService.js): lets Loretta edit
+// an Existing Client Outreach template's display name/body(/subject) from
+// inside the CRM, and create brand-new ones, without a code deploy. Created
+// here (unconditional, every boot) rather than only via the separate
+// crm/db/migrateX.js files behind crm/lib/migrationRunner.js, which require
+// a manual production migration run -- this table must exist in every
+// environment the same way sms_opted_out_at above does.
+//
+// One row per template (per brand, though this feature is Prosperity-only
+// throughout crm/lib/existingClientOutreach.js today). template_key is the
+// STABLE identifier automation/dedup is keyed to (see
+// crm/lib/existingClientOutreach.js's own header comment) -- it is never
+// exposed as an editable field. A row for a template_key that ALSO exists
+// in crm/config/templates.js's static catalog is an "override" of that
+// built-in template's label/subject/body; a row for a template_key that
+// does NOT already exist there is a genuinely new, user-created template.
+// Either way, editing here never touches config/templates.js itself, and
+// never changes template_key/sms_message_type, so renaming or rewording a
+// template can never change which inbound keyword automation applies to it.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS crm_templates (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    template_key      TEXT NOT NULL,
+    brand_id          TEXT NOT NULL,
+    channel           TEXT NOT NULL,
+    label             TEXT NOT NULL,
+    subject           TEXT,
+    body              TEXT NOT NULL,
+    sms_message_type  TEXT,
+    archived_at       DATETIME,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(template_key, brand_id)
+  );
+`);
+
 module.exports = db;

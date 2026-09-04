@@ -200,6 +200,23 @@ function createLegacyDb(dbPath = ':memory:') {
       calendar_sync_status  TEXT,
       FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
     );
+
+    -- Template Manager (crm/lib/templateManagerService.js) -- mirrors
+    -- crm/db/database.js's own crm_templates table exactly.
+    CREATE TABLE crm_templates (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      template_key      TEXT NOT NULL,
+      brand_id          TEXT NOT NULL,
+      channel           TEXT NOT NULL,
+      label             TEXT NOT NULL,
+      subject           TEXT,
+      body              TEXT NOT NULL,
+      sms_message_type  TEXT,
+      archived_at       DATETIME,
+      created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(template_key, brand_id)
+    );
   `);
   return db;
 }

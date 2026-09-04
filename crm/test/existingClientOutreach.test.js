@@ -92,7 +92,8 @@ function seedLead(db, overrides = {}) {
 // ── Templates ────────────────────────────────────────────────────────────
 
 test('getReconnectionTemplates returns both Prosperity SMS templates, the email template(s), the office phone, and the booking link', () => {
-  const templates = getReconnectionTemplates();
+  const db = setup();
+  const templates = getReconnectionTemplates(db);
   assert.equal(templates.smsTemplates.length, 2);
   const reconnection = templates.smsTemplates.find(t => t.templateKey === 'existingClientReconnectionSms');
   const awareness = templates.smsTemplates.find(t => t.templateKey === 'existingClientLifeInsuranceAwarenessSms');
@@ -132,6 +133,67 @@ test('getReconnectionTemplates returns both Prosperity SMS templates, the email 
 
   assert.equal(templates.officePhone, '+1 414-441-1177');
   assert.equal(templates.bookingLink, 'https://cal.com/lorettastewart/life-insurance-consultation-prosperitylfs');
+});
+
+// ── Template Manager overrides (2026-09-12): a saved crm_templates row
+//    changes what getReconnectionTemplates returns, WITHOUT ever touching
+//    template_key/smsMessageType -- the dedup identifier every send/
+//    eligibility check below is keyed to. ───────────────────────────────
+
+test('a crm_templates override changes the label/body getReconnectionTemplates returns for a built-in SMS template', () => {
+  const db = setup();
+  db.prepare(`
+    INSERT INTO crm_templates (template_key, brand_id, channel, label, body, sms_message_type)
+    VALUES ('existingClientLifeInsuranceAwarenessSms', 'prosperity', 'sms', 'Renamed via Template Manager', 'New body text {{first_name}}.', 'existing_client_life_insurance_awareness')
+  `).run();
+  const templates = getReconnectionTemplates(db);
+  const awareness = templates.smsTemplates.find(t => t.templateKey === 'existingClientLifeInsuranceAwarenessSms');
+  assert.equal(awareness.label, 'Renamed via Template Manager');
+  assert.equal(awareness.body, 'New body text {{first_name}}.');
+  // The OTHER SMS template is untouched by an override on this one.
+  const reconnection = templates.smsTemplates.find(t => t.templateKey === 'existingClientReconnectionSms');
+  assert.match(reconnection.body, /Reply YES to allow text communication/);
+});
+
+test('renaming/rewording a template via a crm_templates override does NOT change its eligibility/dedup identity -- "already sent" still keys off the unchanged smsMessageType', () => {
+  const db = setup();
+  const contact = seedExistingClient(db, { firstName: 'Nia', email: 'nia.rename@example.com' });
+
+  // Send the ORIGINAL (un-renamed) template once.
+  return withEnv(TWILIO_ENV, async () => {
+    await sendReconnectionSms(db, {
+      contactId: contact.id, message: 'Hi Nia, original wording...', templateKey: LIFE_INSURANCE_AWARENESS_KEY,
+    }, { twilioClientFactory: fakeTwilioClient('ok') });
+
+    // Now rename/reword it via a Template Manager override.
+    db.prepare(`
+      INSERT INTO crm_templates (template_key, brand_id, channel, label, body, sms_message_type)
+      VALUES ('existingClientLifeInsuranceAwarenessSms', 'prosperity', 'sms', 'A totally different name', 'Completely reworded body {{first_name}}.', 'existing_client_life_insurance_awareness')
+    `).run();
+
+    // The SAME contact is still correctly reported as "already sent" this
+    // template -- the rename never created a second, independent template.
+    const check = checkReconnectionSmsEligibility(db, db.prepare('SELECT * FROM contacts WHERE id = ?').get(contact.id), LIFE_INSURANCE_AWARENESS_KEY);
+    assert.equal(check.eligible, false);
+    assert.equal(check.code, 'already_sent');
+    assert.match(check.reason, /A totally different name/, 'the block reason reflects the CURRENT (renamed) label');
+  });
+});
+
+test('a crm_templates row for a NEW template_key appears as an additional entry in getReconnectionTemplates without altering the built-in ones', () => {
+  const db = setup();
+  db.prepare(`
+    INSERT INTO crm_templates (template_key, brand_id, channel, label, body, sms_message_type)
+    VALUES ('customBirthdaySms', 'prosperity', 'sms', 'Birthday Message', 'Happy birthday, {{first_name}}!', 'customBirthdaySms')
+  `).run();
+  const templates = getReconnectionTemplates(db);
+  assert.equal(templates.smsTemplates.length, 3, 'the two built-ins plus the one new custom template');
+  const custom = templates.smsTemplates.find(t => t.templateKey === 'customBirthdaySms');
+  assert.ok(custom);
+  assert.equal(custom.label, 'Birthday Message');
+  assert.equal(custom.body, 'Happy birthday, {{first_name}}!');
+  const awareness = templates.smsTemplates.find(t => t.templateKey === 'existingClientLifeInsuranceAwarenessSms');
+  assert.match(awareness.body, /Life Insurance Awareness Month/, 'the built-in template is completely unaffected by an unrelated new custom template');
 });
 
 test('fillFirstName substitutes {{first_name}}, falling back to "there" when missing', () => {

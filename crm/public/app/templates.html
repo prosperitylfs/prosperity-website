@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Templates — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({
+    active: 'templates', title: 'Templates',
+    subtitle: 'Existing Client Outreach message templates — edits here appear immediately in the Send Text / Send Email dropdowns.',
+    showCompanyFilter: false,
+  });
+  const content = document.getElementById('page-content');
+
+  let data;
+  try {
+    data = await CrmApp.fetchJSON('/api/app/templates');
+  } catch (e) {
+    content.innerHTML = `<div class="empty-state">Could not load templates: ${CrmApp.escapeHtml(e.message)}</div>`;
+    return;
+  }
+
+  const esc = CrmApp.escapeHtml;
+  const variables = data.supportedVariables || [];
+
+  function variablesReferenceHtml() {
+    if (!variables.length) return '';
+    return `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-body">
+          <div style="font-weight:700; font-size:13.5px;">Supported personalization variables</div>
+          <div class="text-faint" style="margin-top:2px;">Type these exactly as shown, anywhere in a template's name, subject, or body. They are never converted to plain text — each is filled in automatically when a message is sent.</div>
+          <dl class="kv-list" style="margin-top:10px;">
+            ${variables.map(v => `<dt style="font-family:monospace;">${esc(v.token)}</dt><dd>${esc(v.description)}</dd>`).join('')}
+          </dl>
+        </div>
+      </div>`;
+  }
+
+  function bodyPreview(t) {
+    const text = t.body || '';
+    return text.length > 160 ? text.slice(0, 160) + '…' : text;
+  }
+
+  function templateRowHtml(t) {
+    return `
+      <div style="padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:220px;">
+          <div style="font-weight:700; font-size:14px;">${esc(t.label)}</div>
+          ${t.channel === 'email' ? `<div class="text-faint" style="margin-top:2px;">Subject: ${esc(t.subject || '—')}</div>` : ''}
+          <div class="text-faint" style="margin-top:4px; white-space:pre-wrap;">${esc(bodyPreview(t))}</div>
+          ${!t.builtIn ? '<span class="pill status-pending" style="margin-top:6px;">Custom template</span>' : ''}
+        </div>
+        <button class="btn small ghost" data-edit-template="${esc(t.templateKey)}" data-channel="${t.channel}">Edit</button>
+      </div>`;
+  }
+
+  function sectionHtml(title, channel, addLabel) {
+    const items = data.templates.filter(t => t.channel === channel);
+    return `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <h2>${esc(title)}</h2>
+          <button class="btn small primary" data-new-template="${channel}">${esc(addLabel)}</button>
+        </div>
+        <div class="card-body no-pad">
+          ${items.length ? items.map(templateRowHtml).join('') : '<div class="empty-state">No templates yet.</div>'}
+        </div>
+      </div>`;
+  }
+
+  content.innerHTML = `
+    ${variablesReferenceHtml()}
+    ${sectionHtml('SMS Templates', 'sms', '+ New SMS Template')}
+    ${sectionHtml('Email Templates', 'email', '+ New Email Template')}
+  `;
+
+  function variablesHintHtml() {
+    if (!variables.length) return '';
+    return `<div class="text-faint" style="margin-top:6px;">Supported variables: ${variables.map(v => `<code style="font-family:monospace;">${esc(v.token)}</code>`).join(', ')}</div>`;
+  }
+
+  // Edit (existing template) or Create (new template) -- same form shape;
+  // Save Changes only ever fires on an explicit submit, never merely from
+  // typing. Cancel closes the dialog without calling the API at all, so the
+  // saved master template is completely untouched.
+  function templateFormModal({ mode, channel, existing } = {}) {
+    const t = existing || {};
+    const isEmail = channel === 'email';
+    const dialog = CrmApp.openModal({
+      title: mode === 'create' ? `New ${isEmail ? 'Email' : 'SMS'} Template` : 'Edit Template',
+      wide: true,
+      bodyHtml: `
+        <form id="template-form">
+          <div class="form-field full"><label>Template name</label><input class="input" name="label" value="${esc(t.label || '')}" required></div>
+          ${isEmail ? `<div class="form-field full" style="margin-top:10px;"><label>Subject</label><input class="input" name="subject" value="${esc(t.subject || '')}" required></div>` : ''}
+          <div class="form-field full" style="margin-top:10px;"><label>${isEmail ? 'Email body' : 'Message body'}</label><textarea class="input" name="body" rows="12" required>${esc(t.body || '')}</textarea></div>
+          ${variablesHintHtml()}
+          <div class="form-error" id="template-form-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="template-form-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Changes</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#template-form-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#template-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      const errorEl = dialog.querySelector('#template-form-error');
+      errorEl.textContent = '';
+      try {
+        if (mode === 'create') {
+          await CrmApp.postJSON('/api/app/templates', 'POST', { channel, label: fields.label, subject: fields.subject, body: fields.body });
+          CrmApp.toast('Template created.');
+        } else {
+          await CrmApp.postJSON(`/api/app/templates/${encodeURIComponent(t.templateKey)}`, 'PATCH', { channel, label: fields.label, subject: fields.subject, body: fields.body });
+          CrmApp.toast('Template updated.');
+        }
+        dialog.close();
+        location.reload();
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    });
+  }
+
+  content.addEventListener('click', (e) => {
+    const editBtn = e.target.closest('[data-edit-template]');
+    if (editBtn) {
+      const t = data.templates.find(x => x.templateKey === editBtn.dataset.editTemplate && x.channel === editBtn.dataset.channel);
+      if (t) templateFormModal({ mode: 'edit', channel: t.channel, existing: t });
+      return;
+    }
+    const newBtn = e.target.closest('[data-new-template]');
+    if (newBtn) {
+      templateFormModal({ mode: 'create', channel: newBtn.dataset.newTemplate });
+    }
+  });
+}
+render();
+</script>
+</body>
+</html>

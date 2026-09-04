@@ -33,6 +33,7 @@ const { BRANDS } = require('../config/brands');
 const { getSenderGuardrailForCase, getSenderGuardrailForManualSelection, defaultManualBrandForContact } = require('../lib/senderGuardrail');
 const { listTasks } = require('../lib/taskService');
 const { getReconnectionTemplates, getExistingClientsForOutreach } = require('../lib/existingClientOutreach');
+const { listManagedTemplates, SUPPORTED_VARIABLES } = require('../lib/templateManagerService');
 
 // Normalizes the ?company= query param used throughout this API to a valid
 // brandId value for crm/lib/dashboardQueries.js: null/'all' pass through as
@@ -162,12 +163,20 @@ router.get('/reports', (req, res) => {
 // separate from getCaseList above). Sending itself is a mutation — see
 // crm/routes/crmActions.js.
 router.get('/existing-client-outreach/templates', (req, res) => {
-  res.json(getReconnectionTemplates());
+  res.json(getReconnectionTemplates(db));
 });
 
 router.get('/existing-client-outreach/contacts', (req, res) => {
   const search = typeof req.query.search === 'string' ? req.query.search : '';
   res.json({ items: getExistingClientsForOutreach(db, { search }) });
+});
+
+// Template Manager (read) -- crm/routes/crmActions.js has the write side
+// (create/update). Same Prosperity-only Existing Client Outreach template
+// set getReconnectionTemplates above already serves; see
+// crm/lib/templateManagerService.js's own header comment.
+router.get('/templates', (req, res) => {
+  res.json({ templates: listManagedTemplates(db), supportedVariables: SUPPORTED_VARIABLES });
 });
 
 module.exports = router;

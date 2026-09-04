@@ -27,6 +27,7 @@ const { resolveUnknownSmsReview, archiveReviewItem } = require('../lib/reviewRes
 const { getClientDetail } = require('../lib/dashboardQueries');
 const { createClient } = require('../lib/clientService');
 const { createDraft } = require('../lib/communicationDraftService');
+const { updateTemplate } = require('../lib/templateManagerService');
 const { BRANDS } = require('../config/brands');
 const { PROSPERITY_LIFE_INSURANCE_BOOKING_URL } = require('../lib/existingClientOutreach');
 
@@ -457,6 +458,39 @@ test('H. an Existing Client replying REVIEW: SMS consent becomes YES exactly lik
   assert.ok(detail.smsThread.some(m => m.body === 'REVIEW' && m.direction === 'inbound'), 'the inbound REVIEW message itself must be preserved in communication history');
   const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_BOOKING_URL));
   assert.equal(bookingReplies.length, 1, 'the automated booking-link reply must appear exactly once in SMS History -- no duplicate booking-link text');
+});
+
+test('Template Manager: renaming/rewording the Life Insurance Awareness Month SMS template via the Template Manager does NOT break REVIEW automation -- consent grant and the booking-link reply still work exactly the same afterward', async () => {
+  const db = setup();
+  // Rename it FIRST, via the exact same path crm/routes/crmActions.js's
+  // PATCH /api/app/templates/:templateKey uses -- template_key/
+  // sms_message_type are never touched by this.
+  updateTemplate(db, {
+    templateKey: 'existingClientLifeInsuranceAwarenessSms', channel: 'sms',
+    label: 'Existing Client - Reconnect Life Insurance Awareness Month (renamed)',
+    body: 'Hi {{first_name}}, completely reworded outbound message. Reply REVIEW for a policy review.',
+  });
+
+  const client = createClient(db, {
+    firstName: 'Priya', lastName: 'Renamed', phone: '4145559120', brandSlug: 'prosperity', relationshipType: 'active_client',
+  }, 'Loretta Stewart');
+
+  const result = handleInboundSmsUnified(db, {
+    From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'REVIEW', MessageSid: 'SM_review_renamed_1',
+  }, OK_REVIEW_SEND_DEPS);
+
+  assert.equal(result.consentAction, 'review_requested');
+  assert.equal(result.reviewRequested, true);
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+  assert.equal(contact.sms_consent, 1, 'REVIEW still grants SMS consent after the template was renamed');
+  assert.equal(contact.sms_consent_source, 'Inbound SMS');
+
+  const sendOutcome = await result.reviewBookingLinkPromise;
+  assert.equal(sendOutcome.ok, true, 'the automated booking-link reply still fires after the template was renamed');
+
+  const detail = getClientDetail(db, client.contact.id);
+  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_BOOKING_URL));
+  assert.equal(bookingReplies.length, 1);
 });
 
 test('REVIEW is matched case-insensitively and tolerates surrounding whitespace ("Review", "review", " REVIEW ")', () => {

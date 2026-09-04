@@ -70,10 +70,61 @@ const EXISTING_CLIENT_SMS_TEMPLATES = [
 ];
 const DEFAULT_SMS_TEMPLATE_KEY = EXISTING_CLIENT_SMS_TEMPLATES[0].templateKey;
 
-function smsTemplateEntry(templateKey) {
-  const entry = EXISTING_CLIENT_SMS_TEMPLATES.find(t => t.templateKey === templateKey);
+// ─── Template Manager support (2026-09-12) ─────────────────────────────────
+// Lets crm/lib/templateManagerService.js (and this module's own send/
+// eligibility functions below) resolve a template's CURRENT effective
+// label/body(/subject) -- either the code-defined default from
+// crm/config/templates.js, or a saved override/custom row from the
+// crm_templates table (crm/db/database.js) if one exists -- without ever
+// touching template_key or sms_message_type, the stable identifiers
+// dedup (checkReconnectionSmsEligibility below) and inbound keyword
+// automation (crm/lib/inboundSmsService.js, keyed off message TEXT, never
+// off any template at all) depend on. Renaming/rewording a template here
+// can therefore never change which template a send counts against, or
+// which inbound automation applies to a reply.
+
+// A template_key already listed in EXISTING_CLIENT_SMS_TEMPLATES/
+// EXISTING_CLIENT_EMAIL_TEMPLATES is a built-in; any OTHER template_key
+// found in crm_templates is a genuinely new, user-created one.
+function staticTemplateKeys() {
+  return new Set([...EXISTING_CLIENT_SMS_TEMPLATES, ...EXISTING_CLIENT_EMAIL_TEMPLATES].map(t => t.templateKey));
+}
+
+function loadTemplateOverride(db, templateKey, channel) {
+  return db.prepare(`
+    SELECT * FROM crm_templates WHERE template_key = ? AND brand_id = 'prosperity' AND channel = ? AND archived_at IS NULL
+  `).get(templateKey, channel) || null;
+}
+
+function loadCustomTemplateRows(db, channel) {
+  const staticKeys = staticTemplateKeys();
+  return db.prepare(`
+    SELECT * FROM crm_templates WHERE brand_id = 'prosperity' AND channel = ? AND archived_at IS NULL ORDER BY id ASC
+  `).all(channel).filter(r => !staticKeys.has(r.template_key));
+}
+
+// The full SMS/email template REGISTRY (which templateKeys exist and are
+// sendable) -- the built-in list plus any custom templates created via the
+// Template Manager. Still exactly one entry per template_key; a custom
+// template can never collide with or replace a built-in one (see
+// crm/lib/templateManagerService.js's generateTemplateKey).
+function getSmsTemplateRegistry(db) {
+  const custom = loadCustomTemplateRows(db, 'sms').map(r => ({ templateKey: r.template_key, label: r.label, smsMessageType: r.sms_message_type || r.template_key }));
+  return [...EXISTING_CLIENT_SMS_TEMPLATES, ...custom];
+}
+function getEmailTemplateRegistry(db) {
+  const custom = loadCustomTemplateRows(db, 'email').map(r => ({ templateKey: r.template_key, label: r.label }));
+  return [...EXISTING_CLIENT_EMAIL_TEMPLATES, ...custom];
+}
+
+function smsTemplateEntry(db, templateKey) {
+  const entry = getSmsTemplateRegistry(db).find(t => t.templateKey === templateKey);
   if (!entry) throw new Error(`existingClientOutreach: unknown SMS templateKey '${templateKey}'`);
-  return entry;
+  // label may have been renamed via the Template Manager -- reflect that
+  // wherever this entry's label is shown (e.g. an "already sent" message),
+  // without ever touching templateKey/smsMessageType.
+  const override = loadTemplateOverride(db, templateKey, 'sms');
+  return override ? { ...entry, label: override.label } : entry;
 }
 
 // Mirrors EXISTING_CLIENT_SMS_TEMPLATES exactly, for the email composer's
@@ -105,14 +156,24 @@ function isExistingClient(contact) {
 // filled in per-recipient (see fillFirstName below); {{office_phone}} and
 // {{booking_link}} are the same for everyone, so the UI substitutes those
 // once, before display.
-function getReconnectionTemplates() {
-  const smsTemplates = EXISTING_CLIENT_SMS_TEMPLATES.map(entry => {
+//
+// Each template's label/body(/subject) prefers a saved crm_templates
+// override (Template Manager) over the code-defined default in
+// crm/config/templates.js -- so a rename or reword made there appears here
+// immediately, exactly what the Existing Client Outreach composer's
+// Template dropdown reads.
+function getReconnectionTemplates(db) {
+  const smsTemplates = getSmsTemplateRegistry(db).map(entry => {
+    const override = loadTemplateOverride(db, entry.templateKey, 'sms');
+    if (override) return { templateKey: entry.templateKey, label: override.label, body: override.body };
     const tmpl = getTemplate('prosperity', entry.templateKey);
-    return { templateKey: entry.templateKey, label: entry.label, body: tmpl.body };
+    return { templateKey: entry.templateKey, label: entry.label, body: tmpl ? tmpl.body : '' };
   });
-  const emailTemplates = EXISTING_CLIENT_EMAIL_TEMPLATES.map(entry => {
+  const emailTemplates = getEmailTemplateRegistry(db).map(entry => {
+    const override = loadTemplateOverride(db, entry.templateKey, 'email');
+    if (override) return { templateKey: entry.templateKey, label: override.label, subject: override.subject, body: override.body };
     const tmpl = getTemplate('prosperity', entry.templateKey);
-    return { templateKey: entry.templateKey, label: entry.label, subject: tmpl.subject, body: tmpl.text };
+    return { templateKey: entry.templateKey, label: entry.label, subject: tmpl ? tmpl.subject : '', body: tmpl ? tmpl.text : '' };
   });
   return {
     smsTemplates,
@@ -156,7 +217,7 @@ function checkReconnectionSmsEligibility(db, contact, templateKey = DEFAULT_SMS_
   const base = checkReconnectionSmsBaseEligibility(contact);
   if (!base.eligible) return base;
 
-  const entry = smsTemplateEntry(templateKey);
+  const entry = smsTemplateEntry(db, templateKey);
   const alreadySent = !!db.prepare(`
     SELECT 1 FROM sms_messages WHERE contact_id = ? AND message_type = ? AND status != 'failed' LIMIT 1
   `).get(contact.id, entry.smsMessageType);
@@ -175,7 +236,7 @@ function checkReconnectionSmsEligibility(db, contact, templateKey = DEFAULT_SMS_
 // compatibility) selects which EXISTING_CLIENT_SMS_TEMPLATES entry this
 // send counts against for "already sent" dedup/logging.
 async function sendReconnectionSms(db, { contactId, message, confirmResend = false, templateKey = DEFAULT_SMS_TEMPLATE_KEY }, deps = {}) {
-  const entry = smsTemplateEntry(templateKey);
+  const entry = smsTemplateEntry(db, templateKey);
   const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
   const check = checkReconnectionSmsEligibility(db, contact, templateKey);
   if (!check.eligible && !(check.code === 'already_sent' && confirmResend)) {
@@ -300,6 +361,9 @@ module.exports = {
   PROSPERITY_LIFE_INSURANCE_BOOKING_URL,
   isExistingClient,
   getReconnectionTemplates,
+  getSmsTemplateRegistry,
+  getEmailTemplateRegistry,
+  loadTemplateOverride,
   fillFirstName,
   checkReconnectionSmsBaseEligibility,
   checkReconnectionSmsEligibility,

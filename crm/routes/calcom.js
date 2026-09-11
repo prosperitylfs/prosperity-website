@@ -22,6 +22,7 @@ const { sendRetirementIntakeSms } = require('../lib/retirementIntakeSms');
 const { sendAppointmentConfirmationSms } = require('../lib/appointmentConfirmationSms');
 const { normalizeEmail } = require('../lib/leadNormalize');
 const { resolveContactBrand, stageUnresolvedIntake } = require('../lib/caseMatching');
+const { extractAttributionFromCalcomPayload, applyFirstTouchAttribution } = require('../lib/marketingAttribution');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -558,6 +559,44 @@ async function handleCreatedOrRescheduled(event, payload) {
   // question's label is the only reliable signal available.
   const bookingBrand = inferBookingBrand(responses);
 
+  // TEMP DIAGNOSTIC (2026-09-11) -- remove once a real Insurance Lady
+  // BOOKING_CREATED webhook has confirmed where utm_source etc. actually
+  // arrive: payload.metadata (Cal.com's documented mechanism, unconfirmed
+  // against our live account) or payload.responses (this codebase's own
+  // proven mechanism, used as a fallback by
+  // crm/lib/marketingAttribution.js). Fires ONLY for a booking already
+  // identified as Insurance Lady via the SAME signal already used for
+  // brand/consent above -- never for Prosperity bookings. Never affects
+  // booking processing either way -- this is a standalone console.log with
+  // no control flow, before/independent of everything else in this
+  // handler, so an absent/empty/malformed metadata or responses object
+  // logs an empty result and nothing else changes.
+  //
+  // Logs ONLY the specific attribution field names/values (the same 8 keys
+  // crm/lib/marketingAttribution.js looks for) -- never the raw metadata
+  // object wholesale and never full payload.responses values, which
+  // include the attendee's name/email/phone. No secrets, tokens, or other
+  // PII are read or logged by this block. Check Render logs after the next
+  // real Insurance Lady booking (no need to request a new test booking --
+  // Jennifer/Retell already creates these in the normal course of
+  // business) for a line starting "[TEMP DIAGNOSTIC]", then remove this
+  // block.
+  if (bookingBrand === 'insurance-lady') {
+    const metadata = (payload.metadata && typeof payload.metadata === 'object') ? payload.metadata : {};
+    const ATTRIBUTION_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'referrer', 'landing_page', 'first_touch_at'];
+    const fromMetadata = Object.fromEntries(ATTRIBUTION_KEYS.map(k => [k, metadata[k] ?? null]));
+    const fromResponses = Object.fromEntries(ATTRIBUTION_KEYS.map(k => {
+      const entry = responses[k];
+      const value = entry && entry.value !== undefined ? entry.value : entry;
+      return [k, value !== undefined ? toSafeString(value) : null];
+    }));
+    console.log(`[TEMP DIAGNOSTIC] Cal.com Insurance Lady booking ${uid} -- attribution field check:`, JSON.stringify({
+      hasMetadataObject: typeof payload.metadata === 'object' && payload.metadata !== null,
+      fromMetadata,
+      fromResponses,
+    }));
+  }
+
   const baseNotes = payload.additionalNotes
     || responses.notes?.value
     || responses.message?.value
@@ -727,6 +766,18 @@ async function handleCreatedOrRescheduled(event, payload) {
     console.log(`Cal.com: matched existing contact #${contact.id} — ${fullName}`);
   }
 
+  // ── First-touch marketing attribution (Insurance Lady) ─────────────────────
+  // Safe to call unconditionally for every booking, new or matched contact:
+  // extractAttributionFromCalcomPayload returns null when the payload carries
+  // none, and applyFirstTouchAttribution only ever fills currently-NULL
+  // columns -- a contact with attribution already on file (from an earlier
+  // visit/booking) is never touched again, and Cal.com is never written
+  // into these columns (see appointments.conversion_source below for the
+  // separate, non-overwriting record of Cal.com as the booking CHANNEL).
+  // See crm/lib/marketingAttribution.js's own header comment for the full
+  // design and the still-open payload.metadata vs payload.responses question.
+  applyFirstTouchAttribution(db, contact.id, extractAttributionFromCalcomPayload(payload));
+
   // ── Link contact to brand (contact_brands), only when reliably known ──────
   // Reuses the existing contact_brands mechanism unchanged (crm/lib/caseMatching.js's
   // resolveContactBrand: idempotent INSERT OR IGNORE, keyed on the
@@ -780,6 +831,7 @@ async function handleCreatedOrRescheduled(event, payload) {
         notes           = @notes,
         cal_booking_uid = @cal_booking_uid,
         booking_brand   = COALESCE(booking_brand, @booking_brand),
+        conversion_source = COALESCE(conversion_source, @conversion_source),
         updated_at      = @updated_at
       WHERE id = @id
     `).run({
@@ -792,6 +844,7 @@ async function handleCreatedOrRescheduled(event, payload) {
       notes:           notes    || null,
       cal_booking_uid: uid,
       booking_brand:   bookingBrand,
+      conversion_source: 'Cal.com',
       updated_at:      now,
       id:              existing.id,
     });
@@ -800,9 +853,9 @@ async function handleCreatedOrRescheduled(event, payload) {
   } else {
     const r = db.prepare(`
       INSERT INTO appointments
-        (contact_id, appt_type, appt_datetime, duration_min, status, location, notes, cal_booking_uid, booking_brand)
+        (contact_id, appt_type, appt_datetime, duration_min, status, location, notes, cal_booking_uid, booking_brand, conversion_source)
       VALUES
-        (@contact_id, @appt_type, @appt_datetime, @duration_min, @status, @location, @notes, @cal_booking_uid, @booking_brand)
+        (@contact_id, @appt_type, @appt_datetime, @duration_min, @status, @location, @notes, @cal_booking_uid, @booking_brand, @conversion_source)
     `).run({
       contact_id:      contact.id,
       appt_type:       apptType,
@@ -813,6 +866,7 @@ async function handleCreatedOrRescheduled(event, payload) {
       notes:           notes    || null,
       cal_booking_uid: uid,
       booking_brand:   bookingBrand,
+      conversion_source: 'Cal.com',
     });
     apptId = r.lastInsertRowid;
     console.log(`Cal.com: created appointment #${apptId} (${apptType})`);

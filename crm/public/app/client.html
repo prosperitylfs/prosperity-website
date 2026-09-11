@@ -1072,14 +1072,36 @@ async function render() {
     `;
   }
 
+  // "Original source/medium/campaign/content/term/referrer/landing page/
+  // first touch" are the contact's FIRST-TOUCH marketing attribution
+  // (crm/lib/marketingAttribution.js) -- captured once, on the visitor's
+  // first InsuranceLady-v4 page view, and never overwritten by a later
+  // visit or booking. "Conversion source" is intentionally separate: which
+  // CHANNEL the appointment was actually booked through (Cal.com, or blank
+  // for a manually-created appointment) -- Cal.com must never be mistaken
+  // for where the client originally came from. Every value here is already
+  // formatted server-side (utmSourceLabel etc.) so this never renders raw
+  // UTM syntax.
   function marketingHtml() {
-    const fields = ['Original company', 'Intake channel', 'Landing page', 'UTM source', 'UTM medium', 'UTM campaign', 'Click identifier', 'First-touch date'];
+    const conversionAppt = [...detail.appointments].reverse().find(a => a.conversion_source);
+    const notRecorded = '<span class="text-faint">Not recorded</span>';
+    const rows = [
+      ['Original company', primaryBrand ? CrmApp.companyBadge(primaryBrand.brandId, primaryBrand.brandShortName) : '<span class="text-faint">Not yet established</span>'],
+      ['Intake channel', CrmApp.escapeHtml(c.originalSource || 'Not recorded')],
+      ['Original source', c.utmSourceLabel ? CrmApp.escapeHtml(c.utmSourceLabel) : notRecorded],
+      ['Medium', c.utmMediumLabel ? CrmApp.escapeHtml(c.utmMediumLabel) : notRecorded],
+      ['Campaign', c.utmCampaignLabel ? CrmApp.escapeHtml(c.utmCampaignLabel) : notRecorded],
+      ['Content', c.utmContentLabel ? CrmApp.escapeHtml(c.utmContentLabel) : notRecorded],
+      ['Term', c.utmTermLabel ? CrmApp.escapeHtml(c.utmTermLabel) : notRecorded],
+      ['Referrer', c.referrer ? CrmApp.escapeHtml(c.referrer) : notRecorded],
+      ['Landing page', c.landingPage ? CrmApp.escapeHtml(c.landingPage) : notRecorded],
+      ['First touch', c.firstTouchAt ? CrmApp.friendlyDateTime(c.firstTouchAt) : notRecorded],
+      ['Conversion source', conversionAppt ? CrmApp.escapeHtml(conversionAppt.conversion_source) : notRecorded],
+    ];
     return `<div class="card"><div class="card-body">
-      <div class="text-faint" style="margin-bottom:12px;">Detailed marketing attribution (landing page, UTM parameters, click identifiers) is not connected in this checkpoint — this section is the reserved location for it once that integration is built.</div>
+      <div class="text-faint" style="margin-bottom:12px;">Original marketing source is captured on the client's first visit and never overwritten by a later visit or booking. Conversion source (how the appointment was booked) is tracked separately and never replaces it.</div>
       <dl class="kv-list">
-        <dt>Original company</dt><dd>${primaryBrand ? CrmApp.companyBadge(primaryBrand.brandId, primaryBrand.brandShortName) : '<span class="text-faint">Not yet established</span>'}</dd>
-        <dt>Intake channel</dt><dd>${CrmApp.escapeHtml(c.originalSource || 'Not recorded')}</dd>
-        ${fields.slice(2).map(f => `<dt>${f}</dt><dd class="text-faint">Not yet available</dd>`).join('')}
+        ${rows.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join('')}
       </dl>
     </div></div>`;
   }

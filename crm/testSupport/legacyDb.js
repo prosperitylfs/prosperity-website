@@ -49,6 +49,15 @@ function createLegacyDb(dbPath = ':memory:') {
       sms_consent_source   TEXT,
       sms_consent_at       DATETIME,
       sms_consent_notes    TEXT,
+      -- Insurance Lady first-touch marketing attribution (crm/db/database.js)
+      utm_source           TEXT,
+      utm_medium           TEXT,
+      utm_campaign         TEXT,
+      utm_content          TEXT,
+      utm_term             TEXT,
+      referrer             TEXT,
+      landing_page         TEXT,
+      first_touch_at       DATETIME,
       -- "Complete contact profile" fields (crm/db/database.js), added for
       -- the Edit Client expansion -- mirrors that file's addCol() calls.
       home_phone               TEXT,
@@ -182,6 +191,7 @@ function createLegacyDb(dbPath = ':memory:') {
       notes         TEXT,
       cal_booking_uid TEXT,
       booking_brand TEXT,
+      conversion_source TEXT,
       created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE

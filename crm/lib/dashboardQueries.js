@@ -5,6 +5,7 @@
 // source of truth from Checkpoint C — never duplicated here.
 
 const { publicBrandIdentity } = require('../config/brands');
+const { humanizeSlug, formatUtmSourceLabel } = require('./marketingAttribution');
 
 function contactDisplayName(contact) {
   const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ').trim();
@@ -797,6 +798,24 @@ function getClientDetail(db, contactId) {
         annuityPremium: contact.annuity_premium ?? null,
       },
       originalSource: contact.lead_source || null,
+      // Insurance Lady first-touch marketing attribution -- raw values plus
+      // pre-formatted human-readable labels (crm/lib/marketingAttribution.js),
+      // so crm/public/app/client.html's Marketing tab never has to render
+      // raw UTM syntax itself. See that module's header comment for the
+      // full first-touch design.
+      utmSource: contact.utm_source || null,
+      utmSourceLabel: formatUtmSourceLabel(contact.utm_source),
+      utmMedium: contact.utm_medium || null,
+      utmMediumLabel: humanizeSlug(contact.utm_medium),
+      utmCampaign: contact.utm_campaign || null,
+      utmCampaignLabel: humanizeSlug(contact.utm_campaign),
+      utmContent: contact.utm_content || null,
+      utmContentLabel: humanizeSlug(contact.utm_content),
+      utmTerm: contact.utm_term || null,
+      utmTermLabel: humanizeSlug(contact.utm_term),
+      referrer: contact.referrer || null,
+      landingPage: contact.landing_page || null,
+      firstTouchAt: contact.first_touch_at ? toIsoUtc(contact.first_touch_at) : null,
       generalNotes: contact.general_notes || null,
       leadStatus: contact.lead_status,
       leadType: contact.lead_type || null,
@@ -936,7 +955,50 @@ function getReportsSummary(db) {
     companyConflict: getCompanyConflictQueue(db).length,
   };
 
-  return { clientsByCompany, activeCasesByCompany, policiesByCompanyStatus, tasksDue, tasksOverdue, commsByStatus, reviewTotals };
+  // Insurance Lady marketing attribution (2026-09-11) -- deliberately just
+  // simple GROUP BY counts over the existing contacts.utm_* columns
+  // (crm/lib/marketingAttribution.js), not a new analytics system. Every
+  // Prosperity contact has utm_source = NULL (nothing writes it for that
+  // brand), so these naturally show only attributed Insurance Lady leads
+  // without needing a brand filter. Labels are pre-formatted server-side
+  // (formatUtmSourceLabel/humanizeSlug) for the same reason client.html's
+  // Marketing tab is -- never raw UTM syntax in the UI.
+  const leadsByUtmSource = db.prepare(`
+    SELECT utm_source, COUNT(*) AS n
+    FROM contacts
+    WHERE utm_source IS NOT NULL AND archived_at IS NULL
+    GROUP BY utm_source
+    ORDER BY n DESC
+  `).all().map(r => ({ utmSource: r.utm_source, label: formatUtmSourceLabel(r.utm_source), n: r.n }));
+
+  const leadsByUtmCampaign = db.prepare(`
+    SELECT utm_campaign, COUNT(*) AS n
+    FROM contacts
+    WHERE utm_campaign IS NOT NULL AND archived_at IS NULL
+    GROUP BY utm_campaign
+    ORDER BY n DESC
+  `).all().map(r => ({ utmCampaign: r.utm_campaign, label: humanizeSlug(r.utm_campaign), n: r.n }));
+
+  // "Which leads ultimately booked through Cal.com?" -- total, and broken
+  // down by original source, using appointments.conversion_source (the
+  // booking CHANNEL) joined back to the contact's own first-touch source.
+  const bookedViaCalcom = db.prepare(`
+    SELECT COUNT(DISTINCT contact_id) AS n FROM appointments WHERE conversion_source = 'Cal.com'
+  `).get().n;
+
+  const bookedViaCalcomByUtmSource = db.prepare(`
+    SELECT ct.utm_source, COUNT(DISTINCT a.contact_id) AS n
+    FROM appointments a
+    JOIN contacts ct ON ct.id = a.contact_id
+    WHERE a.conversion_source = 'Cal.com' AND ct.utm_source IS NOT NULL
+    GROUP BY ct.utm_source
+    ORDER BY n DESC
+  `).all().map(r => ({ utmSource: r.utm_source, label: formatUtmSourceLabel(r.utm_source), n: r.n }));
+
+  return {
+    clientsByCompany, activeCasesByCompany, policiesByCompanyStatus, tasksDue, tasksOverdue, commsByStatus, reviewTotals,
+    leadsByUtmSource, leadsByUtmCampaign, bookedViaCalcom, bookedViaCalcomByUtmSource,
+  };
 }
 
 // Prioritized, openable work items — every item names a concrete next step

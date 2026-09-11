@@ -73,6 +73,34 @@ async function render() {
       <div class="card-body"><dl class="kv-list">${s.commsByStatus.map(c => `<dt>${c.status}</dt><dd>${c.n}</dd>`).join('')}</dl></div>
     </div>
 
+    <div class="grid grid-2" style="margin-top:16px;">
+      <div class="card"><div class="card-header"><h2>Leads by Original Source</h2></div>
+        <div class="card-body">
+          ${s.leadsByUtmSource.length
+            ? `<dl class="kv-list">${s.leadsByUtmSource.map(r => `<dt>${CrmApp.escapeHtml(r.label)}</dt><dd>${r.n}</dd>`).join('')}</dl>`
+            : '<div class="empty-state">No attributed leads yet.</div>'}
+        </div>
+      </div>
+      <div class="card"><div class="card-header"><h2>Leads by Campaign</h2></div>
+        <div class="card-body">
+          ${s.leadsByUtmCampaign.length
+            ? `<dl class="kv-list">${s.leadsByUtmCampaign.map(r => `<dt>${CrmApp.escapeHtml(r.label)}</dt><dd>${r.n}</dd>`).join('')}</dl>`
+            : '<div class="empty-state">No attributed leads yet.</div>'}
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header"><h2>Booked Through Cal.com</h2></div>
+      <div class="card-body">
+        <dl class="kv-list"><dt>Total</dt><dd>${s.bookedViaCalcom}</dd></dl>
+        ${s.bookedViaCalcomByUtmSource.length ? `
+          <div class="text-faint" style="margin:10px 0 6px;">By original source</div>
+          <dl class="kv-list">${s.bookedViaCalcomByUtmSource.map(r => `<dt>${CrmApp.escapeHtml(r.label)}</dt><dd>${r.n}</dd>`).join('')}</dl>
+        ` : ''}
+      </div>
+    </div>
+
     <p class="text-faint" style="margin-top:16px;">This report intentionally shows only counts of real, stored records — no projected commissions, renewal estimates, or lead-temperature scoring, since no reliable data for those exists yet.</p>
   `;
 }

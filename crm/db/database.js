@@ -321,6 +321,15 @@ try {
 // inferBookingBrand's own existing default.
 addCol('appointments', 'booking_brand', 'TEXT');
 
+// Conversion/booking CHANNEL (2026-09-11) -- distinct from booking_brand
+// above (which brand) and from contacts.utm_source below (original
+// marketing acquisition source). 'Cal.com' for every appointment created
+// via crm/routes/calcom.js's webhook; null for one created manually
+// (crm/routes/appointments.js). Never overwrites the original marketing
+// source on the CONTACT -- see crm/lib/marketingAttribution.js's own
+// header comment for the full first-touch design.
+addCol('appointments', 'conversion_source', 'TEXT');
+
 // Links an sms_messages row back to the appointment it's about (reminders,
 // confirmation, reschedule notice) -- NULL for manual/STOP-HELP/missed-call
 // SMS, which aren't about any specific appointment. message_type
@@ -434,6 +443,28 @@ addCol('contacts', 'relationship_type',   'TEXT');
 addCol('contacts', 'sms_consent_source',  'TEXT');
 addCol('contacts', 'sms_consent_at',      'DATETIME');
 addCol('contacts', 'sms_consent_notes',   'TEXT');
+
+// Insurance Lady FIRST-TOUCH marketing attribution (2026-09-11). Captured
+// on the InsuranceLady-v4 website (outside this repo) on the visitor's
+// FIRST page view and appended to the outbound Cal.com booking link;
+// crm/lib/marketingAttribution.js reads it off the Cal.com webhook payload
+// (crm/routes/calcom.js) and writes it here. All nullable/additive, and
+// enforced first-touch ONLY IN APPLICATION CODE (applyFirstTouchAttribution
+// below) -- a value already on file here is NEVER overwritten by a later
+// visit, webhook, or booking, and Cal.com itself is never written into
+// these columns (Cal.com is a CONVERSION channel, recorded separately on
+// appointments.conversion_source above -- never a marketing source). See
+// crm/lib/marketingAttribution.js's own header comment for the full design,
+// including the still-unconfirmed question of whether Cal.com delivers
+// these via payload.metadata or payload.responses.
+addCol('contacts', 'utm_source',     'TEXT');
+addCol('contacts', 'utm_medium',     'TEXT');
+addCol('contacts', 'utm_campaign',   'TEXT');
+addCol('contacts', 'utm_content',    'TEXT');
+addCol('contacts', 'utm_term',       'TEXT');
+addCol('contacts', 'referrer',       'TEXT');
+addCol('contacts', 'landing_page',   'TEXT');
+addCol('contacts', 'first_touch_at', 'DATETIME');
 
 // Template Manager (crm/lib/templateManagerService.js): lets Loretta edit
 // an Existing Client Outreach template's display name/body(/subject) from

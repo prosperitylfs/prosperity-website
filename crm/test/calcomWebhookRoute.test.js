@@ -1777,3 +1777,165 @@ test('a possible-duplicate booking is counted in the dashboard "Verification Nee
   const existingAfterMerge = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existing.lastInsertRowid);
   assert.equal(existingAfterMerge.phone_e164, newPhone, 'Renee Jones\'s phone updates to the number from the new booking');
 });
+
+// ── Insurance Lady first-touch marketing attribution (2026-09-11) ────────
+// crm/lib/marketingAttribution.js. Insurance Lady identity is established
+// the SAME way every other test in this file already does: the standardized
+// consent question, worded with "Insurance Lady LLC" (see inferBookingBrand/
+// inferBookingBrandStrict in crm/routes/calcom.js).
+
+function insuranceLadyConsent(answer = 'Text and email') {
+  return responseEntry(
+    'May Insurance Lady LLC send you appointment confirmations, reminders, and related communications by text message and email? Message and data rates may apply.',
+    answer
+  );
+}
+
+test('first-touch attribution is stored on a new contact via payload.metadata', async () => {
+  const email = 'attr-metadata-' + Date.now() + '@example.com';
+  const uid = 'attr-metadata-' + Date.now();
+  const payload = basePayload({
+    uid, responses: { ...lifeInsuranceResponses({ email: responseEntry('Your email', email) }), consent: insuranceLadyConsent() },
+  });
+  payload.payload.metadata = {
+    utm_source: 'tiktok', utm_medium: 'social', utm_campaign: 'liam-2026',
+    utm_content: 'test-video', utm_term: 'life insurance',
+    referrer: 'https://tiktok.com/@insuranceladyllc', landing_page: 'https://insuranceladyllc.com/life-insurance',
+    first_touch_at: '2026-09-09T14:00:00.000Z',
+  };
+  await postWebhook(payload);
+
+  const contact = getContact(email);
+  assert.equal(contact.utm_source, 'tiktok');
+  assert.equal(contact.utm_medium, 'social');
+  assert.equal(contact.utm_campaign, 'liam-2026');
+  assert.equal(contact.utm_content, 'test-video');
+  assert.equal(contact.utm_term, 'life insurance');
+  assert.equal(contact.referrer, 'https://tiktok.com/@insuranceladyllc');
+  assert.equal(contact.landing_page, 'https://insuranceladyllc.com/life-insurance');
+  assert.equal(contact.first_touch_at, '2026-09-09T14:00:00.000Z');
+});
+
+test('first-touch attribution is stored via payload.responses (custom booking question) when metadata is absent', async () => {
+  const email = 'attr-responses-' + Date.now() + '@example.com';
+  const uid = 'attr-responses-' + Date.now();
+  const payload = basePayload({
+    uid,
+    responses: {
+      ...lifeInsuranceResponses({ email: responseEntry('Your email', email) }),
+      consent: insuranceLadyConsent(),
+      utm_source: responseEntry('utm_source', 'instagram'),
+      utm_medium: responseEntry('utm_medium', 'social'),
+    },
+  });
+  await postWebhook(payload);
+
+  const contact = getContact(email);
+  assert.equal(contact.utm_source, 'instagram');
+  assert.equal(contact.utm_medium, 'social');
+});
+
+test('TikTok survives a Cal.com booking end-to-end', async () => {
+  const email = 'attr-tiktok-' + Date.now() + '@example.com';
+  const uid = 'attr-tiktok-' + Date.now();
+  const payload = basePayload({ uid, responses: { ...lifeInsuranceResponses({ email: responseEntry('Your email', email) }), consent: insuranceLadyConsent() } });
+  payload.payload.metadata = { utm_source: 'tiktok', utm_medium: 'social', utm_campaign: 'liam-2026' };
+  await postWebhook(payload);
+  assert.equal(getContact(email).utm_source, 'tiktok');
+});
+
+test('Facebook (personal and business) survives a Cal.com booking end-to-end', async () => {
+  for (const source of ['facebook-personal', 'facebook-business']) {
+    const email = `attr-${source}-` + Date.now() + '@example.com';
+    const uid = `attr-${source}-` + Date.now();
+    const payload = basePayload({ uid, responses: { ...lifeInsuranceResponses({ email: responseEntry('Your email', email) }), consent: insuranceLadyConsent() } });
+    payload.payload.metadata = { utm_source: source, utm_medium: 'social' };
+    await postWebhook(payload);
+    assert.equal(getContact(email).utm_source, source);
+  }
+});
+
+test('Instagram survives a Cal.com booking end-to-end', async () => {
+  const email = 'attr-instagram-' + Date.now() + '@example.com';
+  const uid = 'attr-instagram-' + Date.now();
+  const payload = basePayload({ uid, responses: { ...lifeInsuranceResponses({ email: responseEntry('Your email', email) }), consent: insuranceLadyConsent() } });
+  payload.payload.metadata = { utm_source: 'instagram', utm_medium: 'social' };
+  await postWebhook(payload);
+  assert.equal(getContact(email).utm_source, 'instagram');
+});
+
+test('a later, different booking for the same contact does NOT overwrite first-touch attribution', async () => {
+  const email = 'attr-nooverwrite-' + Date.now() + '@example.com';
+  const uid1 = 'attr-nooverwrite-1-' + Date.now();
+  const uid2 = 'attr-nooverwrite-2-' + Date.now();
+
+  const first = basePayload({ uid: uid1, responses: { ...lifeInsuranceResponses({ email: responseEntry('Your email', email) }), consent: insuranceLadyConsent() } });
+  first.payload.metadata = { utm_source: 'tiktok', utm_medium: 'social', utm_campaign: 'liam-2026' };
+  await postWebhook(first);
+
+  // Same person books again later, this time arriving with different
+  // attribution -- e.g. a different campaign click.
+  const second = basePayload({ uid: uid2, responses: { ...lifeInsuranceResponses({ email: responseEntry('Your email', email) }), consent: insuranceLadyConsent() } });
+  second.payload.metadata = { utm_source: 'facebook-business', utm_medium: 'paid-social', utm_campaign: 'different-campaign' };
+  await postWebhook(second);
+
+  const contact = getContact(email);
+  assert.equal(contact.utm_source, 'tiktok', 'original first-touch source must survive the second, different booking');
+  assert.equal(contact.utm_campaign, 'liam-2026');
+  // Both appointments still belong to the same, single contact.
+  assert.equal(getAppointment(uid1).contact_id, getAppointment(uid2).contact_id);
+});
+
+test('Cal.com is recorded as the CONVERSION source on the appointment, and never overwrites the contact\'s original marketing source', async () => {
+  const email = 'attr-conversion-' + Date.now() + '@example.com';
+  const uid = 'attr-conversion-' + Date.now();
+  const payload = basePayload({ uid, responses: { ...lifeInsuranceResponses({ email: responseEntry('Your email', email) }), consent: insuranceLadyConsent() } });
+  payload.payload.metadata = { utm_source: 'tiktok' };
+  await postWebhook(payload);
+
+  const appt = getAppointment(uid);
+  assert.equal(appt.conversion_source, 'Cal.com', 'the appointment/booking record must show Cal.com as the conversion channel');
+  const contact = getContact(email);
+  assert.equal(contact.utm_source, 'tiktok', 'the contact\'s own original marketing source must never become "Cal.com"');
+});
+
+test('a booking with no attribution at all (no metadata, no utm_ responses) still processes normally -- existing contacts without attribution continue working', async () => {
+  const email = 'attr-none-' + Date.now() + '@example.com';
+  const uid = 'attr-none-' + Date.now();
+  const payload = basePayload({ uid, responses: { ...lifeInsuranceResponses({ email: responseEntry('Your email', email) }), consent: insuranceLadyConsent() } });
+  await postWebhook(payload);
+
+  const contact = getContact(email);
+  assert.ok(contact, 'the contact must still be created normally');
+  assert.equal(contact.utm_source, null);
+  const appt = getAppointment(uid);
+  assert.equal(appt.conversion_source, 'Cal.com', 'conversion_source is set regardless of whether attribution data is present');
+});
+
+test('a normal Prosperity booking (no Insurance Lady consent wording, no metadata) continues working exactly as before -- brand resolution unaffected', async () => {
+  const email = 'attr-prosperity-' + Date.now() + '@example.com';
+  const uid = 'attr-prosperity-' + Date.now();
+  await postWebhook(basePayload({ uid, eventTitle: 'Life Insurance Consultation', responses: lifeInsuranceResponses({ email: responseEntry('Your email', email) }) }));
+
+  const contact = getContact(email);
+  assert.ok(contact, 'contact must still be created');
+  assert.equal(contact.lead_type, 'Life Insurance Lead', 'existing lead-type classification must be unaffected');
+  assert.equal(contact.utm_source, null, 'no attribution data was sent, so nothing is fabricated');
+  const appt = getAppointment(uid);
+  assert.equal(appt.booking_brand, 'prosperity', 'brand resolution defaults to prosperity exactly as before');
+  assert.equal(appt.conversion_source, 'Cal.com');
+});
+
+test('company/brand resolution (contact_brands linking) remains correct for an Insurance Lady booking that also carries attribution', async () => {
+  const email = 'attr-brandlink-' + Date.now() + '@example.com';
+  const uid = 'attr-brandlink-' + Date.now();
+  const payload = basePayload({ uid, responses: { ...lifeInsuranceResponses({ email: responseEntry('Your email', email) }), consent: insuranceLadyConsent() } });
+  payload.payload.metadata = { utm_source: 'tiktok' };
+  await postWebhook(payload);
+
+  const contact = getContact(email);
+  const link = db.prepare(`
+    SELECT b.slug FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id WHERE cb.contact_id = ?
+  `).get(contact.id);
+  assert.equal(link && link.slug, 'insurance-lady', 'the existing contact_brands linking must still correctly resolve Insurance Lady');
+});

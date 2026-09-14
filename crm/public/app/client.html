@@ -578,6 +578,13 @@ async function render() {
     dialog.querySelector('#add-life-policy-cancel').addEventListener('click', () => dialog.close());
     dialog.querySelector('#add-life-policy-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const submitBtn = dialog.querySelector('#add-life-policy-form button[type="submit"]');
+      // Guards against an accidental double-click (or a slow network plus an
+      // impatient re-click) sending this request twice -- createPolicy has
+      // no dedup of its own, so two submits would otherwise create two
+      // policy rows (and, for a brand-new case, two cases).
+      if (submitBtn.disabled) return;
+      submitBtn.disabled = true;
       const fields = Object.fromEntries(new FormData(e.target).entries());
       const errorEl = dialog.querySelector('#add-life-policy-error');
       errorEl.textContent = '';
@@ -597,6 +604,7 @@ async function render() {
         reloadPage();
       } catch (err) {
         errorEl.textContent = err.message;
+        submitBtn.disabled = false;
       }
     });
   }
@@ -771,6 +779,12 @@ async function render() {
     dialog.querySelector('#policy-cancel').addEventListener('click', () => dialog.close());
     dialog.querySelector('#policy-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const submitBtn = dialog.querySelector('#policy-form button[type="submit"]');
+      // Same double-submit guard as addLifeInsurancePolicyModal above --
+      // createPolicy has no dedup of its own, so an accidental second
+      // submit would otherwise create a second policy row.
+      if (submitBtn.disabled) return;
+      submitBtn.disabled = true;
       const fields = Object.fromEntries(new FormData(e.target).entries());
       try {
         if (policyId) await CrmApp.postJSON(`/api/app/policies/${policyId}`, 'PATCH', fields);
@@ -780,6 +794,7 @@ async function render() {
         reloadPage();
       } catch (err) {
         dialog.querySelector('#policy-error').textContent = err.message;
+        submitBtn.disabled = false;
       }
     });
   }

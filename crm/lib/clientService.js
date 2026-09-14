@@ -16,6 +16,8 @@ const {
 } = require('./caseMatching');
 const { stageUnresolvedIntake } = require('./caseMatching');
 const { normalizePhone, normalizeEmail, toStringOrNull } = require('./leadNormalize');
+const { createCaseForClient } = require('./caseService');
+const { createPolicy } = require('./policyService');
 
 function getBrandRow(db, slug) {
   return db.prepare('SELECT * FROM brands WHERE slug = ?').get(slug);
@@ -75,6 +77,53 @@ function createClient(db, fields, actor) {
 
   const contactBrand = resolveContactBrand(db, { contactId: contact.id, brandId: brandRow.id });
   return { outcome: 'created', contact: db.prepare('SELECT * FROM contacts WHERE id = ?').get(contact.id), contactBrand };
+}
+
+// Add Client modal's optional "Policy Information" section (2026-09-14) --
+// this client's FIRST policy, entered at the same time as the client
+// itself, using the CRM's existing Cases -> Policies structure (never a
+// separate/parallel record, never stored only as notes). Wraps createClient
+// unchanged: identical behavior, identical return shape, when neither
+// carrier nor policyNumber is provided -- this is the only entry point
+// crm/routes/crmActions.js's POST /clients now uses, so "no policy info"
+// callers are completely unaffected.
+//
+// Runs as one transaction: if anything after createClient fails, the whole
+// operation (including the new contact/contact_brand rows) rolls back
+// rather than leaving an orphaned client with no policy that was actually
+// requested.
+//
+// Only fires for outcome === 'created' -- a 'company_conflict' result has
+// no active contact_brands link yet (the relationship itself is pending
+// review), so there is no company for a case to belong to; creating one
+// here would either throw (aborting the whole transaction, including the
+// contact that must still be staged for review) or require guessing a
+// company, neither of which is acceptable. Policy info entered alongside a
+// conflicting company is simply not created in that case -- exactly as
+// unusual/unrequested as the scenario itself.
+//
+// The case created to hold this policy is given NO product (Add Client has
+// no product field, and this section is intentionally just two fields) --
+// crm/lib/caseService.js's createCaseForClient already allows a null
+// product, and the case's title is set to the carrier name (or a generic
+// fallback) purely so it reads sensibly in the Cases list, never used for
+// classification.
+function createClientWithPolicy(db, fields, actor) {
+  const run = db.transaction(() => {
+    const result = createClient(db, fields, actor);
+    const carrier = toStringOrNull(fields.carrier);
+    const policyNumber = toStringOrNull(fields.policyNumber);
+    if ((carrier || policyNumber) && result.outcome === 'created') {
+      const newCase = createCaseForClient(db, {
+        contactId: result.contact.id, productId: null, title: carrier || 'Policy',
+      }, actor);
+      const policy = createPolicy(db, { caseId: newCase.id, carrier, policyNumber }, actor);
+      result.initialCase = newCase;
+      result.initialPolicy = policy;
+    }
+    return result;
+  });
+  return run();
 }
 
 // Explicit-tri-state boolean: undefined ("this field was never part of the
@@ -537,4 +586,4 @@ function requestCompanyChange(db, { contactId, requestedBrandSlug, reason, actor
   return unresolvedIntake;
 }
 
-module.exports = { createClient, updateClient, archiveClient, restoreClient, deleteClientPermanently, requestCompanyChange, RELATIONSHIP_TYPES };
+module.exports = { createClient, createClientWithPolicy, updateClient, archiveClient, restoreClient, deleteClientPermanently, requestCompanyChange, RELATIONSHIP_TYPES };

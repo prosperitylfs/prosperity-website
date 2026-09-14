@@ -51,7 +51,7 @@ function sendError(res, err) {
 function created(res) { res.__status = 201; return res; }
 
 // ── Clients ──────────────────────────────────────────────────────────────
-router.post('/clients', handle((req, res) => { created(res); return clientService.createClient(db, req.body, ACTOR); }));
+router.post('/clients', handle((req, res) => { created(res); return clientService.createClientWithPolicy(db, req.body, ACTOR); }));
 router.patch('/clients/:id', handle(req => clientService.updateClient(db, Number(req.params.id), req.body)));
 router.post('/clients/:id/archive', handle(req => clientService.archiveClient(db, Number(req.params.id), ACTOR)));
 router.post('/clients/:id/restore', handle(req => clientService.restoreClient(db, Number(req.params.id), ACTOR)));

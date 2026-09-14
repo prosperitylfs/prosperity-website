@@ -8,7 +8,7 @@ const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
 const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
 const { runRevenueMvpMigrations } = require('../db/migrateRevenueMvp');
-const { createClient, updateClient, archiveClient, restoreClient, deleteClientPermanently, requestCompanyChange, RELATIONSHIP_TYPES } = require('../lib/clientService');
+const { createClient, createClientWithPolicy, updateClient, archiveClient, restoreClient, deleteClientPermanently, requestCompanyChange, RELATIONSHIP_TYPES } = require('../lib/clientService');
 const { resolveContactBrand } = require('../lib/caseMatching');
 const { createCaseForClient } = require('../lib/caseService');
 const { createPolicy } = require('../lib/policyService');
@@ -82,6 +82,108 @@ test('creating a client with a valid company succeeds and creates one contact_br
   const { db, prosperityId } = setup();
   const result = createClient(db, {
     firstName: 'Nina', lastName: 'Ford', email: 'nina.ford@example.com', phone: '4145559911',
+    address: '12 Elm St', city: 'Racine', state: 'WI', zip: '53402', dateOfBirth: '1980-05-01',
+    originalSource: 'Referral', generalNotes: 'Prefers email', brandSlug: 'prosperity',
+  }, 'Loretta Stewart');
+  assert.equal(result.outcome, 'created');
+  assert.equal(result.contactBrand.brand_id, prosperityId);
+  assert.equal(result.contact.city, 'Racine');
+  assert.equal(result.contact.zip_code, '53402');
+  assert.equal(result.contact.lead_source, 'Referral');
+});
+
+// ── Add Client modal's optional "Policy Information" section (2026-09-14) ──
+
+test('1. createClientWithPolicy with no policy fields creates the client normally, with no policy or case record', () => {
+  const { db } = setup();
+  const result = createClientWithPolicy(db, {
+    firstName: 'Nopolicy', lastName: 'Client', email: 'nopolicy@example.com', brandSlug: 'prosperity',
+  }, 'Loretta Stewart');
+  assert.equal(result.outcome, 'created');
+  assert.equal(result.initialCase, undefined);
+  assert.equal(result.initialPolicy, undefined);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases WHERE contact_brand_id = ?').get(result.contactBrand.id).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies').get().n, 0);
+});
+
+test('2. createClientWithPolicy with carrier + policy number creates the client and a linked policy under the same company', () => {
+  const { db, prosperityId } = setup();
+  const result = createClientWithPolicy(db, {
+    firstName: 'Full', lastName: 'Policy', email: 'fullpolicy@example.com', brandSlug: 'prosperity',
+    carrier: 'State Farm', policyNumber: 'SF-12345',
+  }, 'Loretta Stewart');
+  assert.equal(result.outcome, 'created');
+  assert.ok(result.initialCase);
+  assert.ok(result.initialPolicy);
+  assert.equal(result.initialCase.contact_brand_id, result.contactBrand.id);
+
+  const cases = db.prepare('SELECT * FROM cases WHERE contact_brand_id = ?').all(result.contactBrand.id);
+  assert.equal(cases.length, 1, 'exactly one case, never a duplicate');
+  const policies = db.prepare('SELECT * FROM policies WHERE case_id = ?').all(cases[0].id);
+  assert.equal(policies.length, 1, 'exactly one policy, never a duplicate');
+  assert.equal(policies[0].carrier, 'State Farm');
+  assert.equal(policies[0].policy_number, 'SF-12345');
+
+  // The case's brand link must resolve back to the SAME company the client
+  // was created under.
+  const link = db.prepare('SELECT * FROM contact_brands WHERE id = ?').get(cases[0].contact_brand_id);
+  assert.equal(link.brand_id, prosperityId);
+});
+
+test('3. createClientWithPolicy with carrier only still creates the client and preserves the carrier on a policy record', () => {
+  const { db } = setup();
+  const result = createClientWithPolicy(db, {
+    firstName: 'Carrier', lastName: 'Only', email: 'carrieronly@example.com', brandSlug: 'insurance-lady',
+    carrier: 'Mutual of Omaha',
+  }, 'Loretta Stewart');
+  assert.equal(result.outcome, 'created');
+  assert.ok(result.initialPolicy);
+  assert.equal(result.initialPolicy.carrier, 'Mutual of Omaha');
+  assert.equal(result.initialPolicy.policy_number, null);
+});
+
+test('4. createClientWithPolicy with policy number only still creates the client and preserves the policy number on a policy record', () => {
+  const { db } = setup();
+  const result = createClientWithPolicy(db, {
+    firstName: 'Number', lastName: 'Only', email: 'numberonly@example.com', brandSlug: 'insurance-lady',
+    policyNumber: 'PN-999',
+  }, 'Loretta Stewart');
+  assert.equal(result.outcome, 'created');
+  assert.ok(result.initialPolicy);
+  assert.equal(result.initialPolicy.carrier, null);
+  assert.equal(result.initialPolicy.policy_number, 'PN-999');
+});
+
+test('createClientWithPolicy never creates a case/policy for a company_conflict outcome, even when policy fields are provided', () => {
+  const { db } = setup();
+  createClient(db, { firstName: 'Existing', lastName: 'Person', email: 'conflict-policy@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const result = createClientWithPolicy(db, {
+    firstName: 'Existing', lastName: 'Person', email: 'conflict-policy@example.com', brandSlug: 'insurance-lady',
+    carrier: 'Some Carrier', policyNumber: 'SC-1',
+  }, 'Loretta Stewart');
+  assert.equal(result.outcome, 'company_conflict');
+  assert.equal(result.initialCase, undefined);
+  assert.equal(result.initialPolicy, undefined);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies').get().n, 0, 'no policy must be created for a staged-for-review contact');
+});
+
+test('createClientWithPolicy rolls back the whole operation if policy creation fails partway through (transactional safety)', () => {
+  const { db } = setup();
+  // Force a failure: monkeypatch is unnecessary here -- an impossible
+  // caseId scenario is enough to prove atomicity, achieved by dropping the
+  // policies table so createPolicy's own INSERT throws.
+  db.exec('DROP TABLE policies');
+  assert.throws(() => createClientWithPolicy(db, {
+    firstName: 'Rollback', lastName: 'Test', email: 'rollback-policy@example.com', brandSlug: 'prosperity',
+    carrier: 'Carrier', policyNumber: 'PN-1',
+  }, 'Loretta Stewart'));
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE email = ?').get('rollback-policy@example.com').n, 0, 'the contact must not exist -- the whole transaction rolled back');
+});
+
+test('5. createClientWithPolicy behaves identically to createClient for every existing field when no policy info is given', () => {
+  const { db, prosperityId } = setup();
+  const result = createClientWithPolicy(db, {
+    firstName: 'Nina', lastName: 'Ford', email: 'nina.ford.wp@example.com', phone: '4145559912',
     address: '12 Elm St', city: 'Racine', state: 'WI', zip: '53402', dateOfBirth: '1980-05-01',
     originalSource: 'Referral', generalNotes: 'Prefers email', brandSlug: 'prosperity',
   }, 'Loretta Stewart');

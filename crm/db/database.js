@@ -419,6 +419,24 @@ function tableExists(name) {
 }
 if (tableExists('policies')) {
   addCol('policies', 'application_date', 'TEXT');
+  // 2026-09-15 PRODUCTION BUG FIX: archived_at/notes/policy_type were only
+  // ever added via crm/db/migrateCrmCore.js, which -- exactly like
+  // migrateCrmApp.js above -- is NOT automatic on every boot (only run
+  // manually via crm/scripts/migrateProduction.js). That manual run was
+  // never done for this migration specifically, so the LIVE production
+  // `policies` table never gained these three columns even though
+  // crm/lib/policyService.js's createPolicy/updatePolicy (used by BOTH the
+  // pre-existing "+ Add Life Insurance Policy"/"Add Policy" UI on the
+  // client record AND crm/lib/clientService.js's createClientWithPolicy)
+  // have unconditionally referenced them all along -- confirmed via the
+  // real production error "table policies has no column named policy_type"
+  // on a real Add Client + Policy attempt. Added here, self-provisioning,
+  // so the next boot brings the live table in line with what this
+  // already-deployed code has always expected -- not a new column
+  // invented for this fix, just the intended one actually being created.
+  addCol('policies', 'archived_at', 'DATETIME');
+  addCol('policies', 'notes', 'TEXT');
+  addCol('policies', 'policy_type', 'TEXT');
 }
 
 // Google Calendar task/follow-up sync (crm/lib/taskCalendarSync.js). No

@@ -555,7 +555,12 @@ async function render() {
             <div class="form-field"><label>Policy number</label><input class="input" name="policyNumber"></div>
             <div class="form-field"><label>Policy type</label><select class="input" name="policyType">${selectOptions(POLICY_TYPES)}</select></div>
             <div class="form-field"><label>Policy status</label>
-              <select class="input" name="policyStatus">${POLICY_STATUSES.map(s => `<option ${s === 'Pending' ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
+              <!-- 2026-09-15: defaults to 'In Force' -- this flow is used to
+                   enter an EXISTING client's already-active policy far more
+                   often than a brand-new pending application; still fully
+                   editable, still selects 'Pending' for a genuine new
+                   application. -->
+              <select class="input" name="policyStatus">${POLICY_STATUSES.map(s => `<option ${s === 'In Force' ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
             </div>
             <div class="form-field"><label>Face amount / death benefit</label><input class="input" name="coverageAmount" type="number" min="0" step="0.01"></div>
             <div class="form-field"><label>Premium</label><input class="input" name="premium" type="number" min="0" step="0.01"></div>
@@ -753,8 +758,16 @@ async function render() {
             <div class="form-field"><label>Carrier</label><input class="input" name="carrier" value="${esc(p.carrier || '')}"></div>
             <div class="form-field"><label>Policy type</label><select class="input" name="policyType">${selectOptions(POLICY_TYPES, p.policy_type)}</select></div>
             <div class="form-field"><label>Policy status</label>
+              <!-- 2026-09-15: editing an existing policy (policyId set)
+                   still selects its own real p.policy_status, untouched.
+                   Adding a NEW policy (no policyId, p.policy_status
+                   undefined) now defaults to 'In Force' instead of
+                   'Pending' -- this form is most often used to enter an
+                   existing client's already-active policy; still fully
+                   editable, still selects 'Pending' for a genuine new
+                   application. -->
               <select class="input" name="policyStatus">
-                ${(POLICY_STATUSES.includes(p.policy_status) ? POLICY_STATUSES : [p.policy_status, ...POLICY_STATUSES].filter(Boolean)).map(s => `<option ${p.policy_status === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
+                ${(POLICY_STATUSES.includes(p.policy_status) ? POLICY_STATUSES : [p.policy_status, ...POLICY_STATUSES].filter(Boolean)).map(s => `<option ${(policyId ? p.policy_status === s : s === 'In Force') ? 'selected' : ''}>${esc(s)}</option>`).join('')}
               </select>
             </div>
             <div class="form-field"><label>Effective date</label><input class="input" name="effectiveDate" type="date" value="${esc(p.effective_date || '')}"></div>

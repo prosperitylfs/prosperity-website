@@ -101,3 +101,35 @@ test('previewCall never places a real call and resolves the guardrail', async ()
   assert.equal(guardrail.scenario, 'resolved');
   assert.equal(providerResult.status, 'blocked');
 });
+
+// ── Regression: Clifford Turner-style bug (2026-09-17) ─────────────────────
+// A client added via Add Client/Add Client + Policy never gets a `cases`
+// row. Before this fix, resolveSenderForContact/previewCall ignored the
+// contact's own contact_brands relationship entirely whenever caseId was
+// null, so a Prosperity-only (or Insurance-Lady-only) client with no case
+// was wrongly treated as brand-unresolved and asked "Insurance Lady or
+// Prosperity?" on the Call button, even though only one brand was ever
+// associated with them.
+test('a single-brand client with NO case resolves Call to that brand automatically instead of asking which business', async () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Clifford', lastName: 'Turner', email: 'clifford.turner@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+
+  const guardrail = resolveSenderForContact(db, { contactId: client.contact.id, caseId: null });
+  assert.equal(guardrail.scenario, 'resolved', 'must not fall into the ambiguous "choose a business" scenario');
+  assert.equal(guardrail.brandId, 'prosperity');
+  assert.equal(guardrail.channels.call.brandId, 'prosperity');
+
+  const { guardrail: previewGuardrail } = await previewCall(db, { contactId: client.contact.id, caseId: null });
+  assert.equal(previewGuardrail.scenario, 'resolved');
+  assert.equal(previewGuardrail.brandId, 'prosperity');
+});
+
+test('a client with BOTH brands and no case still correctly asks which business for Call', async () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Dual', lastName: 'Brand', email: 'dual.brand@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const insuranceLadyBrand = db.prepare("SELECT id FROM brands WHERE slug = 'insurance-lady'").get();
+  db.prepare(`INSERT INTO contact_brands (contact_id, brand_id, status) VALUES (?, ?, 'Active')`).run(client.contact.id, insuranceLadyBrand.id);
+
+  const guardrail = resolveSenderForContact(db, { contactId: client.contact.id, caseId: null });
+  assert.equal(guardrail.scenario, 'no_relationship', 'a genuinely dual-brand contact must still be asked, not guessed');
+});

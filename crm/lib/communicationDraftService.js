@@ -8,7 +8,7 @@
 // second-guesses that resolution, and never falls back to the other
 // brand's identity if the resolved brand's channel isn't configured.
 
-const { getSenderGuardrailForCase } = require('./senderGuardrail');
+const { getSenderGuardrailForCase, getSenderGuardrailForManualSelection, defaultManualBrandForContact } = require('./senderGuardrail');
 const { getAdapter } = require('./providers');
 const { toStringOrNull } = require('./leadNormalize');
 const { sendProsperitySmsForDraft } = require('./prosperitySmsGateway');
@@ -21,8 +21,20 @@ function contactBrandIdFor(db, contactId) {
 // Returns the same shape crm/routes/crmApp.js's existing sender-preview
 // endpoint already returns — reused here so drafting and the plain
 // Call/Text/Email preview button always agree.
+//
+// When there's no case (e.g. a contact created via Add Client/Add Client +
+// Policy, which never creates a `cases` row), this must NOT immediately
+// treat the brand as unresolved -- that previously sent every no-case
+// contact down the "choose a business" dead end even when their own
+// contact_brands relationship was completely unambiguous (a real bug: a
+// Prosperity-only client's Call button asked "Insurance Lady or
+// Prosperity?"). Mirrors the same defaultManualBrandForContact fallback
+// crm/routes/crmApp.js's /sender-preview endpoint already uses for
+// Text/Email, so Call now agrees with them instead of being stricter.
 function resolveSenderForContact(db, { contactId, caseId }) {
-  return getSenderGuardrailForCase(db, { caseId: caseId || null });
+  if (caseId) return getSenderGuardrailForCase(db, { caseId });
+  const manualBrand = defaultManualBrandForContact(db, contactId);
+  return getSenderGuardrailForManualSelection(db, { manualBrandSelection: manualBrand });
 }
 
 function createDraft(db, fields, actor) {

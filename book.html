@@ -640,7 +640,7 @@
         if (service === 'Life Insurance') {
           await schSubmitLead('Life Insurance Lead', {}, CALCOM_LIFE_INSURANCE_URL, 'sch-err-1');
         } else {
-          await schSubmitLead('Retirement Lead', {}, CALCOM_RETIREMENT_URL, 'sch-err-1');
+          await schSubmitLead('Retirement Lead', {}, CALCOM_RETIREMENT_URL, 'sch-err-1', false);
         }
       };
 
@@ -670,7 +670,19 @@
       // used for both the Life Insurance and Retirement paths). Both current
       // callers always pass one -- the old null/"not eligible" outcome was
       // removed along with the asset-amount qualification step above.
-      async function schSubmitLead(leadType, extraFields, calcomUrl, errorElementId) {
+      // blockOnFailure (defaults to true -- every existing caller before
+      // 2026-09-17 is completely unaffected) controls what happens if the
+      // CRM lead-save does not succeed. true (Life Insurance, unchanged):
+      // show the error and stop, never reaching Cal.com with an
+      // unconfirmed save. false (Safe Money & Retirement only): log it, but
+      // still proceed to Cal.com -- the Cal.com webhook independently
+      // creates/matches the contact and processes the booking (including
+      // the retirement intake token/SMS) from Cal.com's own payload
+      // regardless of whether this earlier website-side lead save
+      // succeeded (see crm/routes/calcom.js's matchContactForBooking), so a
+      // temporary CRM/API failure here must never block a real booking.
+      async function schSubmitLead(leadType, extraFields, calcomUrl, errorElementId, blockOnFailure) {
+        if (blockOnFailure === undefined) blockOnFailure = true;
         var btn = document.activeElement && document.activeElement.tagName === 'BUTTON' ? document.activeElement : null;
         var origLabel = btn ? btn.textContent : '';
         if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
@@ -709,8 +721,11 @@
         }
 
         if (!crmSaved) {
-          showErr(errorElementId || 'sch-err-1', 'We’re having trouble saving your information. Please try again in a moment.');
-          return;
+          if (blockOnFailure) {
+            showErr(errorElementId || 'sch-err-1', 'We’re having trouble saving your information. Please try again in a moment.');
+            return;
+          }
+          console.warn('[book] CRM lead save did not succeed for this ' + leadType + ' submission -- continuing to Cal.com anyway (non-blocking for this path).');
         }
 
         // Booking has now successfully submitted — clear the guide-lead

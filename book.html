@@ -406,56 +406,13 @@
               <p id="sch-err-1" class="step-error"></p>
             </div><!-- /step-1 -->
 
-            <!-- ══ STEP 2a: Retirement/savings asset amount (Safe Money & Retirement only) ══ -->
-            <div id="sch-step-amount" class="form-step" style="display:none;">
-              <h3 class="step-heading">One Quick Question</h3>
-              <p class="step-sub">This helps us make sure we connect you with the right next step.</p>
-
-              <div class="form-group">
-                <label class="form-label form-label-sentence-case" for="sch-amount">Approximately how much do you currently have in retirement or savings assets that you would like help reviewing? <span class="req">*</span></label>
-                <input type="text" inputmode="decimal" id="sch-amount" placeholder="Example: $100,000" autocomplete="off">
-                <p class="step-sub" style="margin:6px 0 0;">This may include a 401(k), 403(b), TSP, IRA, CDs, annuities, savings, or other retirement funds. An estimate is fine.</p>
-              </div>
-
-              <div class="step-nav">
-                <div class="step-nav-row">
-                  <button type="button" class="btn-back" onclick="schBackToStep1()">&larr; Back</button>
-                  <button type="button" id="sch-amount-next-btn" class="btn-next-step" onclick="schContinueAmount()">Continue &rarr;</button>
-                </div>
-              </div>
-              <p id="sch-err-amount" class="step-error"></p>
-            </div><!-- /step-amount -->
-
-            <!-- ══ STEP 2b: Cash-building follow-up (only shown under $15,000) ══ -->
-            <div id="sch-step-cashbuilding" class="form-step" style="display:none;">
-              <h3 class="step-heading">One More Quick Question</h3>
-
-              <span class="topic-cat-label">Would you be interested in learning about strategies that can help you build additional cash for your future through regular contributions? <span class="req">*</span></span>
-              <div class="survey-choices">
-                <button type="button" class="survey-btn" onclick="schCashBuildingAnswer('yes')">✅&nbsp; Yes</button>
-                <button type="button" class="survey-btn" onclick="schCashBuildingAnswer('not_sure')">🤔&nbsp; I&rsquo;m not sure &mdash; I&rsquo;d like to learn more</button>
-                <button type="button" class="survey-btn" onclick="schCashBuildingAnswer('no')">➡️&nbsp; No</button>
-              </div>
-
-              <div class="step-nav">
-                <div class="step-nav-row">
-                  <button type="button" class="btn-back" onclick="schBackToAmount()">&larr; Back</button>
-                </div>
-              </div>
-              <p id="sch-err-cashbuilding" class="step-error"></p>
-            </div><!-- /step-cashbuilding -->
-
-            <!-- ══ STEP 2c: Not currently eligible (under $15,000 + No) ══ -->
-            <div id="sch-step-not-eligible" class="form-step" style="display:none;">
-              <div style="text-align:center; padding:28px 20px; background:#f9f7fd; border-radius:12px; border:1.5px solid #e4dff0;">
-                <h3 class="step-heading" style="text-align:center;">Thank You</h3>
-                <p style="font-size:0.9rem; color:#555; line-height:1.7; margin:0;">
-                  Thank you for your interest. Based on the information you&rsquo;ve provided, we don&rsquo;t currently have a service that would be a good fit for your needs. We appreciate you considering Prosperity Life &amp; Financial Solutions.
-                </p>
-              </div>
-            </div><!-- /step-not-eligible -->
-
-            <!-- ══ STEP 3: Redirecting to Cal.com ══ -->
+            <!-- ══ STEP 2: Redirecting to Cal.com ══ -->
+            <!-- The Safe Money & Retirement asset-amount qualification
+                 question (formerly Step 2 here) has moved to the Prosperity
+                 Cal.com retirement event's own booking form (2026-09-17) --
+                 both Life Insurance and Safe Money & Retirement now go
+                 straight from Step 1 to this redirect step. See
+                 schContinueStep1() below. -->
             <div id="sch-step-redirect" class="form-step" style="display:none;">
               <div style="text-align:center; padding:32px 20px; background:#f9f7fd; border-radius:12px; border:1.5px solid #e4dff0;">
                 <div style="width:56px; height:56px; background:#e6f7ee; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:1.4rem; color:#1a7a4a;">&#10003;</div>
@@ -605,7 +562,7 @@
       var CALCOM_RETIREMENT_URL     = 'https://cal.com/lorettastewart/retirement-safemoney-consultation-prosperitylfs';
 
       var schContact = {}; // { fname, lname, phone (E.164), email, sms, terms, turnstileToken, service }
-      var SCH_STEP_IDS = ['sch-step-1', 'sch-step-amount', 'sch-step-cashbuilding', 'sch-step-not-eligible', 'sch-step-redirect'];
+      var SCH_STEP_IDS = ['sch-step-1', 'sch-step-redirect'];
 
       function schShowStep(id) {
         SCH_STEP_IDS.forEach(function (stepId) {
@@ -641,9 +598,6 @@
         if (hidden) hidden.value = btn.dataset.value;
       };
 
-      window.schBackToStep1 = function () { schShowStep('sch-step-1'); };
-      window.schBackToAmount = function () { schShowStep('sch-step-amount'); };
-
       window.schContinueStep1 = async function () {
         var fname = document.getElementById('sch-fname').value.trim();
         var lname = document.getElementById('sch-lname').value.trim();
@@ -678,89 +632,44 @@
           service: service,
         };
 
+        // Both services go straight from Step 1 to Cal.com -- the Safe
+        // Money & Retirement asset-amount qualification question that used
+        // to live here (Step 2) now lives on the Prosperity Cal.com
+        // retirement event's own booking form instead (2026-09-17), so it
+        // is never asked twice.
         if (service === 'Life Insurance') {
           await schSubmitLead('Life Insurance Lead', {}, CALCOM_LIFE_INSURANCE_URL, 'sch-err-1');
         } else {
-          schShowStep('sch-step-amount');
+          await schSubmitLead('Retirement Lead', {}, CALCOM_RETIREMENT_URL, 'sch-err-1');
         }
       };
 
-      // parseDollarAmount / formatDollar / isRetirementEligibleAmount /
-      // RETIREMENT_MIN_AMOUNT come from assets/js/scheduleQualification.js
-      // (loaded above, before this script) -- kept in a separate file
-      // specifically so that logic has real unit test coverage; see that
-      // file's own header comment.
-      window.schContinueAmount = function () {
-        clearErr('sch-err-amount');
-        var amount = parseDollarAmount(document.getElementById('sch-amount').value);
-        if (amount === null) {
-          showErr('sch-err-amount', 'Please enter a valid dollar amount (numbers only, e.g. 15,000).');
-          return;
-        }
-        schContact.retirementAmount = amount;
-
-        if (isRetirementEligibleAmount(amount)) {
-          // $15,000+ is eligible outright -- no cash-building follow-up,
-          // no detailed retirement questions on this page (those live in
-          // the future post-booking Retirement Intake Form).
-          schSubmitLead('Retirement Lead', {
-            retirement_amount: formatDollar(amount),
-            retirement_eligibility: 'Eligible - $15,000 or more',
-          }, CALCOM_RETIREMENT_URL, 'sch-err-amount');
-        } else {
-          schShowStep('sch-step-cashbuilding');
-        }
-      };
-
-      // Under $15,000: Yes and "I'm not sure" are both treated as eligible
-      // (per spec, identically to each other except for which exact answer
-      // is recorded) -- neither one causes the website to choose a
-      // specific product; that stays entirely Loretta's call during the
-      // consultation. No is not eligible and never reaches Cal.com.
-      window.schCashBuildingAnswer = function (answer) {
-        clearErr('sch-err-cashbuilding');
-        var amountStr = formatDollar(schContact.retirementAmount);
-
-        if (answer === 'yes' || answer === 'not_sure') {
-          schSubmitLead('Retirement Lead', {
-            retirement_amount: amountStr,
-            retirement_eligibility: 'Eligible - Under $15,000, interested in cash-building strategies',
-            cash_building_interest: answer === 'yes' ? 'Yes' : 'Not sure - wants to learn more',
-          }, CALCOM_RETIREMENT_URL, 'sch-err-cashbuilding');
-        } else {
-          schSubmitLead('Retirement Lead', {
-            retirement_amount: amountStr,
-            retirement_eligibility: 'Safe Money & Retirement — Not Appointment Eligible\nUnder $15,000\nDeclined cash-building/regular-contribution option',
-            cash_building_interest: 'No',
-          }, null, 'sch-err-cashbuilding');
-        }
-      };
-
-      // Shared by the Life Insurance path and every Safe Money & Retirement
-      // outcome (eligible by amount, eligible by cash-building interest,
-      // and not-eligible). CRM lead capture now GATES what happens next --
-      // a real production booking (Renee Jones) proved that silently
-      // continuing to Cal.com on a failed save let a visitor complete a
-      // real appointment while the CRM record they were actually matched
-      // to on the Cal.com side never received their real phone number or
-      // SMS consent, since /submit-lead unconditionally reported success
-      // regardless of whether the CRM save behind it worked. The one thing
-      // that ALWAYS gates first is this page's own required-field/consent/
-      // Turnstile validation in schContinueStep1() above, which has
-      // already passed by the time this runs; this is a SECOND gate, for
-      // the CRM save itself.
+      // Shared by the Life Insurance path and the Safe Money & Retirement
+      // path -- both now redirect straight to their own Cal.com event from
+      // Step 1 (2026-09-17; the retirement asset-amount qualification
+      // question that used to be a second step here now lives on the
+      // Cal.com retirement event's own booking form instead). CRM lead
+      // capture GATES what happens next -- a real production booking
+      // (Renee Jones) proved that silently continuing to Cal.com on a
+      // failed save let a visitor complete a real appointment while the CRM
+      // record they were actually matched to on the Cal.com side never
+      // received their real phone number or SMS consent, since
+      // /submit-lead unconditionally reported success regardless of
+      // whether the CRM save behind it worked. The one thing that ALWAYS
+      // gates first is this page's own required-field/consent/Turnstile
+      // validation in schContinueStep1() above, which has already passed
+      // by the time this runs; this is a SECOND gate, for the CRM save
+      // itself.
       //
       // errorElementId: which of this page's step-error <p> elements to
       // show a failure message in -- must match whichever step is visible
-      // when this call happens (Step 1, the amount step, or the
-      // cash-building step), since schSubmitLead is called from all three.
+      // when this call happens (only Step 1, for both services, now).
       //
-      // calcomUrl: a URL redirects to Cal.com after a successful capture
-      // (with the same name/email/phone prefill built by
-      // buildCalcomPrefillQuery(), used for both the Life Insurance and
-      // Retirement paths); null shows the not-eligible closing message
-      // instead -- no appointment, no Cal.com, and (per the current
-      // approved design) no automatic guide offer from this page.
+      // calcomUrl: redirects to Cal.com after a successful capture (with
+      // the same name/email/phone prefill built by buildCalcomPrefillQuery(),
+      // used for both the Life Insurance and Retirement paths). Both current
+      // callers always pass one -- the old null/"not eligible" outcome was
+      // removed along with the asset-amount qualification step above.
       async function schSubmitLead(leadType, extraFields, calcomUrl, errorElementId) {
         var btn = document.activeElement && document.activeElement.tagName === 'BUTTON' ? document.activeElement : null;
         var origLabel = btn ? btn.textContent : '';
@@ -824,8 +733,6 @@
           setTimeout(function () {
             window.location.href = calcomUrl + '?' + qs;
           }, 1200);
-        } else {
-          schShowStep('sch-step-not-eligible');
         }
       }
 

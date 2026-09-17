@@ -170,8 +170,8 @@ function submitIntakeResponses(db, { token, responses }) {
   ].filter(Boolean).join('\n');
 
   db.prepare(`
-    INSERT INTO communications (contact_id, comm_type, direction, subject, body, appointment_id)
-    VALUES (?, 'form', 'inbound', 'Retirement Intake Form Completed', ?, ?)
+    INSERT INTO communications (contact_id, comm_type, direction, subject, body, status, appointment_id)
+    VALUES (?, 'form', 'inbound', 'Retirement Intake Form Completed', ?, 'received', ?)
   `).run(intake.contact_id, body || null, intake.appointment_id);
 
   db.prepare('UPDATE contacts SET updated_at = ? WHERE id = ?').run(now, intake.contact_id);

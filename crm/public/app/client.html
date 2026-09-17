@@ -954,11 +954,124 @@ async function render() {
       <table class="data-table"><thead><tr><th>Channel</th><th>Summary</th><th>Status</th><th>When</th></tr></thead>
       <tbody>${detail.communications.map(m => `<tr>
         <td style="text-transform:capitalize;">${CrmApp.escapeHtml(m.channel)}</td>
-        <td>${CrmApp.escapeHtml(m.summary || '—')}</td>
+        <td>${CrmApp.escapeHtml(m.summary || '—')}${m.summary === 'Retirement Intake Form Completed' ? ' <button type="button" class="btn small ghost" data-view-intake>View Intake</button>' : ''}</td>
         <td><span class="pill status-${(m.status || '').toLowerCase()}">${CrmApp.escapeHtml(m.status || '—')}</span></td>
         <td>${CrmApp.friendlyDateTime(m.timestamp)}</td>
       </tr>`).join('')}</tbody></table>
     </div></div>`;
+  }
+
+  // Read-only view of a completed Retirement Intake Form -- reuses the
+  // already-built, already-working GET /api/retirement-intake-admin/contact/:id
+  // endpoint (crm/routes/retirementIntakeAdmin.js) and the SAME
+  // retirement_intakes.responses_json this contact's public intake page
+  // wrote -- no new data model, no duplicate storage, no editing. Sections
+  // are rendered in the exact same order as retirement-intake.html's own
+  // form (About You -> ... -> Additional Information) so this reads like a
+  // direct mirror of what the client actually submitted.
+  function riVal(v) { return (v === null || v === undefined || v === '') ? '—' : CrmApp.escapeHtml(String(v)); }
+  function riList(arr) { return (Array.isArray(arr) && arr.length) ? CrmApp.escapeHtml(arr.join(', ')) : '—'; }
+  function riRow(label, value) { return `<div class="form-field"><label>${CrmApp.escapeHtml(label)}</label><div>${value}</div></div>`; }
+
+  function renderIntakeAnswers(responses) {
+    const r = responses || {};
+    const about = r.about || {};
+    const helpWith = r.helpWith || {};
+    const income = r.income || {};
+    const risk = r.risk || {};
+    const timeHorizon = r.timeHorizon || {};
+    const existingProducts = r.existingProducts || {};
+    const annuity = existingProducts.annuity || {};
+    const beneficiaries = r.beneficiaries || {};
+    const advisor = r.advisor || {};
+    const additional = r.additional || {};
+    const accounts = Array.isArray(r.accounts) ? r.accounts : [];
+
+    const section = (title, rowsHtml) => `<div class="card" style="margin-bottom:12px;"><div class="card-header"><h3 style="margin:0; font-size:15px;">${CrmApp.escapeHtml(title)}</h3></div><div class="card-body"><div class="form-grid">${rowsHtml}</div></div></div>`;
+
+    const accountsHtml = accounts.length
+      ? accounts.map((a, i) => `<div style="border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:8px;">
+          <div style="font-weight:700; margin-bottom:6px;">Account ${i + 1}</div>
+          <div class="form-grid">
+            ${riRow('Account Type', riVal(a.accountType))}
+            ${riRow('Institution', riVal(a.institution))}
+            ${riRow('Approximate Balance', riVal(a.balance))}
+            ${riRow('Receiving Contributions', riVal(a.receivingContributions))}
+            ${riRow('Invested in Market', riVal(a.investedInMarket))}
+            ${riRow('Generating Income', riVal(a.generatingIncome))}
+            ${riRow('Available to Move', riVal(a.availableToMove))}
+          </div>
+        </div>`).join('')
+      : '<div class="text-faint">No accounts entered.</div>';
+
+    return `
+      ${section('1. About You', [
+        riRow('First Name', riVal(about.firstName)), riRow('Last Name', riVal(about.lastName)),
+        riRow('Email', riVal(about.email)), riRow('Phone', riVal(about.phone)),
+        riRow('Date of Birth', riVal(about.dateOfBirth)), riRow('Marital Status', riVal(about.maritalStatus)),
+        riRow('State', riVal(about.state)), riRow('Employment Status', riVal(about.employmentStatus)),
+        riRow('Currently Retired', riVal(about.isRetired)), riRow('Retirement Year', riVal(about.retirementYear)),
+      ].join(''))}
+      ${section('2. What Would You Like Help With?', [
+        riRow('Selections', riList(helpWith.selections)), riRow('Main Concern', riVal(helpWith.mainConcern)),
+      ].join(''))}
+      ${section('3. Accounts & Assets to Discuss', riRow('Total Assets', riVal(r.totalAssets)))}
+      ${accountsHtml}
+      ${section('4. Income Needs', [
+        riRow('Needs Income', riVal(income.needsIncome)), riRow('Income Start When', riVal(income.incomeStartWhen)),
+        riRow('Desired Monthly Income', riVal(income.desiredMonthlyIncome)), riRow('Other Income Sources', riList(income.otherSources)),
+        riRow('Total Monthly Income', riVal(income.totalMonthlyIncome)), riRow('Total Monthly Expenses', riVal(income.totalMonthlyExpenses)),
+      ].join(''))}
+      ${section('5. Risk & Priorities', [
+        riRow('Comfort With Losses', riVal(risk.comfortWithLosses)), riRow('Priorities', riList(risk.priorities)),
+      ].join(''))}
+      ${section('6. Time Horizon', [
+        riRow('Horizon', riVal(timeHorizon.horizon)), riRow('Needs Large Withdrawal', riVal(timeHorizon.needsLargeWithdrawal)),
+        riRow('Withdrawal Detail', riVal(timeHorizon.withdrawalDetail)),
+      ].join(''))}
+      ${section('7. Existing Products', [
+        riRow('Owns', riList(existingProducts.owns)), riRow('Annuity Company', riVal(annuity.company)),
+        riRow('Annuity Value', riVal(annuity.value)), riRow('Annuity Type', riVal(annuity.type)),
+        riRow('Annuity Surrender', riVal(annuity.surrender)),
+      ].join(''))}
+      ${section('8. Beneficiaries & Legacy', [
+        riRow('Has Beneficiaries', riVal(beneficiaries.hasBeneficiaries)), riRow('Primary Beneficiaries', riVal(beneficiaries.primaryBeneficiaries)),
+        riRow('Legacy Goals', riVal(beneficiaries.legacyGoals)),
+      ].join(''))}
+      ${section('9. Current Advisor & Decision-Making', [
+        riRow('Has Current Advisor', riVal(advisor.hasCurrentAdvisor)), riRow('Seeking Second Opinion', riVal(advisor.seekingSecondOpinion)),
+        riRow('Other Decision Maker', riVal(advisor.otherDecisionMaker)), riRow('Decision Maker Who', riVal(advisor.decisionMakerWho)),
+        riRow('Decision Maker Would Participate', riVal(advisor.decisionMakerWouldParticipate)),
+      ].join(''))}
+      ${section('10. Additional Information', [
+        riRow('Upcoming Changes', riVal(additional.upcomingChanges)), riRow('Major Purchases', riVal(additional.majorPurchases)),
+        riRow('Liquidity Concerns', riVal(additional.liquidityConcerns)), riRow('Anything Else', riVal(additional.anythingElse)),
+      ].join(''))}
+    `;
+  }
+
+  async function viewIntakeModal() {
+    const dialog = CrmApp.openModal({
+      title: 'Retirement Intake Form',
+      wide: true,
+      bodyHtml: '<div class="text-faint">Loading…</div>',
+    });
+    try {
+      const intakes = await CrmApp.fetchJSON(`/api/retirement-intake-admin/contact/${contactId}`);
+      const completed = intakes.filter(i => i.displayStatus === 'Completed' || i.status === 'Completed')
+        .sort((a, b) => String(b.completed_at || '').localeCompare(String(a.completed_at || '')));
+      const intake = completed[0];
+      if (!intake) {
+        dialog.querySelector('.crmapp-modal-body').innerHTML = '<div class="empty-state">No completed intake found for this client.</div>';
+        return;
+      }
+      dialog.querySelector('.crmapp-modal-body').innerHTML = `
+        <div class="text-faint" style="margin-bottom:12px;">Completed ${CrmApp.escapeHtml(CrmApp.friendlyDateTime(intake.completed_at))} — ${CrmApp.escapeHtml(intake.appt_type || 'Appointment')}</div>
+        ${renderIntakeAnswers(intake.responses)}
+      `;
+    } catch (err) {
+      dialog.querySelector('.crmapp-modal-body').innerHTML = `<div class="form-error" style="display:block;">${CrmApp.escapeHtml(err.message)}</div>`;
+    }
   }
 
   function notesHtml() {
@@ -1384,6 +1497,7 @@ async function render() {
     if (editNoteBtn) return noteFormModal({ noteId: editNoteBtn.dataset.editNote, currentBody: editNoteBtn.dataset.body });
     const callOutcomeBtn = e.target.closest('[data-call-outcome]');
     if (callOutcomeBtn) return callOutcomeModal(JSON.parse(callOutcomeBtn.dataset.json));
+    if (e.target.closest('[data-view-intake]')) return viewIntakeModal();
   });
 
   // Overflow indication for the scrollable tab bar (correction #2): show

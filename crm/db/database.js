@@ -388,6 +388,39 @@ try {
   console.warn('[db/migration] sms cleanup skipped:', e.message);
 }
 
+// One-time backfill (2026-09-17): "Retirement Intake Form Completed" and
+// "Appointment Scheduled (Cal.com)" / "Appointment Rescheduled (Cal.com)"
+// communications rows were inserted without an explicit status, landing on
+// this table's raw schema default of 'logged' -- a value
+// crm/lib/dashboardQueries.js's normalizeMessageStatus() doesn't recognize,
+// so it silently fell through to that function's catch-all and displayed as
+// "Queued", even though these are inbound/already-completed records, never
+// anything actually waiting in an outbound send queue. 'received' is the
+// same status crm/lib/leadIntake.js's own 'form' communications insert
+// already uses, which normalizeMessageStatus already maps correctly to
+// "Received". crm/routes/calcom.js and crm/lib/retirementIntakeService.js
+// now set 'received' explicitly on every new insert going forward, so this
+// is purely a backfill for rows written before that fix (e.g. the real
+// production Janet Jackson booking) -- safe to run on every boot, a no-op
+// once no matching row is still 'logged'. Matched by exact subject rather
+// than a broader comm_type filter so this deliberately does NOT touch
+// "Appointment Cancelled (Cal.com)" rows, whose insert wasn't changed and
+// still intentionally defaults to 'logged' for now. Never touches
+// retirement_intakes, appointments, or sms_messages -- only this one status
+// column, on these two specific activity types.
+try {
+  const fixed = db.prepare(`
+    UPDATE communications SET status = 'received'
+    WHERE status = 'logged'
+      AND subject IN ('Retirement Intake Form Completed', 'Appointment Scheduled (Cal.com)', 'Appointment Rescheduled (Cal.com)')
+  `).run();
+  if (fixed.changes > 0) {
+    console.log(`[db/migration] corrected ${fixed.changes} communications row(s) from 'logged' to 'received'`);
+  }
+} catch (e) {
+  console.warn('[db/migration] communications status backfill skipped:', e.message);
+}
+
 // Gmail inbox sync — inbound email fields
 addCol('emails', 'from_email', 'TEXT');
 addCol('emails', 'thread_id',  'TEXT');

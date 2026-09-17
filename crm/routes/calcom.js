@@ -959,8 +959,8 @@ async function handleCreatedOrRescheduled(event, payload) {
     ].filter(Boolean).join('\n');
 
     db.prepare(`
-      INSERT INTO communications (contact_id, comm_type, direction, subject, body, appointment_id)
-      VALUES (?, 'appointment', 'inbound', ?, ?, ?)
+      INSERT INTO communications (contact_id, comm_type, direction, subject, body, status, appointment_id)
+      VALUES (?, 'appointment', 'inbound', ?, ?, 'received', ?)
     `).run(contact.id, subject, body, apptId);
   }
 
@@ -998,7 +998,7 @@ async function handleCreatedOrRescheduled(event, payload) {
     const intakeBrand = isInsuranceLadyEventSlug(payload.type) ? 'insurance-lady' : 'prosperity';
     try {
       const smsResult = await sendRetirementIntakeSms(db, {
-        intake, contactId: contact.id, appointmentDatetimeIso: apptDatetime, brandId: intakeBrand,
+        intake, contactId: contact.id, appointmentDatetimeIso: apptDatetime, brandId: intakeBrand, firstName,
       });
       if (smsResult.attempted && !smsResult.sent) {
         console.warn(`Cal.com: retirement intake SMS not sent for contact #${contact.id} (intake #${intake.id}): ${smsResult.reason}`);

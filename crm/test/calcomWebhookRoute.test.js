@@ -338,6 +338,11 @@ test('a new/status-changing booking logs an entry to the communications timeline
   const comm = db.prepare(`SELECT * FROM communications WHERE appointment_id = ? AND comm_type = 'appointment'`).get(appt.id);
   assert.ok(comm, 'a new booking must be logged to the contact activity timeline');
   assert.match(comm.subject, /Appointment Scheduled/);
+  // 2026-09-17: must be 'received', not the schema's raw 'logged' default --
+  // dashboardQueries.js's normalizeMessageStatus only maps 'received'
+  // correctly to "Received"; 'logged' falls through to its "Queued"
+  // catch-all even though this is an inbound, already-happened record.
+  assert.equal(comm.status, 'received', 'must not be left as the raw "logged" default, which displays as the misleading "Queued"');
 });
 
 // ── Retirement Intake Form auto-creation (new) ───────────────────────────

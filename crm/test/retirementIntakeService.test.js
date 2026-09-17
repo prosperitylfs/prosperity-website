@@ -256,6 +256,10 @@ test('submitIntakeResponses logs a communications row linked to the appointment'
   ).get(contactId);
   assert.ok(comm);
   assert.equal(comm.appointment_id, apptId);
+  // 2026-09-17: must be 'received', not the schema's raw 'logged' default,
+  // which dashboardQueries.js's normalizeMessageStatus mislabels "Queued"
+  // even though this is a completed, inbound record.
+  assert.equal(comm.status, 'received');
 });
 
 test('submitIntakeResponses does not create a duplicate/second contact', () => {

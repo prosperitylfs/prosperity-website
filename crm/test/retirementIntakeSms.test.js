@@ -74,6 +74,65 @@ test('buildIntakeSmsBody includes the date, time, secure link, and deadline warn
   assert.doesNotMatch(body, /% off|discount|limited time|act now/i);
 });
 
+// ── SMS personalization, Prosperity only (2026-09-17) ────────────────────
+
+test('buildIntakeSmsBody prepends "Hi {firstName}," followed by a blank line, then the exact unchanged message, when firstName is given', () => {
+  const withName = buildIntakeSmsBody({ appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', token: 'tok-1', firstName: 'Janet' });
+  const withoutName = buildIntakeSmsBody({ appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', token: 'tok-1' });
+  assert.equal(withName, `Hi Janet,\n\n${withoutName}`);
+});
+
+test('buildIntakeSmsBody omits the greeting entirely (no "Hi ,") when firstName is missing, matching the pre-2026-09-17 message exactly', () => {
+  const body = buildIntakeSmsBody({ appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', token: 'tok-1', firstName: null });
+  assert.doesNotMatch(body, /^Hi/);
+  assert.doesNotMatch(body, /Hi\s*,/);
+  assert.match(body, /^Your Safe Money & Retirement consultation/);
+});
+
+test('buildIntakeSmsBody does NOT add a greeting for insurance-lady even when firstName is given -- Prosperity-only for now', () => {
+  const body = buildIntakeSmsBody({ appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', token: 'tok-1', brandId: 'insurance-lady', firstName: 'Janet' });
+  assert.doesNotMatch(body, /^Hi Janet/);
+  assert.match(body, /^Your Safe Money & Retirement consultation with Insurance Lady LLC/);
+});
+
+test('sendRetirementIntakeSms passes the contact\'s first name through to a personalized Prosperity message', async () => {
+  const db = setup();
+  const contactId = seedContact(db, { first_name: 'Janet', last_name: 'Jackson' });
+  const apptId = seedAppointment(db, contactId);
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+
+  let capturedBody = null;
+  const deps = { sendLegacySms: async (db2, { body }) => { capturedBody = body; return OK_DEPS.sendLegacySms(db2, { contactId, body }); } };
+  await sendRetirementIntakeSms(db, { intake, contactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', firstName: 'Janet' }, deps);
+  assert.match(capturedBody, /^Hi Janet,/);
+});
+
+// ── Brand separation (2026-09-17) ────────────────────────────────────────
+// The default (omitted brandId) path above is the already-tested-in-
+// production Prosperity message -- byte-identical, unaffected by any of
+// this. These confirm the new insurance-lady branch is fully separate and
+// never leaks Prosperity's domain/wording.
+
+test('buildIntakeUrl defaults to the Prosperity domain when brandId is omitted (unchanged existing behavior)', () => {
+  assert.equal(buildIntakeUrl('abc123'), buildIntakeUrl('abc123', 'prosperity'));
+});
+
+test('buildIntakeUrl uses Insurance Lady\'s own domain (crm/config/brands.js), not prosperitylfs.com, for brandId=insurance-lady', () => {
+  assert.equal(buildIntakeUrl('abc123', 'insurance-lady'), 'https://insuranceladyllc.com/retirement-intake?token=abc123');
+});
+
+test('buildIntakeSmsBody for insurance-lady never mentions Prosperity or Loretta Stewart, and uses the Insurance Lady domain', () => {
+  const body = buildIntakeSmsBody({ appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', token: 'tok-1', brandId: 'insurance-lady' });
+  assert.match(body, /Safe Money & Retirement consultation with Insurance Lady LLC/);
+  assert.match(body, /https:\/\/insuranceladyllc\.com\/retirement-intake\?token=tok-1/);
+  assert.match(body, /at least 2 hours before/);
+  assert.match(body, /may need to be rescheduled/);
+  assert.match(body, /Insurance Lady LLC/);
+  assert.doesNotMatch(body, /Prosperity/);
+  assert.doesNotMatch(body, /Loretta/);
+  assert.doesNotMatch(body, /prosperitylfs\.com/);
+});
+
 // ── Send / status transition ─────────────────────────────────────────────
 
 test('a successful send marks the intake Sent, stamps sent_at, and includes the correct token in the message', async () => {
@@ -93,6 +152,74 @@ test('a successful send marks the intake Sent, stamps sent_at, and includes the 
   const row = getIntakeByToken(db, intake.token);
   assert.equal(row.status, 'Sent');
   assert.ok(row.sent_at);
+});
+
+// ── Brand-aware sending (2026-09-17) ─────────────────────────────────────
+
+test('sendRetirementIntakeSms fails closed for insurance-lady when INSURANCE_LADY_TWILIO_PHONE_NUMBER is not configured -- never falls back to Prosperity\'s number', async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId);
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  const saved = process.env.INSURANCE_LADY_TWILIO_PHONE_NUMBER;
+  delete process.env.INSURANCE_LADY_TWILIO_PHONE_NUMBER;
+
+  let callCount = 0;
+  const countingDeps = { sendLegacySms: async (...args) => { callCount++; return OK_DEPS.sendLegacySms(...args); } };
+  try {
+    const result = await sendRetirementIntakeSms(db, { intake, contactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', brandId: 'insurance-lady' }, countingDeps);
+    assert.equal(result.attempted, true);
+    assert.equal(result.sent, false);
+    assert.match(result.reason, /INSURANCE_LADY_TWILIO_PHONE_NUMBER is not configured/);
+    assert.equal(callCount, 0, 'must never attempt to send at all, not even from Prosperity\'s number');
+
+    const row = getIntakeByToken(db, intake.token);
+    assert.equal(row.status, 'Not Sent');
+  } finally {
+    if (saved === undefined) delete process.env.INSURANCE_LADY_TWILIO_PHONE_NUMBER; else process.env.INSURANCE_LADY_TWILIO_PHONE_NUMBER = saved;
+  }
+});
+
+test('sendRetirementIntakeSms sends from Insurance Lady\'s own Twilio number when configured, with Insurance Lady-branded wording', async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId);
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  const saved = process.env.INSURANCE_LADY_TWILIO_PHONE_NUMBER;
+  process.env.INSURANCE_LADY_TWILIO_PHONE_NUMBER = '+18559305239';
+
+  let capturedFromNumber = null, capturedBody = null;
+  const deps = { sendLegacySms: async (db2, { fromNumber, body }) => {
+    capturedFromNumber = fromNumber; capturedBody = body;
+    return OK_DEPS.sendLegacySms(db2, { contactId, body });
+  } };
+  try {
+    const result = await sendRetirementIntakeSms(db, { intake, contactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', brandId: 'insurance-lady' }, deps);
+    assert.equal(result.sent, true);
+    assert.equal(capturedFromNumber, '+18559305239');
+    assert.match(capturedBody, /Insurance Lady LLC/);
+    assert.match(capturedBody, /insuranceladyllc\.com/);
+    assert.doesNotMatch(capturedBody, /Prosperity/);
+  } finally {
+    if (saved === undefined) delete process.env.INSURANCE_LADY_TWILIO_PHONE_NUMBER; else process.env.INSURANCE_LADY_TWILIO_PHONE_NUMBER = saved;
+  }
+});
+
+test('sendRetirementIntakeSms with no brandId (omitted) is completely unaffected -- still uses Prosperity\'s default number/wording', async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId);
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+
+  let capturedFromNumber = 'UNSET', capturedBody = null;
+  const deps = { sendLegacySms: async (db2, { fromNumber, body }) => {
+    capturedFromNumber = fromNumber; capturedBody = body;
+    return OK_DEPS.sendLegacySms(db2, { contactId, body });
+  } };
+  const result = await sendRetirementIntakeSms(db, { intake, contactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z' }, deps);
+  assert.equal(result.sent, true);
+  assert.equal(capturedFromNumber, undefined, 'no override -- sendLegacySms falls back to its own TWILIO_FROM_NUMBER default, exactly as before');
+  assert.match(capturedBody, /Prosperity Life & Financial Solutions/);
 });
 
 test('a failed send does NOT mark the intake Sent', async () => {

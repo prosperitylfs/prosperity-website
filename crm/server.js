@@ -27,6 +27,13 @@ const allowedOrigins = [
   'https://prosperitylfs.com',
   'https://www.prosperitylfs.com',
   'https://prosperity-crm.onrender.com',
+  // Added 2026-09-17 so an Insurance Lady-branded retirement-intake page
+  // (once built on that site -- see crm/lib/retirementIntakeSms.js's
+  // baseUrlForBrand comment) can call this CRM's public
+  // /api/retirement-intake/:token endpoint cross-origin, exactly like
+  // www.prosperitylfs.com's own retirement-intake.html already does.
+  'https://insuranceladyllc.com',
+  'https://www.insuranceladyllc.com',
   ..._envOrigins,
 ];
 

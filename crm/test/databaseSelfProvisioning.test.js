@@ -125,6 +125,59 @@ test('retirement_intakes.token has a unique index (idempotent CREATE ran)', () =
   });
 }
 
+// Regression test for the Janet Jackson "Queued" bug (2026-09-17): a
+// 'communications' row already sitting at the raw schema default status of
+// 'logged' (exactly what every pre-fix "Retirement Intake Form Completed" /
+// "Appointment Scheduled (Cal.com)" row looks like in production) must be
+// corrected to 'received' on the next database.js boot -- and a row with an
+// unrelated subject, or already 'received', must be left alone.
+{
+  const { execFileSync } = require('node:child_process');
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+
+  test('a pre-existing "logged" communications row for the two known Form activities is corrected to "received" on the next database.js boot, without touching unrelated rows', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'crm-comms-status-repro-'));
+    const dbPath = path.join(tmpDir, 'repro.db');
+    const repoRoot = path.join(__dirname, '..');
+    try {
+      execFileSync(process.execPath, ['-e', `
+        const Database = require(${JSON.stringify(path.join(repoRoot, 'node_modules', 'better-sqlite3'))});
+        const db = new Database(process.argv[1]);
+        db.exec(\`CREATE TABLE communications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, contact_id INTEGER NOT NULL, comm_type TEXT NOT NULL,
+          direction TEXT NOT NULL, subject TEXT, body TEXT, external_id TEXT, status TEXT DEFAULT 'logged',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )\`);
+        db.prepare("INSERT INTO communications (contact_id, comm_type, direction, subject, status) VALUES (1, 'form', 'inbound', 'Retirement Intake Form Completed', 'logged')").run();
+        db.prepare("INSERT INTO communications (contact_id, comm_type, direction, subject, status) VALUES (1, 'appointment', 'inbound', 'Appointment Scheduled (Cal.com)', 'logged')").run();
+        db.prepare("INSERT INTO communications (contact_id, comm_type, direction, subject, status) VALUES (1, 'appointment', 'inbound', 'Appointment Cancelled (Cal.com)', 'logged')").run();
+        db.prepare("INSERT INTO communications (contact_id, comm_type, direction, subject, status) VALUES (1, 'sms', 'outbound', NULL, 'delivered')").run();
+        db.close();
+      `, dbPath], { cwd: repoRoot });
+
+      const out = execFileSync(process.execPath, ['-e', `
+        process.env.DB_PATH = process.argv[1];
+        const db = require('./db/database');
+        console.log(JSON.stringify(db.prepare("SELECT subject, status FROM communications ORDER BY id").all()));
+      `, dbPath], { cwd: repoRoot }).toString().trim();
+
+      // database.js itself logs a "[db/migration] corrected N row(s)..." line
+      // to stdout when the backfill actually changes something (see
+      // db/database.js) -- the JSON payload is always the LAST line printed.
+      const rows = JSON.parse(out.split('\n').pop());
+      const bySubject = Object.fromEntries(rows.map(r => [r.subject || 'SMS_NULL_SUBJECT', r.status]));
+      assert.equal(bySubject['Retirement Intake Form Completed'], 'received');
+      assert.equal(bySubject['Appointment Scheduled (Cal.com)'], 'received');
+      assert.equal(bySubject['Appointment Cancelled (Cal.com)'], 'logged', 'deliberately untouched -- its own insert was not changed');
+      assert.equal(bySubject['SMS_NULL_SUBJECT'], 'delivered', 'an unrelated already-correct status must never be touched');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+}
+
 test('running the base schema block twice (simulating a second boot) never drops or duplicates data', () => {
   const before = db.prepare('SELECT COUNT(*) AS n FROM contacts').get().n;
   // Re-require via the module cache is a no-op (Node caches modules), so

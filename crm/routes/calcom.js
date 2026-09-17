@@ -129,6 +129,19 @@ function extractLocationPhone(rawLocation) {
 const RETIREMENT_EVENT_SLUGS = ['retirement-safemoney-consultation-prosperitylfs'];
 const LIFE_INSURANCE_EVENT_SLUGS = ['life-insurance-consultation-prosperitylfs'];
 
+// Insurance Lady's own website-driven Cal.com retirement event (confirmed via
+// a real 2026-09 test booking). Used ONLY as a brand-attribution fallback in
+// inferBookingBrand/inferBookingBrandStrict below, for when the consent-
+// question signal (the primary, preferred signal -- see those functions'
+// own comments) is missing or doesn't name either brand. Does not affect
+// inferLeadType/RETIREMENT_EVENT_SLUGS above, which is a separate concern
+// (lead-type classification, Prosperity-only today).
+const INSURANCE_LADY_EVENT_SLUGS = ['retirement-safemoney-consultation-insurancelady'];
+
+function isInsuranceLadyEventSlug(slug) {
+  return INSURANCE_LADY_EVENT_SLUGS.includes(String(slug || '').toLowerCase());
+}
+
 function inferLeadTypeFromSlug(slug) {
   const s = (slug || '').toLowerCase();
   if (RETIREMENT_EVENT_SLUGS.includes(s)) return 'Retirement Lead';
@@ -333,10 +346,20 @@ function extractCommunicationConsent(responses) {
 // whether to LINK the contact to a brand in contact_brands (see
 // inferBookingBrandStrict below) -- it would silently "guess" Prosperity
 // for every booking where the signal is simply missing.
-function inferBookingBrand(responses) {
+//
+// `eventSlug` (payload.type) is a SECONDARY fallback, only consulted when
+// the consent question is missing or doesn't name either brand by name --
+// added 2026-09-17 after a real Insurance Lady test booking (event slug
+// retirement-safemoney-consultation-insurancelady) was misattributed to
+// Prosperity because its consent-question label didn't match. The consent
+// question remains the preferred/first-checked signal, so nothing already
+// relying on it changes.
+function inferBookingBrand(responses, eventSlug) {
   const entry = findResponseByLabelPredicate(responses, isConsentQuestionLabel);
   const label = normalizeLabel(entry && entry.label);
   if (label.includes('insurance lady')) return 'insurance-lady';
+  if (label.includes('prosperity'))     return 'prosperity';
+  if (isInsuranceLadyEventSlug(eventSlug)) return 'insurance-lady';
   return 'prosperity';
 }
 
@@ -344,15 +367,21 @@ function inferBookingBrand(responses) {
 // create a contact_brands link (crm/lib/caseMatching.js's
 // resolveContactBrand). Returns null -- never a default -- whenever the
 // consent question is absent, or present but names neither brand by name,
-// so a booking with no reliable brand signal never creates a guessed
-// relationship. SMS template/sender selection continues to use
-// inferBookingBrand's own 'prosperity' default unchanged.
-function inferBookingBrandStrict(responses) {
+// AND the event slug doesn't identify a brand either, so a booking with no
+// reliable brand signal never creates a guessed relationship. SMS
+// template/sender selection continues to use inferBookingBrand's own
+// 'prosperity' default unchanged.
+//
+// `eventSlug` fallback added 2026-09-17 -- same reasoning as inferBookingBrand
+// above.
+function inferBookingBrandStrict(responses, eventSlug) {
   const entry = findResponseByLabelPredicate(responses, isConsentQuestionLabel);
-  if (!entry) return null;
-  const label = normalizeLabel(entry.label);
-  if (label.includes('insurance lady')) return 'insurance-lady';
-  if (label.includes('prosperity'))     return 'prosperity';
+  if (entry) {
+    const label = normalizeLabel(entry.label);
+    if (label.includes('insurance lady')) return 'insurance-lady';
+    if (label.includes('prosperity'))     return 'prosperity';
+  }
+  if (isInsuranceLadyEventSlug(eventSlug)) return 'insurance-lady';
   return null;
 }
 
@@ -557,7 +586,7 @@ async function handleCreatedOrRescheduled(event, payload) {
   // it from later) and used for this booking's own confirmation/reschedule
   // SMS -- see inferBookingBrand's own comment for why the consent
   // question's label is the only reliable signal available.
-  const bookingBrand = inferBookingBrand(responses);
+  const bookingBrand = inferBookingBrand(responses, payload.type);
 
   // TEMP DIAGNOSTIC (2026-09-11) -- remove once a real Insurance Lady
   // BOOKING_CREATED webhook has confirmed where utm_source etc. actually
@@ -792,7 +821,7 @@ async function handleCreatedOrRescheduled(event, payload) {
   // isn't guaranteed to have been run in every environment this route
   // executes in, and a missing table here must never break the booking/
   // contact/appointment write that already happened above.
-  const bookingBrandStrict = inferBookingBrandStrict(responses);
+  const bookingBrandStrict = inferBookingBrandStrict(responses, payload.type);
   if (bookingBrandStrict) {
     try {
       const brandRow = db.prepare('SELECT id FROM brands WHERE slug = ?').get(bookingBrandStrict);

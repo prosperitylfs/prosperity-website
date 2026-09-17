@@ -1029,6 +1029,63 @@ test('a booking whose consent question names Prosperity resolves brand=prosperit
   assert.equal(getAppointment(uid).booking_brand, 'prosperity');
 });
 
+// ── Event-slug brand fallback (2026-09-17) ────────────────────────────────
+// A real Insurance Lady website booking (event slug
+// retirement-safemoney-consultation-insurancelady) was misattributed to
+// Prosperity because its consent-question label didn't match. Fixed by
+// falling back to the Cal.com event slug ONLY when the consent question is
+// missing or names neither brand -- confirms that fallback here, and that
+// it still yields a reliable-enough signal to create the contact_brands link
+// (not just the lenient SMS-template default).
+
+test('a booking with NO consent question, on the Insurance Lady retirement event slug, resolves brand=insurance-lady via the slug fallback', async () => {
+  const uid = 'brand-il-slug-' + Date.now();
+  const email = 'brand-il-slug-' + Date.now() + '@example.com';
+  const payload = basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Renee Jones'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+18145550101'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      // Deliberately no consent question -- this is the exact real-world
+      // gap that caused the misattribution.
+    },
+  });
+  payload.payload.type = 'retirement-safemoney-consultation-insurancelady';
+
+  const lines = await captureWarnings(() => postWebhook(payload));
+  assert.ok(lines.some(l => l.includes('booking brand resolved as insurance-lady')));
+  assert.ok(!lines.some(l => l.includes('booking brand resolved as prosperity')));
+  assert.equal(getAppointment(uid).booking_brand, 'insurance-lady');
+
+  const contact = getContact(email);
+  const links = getContactBrandLinks(contact.id);
+  assert.ok(links.some(l => l.brand_slug === 'insurance-lady'), 'the slug alone must be a reliable enough signal to create the contact_brands link too');
+});
+
+test('a booking with NO consent question and NO recognized slug still defaults to prosperity (fallback does not over-fire)', async () => {
+  const uid = 'brand-no-signal-slug-' + Date.now();
+  const email = 'brand-no-signal-slug-' + Date.now() + '@example.com';
+  const payload = basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'No Signal'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+18145550102'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+    },
+  });
+  payload.payload.type = 'some-other-unrelated-event-slug';
+
+  const lines = await captureWarnings(() => postWebhook(payload));
+  assert.ok(lines.some(l => l.includes('booking brand resolved as prosperity')));
+  assert.equal(getAppointment(uid).booking_brand, 'prosperity');
+
+  const contact = getContact(email);
+  assert.equal(getContactBrandLinks(contact.id).length, 0, 'an unrecognized slug must not create a guessed contact_brands link either');
+});
+
 test('booking_brand set on the original booking is preserved across a reschedule, even if the reschedule payload omits the consent question', async () => {
   const uid = 'brand-persist-resched-' + Date.now();
   const email = 'brand-persist-resched-' + Date.now() + '@example.com';

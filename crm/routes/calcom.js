@@ -130,21 +130,37 @@ const RETIREMENT_EVENT_SLUGS = ['retirement-safemoney-consultation-prosperitylfs
 const LIFE_INSURANCE_EVENT_SLUGS = ['life-insurance-consultation-prosperitylfs'];
 
 // Insurance Lady's own website-driven Cal.com retirement event (confirmed via
-// a real 2026-09 test booking). Used ONLY as a brand-attribution fallback in
-// inferBookingBrand/inferBookingBrandStrict below, for when the consent-
-// question signal (the primary, preferred signal -- see those functions'
-// own comments) is missing or doesn't name either brand. Does not affect
-// inferLeadType/RETIREMENT_EVENT_SLUGS above, which is a separate concern
-// (lead-type classification, Prosperity-only today).
+// a real 2026-09 test booking). Used as:
+//   1. A brand-attribution fallback in inferBookingBrand/inferBookingBrandStrict
+//      below, for when the consent-question signal (the primary, preferred
+//      signal -- see those functions' own comments) is missing or doesn't
+//      name either brand.
+//   2. (Added 2026-09-17) A direct, authoritative slug match in
+//      inferLeadTypeFromSlug below, so this event reliably classifies as a
+//      "Retirement Lead" WITHOUT ever depending on inferLeadTypeFromTitle's
+//      generic "retire" substring fallback -- that fallback has no brand
+//      awareness at all, so relying on it here could not be trusted to stay
+//      correct if Cal.com's event title ever changed.
+//   3. The authoritative signal (via isInsuranceLadyEventSlug, called
+//      directly from the Retirement Lead branch below) for which brand's
+//      SMS wording/intake-form domain/Twilio sender a retirement booking's
+//      automatic intake message uses -- see
+//      crm/lib/retirementIntakeSms.js's sendRetirementIntakeSms.
 const INSURANCE_LADY_EVENT_SLUGS = ['retirement-safemoney-consultation-insurancelady'];
 
 function isInsuranceLadyEventSlug(slug) {
   return INSURANCE_LADY_EVENT_SLUGS.includes(String(slug || '').toLowerCase());
 }
 
+// Insurance Lady's retirement slug is included here (not just in
+// isInsuranceLadyEventSlug's own brand-attribution use) so that event is
+// classified as "Retirement Lead" directly from its slug -- the same
+// reliable mechanism Prosperity's own retirement event already uses --
+// rather than ever needing inferLeadTypeFromTitle's brand-blind "retire"
+// text fallback below.
 function inferLeadTypeFromSlug(slug) {
   const s = (slug || '').toLowerCase();
-  if (RETIREMENT_EVENT_SLUGS.includes(s)) return 'Retirement Lead';
+  if (RETIREMENT_EVENT_SLUGS.includes(s) || INSURANCE_LADY_EVENT_SLUGS.includes(s)) return 'Retirement Lead';
   if (LIFE_INSURANCE_EVENT_SLUGS.includes(s)) return 'Life Insurance Lead';
   return null;
 }
@@ -284,27 +300,49 @@ function extractPhoneType(responses) {
 // forms, worded identically apart from the brand's own legal name (e.g.
 // "May Insurance Lady LLC send you appointment confirmations, reminders,
 // and related communications by text message and email? Message and data
-// rates may apply."). Matched by predicate (both key phrases present)
-// rather than the full sentence, so it tolerates the brand name AND any
-// other minor rewording, not just the brand name. Returns null (never a
-// default) when the question is missing or its answer doesn't match any
-// known option -- callers must never write sms_consent/email_consent when
-// this returns null, so consent is never inferred or assumed.
+// rates may apply."). Matched by predicate (key phrases present) rather
+// than the full sentence, so it tolerates the brand name AND any other
+// minor rewording, not just the brand name. Returns null (never a default)
+// when the question is missing or its answer doesn't match any known
+// option -- callers must never write sms_consent/email_consent when this
+// returns null, so consent is never inferred or assumed.
 //
-// Answer wording, current (as of 2026-08-31) and legacy, all matched by
-// substring so exact phrasing differences (a leading "Yes,", trailing
-// qualifiers) don't break the match:
+// 'email' is intentionally NOT required here (removed 2026-09-17) -- the
+// current Prosperity retirement event's consent question was reworded to
+// ask ONLY about text-message consent ("...by text message? Message and
+// data rates may apply.", no "and email" at all), confirmed via a real
+// production booking (Janet Jackson) whose "Yes" answer was silently
+// dropped because this predicate required 'email' to be present in the
+// LABEL and it no longer was, so the entry was never found at all. Dropping
+// that requirement only WIDENS what matches -- every label that matched
+// before (still containing "text message" + "email" + "appointment
+// confirmation") still matches identically, so Insurance Lady's own
+// still-currently-worded question is completely unaffected.
+//
+// Answer wording, all matched by substring/exact-match so exact phrasing
+// differences (a leading "Yes,", trailing qualifiers) don't break the
+// match:
 //   "Text and email"                    -> sms: true,  email: true
 //   "Yes, text and email"     (legacy)  -> sms: true,  email: true  (same 'text and email' substring)
 //   "Text only"                         -> sms: true,  email: false
 //   "Email only"                        -> sms: false, email: true
 //   "Email only, no text messages" (legacy) -> sms: false, email: true (same 'email only' substring)
+//   "Yes"  (current Prosperity, text-message-only question, added 2026-09-17)
+//     -> sms: true, email: false -- email is never set true here because
+//        this question never asks about email at all; assuming it would be
+//        inventing consent for something never asked (exact equality, not
+//        .includes, so this never accidentally matches a longer free-text
+//        answer that merely contains "yes").
+//   "No"   (same question, added 2026-09-17) -> sms: false, email: false --
+//        an explicit decline is a KNOWN answer (consentKnown stays true so
+//        consent_date/method are still recorded as "asked, declined"), not
+//        the same as the question being absent entirely.
 // "Text only" is checked before "text and email" purely so a hypothetical
 // future rewording containing both substrings can't silently misclassify --
 // today the two never overlap in the same answer, but the tightest match
 // wins if that ever changes.
 function isConsentQuestionLabel(l) {
-  return l.includes('text message') && l.includes('email') && l.includes('appointment confirmation');
+  return l.includes('text message') && l.includes('appointment confirmation');
 }
 
 function extractCommunicationConsent(responses) {
@@ -314,6 +352,8 @@ function extractCommunicationConsent(responses) {
   if (answer.includes('text only'))      return { sms: true,  email: false };
   if (answer.includes('text and email')) return { sms: true,  email: true };
   if (answer.includes('email only'))     return { sms: false, email: true };
+  if (answer === 'yes') return { sms: true,  email: false };
+  if (answer === 'no')  return { sms: false, email: false };
   return null;
 }
 
@@ -949,9 +989,16 @@ async function handleCreatedOrRescheduled(event, payload) {
     // against a duplicate send; see crm/lib/retirementIntakeSms.js's
     // file-level comment for the second (status must still be 'Not Sent').
     const intake = createIntakeForAppointment(db, { contactId: contact.id, appointmentId: apptId });
+    // Authoritative on the Cal.com event SLUG (payload.type), never the
+    // event-title "retire" fallback -- see isInsuranceLadyEventSlug's own
+    // comment above. A Prosperity retirement booking (or any other event
+    // that still reaches this branch via the title fallback) keeps the
+    // existing, already-tested-in-production 'prosperity' behavior
+    // unchanged; only Insurance Lady's own known slug switches branding.
+    const intakeBrand = isInsuranceLadyEventSlug(payload.type) ? 'insurance-lady' : 'prosperity';
     try {
       const smsResult = await sendRetirementIntakeSms(db, {
-        intake, contactId: contact.id, appointmentDatetimeIso: apptDatetime,
+        intake, contactId: contact.id, appointmentDatetimeIso: apptDatetime, brandId: intakeBrand,
       });
       if (smsResult.attempted && !smsResult.sent) {
         console.warn(`Cal.com: retirement intake SMS not sent for contact #${contact.id} (intake #${intake.id}): ${smsResult.reason}`);

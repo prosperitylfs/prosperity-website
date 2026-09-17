@@ -462,6 +462,32 @@ test('the Safe Money & Retirement event slug is classified as Retirement Lead ev
   assert.ok(intake, 'a retirement_intakes record must be created — this is the exact case that silently failed in production');
 });
 
+// ── Insurance Lady retirement event: full brand separation (2026-09-17) ───
+// Companion to the Prosperity test above -- same real payload shape, but the
+// Insurance Lady slug. Confirms classification is DIRECT via the slug (not
+// the title fallback -- eventTitle here doesn't even mention "retire", so if
+// this still passes, the slug alone did the classification), an intake
+// token is still created, and the resulting SMS attempt fails closed with
+// the INSURANCE LADY-specific reason (proving brandId reached
+// sendRetirementIntakeSms as 'insurance-lady', not the Prosperity default) --
+// no INSURANCE_LADY_TWILIO_PHONE_NUMBER is configured anywhere in this test
+// file, exactly like TWILIO_FROM_NUMBER is never configured for Prosperity's
+// own tests here.
+test('the Insurance Lady retirement event slug is classified as Retirement Lead directly from the slug, creates its own intake token, and fails closed with the Insurance Lady-specific reason', async () => {
+  const email = 'slug-il-retirement-' + Date.now() + '@example.com';
+  const uid = 'slug-il-retirement-' + Date.now();
+  const lines = await captureWarnings(() => postWebhook(realProductionPayload({
+    uid, type: 'retirement-safemoney-consultation-insurancelady',
+    eventTitle: 'Consultation', email, // deliberately NOT "retire"-shaped -- proves the slug alone classifies this, not the title fallback
+  })));
+  const appt = getAppointment(uid);
+  assert.ok(appt, 'appointment must still be created');
+  const intake = db.prepare('SELECT * FROM retirement_intakes WHERE appointment_id = ?').get(appt.id);
+  assert.ok(intake, 'Insurance Lady\'s retirement event must create its own intake token, exactly like Prosperity\'s');
+  assert.equal(intake.status, 'Not Sent', 'no Twilio number configured in this test env, so the SMS attempt fails and status stays Not Sent');
+  assert.ok(lines.some(l => l.includes('INSURANCE_LADY_TWILIO_PHONE_NUMBER is not configured')), 'must fail with the Insurance Lady-specific reason, never the generic Prosperity "Twilio is not configured" message');
+});
+
 test('the Life Insurance event slug is classified as Life Insurance Lead with the real payload shape', async () => {
   const email = 'slug-li-' + Date.now() + '@example.com';
   const uid = 'slug-li-' + Date.now();
@@ -690,6 +716,89 @@ test('"Email only" (new exact wording, no trailing qualifier) sets sms_consent t
   const contact = getContact(email);
   assert.equal(contact.sms_consent, 0);
   assert.equal(contact.email_consent, 1);
+});
+
+// ── Plain "Yes"/"No" consent (2026-09-17) ──────────────────────────────────
+// The current Prosperity retirement event's consent question was reworded
+// to ask ONLY about text-message consent -- no "and email" at all -- with a
+// plain "Yes"/"No" answer instead of the three-option format above. A real
+// production booking (Janet Jackson) answered "Yes" but the label's missing
+// "email" meant isConsentQuestionLabel never found the entry at all, so
+// sms_consent silently stayed 0. Confirms both the label match (no "email"
+// in the question) and the plain-answer parsing now work correctly, without
+// touching any of the formats tested above.
+
+test('a plain "Yes" answer to a text-message-only consent question (no "email" in the label) sets sms_consent=1 and email_consent=0', async () => {
+  const email = 'consent-plain-yes-' + Date.now() + '@example.com';
+  const uid = 'consent-plain-yes-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Janet Jackson'),
+      email: responseEntry('Email', email),
+      consent: responseEntry(
+        'May Prosperity LFS send you appointment confirmations, reminders, and related communications by text message? Message and data rates may apply.',
+        'Yes'
+      ),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.sms_consent, 1, 'a plain "Yes" must authorize SMS');
+  assert.equal(contact.email_consent, 0, 'email was never asked about in this question -- must never be assumed true');
+  assert.ok(contact.sms_consent_source, 'a plain Yes/No is still a KNOWN answer -- consent audit-trail fields must be stamped');
+});
+
+test('a plain "No" answer to the same text-message-only consent question sets sms_consent=0 and does NOT authorize SMS, but is still recorded as a known (not absent) answer', async () => {
+  const email = 'consent-plain-no-' + Date.now() + '@example.com';
+  const uid = 'consent-plain-no-' + Date.now();
+  await postWebhook(basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Plain No'),
+      email: responseEntry('Email', email),
+      consent: responseEntry(
+        'May Prosperity LFS send you appointment confirmations, reminders, and related communications by text message? Message and data rates may apply.',
+        'No'
+      ),
+    },
+  }));
+  const contact = getContact(email);
+  assert.equal(contact.sms_consent, 0);
+  assert.equal(contact.email_consent, 0);
+  assert.ok(contact.sms_consent_source, 'an explicit "No" is a known, asked-and-declined answer -- distinct from the question being absent entirely (see the "no consent question present" test below, which asserts null here)');
+});
+
+test('a plain "Yes" answer on a NEW Prosperity retirement booking results in an attempted (not consent-blocked) retirement intake SMS -- the exact Janet Jackson production scenario', async () => {
+  const uid = 'consent-plain-yes-intake-' + Date.now();
+  const email = 'consent-plain-yes-intake-' + Date.now() + '@example.com';
+  const payload = basePayload({
+    uid,
+    responses: {
+      name: responseEntry('Name', 'Janet Jackson'),
+      email: responseEntry('Email', email),
+      phone: responseEntry('Phone', '+14145550200'),
+      phoneType: responseEntry('Is this a mobile phone or landline?', 'Mobile'),
+      consent: responseEntry(
+        'May Prosperity LFS send you appointment confirmations, reminders, and related communications by text message? Message and data rates may apply.',
+        'Yes'
+      ),
+    },
+  });
+  // basePayload() has no `type` (slug) field by default -- this is the real
+  // Prosperity retirement event slug, exactly what a real booking sends.
+  payload.payload.type = 'retirement-safemoney-consultation-prosperitylfs';
+  const lines = await captureWarnings(() => postWebhook(payload));
+
+  const appt = getAppointment(uid);
+  assert.ok(appt, 'appointment must be created');
+  const intake = db.prepare('SELECT * FROM retirement_intakes WHERE appointment_id = ?').get(appt.id);
+  assert.ok(intake, 'retirement intake token must be created');
+  // No Twilio credentials are configured in this test file, so the SMS
+  // attempt itself fails at legacySmsSend's "Twilio is not configured" step
+  // -- proof the consent gate did NOT block it (the old bug would have
+  // logged "does not have SMS consent on file" instead).
+  assert.ok(lines.some(l => l.includes('retirement intake SMS not sent')), 'the send must be ATTEMPTED');
+  assert.ok(!lines.some(l => l.includes('does not have SMS consent on file')), 'must NOT be blocked by the consent gate -- this is the exact Janet Jackson production bug');
 });
 
 test('legacy wording "Yes, text and email" and "Email only, no text messages" still map correctly alongside the new wording (backward compatibility)', async () => {
@@ -1054,9 +1163,16 @@ test('a booking with NO consent question, on the Insurance Lady retirement event
   });
   payload.payload.type = 'retirement-safemoney-consultation-insurancelady';
 
+  // This slug is now ALSO a direct Retirement Lead match (2026-09-17 brand-
+  // separation change), so this booking takes the retirement-intake branch,
+  // not the generic appointment-confirmation branch -- which never logs
+  // "booking brand resolved as X". Proof the brand still resolved to
+  // insurance-lady here is the retirement-intake SMS's OWN brand-specific
+  // fail-closed message (no INSURANCE_LADY_TWILIO_PHONE_NUMBER in this test
+  // env) -- the generic "Twilio is not configured" message is what the
+  // 'prosperity' brand would produce instead, so this line distinguishes them.
   const lines = await captureWarnings(() => postWebhook(payload));
-  assert.ok(lines.some(l => l.includes('booking brand resolved as insurance-lady')));
-  assert.ok(!lines.some(l => l.includes('booking brand resolved as prosperity')));
+  assert.ok(lines.some(l => l.includes('INSURANCE_LADY_TWILIO_PHONE_NUMBER is not configured')));
   assert.equal(getAppointment(uid).booking_brand, 'insurance-lady');
 
   const contact = getContact(email);

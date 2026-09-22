@@ -17,6 +17,7 @@ const {
   getCaseList,
   getClientDetail,
   getDashboardSummary,
+  getNewProspectsQueue,
   getWorkList,
   getUpcomingAppointments,
   getRecentlyActiveClients,
@@ -52,6 +53,19 @@ router.get('/dashboard', (req, res) => {
   const upcomingAppointments = getUpcomingAppointments(db, {});
   const recentlyActive = getRecentlyActiveClients(db, {});
   res.json({ summary, workList, upcomingAppointments, recentlyActive });
+});
+
+// Backs the dedicated New Prospects page (public/app/new-prospects.html),
+// which the Dashboard's "New Prospects — Last 7 Days" tile links to. Uses
+// the EXACT SAME getNewProspectsQueue() the Dashboard summary's own count
+// derives from (getDashboardSummary's newProspects = this same function's
+// .length) -- there is only one query, so this list and that count can
+// never disagree. Never goes through getCaseList/the Clients page's data
+// model, which requires a case to exist -- a genuinely new contact can
+// have zero cases yet.
+router.get('/new-prospects', (req, res) => {
+  const brandId = parseCompanyParam(req.query.company);
+  res.json({ prospects: getNewProspectsQueue(db, { brandId }) });
 });
 
 router.get('/clients', (req, res) => {

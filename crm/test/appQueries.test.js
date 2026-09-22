@@ -15,6 +15,7 @@ const {
   getCaseList,
   getClientDetail,
   getDashboardSummary,
+  getNewProspectsQueue,
   getWorkList,
   getCompanyConflictQueue,
   getPoliciesList,
@@ -469,6 +470,126 @@ test('H. All Companies / Insurance Lady / Prosperity filters correctly scope New
   assert.equal(getDashboardSummary(db, { brandId: null }).newProspects, 2, 'All Companies must include both');
   assert.equal(getDashboardSummary(db, { brandId: 'prosperity' }).newProspects, 1);
   assert.equal(getDashboardSummary(db, { brandId: 'insurance-lady' }).newProspects, 1);
+});
+
+// ── Dedicated New Prospects page / getNewProspectsQueue (2026-09-23) ───────
+// The Dashboard tile's count and this dedicated list must be structurally
+// incapable of disagreeing -- getDashboardSummary's newProspects field IS
+// getNewProspectsQueue(...).length, not a second, independently-written
+// query. These tests exercise getNewProspectsQueue directly and cross-check
+// it against getDashboardSummary wherever relevant.
+
+test('the Dashboard newProspects count and getNewProspectsQueue\'s own list length always agree, across every filter', () => {
+  const { db, prosperityId, insuranceLadyId } = setup();
+  const prContact = dedupeContact(db, { email: 'consistency-pr@example.com', first_name: 'Cory' });
+  resolveContactBrand(db, { contactId: prContact.id, brandId: prosperityId });
+  const ilContact = dedupeContact(db, { email: 'consistency-il@example.com', first_name: 'Ilsa' });
+  resolveContactBrand(db, { contactId: ilContact.id, brandId: insuranceLadyId });
+  // Also seed a few excluded contacts, to prove the two never drift apart
+  // even when there's real data the query has to filter out.
+  const existingClient = dedupeContact(db, { email: 'consistency-existing@example.com', first_name: 'Ed' });
+  resolveContactBrand(db, { contactId: existingClient.id, brandId: prosperityId });
+  db.prepare(`UPDATE contacts SET lead_status = 'Existing Client' WHERE id = ?`).run(existingClient.id);
+
+  for (const brandId of [null, 'prosperity', 'insurance-lady']) {
+    const summaryCount = getDashboardSummary(db, { brandId }).newProspects;
+    const queueLength = getNewProspectsQueue(db, { brandId }).length;
+    assert.equal(summaryCount, queueLength, `mismatch for brandId=${brandId}`);
+  }
+});
+
+test('getNewProspectsQueue returns the full field set the New Prospects page needs: name, brand, phone, email, date entered, lead status, relationship, and a linkable contactId', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, {
+    email: 'fullrow@example.com', first_name: 'Fiona', last_name: 'Rowe',
+    phone: '(414) 555-0100', phone_e164: '+14145550100',
+  });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  db.prepare(`UPDATE contacts SET lead_status = 'Appointment Scheduled' WHERE id = ?`).run(contact.id);
+
+  const [row] = getNewProspectsQueue(db, { brandId: null });
+  assert.equal(row.contactId, contact.id);
+  assert.equal(row.name, 'Fiona Rowe');
+  assert.equal(row.brandId, 'prosperity');
+  assert.equal(row.brandShortName, 'Prosperity');
+  assert.equal(row.phone, '+14145550100', 'must prefer the E.164 phone when available');
+  assert.equal(row.email, 'fullrow@example.com');
+  assert.ok(row.createdAt, 'created_at must be present so the page can show "Date Entered"');
+  assert.equal(row.leadStatus, 'Appointment Scheduled');
+  assert.equal(row.relationshipType, null);
+});
+
+test('a qualifying contact with ZERO cases still appears in getNewProspectsQueue -- this must never go through the Clients page\'s case-based query', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'no-case-yet@example.com', first_name: 'Nico' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases').get().n, 0, 'sanity check: no case exists anywhere in this database');
+
+  const queue = getNewProspectsQueue(db, { brandId: null });
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].contactId, contact.id);
+
+  // And confirm the CONTRAST: this same contact is correctly invisible to
+  // the case-driven Clients page query, which is exactly why a dedicated
+  // view was required instead of filtering clients.html.
+  const caseListResult = getCaseList(db, { brandId: null, statusFilter: 'all' });
+  assert.equal(caseListResult.contacts.find(c => c.contactId === contact.id), undefined, 'a caseless contact must not appear on the case-driven Clients page');
+});
+
+test('an existing client does not appear in getNewProspectsQueue\'s list (not just the count)', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'existing-not-listed@example.com', first_name: 'Elsa' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  db.prepare(`UPDATE contacts SET relationship_type = 'active_client' WHERE id = ?`).run(contact.id);
+
+  const queue = getNewProspectsQueue(db, { brandId: null });
+  assert.equal(queue.length, 0);
+});
+
+test('a matched/re-booking existing contact does not appear in the list, even though today\'s booking touched its lead_status', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'rebooking-not-listed@example.com', first_name: 'Rex' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  backdateContact(db, contact.id, 20);
+  // Re-match (not re-create) via the same primitive Cal.com/leadIntake use,
+  // then simulate the lead_status upgrade a new booking performs.
+  const matched = dedupeContact(db, { email: 'rebooking-not-listed@example.com', first_name: 'Rex' });
+  assert.equal(matched.id, contact.id);
+  db.prepare(`UPDATE contacts SET lead_status = 'Appointment Scheduled' WHERE id = ?`).run(contact.id);
+
+  const queue = getNewProspectsQueue(db, { brandId: null });
+  assert.equal(queue.length, 0);
+});
+
+test('the 7-day boundary is correct in the list, not just the count: 6 days ago is included, 8 days ago is excluded', () => {
+  const { db, prosperityId } = setup();
+  const recent = dedupeContact(db, { email: 'boundary-recent@example.com', first_name: 'Ray' });
+  resolveContactBrand(db, { contactId: recent.id, brandId: prosperityId });
+  backdateContact(db, recent.id, 6);
+
+  const old = dedupeContact(db, { email: 'boundary-old@example.com', first_name: 'Ona' });
+  resolveContactBrand(db, { contactId: old.id, brandId: prosperityId });
+  backdateContact(db, old.id, 8);
+
+  const queue = getNewProspectsQueue(db, { brandId: null });
+  const ids = queue.map(p => p.contactId);
+  assert.ok(ids.includes(recent.id), '6 days ago must still be included');
+  assert.ok(!ids.includes(old.id), '8 days ago must be excluded');
+});
+
+test('getNewProspectsQueue respects the company filter directly (All / Prosperity / Insurance Lady)', () => {
+  const { db, prosperityId, insuranceLadyId } = setup();
+  const prContact = dedupeContact(db, { email: 'queue-filter-pr@example.com', first_name: 'Priya' });
+  resolveContactBrand(db, { contactId: prContact.id, brandId: prosperityId });
+  const ilContact = dedupeContact(db, { email: 'queue-filter-il@example.com', first_name: 'Isla' });
+  resolveContactBrand(db, { contactId: ilContact.id, brandId: insuranceLadyId });
+
+  const all = getNewProspectsQueue(db, { brandId: null });
+  const pr = getNewProspectsQueue(db, { brandId: 'prosperity' });
+  const il = getNewProspectsQueue(db, { brandId: 'insurance-lady' });
+  assert.equal(all.length, 2);
+  assert.deepEqual(pr.map(p => p.contactId), [prContact.id]);
+  assert.deepEqual(il.map(p => p.contactId), [ilContact.id]);
 });
 
 test('getDashboardSummary counts pending contact_conflict items as verificationNeeded, separate from reviewRequired', () => {

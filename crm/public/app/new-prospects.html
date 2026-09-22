@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New Prospects — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+// Lists the EXACT SAME contacts the Dashboard's "New Prospects — Last 7
+// Days" tile counts -- both read GET /api/app/new-prospects, which is
+// backed by crm/lib/dashboardQueries.js's getNewProspectsQueue(), the same
+// function crm/routes/crmApp.js's /dashboard endpoint derives that tile's
+// count from (summary.newProspects = getNewProspectsQueue(...).length).
+// There is only one query; this page can never disagree with the tile.
+async function render() {
+  CrmApp.mount({ active: 'new-prospects', title: 'New Prospects', subtitle: 'New contacts entered in the last 7 days, excluding existing clients' });
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  async function load() {
+    const company = CrmApp.getCompany();
+    let data;
+    try {
+      data = await CrmApp.fetchJSON('/api/app/new-prospects?company=' + encodeURIComponent(company));
+    } catch (e) {
+      content.innerHTML = `<div class="empty-state">Could not load new prospects: ${CrmApp.escapeHtml(e.message)}</div>`;
+      return;
+    }
+    renderList(data.prospects);
+  }
+
+  function renderList(prospects) {
+    content.innerHTML = `<div class="card">
+      <div class="card-header"><h2>New Prospects</h2><span class="card-header-sub">${prospects.length} in the last 7 days</span></div>
+      <div class="card-body no-pad table-scroll">
+        ${prospects.length ? `<table class="data-table"><thead><tr>
+          <th>Name</th><th>Company</th><th>Phone</th><th>Email</th><th>Date Entered</th><th>Lead Status</th><th>Relationship</th><th></th>
+        </tr></thead>
+        <tbody>${prospects.map(p => `<tr>
+          <td>${CrmApp.escapeHtml(p.name)}</td>
+          <td>${CrmApp.companyBadge(p.brandId, p.brandShortName)}</td>
+          <td>${CrmApp.escapeHtml(p.phone || '—')}</td>
+          <td>${CrmApp.escapeHtml(p.email || '—')}</td>
+          <td>${CrmApp.friendlyDateTime(p.createdAt)}</td>
+          <td>${CrmApp.escapeHtml(p.leadStatus || '—')}</td>
+          <td>${CrmApp.escapeHtml(p.relationshipType || '—')}</td>
+          <td><a class="btn small" href="client.html?id=${p.contactId}">Open</a></td>
+        </tr>`).join('')}</tbody></table>` : '<div class="empty-state">No new prospects in the last 7 days.</div>'}
+      </div>
+    </div>`;
+  }
+
+  load();
+  document.addEventListener('crmapp:companychange', load);
+}
+render();
+</script>
+</body>
+</html>

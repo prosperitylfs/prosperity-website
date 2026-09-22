@@ -328,6 +328,149 @@ test('getDashboardSummary counts review-required items and respects the company 
   assert.equal(summaryIL.casesInProgress, 0, 'the company filter must scope case counts correctly');
 });
 
+// ── New Prospects -- Last 7 Days (2026-09-22 audit) ─────────────────────────
+// contacts.created_at is only ever set at INSERT time and never touched
+// again (confirmed across dedupeContact/leadIntake.js/routes/calcom.js/
+// clientService.js/importService.js) -- these tests simulate "this contact
+// has existed for a while" by directly backdating created_at, exactly the
+// way a real pre-existing row would look, rather than relying on real wall-
+// clock time passing during the test run.
+
+function backdateContact(db, contactId, daysAgo) {
+  db.prepare(`UPDATE contacts SET created_at = datetime('now', ?) WHERE id = ?`)
+    .run(`-${daysAgo} days`, contactId);
+}
+
+test('A. a brand-new Cal.com-style prospect (no relationship_type, default lead_status) counts as a New Prospect', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'newprospect-calcom@example.com', first_name: 'Janet', last_name: 'Jackson', phone_e164: '+14145551000' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  // Cal.com immediately sets lead_status to 'Appointment Scheduled' on a
+  // brand-new contact (routes/calcom.js) -- simulated directly here, since
+  // this test exercises dashboardQueries.js in isolation, not the webhook.
+  db.prepare(`UPDATE contacts SET lead_status = 'Appointment Scheduled' WHERE id = ?`).run(contact.id);
+
+  const summary = getDashboardSummary(db, { brandId: null });
+  assert.equal(summary.newProspects, 1, '"New Prospect" must not require lead_status to be literally \'New Lead\'');
+});
+
+test('B. a brand-new website-lead-style prospect (lead_status stays the schema default \'New Lead\') counts as a New Prospect', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'newprospect-website@example.com', first_name: 'Wanda' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+
+  const summary = getDashboardSummary(db, { brandId: null });
+  assert.equal(summary.newProspects, 1);
+});
+
+test('C. an existing CRM client who books another appointment is NOT counted as a New Prospect', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'existing-rebooks@example.com', first_name: 'Renee', last_name: 'Jones' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  backdateContact(db, contact.id, 30); // established 30 days ago
+  // Simulate today's new booking touching lead_status, exactly like
+  // routes/calcom.js's upgrade logic does -- created_at must stay untouched.
+  db.prepare(`UPDATE contacts SET lead_status = 'Appointment Scheduled', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(contact.id);
+
+  const summary = getDashboardSummary(db, { brandId: null });
+  assert.equal(summary.newProspects, 0, 'rebooking must never make an existing client look like a new prospect');
+});
+
+test('D. an imported existing client (lead_status=\'Existing Client\') is NOT counted, even with a fresh created_at', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'imported-existing@example.com', first_name: 'Ida' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  db.prepare(`UPDATE contacts SET lead_status = 'Existing Client' WHERE id = ?`).run(contact.id);
+
+  const summary = getDashboardSummary(db, { brandId: null });
+  assert.equal(summary.newProspects, 0, 'lib/importService.js\'s own "Existing Client" classification must be honored');
+});
+
+test('E. a manually-added Active Client (relationship_type=\'active_client\') is NOT counted, even with a fresh created_at', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'manual-active-client@example.com', first_name: 'Al' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  db.prepare(`UPDATE contacts SET relationship_type = 'active_client' WHERE id = ?`).run(contact.id);
+
+  const summary = getDashboardSummary(db, { brandId: null });
+  assert.equal(summary.newProspects, 0);
+});
+
+test('F. a manually-added Lead/Prospect (relationship_type=\'lead\') IS counted', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'manual-lead@example.com', first_name: 'Lea' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  db.prepare(`UPDATE contacts SET relationship_type = 'lead' WHERE id = ?`).run(contact.id);
+
+  const summary = getDashboardSummary(db, { brandId: null });
+  assert.equal(summary.newProspects, 1);
+});
+
+test('other manual Relationship values (former_client, prior_applicant, declined_applicant) are all excluded, same as active_client', () => {
+  const { db, prosperityId } = setup();
+  for (const rel of ['former_client', 'prior_applicant', 'declined_applicant']) {
+    const contact = dedupeContact(db, { email: `manual-${rel}@example.com`, first_name: 'Test' });
+    resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+    db.prepare(`UPDATE contacts SET relationship_type = ? WHERE id = ?`).run(rel, contact.id);
+  }
+  const summary = getDashboardSummary(db, { brandId: null });
+  assert.equal(summary.newProspects, 0);
+});
+
+test('duplicate/matched contacts that already existed before a new inquiry are not counted, even when the new inquiry happens today', () => {
+  const { db, prosperityId } = setup();
+  // Same shape as C, phrased against the exact scenario named in the audit:
+  // dedupeContact() MATCHES the existing row (same email) rather than
+  // inserting a new one -- created_at is never touched by a match.
+  const first = dedupeContact(db, { email: 'dup-match@example.com', first_name: 'Dana' });
+  resolveContactBrand(db, { contactId: first.id, brandId: prosperityId });
+  backdateContact(db, first.id, 14);
+
+  const second = dedupeContact(db, { email: 'dup-match@example.com', first_name: 'Dana' }); // matches, not a new row
+  assert.equal(second.id, first.id, 'sanity check: dedupeContact must have matched, not created a second row');
+
+  const summary = getDashboardSummary(db, { brandId: null });
+  assert.equal(summary.newProspects, 0);
+});
+
+test('a contact created more than 7 days ago is excluded regardless of lead_status/relationship_type', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'old-prospect@example.com', first_name: 'Otto' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  backdateContact(db, contact.id, 8);
+
+  const summary = getDashboardSummary(db, { brandId: null });
+  assert.equal(summary.newProspects, 0);
+});
+
+test('G. Brand Review Required (newLeads) still returns the exact same unresolved_intake/review_type=\'brand\' count as before -- unaffected by New Prospects', () => {
+  const { db, prosperityId } = setup();
+  db.prepare(`
+    INSERT INTO unresolved_intake (source, raw_payload, reason, status, review_type)
+    VALUES ('fake_webform', '{}', 'test', 'Pending', 'brand')
+  `).run();
+  // Also seed a New Prospect at the same time, to prove the two metrics are
+  // independent and neither leaks into the other.
+  const contact = dedupeContact(db, { email: 'independent-check@example.com', first_name: 'Iggy' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+
+  const summary = getDashboardSummary(db, { brandId: null });
+  assert.equal(summary.newLeads, 1);
+  assert.equal(summary.newProspects, 1);
+});
+
+test('H. All Companies / Insurance Lady / Prosperity filters correctly scope New Prospects, using the same contact_brands/brands join as other tiles', () => {
+  const { db, prosperityId, insuranceLadyId } = setup();
+  const prContact = dedupeContact(db, { email: 'filter-prosperity@example.com', first_name: 'Pat' });
+  resolveContactBrand(db, { contactId: prContact.id, brandId: prosperityId });
+  const ilContact = dedupeContact(db, { email: 'filter-il@example.com', first_name: 'Ivy' });
+  resolveContactBrand(db, { contactId: ilContact.id, brandId: insuranceLadyId });
+
+  assert.equal(getDashboardSummary(db, { brandId: null }).newProspects, 2, 'All Companies must include both');
+  assert.equal(getDashboardSummary(db, { brandId: 'prosperity' }).newProspects, 1);
+  assert.equal(getDashboardSummary(db, { brandId: 'insurance-lady' }).newProspects, 1);
+});
+
 test('getDashboardSummary counts pending contact_conflict items as verificationNeeded, separate from reviewRequired', () => {
   const { db } = setup();
   const existing = dedupeContact(db, { email: 'vn.existing@example.com', first_name: 'Renee', last_name: 'Jones', phone_e164: '+14146887619' });

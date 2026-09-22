@@ -63,7 +63,8 @@ async function render() {
     const s = data.summary;
     content.innerHTML = `
       <div class="grid grid-4 dashboard-stats" style="margin-bottom:20px;">
-        ${statTile(s.newLeads, 'New Leads', { kind: 'review', reviewType: 'brand' })}
+        ${statTile(s.newLeads, 'Brand Review Required', { kind: 'review', reviewType: 'brand' })}
+        ${statTile(s.newProspects, 'New Prospects — Last 7 Days', { kind: 'nav', href: 'clients.html' })}
         ${statTile(s.followUpsDue, 'Follow-ups Due Today', { kind: 'nav', href: 'tasks.html' })}
         ${statTile(s.overdueTasks, 'Overdue Tasks', { kind: 'nav', href: 'tasks.html' }, s.overdueTasks > 0)}
         ${statTile(s.todaysAppointments, "Today's Appointments", { kind: 'nav', href: 'appointments.html' })}

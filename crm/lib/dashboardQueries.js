@@ -853,9 +853,54 @@ function getDashboardSummary(db, { brandId = null } = {}) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const { clause: bClause, params: bParams } = brandFilterClause(brandId, 'b');
 
+  // UNCHANGED query/meaning (2026-09-22 audit) -- this counts the Brand
+  // Review Required queue (unresolved_intake rows whose brand could not be
+  // verified), NOT recently-created contacts. The field name and query stay
+  // exactly as they were; only the user-facing LABEL is corrected in
+  // dashboard.html/leads.html to say "Brand Review Required" instead of the
+  // misleading "New Leads" -- see newProspects below for the metric that
+  // actually answers "who is newly in the CRM."
   const newLeads = db.prepare(`
     SELECT COUNT(*) AS n FROM unresolved_intake WHERE status = 'Pending' AND review_type = 'brand'
   `).get().n;
+
+  // "New Prospects -- Last 7 Days" (added 2026-09-22): genuinely new
+  // contacts, regardless of source (Cal.com, either brand's website, or a
+  // manually-added new lead) -- excluding anyone who was already a known
+  // client/contact before this. contacts.created_at is only ever set once,
+  // at INSERT time (dedupeContact/leadIntake.js/routes/calcom.js/
+  // clientService.js/importService.js all rely on the schema's own
+  // DEFAULT CURRENT_TIMESTAMP and never touch it again on a later UPDATE/
+  // match) -- so an existing client who books another appointment, replies
+  // to a text, etc. never re-enters this window, no matter how recent that
+  // new activity is. Two additional exclusions, both confirmed necessary by
+  // the 2026-09-22 audit:
+  //   - lead_status = 'Existing Client': the bulk CSV import
+  //     (lib/importService.js) already stamps this exact value on any row
+  //     that came with policy data, specifically so it's never counted as a
+  //     new lead -- reused here rather than re-invented.
+  //   - relationship_type: manual Add Client now REQUIRES this field (see
+  //     public/app/clients.html) -- 'active_client' / 'former_client' /
+  //     'prior_applicant' / 'declined_applicant' are all excluded; NULL
+  //     (Cal.com/website leads, which never set this column) and 'lead'
+  //     (a manually-added genuine new prospect) both count.
+  // Uses the exact same contact_brands/brands join + brandFilterClause
+  // pattern as casesInProgress below -- no separate filtering system.
+  // c.created_at is plain 'YYYY-MM-DD HH:MM:SS' (SQLite's own
+  // CURRENT_TIMESTAMP, never an ISO string with a literal "T"/"Z" -- no
+  // caller of any contact-creation path ever overrides it), so a direct
+  // string comparison against datetime('now', '-7 days') is safe, unlike
+  // appt_datetime elsewhere in this file.
+  const newProspects = db.prepare(`
+    SELECT COUNT(*) AS n
+    FROM contacts c
+    JOIN contact_brands cb ON cb.contact_id = c.id AND cb.status = 'Active'
+    JOIN brands b ON b.id = cb.brand_id
+    WHERE c.created_at >= datetime('now', '-7 days')
+      AND (c.lead_status IS NULL OR c.lead_status != 'Existing Client')
+      AND (c.relationship_type IS NULL OR c.relationship_type = 'lead')
+      ${bClause}
+  `).get(...bParams).n;
 
   const followUpsDue = db.prepare(`
     SELECT COUNT(*) AS n
@@ -905,7 +950,7 @@ function getDashboardSummary(db, { brandId = null } = {}) {
   const verificationNeeded = getContactConflictQueue(db).length;
 
   return {
-    newLeads, followUpsDue, overdueTasks,
+    newLeads, newProspects, followUpsDue, overdueTasks,
     todaysAppointments, casesInProgress, failedComms, reviewRequired,
     verificationNeeded,
   };

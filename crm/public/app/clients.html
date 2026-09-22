@@ -235,7 +235,7 @@ async function render() {
             <div class="form-field"><label>Insurance Company / Carrier</label><input class="input" name="carrier"></div>
             <div class="form-field"><label>Policy Number</label><input class="input" name="policyNumber"></div>
             <div class="form-field"><label>Original source</label><input class="input" name="originalSource" placeholder="e.g. Referral, Website"></div>
-            <div class="form-field"><label>Relationship</label>
+            <div class="form-field"><label>Relationship <span class="hint">(required — identifies whether this is a new prospect or an existing/former relationship)</span></label>
               <select class="input" name="relationshipType" id="add-client-relationship">
                 <option value="">— Select —</option>
                 <option value="lead">Lead / Prospect</option>
@@ -288,6 +288,16 @@ async function render() {
       const fd = new FormData(e.target);
       const fields = Object.fromEntries(fd.entries());
       fields.brandSlug = selectedCompany;
+      // Required (2026-09-22 audit) -- a manually-added contact with no
+      // Relationship chosen was indistinguishable from a genuinely new
+      // prospect for the dashboard's "New Prospects" metric (Cal.com/
+      // website leads never set this column at all, so a blank value here
+      // looked identical to those). Forcing a deliberate choice at entry
+      // time is the fix -- not a smarter query guessing after the fact.
+      if (!fields.relationshipType) {
+        errorEl.textContent = 'Choose this client’s relationship (Lead/Prospect, Active Client, Former Client, Prior Applicant, or Declined Applicant) before saving.';
+        return;
+      }
       // Read the checkbox directly rather than trusting FormData, which
       // omits an unchecked box entirely -- this keeps smsConsent an
       // explicit true/false every time, never ambiguous with "not sent".

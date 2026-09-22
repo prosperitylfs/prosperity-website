@@ -22,7 +22,7 @@ async function render() {
 
   const items = data.brandReview;
   content.innerHTML = `<div class="card">
-    <div class="card-header"><h2>New Leads</h2><span class="card-header-sub">${items.length} waiting</span></div>
+    <div class="card-header"><h2>Brand Review Required</h2><span class="card-header-sub">${items.length} waiting</span></div>
     <div class="card-body no-pad">
       ${items.length ? items.map(item => `<div class="work-item">
         <div class="work-item-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 2 8l10 6 8-4.8V17h2V8L12 2Z"/></svg></div>
@@ -31,7 +31,7 @@ async function render() {
           <div class="work-item-sub">${CrmApp.escapeHtml(item.channelLabel)} · ${CrmApp.escapeHtml(item.reason)}</div>
         </div>
         <div class="work-item-due">${CrmApp.friendlyDate(item.receivedDate)}</div>
-      </div>`).join('') : '<div class="empty-state">No new leads waiting.</div>'}
+      </div>`).join('') : '<div class="empty-state">No brand review items waiting.</div>'}
     </div>
     <div class="card-body"><a class="btn" href="review.html?type=brand">Open in Review Required</a></div>
   </div>`;

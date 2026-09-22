@@ -1618,6 +1618,14 @@ test('a Cal.com-created Prosperity contact can subsequently text RESCHEDULE to t
   const uid = 'e2e-prosperity-reschedule-' + Date.now();
   const email = 'e2e-prosperity-reschedule-' + Date.now() + '@example.com';
   const phone = '+14145559305';
+  // Relative to the real clock, not a hardcoded literal -- this test relies
+  // on the appointment still being "upcoming" when
+  // lib/rescheduleRequestService.js's findUpcomingAppointments() compares it
+  // against `new Date()` at run time. A fixed past-tense string silently
+  // "expires" as real time passes (this is exactly what happened with the
+  // previous 2026-09-20T18:00:00.000Z literal during this session).
+  const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const futureEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString();
   await postWebhook(basePayload({
     uid,
     responses: {
@@ -1630,7 +1638,7 @@ test('a Cal.com-created Prosperity contact can subsequently text RESCHEDULE to t
         'Yes, text and email'
       ),
     },
-    startTime: '2026-09-20T18:00:00.000Z', endTime: '2026-09-20T18:30:00.000Z',
+    startTime: futureStart, endTime: futureEnd,
   }));
   const contact = getContact(email);
   assert.equal(getContactBrandLinks(contact.id)[0].brand_slug, 'prosperity');

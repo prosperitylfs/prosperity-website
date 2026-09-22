@@ -27,13 +27,26 @@ function setup() {
 const PROSPERITY_NUMBER = BRANDS.prosperity.phone.e164; // +14144411177
 const INSURANCE_LADY_NUMBER = BRANDS['insurance-lady'].phone.e164; // +18559305239
 
+// Relative to the real clock (same idea as test/taskService.test.js's own
+// isoDate() helper) rather than a hardcoded literal -- findUpcomingAppointments()
+// in lib/rescheduleRequestService.js compares appt_datetime against
+// `new Date()` at the moment each test actually runs, so a fixed past-tense
+// string silently "expires" as real time passes and starts failing these
+// tests for a reason that has nothing to do with the code under test (this
+// is exactly what happened: 2026-09-05T18:00:00.000Z drifted into the past
+// during this session). daysFromNow may be negative to deliberately seed an
+// already-past appointment where a test needs one.
+function futureIso(daysFromNow) {
+  return new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000).toISOString();
+}
+
 function seedAppointment(db, contactId, overrides = {}) {
   return db.prepare(`
     INSERT INTO appointments (contact_id, appt_type, appt_datetime, status, booking_brand)
     VALUES (@contact_id, @appt_type, @appt_datetime, @status, @booking_brand)
   `).run({
     contact_id: contactId, appt_type: 'Life Insurance Consultation',
-    appt_datetime: '2026-09-05T18:00:00.000Z', status: 'Scheduled', booking_brand: 'prosperity',
+    appt_datetime: futureIso(7), status: 'Scheduled', booking_brand: 'prosperity',
     ...overrides,
   }).lastInsertRowid;
 }
@@ -112,8 +125,8 @@ test('Insurance Lady: a known contact texting RESCHEDULE to the Insurance Lady n
 test('a Prosperity client with two upcoming appointments gets the ambiguity reply', async () => {
   const db = setup();
   const client = createClient(db, { firstName: 'Multi', lastName: 'Appt', phone: '4145550188', brandSlug: 'prosperity' }, 'Loretta Stewart');
-  seedAppointment(db, client.contact.id, { appt_datetime: '2026-09-05T18:00:00.000Z' });
-  seedAppointment(db, client.contact.id, { appt_datetime: '2026-09-10T18:00:00.000Z', appt_type: 'Safe Money & Retirement Consultation' });
+  seedAppointment(db, client.contact.id, { appt_datetime: futureIso(5) });
+  seedAppointment(db, client.contact.id, { appt_datetime: futureIso(10), appt_type: 'Safe Money & Retirement Consultation' });
 
   const result = handleInboundSmsUnified(db, {
     From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'reschedule', MessageSid: 'SM_prosperity_multi_1',

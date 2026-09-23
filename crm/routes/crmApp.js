@@ -18,6 +18,7 @@ const {
   getClientDetail,
   getDashboardSummary,
   getNewProspectsQueue,
+  getProspectPipelineQueue,
   getWorkList,
   getUpcomingAppointments,
   getRecentlyActiveClients,
@@ -66,6 +67,18 @@ router.get('/dashboard', (req, res) => {
 router.get('/new-prospects', (req, res) => {
   const brandId = parseCompanyParam(req.query.company);
   res.json({ prospects: getNewProspectsQueue(db, { brandId }) });
+});
+
+// Backs the dedicated Prospect Pipeline page (public/app/prospect-pipeline.html)
+// -- the PERMANENT home for every currently-unresolved prospect, regardless
+// of age, unlike New Prospects above (7-day window) and unlike /clients
+// below (requires a case to exist). Uses getProspectPipelineQueue(), which
+// shares its qualification predicate with getNewProspectsQueue via the same
+// queryProspects() helper in lib/dashboardQueries.js -- the two views'
+// definition of "prospect" cannot drift apart.
+router.get('/prospect-pipeline', (req, res) => {
+  const brandId = parseCompanyParam(req.query.company);
+  res.json({ prospects: getProspectPipelineQueue(db, { brandId }) });
 });
 
 router.get('/clients', (req, res) => {

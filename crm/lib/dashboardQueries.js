@@ -887,7 +887,16 @@ function brandFilterClause(brandId, alias) {
 // caller of any contact-creation path ever overrides it), so a direct
 // string comparison against datetime('now', '-7 days') is safe, unlike
 // appt_datetime elsewhere in this file.
-function getNewProspectsQueue(db, { brandId = null } = {}) {
+//
+// Shared by getNewProspectsQueue (recent arrivals, 7-day window) and
+// getProspectPipelineQueue (2026-09-23: every currently-unresolved
+// prospect, any age -- see that function's own comment) -- the exact same
+// "what counts as a prospect" predicate and row shape live in exactly ONE
+// place, so the two views' definitions can never silently drift apart from
+// each other. sinceClause is the only thing that differs between them: a
+// recency restriction for New Prospects, or '' (no restriction) for
+// Prospect Pipeline.
+function queryProspects(db, { brandId = null, sinceClause = '' } = {}) {
   const { clause: bClause, params: bParams } = brandFilterClause(brandId, 'b');
   const rows = db.prepare(`
     SELECT c.id AS contact_id, c.first_name, c.last_name, c.phone, c.phone_e164, c.email,
@@ -895,9 +904,9 @@ function getNewProspectsQueue(db, { brandId = null } = {}) {
     FROM contacts c
     JOIN contact_brands cb ON cb.contact_id = c.id AND cb.status = 'Active'
     JOIN brands b ON b.id = cb.brand_id
-    WHERE c.created_at >= datetime('now', '-7 days')
-      AND (c.lead_status IS NULL OR c.lead_status != 'Existing Client')
+    WHERE (c.lead_status IS NULL OR c.lead_status != 'Existing Client')
       AND (c.relationship_type IS NULL OR c.relationship_type = 'lead')
+      ${sinceClause}
       ${bClause}
     ORDER BY c.created_at DESC
   `).all(...bParams);
@@ -916,6 +925,26 @@ function getNewProspectsQueue(db, { brandId = null } = {}) {
       relationshipType: row.relationship_type || null,
     };
   });
+}
+
+function getNewProspectsQueue(db, { brandId = null } = {}) {
+  return queryProspects(db, { brandId, sinceClause: "AND c.created_at >= datetime('now', '-7 days')" });
+}
+
+// "Prospect Pipeline" (2026-09-23 audit): the permanent home for every
+// currently-unresolved prospect, regardless of how long ago they entered
+// the CRM -- unlike New Prospects (a 7-day recent-arrivals/attention
+// indicator) and unlike the Clients page (getCaseList, which requires a
+// case and therefore never shows a contact who hasn't had one opened yet).
+// Reads the exact same underlying contacts rows as New Prospects through
+// queryProspects() above -- no duplicate prospect table, no separate
+// record. A contact leaves this list the instant relationship_type is
+// deliberately set to anything other than NULL/'lead' (active_client,
+// former_client, prior_applicant, declined_applicant, ...) -- this is a
+// live query, not a snapshot, so the transition is immediate and requires
+// no separate "graduation" step.
+function getProspectPipelineQueue(db, { brandId = null } = {}) {
+  return queryProspects(db, { brandId, sinceClause: '' });
 }
 
 function getDashboardSummary(db, { brandId = null } = {}) {
@@ -1343,6 +1372,7 @@ module.exports = {
   getClientDetail,
   getDashboardSummary,
   getNewProspectsQueue,
+  getProspectPipelineQueue,
   getWorkList,
   getUpcomingAppointments,
   getRecentlyActiveClients,

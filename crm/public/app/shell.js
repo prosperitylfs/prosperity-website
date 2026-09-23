@@ -31,6 +31,7 @@
     { key: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: 'dashboard' },
     { key: 'clients', label: 'Clients', href: 'clients.html', icon: 'clients', badgeKey: 'verificationNeeded' },
     { key: 'leads', label: 'Leads', href: 'leads.html', icon: 'leads', badgeKey: 'newLeads' },
+    { key: 'prospect-pipeline', label: 'Prospect Pipeline', href: 'prospect-pipeline.html', icon: 'leads' },
     { key: 'cases', label: 'Cases', href: 'cases.html', icon: 'cases' },
     { key: 'policies', label: 'Policies', href: 'policies.html', icon: 'policies' },
     { key: 'tasks', label: 'Tasks', href: 'tasks.html', icon: 'tasks', badgeKey: 'overdueTasks' },

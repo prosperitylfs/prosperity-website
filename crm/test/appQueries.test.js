@@ -16,6 +16,7 @@ const {
   getClientDetail,
   getDashboardSummary,
   getNewProspectsQueue,
+  getProspectPipelineQueue,
   getWorkList,
   getCompanyConflictQueue,
   getPoliciesList,
@@ -590,6 +591,117 @@ test('getNewProspectsQueue respects the company filter directly (All / Prosperit
   assert.equal(all.length, 2);
   assert.deepEqual(pr.map(p => p.contactId), [prContact.id]);
   assert.deepEqual(il.map(p => p.contactId), [ilContact.id]);
+});
+
+// ── Prospect Pipeline (2026-09-23) ──────────────────────────────────────────
+// The permanent, unbounded-age sibling of New Prospects -- same
+// qualification rule (queryProspects() in lib/dashboardQueries.js), just
+// without the 7-day recency clause. These tests deliberately mirror the
+// New Prospects suite above, with the one addition that matters here: a
+// prospect older than 7 days must still appear.
+
+test('a brand-new prospect appears in Prospect Pipeline', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'pipeline-new@example.com', first_name: 'Nina' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+
+  const pipeline = getProspectPipelineQueue(db, { brandId: null });
+  assert.equal(pipeline.length, 1);
+  assert.equal(pipeline[0].contactId, contact.id);
+});
+
+test('a prospect older than 7 days STILL appears in Prospect Pipeline -- the entire point of this view versus New Prospects', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'pipeline-old@example.com', first_name: 'Oscar' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  backdateContact(db, contact.id, 45); // well past the New Prospects 7-day window
+
+  const pipeline = getProspectPipelineQueue(db, { brandId: null });
+  assert.equal(pipeline.length, 1);
+  assert.equal(pipeline[0].contactId, contact.id);
+
+  // Cross-check against the sibling view, to directly prove this is the
+  // actual gap Prospect Pipeline closes.
+  const newProspects = getNewProspectsQueue(db, { brandId: null });
+  assert.equal(newProspects.length, 0, 'sanity check: this same contact must NOT appear in New Prospects once past 7 days');
+});
+
+test('an imported existing client (lead_status=\'Existing Client\') does not appear in Prospect Pipeline', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'pipeline-existing-client@example.com', first_name: 'Elle' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  db.prepare(`UPDATE contacts SET lead_status = 'Existing Client' WHERE id = ?`).run(contact.id);
+
+  assert.equal(getProspectPipelineQueue(db, { brandId: null }).length, 0);
+});
+
+test('Active Client, Former Client, and Declined Applicant relationship_type values are all excluded from Prospect Pipeline, at any age', () => {
+  const { db, prosperityId } = setup();
+  for (const rel of ['active_client', 'former_client', 'declined_applicant', 'prior_applicant']) {
+    const contact = dedupeContact(db, { email: `pipeline-${rel}@example.com`, first_name: 'Test' });
+    resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+    db.prepare(`UPDATE contacts SET relationship_type = ? WHERE id = ?`).run(rel, contact.id);
+    backdateContact(db, contact.id, 60); // prove age alone never brings them back
+  }
+  assert.equal(getProspectPipelineQueue(db, { brandId: null }).length, 0);
+});
+
+test('Prospect Pipeline respects the company filter (All / Prosperity / Insurance Lady), regardless of prospect age', () => {
+  const { db, prosperityId, insuranceLadyId } = setup();
+  const prContact = dedupeContact(db, { email: 'pipeline-filter-pr@example.com', first_name: 'Pia' });
+  resolveContactBrand(db, { contactId: prContact.id, brandId: prosperityId });
+  backdateContact(db, prContact.id, 90);
+  const ilContact = dedupeContact(db, { email: 'pipeline-filter-il@example.com', first_name: 'Ines' });
+  resolveContactBrand(db, { contactId: ilContact.id, brandId: insuranceLadyId });
+  backdateContact(db, ilContact.id, 90);
+
+  assert.equal(getProspectPipelineQueue(db, { brandId: null }).length, 2);
+  assert.deepEqual(getProspectPipelineQueue(db, { brandId: 'prosperity' }).map(p => p.contactId), [prContact.id]);
+  assert.deepEqual(getProspectPipelineQueue(db, { brandId: 'insurance-lady' }).map(p => p.contactId), [ilContact.id]);
+});
+
+test('a prospect with ZERO cases still appears in Prospect Pipeline -- must never go through the Clients page\'s case-based query', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'pipeline-no-case@example.com', first_name: 'Zeke' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  backdateContact(db, contact.id, 30);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases').get().n, 0, 'sanity check: no case exists anywhere');
+
+  const pipeline = getProspectPipelineQueue(db, { brandId: null });
+  assert.equal(pipeline.length, 1);
+  assert.equal(pipeline[0].contactId, contact.id);
+
+  const caseListResult = getCaseList(db, { brandId: null, statusFilter: 'all' });
+  assert.equal(caseListResult.contacts.find(c => c.contactId === contact.id), undefined, 'confirms this is exactly the contact the Clients page cannot show');
+});
+
+test('the same contact appears in BOTH New Prospects and Prospect Pipeline during its first 7 days -- same underlying row, never a duplicate record', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'pipeline-both-views@example.com', first_name: 'Beau' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+
+  const newProspects = getNewProspectsQueue(db, { brandId: null });
+  const pipeline = getProspectPipelineQueue(db, { brandId: null });
+  assert.equal(newProspects.length, 1);
+  assert.equal(pipeline.length, 1);
+  assert.equal(newProspects[0].contactId, pipeline[0].contactId, 'both views must point at the exact same contact id');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE email = ?').get('pipeline-both-views@example.com').n, 1, 'exactly one contacts row -- no duplicate prospect record was created for either view');
+});
+
+test('Prospect Pipeline\'s count comes from the same list the page displays -- the length of getProspectPipelineQueue\'s own return value, never a separate COUNT query', () => {
+  const { db, prosperityId, insuranceLadyId } = setup();
+  const a = dedupeContact(db, { email: 'pipeline-count-a@example.com', first_name: 'A' });
+  resolveContactBrand(db, { contactId: a.id, brandId: prosperityId });
+  backdateContact(db, a.id, 15);
+  const b = dedupeContact(db, { email: 'pipeline-count-b@example.com', first_name: 'B' });
+  resolveContactBrand(db, { contactId: b.id, brandId: insuranceLadyId });
+
+  const list = getProspectPipelineQueue(db, { brandId: null });
+  // The route (crm/routes/crmApp.js's GET /prospect-pipeline) sends exactly
+  // this array as { prospects: list } -- the page's own displayed count is
+  // list.length client-side, so proving the list itself is correct IS
+  // proving the count is correct; there is no separate query to drift.
+  assert.equal(list.length, 2);
 });
 
 test('getDashboardSummary counts pending contact_conflict items as verificationNeeded, separate from reviewRequired', () => {

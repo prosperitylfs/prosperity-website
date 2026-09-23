@@ -32,6 +32,7 @@ const {
   getReportsSummary,
 } = require('../lib/dashboardQueries');
 const { BRANDS } = require('../config/brands');
+const { SELECTABLE_LEAD_STATUSES } = require('../config/leadStatuses');
 const { getSenderGuardrailForCase, getSenderGuardrailForManualSelection, defaultManualBrandForContact } = require('../lib/senderGuardrail');
 const { listTasks } = require('../lib/taskService');
 const { getReconnectionTemplates, getExistingClientsForOutreach } = require('../lib/existingClientOutreach');
@@ -46,6 +47,18 @@ function parseCompanyParam(raw) {
   if (!raw || raw === 'all') return null;
   return Object.prototype.hasOwnProperty.call(BRANDS, raw) ? raw : null;
 }
+
+// Read-only source of the canonical lead-status vocabulary
+// (crm/config/leadStatuses.js) for the Edit Client dropdown
+// (public/app/client.html). A static browser page can't require() a Node
+// module directly, so this tiny endpoint is what makes that file the
+// actual single source of truth for the frontend too, not just for
+// crm/routes/calcom.js's own upgrade-eligibility check. client.html keeps
+// its own hardcoded list as a fallback if this call fails, so a transient
+// API/network issue never blocks editing a client.
+router.get('/lead-statuses', (req, res) => {
+  res.json({ statuses: SELECTABLE_LEAD_STATUSES });
+});
 
 router.get('/dashboard', (req, res) => {
   const brandId = parseCompanyParam(req.query.company);

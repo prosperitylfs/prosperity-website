@@ -22,6 +22,25 @@ async function render() {
     return;
   }
 
+  // Offline-safe fallback ONLY -- the real source of truth is
+  // crm/config/leadStatuses.js's SELECTABLE_LEAD_STATUSES, fetched below via
+  // GET /api/app/lead-statuses into leadStatusChoices. Kept as a plain copy
+  // (not a second independent list) so Edit Client still works if that
+  // fetch fails. Superseded 2026-09-23: the old ad hoc list this replaced
+  // ('Illustration Sent', 'Underwriting', 'Client', 'Sold', 'Follow-Up
+  // Needed', 'Long-Term Nurture') is retired from this go-forward list --
+  // none of those were ever written by any automation, and 'Client' is
+  // consolidated into the canonical 'Existing Client'. An existing record
+  // that still has one of those values continues to display and remain
+  // editable via the fallback pattern below (leadStatusOptions in
+  // editClientModal), it's just no longer offered for a NEW selection.
+  const LEAD_STATUS_FALLBACK = [
+    'New Lead', 'Attempting Contact', 'Contacted', 'Qualified Prospect',
+    'Appointment Scheduled', 'Appointment Completed', 'Application Started',
+    'Application Submitted', 'Decision Pending',
+    'Appointment Rescheduled', 'Cancelled', 'Existing Client',
+  ];
+
   let detail;
   try {
     detail = await CrmApp.fetchJSON(`/api/app/clients/${contactId}`);
@@ -29,6 +48,17 @@ async function render() {
     content.innerHTML = `<div class="empty-state">Could not load this client: ${CrmApp.escapeHtml(e.message)}</div>`;
     return;
   }
+
+  // Canonical lead-status list (crm/config/leadStatuses.js's
+  // SELECTABLE_LEAD_STATUSES, via GET /api/app/lead-statuses) -- fetched
+  // once per page load, right alongside the client's own detail. Falls
+  // back to LEAD_STATUS_FALLBACK above if the request fails, so a
+  // transient API/network issue never blocks opening Edit Client.
+  let leadStatusChoices = LEAD_STATUS_FALLBACK;
+  try {
+    const leadStatusResult = await CrmApp.fetchJSON('/api/app/lead-statuses');
+    if (Array.isArray(leadStatusResult.statuses) && leadStatusResult.statuses.length) leadStatusChoices = leadStatusResult.statuses;
+  } catch (e) { /* keep the fallback -- editing a client must never be blocked by this */ }
 
   const c = detail.contact;
   const primaryBrand = detail.contactBrands[0] || null;
@@ -91,12 +121,6 @@ async function render() {
     { value: 'prior_applicant', label: 'Prior Applicant' },
     { value: 'declined_applicant', label: 'Declined Applicant' },
   ];
-  const KNOWN_LEAD_STATUSES = [
-    'New Lead', 'Contacted', 'Appointment Scheduled', 'Appointment Completed',
-    'Follow-Up Needed', 'Illustration Sent', 'Application Submitted',
-    'Underwriting', 'Client', 'Sold', 'Long-Term Nurture',
-  ];
-
   function editClientModal() {
     const esc = CrmApp.escapeHtml;
     const field = (label, name, value, opts = {}) => `
@@ -107,8 +131,8 @@ async function render() {
       <div class="form-field full"><label>${label}</label><textarea class="input" name="${name}" rows="${rows || 3}">${esc(value || '')}</textarea></div>`;
 
     const currentLeadStatus = c.leadStatus || 'New Lead';
-    const leadStatusOptions = KNOWN_LEAD_STATUSES.includes(currentLeadStatus)
-      ? KNOWN_LEAD_STATUSES : [currentLeadStatus, ...KNOWN_LEAD_STATUSES];
+    const leadStatusOptions = leadStatusChoices.includes(currentLeadStatus)
+      ? leadStatusChoices : [currentLeadStatus, ...leadStatusChoices];
 
     const dialog = CrmApp.openModal({
       title: 'Edit Client',

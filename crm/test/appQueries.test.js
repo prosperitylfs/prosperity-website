@@ -688,6 +688,21 @@ test('the same contact appears in BOTH New Prospects and Prospect Pipeline durin
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE email = ?').get('pipeline-both-views@example.com').n, 1, 'exactly one contacts row -- no duplicate prospect record was created for either view');
 });
 
+test('a contact with a new canonical pipeline stage (\'Qualified Prospect\', crm/config/leadStatuses.js) still counts as a prospect in both New Prospects (within 7 days) and Prospect Pipeline', () => {
+  const { db, prosperityId } = setup();
+  const contact = dedupeContact(db, { email: 'qualified-prospect@example.com', first_name: 'Quinn' });
+  resolveContactBrand(db, { contactId: contact.id, brandId: prosperityId });
+  db.prepare(`UPDATE contacts SET lead_status = 'Qualified Prospect' WHERE id = ?`).run(contact.id);
+
+  const newProspects = getNewProspectsQueue(db, { brandId: null });
+  assert.equal(newProspects.length, 1, 'queryProspects() only excludes on lead_status = \'Existing Client\', not on which pipeline stage it is -- \'Qualified Prospect\' must still qualify');
+  assert.equal(newProspects[0].contactId, contact.id);
+
+  const pipeline = getProspectPipelineQueue(db, { brandId: null });
+  assert.equal(pipeline.length, 1);
+  assert.equal(pipeline[0].contactId, contact.id);
+});
+
 test('Prospect Pipeline\'s count comes from the same list the page displays -- the length of getProspectPipelineQueue\'s own return value, never a separate COUNT query', () => {
   const { db, prosperityId, insuranceLadyId } = setup();
   const a = dedupeContact(db, { email: 'pipeline-count-a@example.com', first_name: 'A' });

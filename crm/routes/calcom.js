@@ -23,6 +23,7 @@ const { sendAppointmentConfirmationSms } = require('../lib/appointmentConfirmati
 const { normalizeEmail } = require('../lib/leadNormalize');
 const { resolveContactBrand, stageUnresolvedIntake } = require('../lib/caseMatching');
 const { extractAttributionFromCalcomPayload, applyFirstTouchAttribution } = require('../lib/marketingAttribution');
+const { UPGRADE_ELIGIBLE_STATUSES } = require('../config/leadStatuses');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -719,12 +720,15 @@ async function handleCreatedOrRescheduled(event, payload) {
   const targetLeadStatus = event === 'BOOKING_RESCHEDULED'
     ? 'Appointment Rescheduled'
     : 'Appointment Scheduled';
-  // Statuses eligible for automatic upgrade on a new/rescheduled booking
-  const upgradeStatuses = [
-    'New Lead', 'Attempted Contact', 'Contacted',
-    'Follow-Up Needed', 'Long-Term Nurture',
-    'Appointment Scheduled', 'Appointment Rescheduled', 'Needs Outcome',
-  ];
+  // Statuses eligible for automatic upgrade on a new/rescheduled booking --
+  // sourced from crm/config/leadStatuses.js (2026-09-23 canonical
+  // lead-status design) instead of an inline array, so this and the Edit
+  // Client dropdown (client.html, via GET /api/app/lead-statuses) can never
+  // silently drift apart again. Same 8 values as before this change, plus
+  // two approved new pre-appointment pipeline stages (Attempting Contact,
+  // Qualified Prospect) -- see that file's own comment for exactly what is
+  // and isn't included and why.
+  const upgradeStatuses = UPGRADE_ELIGIBLE_STATUSES;
 
   // Consent is only ever written when explicitly answered on THIS booking
   // (consent !== null); consentKnown gates both the INSERT default and the

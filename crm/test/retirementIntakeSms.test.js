@@ -117,20 +117,27 @@ test('buildIntakeUrl defaults to the Prosperity domain when brandId is omitted (
   assert.equal(buildIntakeUrl('abc123'), buildIntakeUrl('abc123', 'prosperity'));
 });
 
-test('buildIntakeUrl uses Insurance Lady\'s own domain (crm/config/brands.js), not prosperitylfs.com, for brandId=insurance-lady', () => {
-  assert.equal(buildIntakeUrl('abc123', 'insurance-lady'), 'https://insuranceladyllc.com/retirement-intake?token=abc123');
+// Short-link format (2026-09-25): Insurance Lady's own Cloudflare Worker
+// resolves /i/<shortCode> back to the same full token server-side (see
+// crm/lib/retirementIntakeService.js's getIntakeByShortCode), so the SMS
+// link itself is short while the underlying token-gated flow is unchanged.
+// Prosperity's URL format (tested above) is untouched by this.
+test('buildIntakeUrl uses Insurance Lady\'s own domain (crm/config/brands.js) and the short /i/<code> path, not the long-form retirement-intake?token= URL, for brandId=insurance-lady', () => {
+  assert.equal(buildIntakeUrl('abc123', 'insurance-lady'), 'https://insuranceladyllc.com/i/abc123');
+  assert.doesNotMatch(buildIntakeUrl('abc123', 'insurance-lady'), /retirement-intake\?token=/);
 });
 
-test('buildIntakeSmsBody for insurance-lady never mentions Prosperity or Loretta Stewart, and uses the Insurance Lady domain', () => {
+test('buildIntakeSmsBody for insurance-lady never mentions Prosperity or Loretta Stewart, and uses the Insurance Lady domain\'s short link', () => {
   const body = buildIntakeSmsBody({ appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', token: 'tok-1', brandId: 'insurance-lady' });
   assert.match(body, /Safe Money & Retirement consultation with Insurance Lady LLC/);
-  assert.match(body, /https:\/\/insuranceladyllc\.com\/retirement-intake\?token=tok-1/);
+  assert.match(body, /https:\/\/insuranceladyllc\.com\/i\/tok-1/);
   assert.match(body, /at least 2 hours before/);
   assert.match(body, /may need to be rescheduled/);
   assert.match(body, /Insurance Lady LLC/);
   assert.doesNotMatch(body, /Prosperity/);
   assert.doesNotMatch(body, /Loretta/);
   assert.doesNotMatch(body, /prosperitylfs\.com/);
+  assert.doesNotMatch(body, /retirement-intake\?token=/);
 });
 
 // ── Send / status transition ─────────────────────────────────────────────

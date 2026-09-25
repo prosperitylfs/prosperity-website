@@ -31,6 +31,42 @@ function generateIntakeToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+// Short-link support (Insurance Lady SMS only -- see
+// crm/lib/retirementIntakeSms.js's buildIntakeUrl). NOT a separately
+// generated/stored value -- just the first 16 hex characters (64 bits) of
+// the same crypto.randomBytes(32) token above. Truncating a CSPRNG output
+// is a standard, safe practice (unlike deriving from something
+// predictable): the prefix is exactly as random as the full token, just
+// shorter. 64 bits is far beyond any realistic brute-force concern for a
+// public endpoint, and even a successful guess only grants exactly the
+// same access the full token already would -- no privilege escalation,
+// no new attack surface, only a shorter bootstrap into the SAME existing
+// token-gated flow. Requires no new column/migration: getIntakeByShortCode
+// below does a LIKE-prefix lookup against the existing token column.
+const SHORT_CODE_LENGTH = 16;
+
+function shortCodeForToken(token) {
+  return String(token || '').slice(0, SHORT_CODE_LENGTH);
+}
+
+// Public, read-only, by design as narrow as possible: resolves a short
+// code to the SAME full token (never to a contact/appointment/intake row
+// directly), so the only thing a caller can do with the result is re-enter
+// the exact same existing, already-secure /api/retirement-intake/:token
+// flow -- this function adds no new capability, just a shorter on-ramp
+// into the one that already exists. Fails closed (returns null) on zero
+// OR MORE THAN ONE match -- a prefix collision is astronomically unlikely
+// at this token length, but if it ever happened, silently picking one
+// would risk resolving to the wrong client's record, so ambiguity is
+// treated the same as not-found rather than guessed at.
+function getIntakeByShortCode(db, shortCode) {
+  if (!shortCode || !/^[0-9a-f]{16}$/i.test(shortCode)) return null;
+  const rows = db.prepare('SELECT token FROM retirement_intakes WHERE token LIKE ? LIMIT 2')
+    .all(shortCode.toLowerCase() + '%');
+  if (rows.length !== 1) return null;
+  return rows[0].token;
+}
+
 // appointmentDatetimeIso: an ISO datetime string (appointments.appt_datetime
 // is stored as ISO text). Returns an ISO string, or null if the input is
 // missing/unparseable.
@@ -217,7 +253,10 @@ function listIntakesForContact(db, contactId) {
 
 module.exports = {
   INTAKE_DEADLINE_HOURS_BEFORE,
+  SHORT_CODE_LENGTH,
   generateIntakeToken,
+  shortCodeForToken,
+  getIntakeByShortCode,
   computeIntakeDeadline,
   computeDisplayStatus,
   createIntakeForAppointment,

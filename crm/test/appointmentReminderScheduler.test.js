@@ -25,11 +25,11 @@ function setup() {
 
 function seedContact(db, overrides = {}) {
   return db.prepare(`
-    INSERT INTO contacts (first_name, last_name, phone, phone_e164, sms_consent, sms_opted_out_at)
-    VALUES (@first_name, @last_name, @phone, @phone_e164, @sms_consent, @sms_opted_out_at)
+    INSERT INTO contacts (first_name, last_name, phone, phone_e164, sms_consent, sms_opted_out_at, email)
+    VALUES (@first_name, @last_name, @phone, @phone_e164, @sms_consent, @sms_opted_out_at, @email)
   `).run({
     first_name: 'Janet', last_name: 'Jackson', phone: '(414) 367-6486', phone_e164: '+14143676486',
-    sms_consent: 1, sms_opted_out_at: null, ...overrides,
+    sms_consent: 1, sms_opted_out_at: null, email: null, ...overrides,
   }).lastInsertRowid;
 }
 
@@ -525,4 +525,108 @@ test('a successfully sent reminder is recorded in SMS History (sms_messages) wit
   assert.equal(row.message_type, 'reminder_15m');
   assert.equal(row.status, 'sent');
   assert.ok(row.twilio_sid);
+}));
+
+// ── Send Email action (2026-10-16) ──────────────────────────────────────
+// crm/lib/appointmentConfirmationEmail.js is dispatched to instead of
+// sendAppointmentConfirmationSms when the matching workflow row's
+// actionType is 'send_email'. Every test above seeds NO workflows table
+// rows and still passes unmodified -- proving the SMS path is completely
+// unaffected by this feature's mere presence. These tests exercise the
+// email side of that same dispatch.
+
+function insertEmailWorkflow(db, overrides = {}) {
+  db.prepare(`
+    INSERT INTO workflows (name, brand_id, appointment_type, trigger_type, offset_value, offset_unit, offset_minutes, message_type, condition_type, action_type, message_template, email_subject, enabled)
+    VALUES (@name, @brand_id, @appointment_type, @trigger_type, @offset_value, @offset_unit, @offset_minutes, @message_type, @condition_type, @action_type, @message_template, @email_subject, @enabled)
+  `).run({
+    name: 'Email Reminder', brand_id: 'prosperity', appointment_type: null, trigger_type: 'time_before_appointment',
+    offset_value: 15, offset_unit: 'minutes', offset_minutes: 15, message_type: 'reminder_15m',
+    condition_type: 'always', action_type: 'send_email', message_template: 'Hi {{first_name}}, see you soon.',
+    email_subject: 'Upcoming appointment', enabled: 1, ...overrides,
+  });
+}
+
+function fakeGmail(behavior = 'ok') {
+  const calls = [];
+  return {
+    calls,
+    sendGmailEmail: async (db, params) => {
+      calls.push(params);
+      if (behavior === 'fail') throw new Error('Gmail API error');
+      db.prepare(`
+        INSERT INTO emails (contact_id, to_email, subject, body, status, gmail_message_id, direction, appointment_id, message_type, appointment_occurrence_at)
+        VALUES (?, ?, ?, ?, 'sent', 'gmail-fake', 'outbound', ?, ?, ?)
+      `).run(params.contactId, params.toEmail, params.subject, params.body, params.appointmentId, params.messageType, params.appointmentOccurrenceAt);
+      return { gmailMessageId: 'gmail-fake', threadId: null };
+    },
+  };
+}
+
+function emailRowsFor(db, contactId) {
+  return db.prepare('SELECT * FROM emails WHERE contact_id = ? ORDER BY id').all(contactId);
+}
+
+test('a Prosperity appointment with a matching send_email workflow sends an email instead of an SMS, and logs nothing to sms_messages', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db, { email: 'janet@example.com' });
+  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(10) });
+  insertEmailWorkflow(db);
+  const gmail = fakeGmail('ok');
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok'), sendGmailEmail: gmail.sendGmailEmail } });
+  assert.equal(summary.sent, 1);
+  assert.equal(smsRowsFor(db, contactId).length, 0, 'no SMS must be sent for an email-actioned workflow');
+  const rows = emailRowsFor(db, contactId);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].message_type, 'reminder_15m');
+  assert.equal(gmail.calls.length, 1);
+}));
+
+test('an Insurance Lady appointment with a matching send_email workflow sends nothing (fails closed) -- never falls back to SMS, never sends via the Prosperity Gmail identity', () => withEnv(INSURANCE_LADY_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db, { first_name: 'Renee', email: 'renee@example.com' });
+  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(10), booking_brand: 'insurance-lady' });
+  insertEmailWorkflow(db, { brand_id: 'insurance-lady' });
+  const gmail = fakeGmail('ok');
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok'), sendGmailEmail: gmail.sendGmailEmail } });
+  assert.equal(summary.sent, 0);
+  assert.equal(smsRowsFor(db, contactId).length, 0, 'must not fall back to SMS');
+  assert.equal(emailRowsFor(db, contactId).length, 0);
+  assert.equal(gmail.calls.length, 0, 'must never call the Prosperity Gmail sender for Insurance Lady');
+}));
+
+test('an email-actioned reminder sends only once for the same occurrence across repeated polls, deduped against the emails table', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db, { email: 'janet@example.com' });
+  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(10) });
+  insertEmailWorkflow(db);
+  const gmail = fakeGmail('ok');
+  const deps = { twilioClientFactory: fakeClient('ok'), sendGmailEmail: gmail.sendGmailEmail };
+
+  await runReminderCheck(db, { now: NOW, deps });
+  await runReminderCheck(db, { now: NOW, deps });
+  await runReminderCheck(db, { now: NOW, deps });
+
+  assert.equal(emailRowsFor(db, contactId).length, 1, 'three polls of the same unchanged appointment must still log exactly one email');
+}));
+
+test('a send_email workflow added after an earlier SMS fallback send keeps its own independent dedup history -- the prior SMS send for this occurrence does not block the email', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db, { email: 'janet@example.com' });
+  seedAppointment(db, contactId, { appt_datetime: minutesFromNow(10) });
+
+  // First poll: no workflow row yet -- falls back to the hardcoded SMS.
+  await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok') } });
+  assert.equal(smsRowsFor(db, contactId).length, 1);
+
+  // A send_email workflow is added for the same slot before the next poll.
+  insertEmailWorkflow(db);
+  const gmail = fakeGmail('ok');
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient('ok'), sendGmailEmail: gmail.sendGmailEmail } });
+
+  assert.equal(summary.sent, 1, 'the email is independently due -- the prior SMS send for this occurrence must not block it');
+  assert.equal(emailRowsFor(db, contactId).length, 1);
+  assert.equal(smsRowsFor(db, contactId).length, 1, 'no second SMS should be sent -- the workflow now routes this slot to email');
 }));

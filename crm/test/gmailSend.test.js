@@ -92,6 +92,27 @@ test('sendGmailEmail with no contactId sends but logs nothing (matches the origi
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM communications').get().n, 0);
 });
 
+test('sendGmailEmail stamps appointment_id/message_type/appointment_occurrence_at when supplied (2026-10-16 dedup columns), and leaves them NULL when omitted', async () => {
+  const db = createLegacyDb();
+  const contactId = seedContact(db);
+  const { deps } = fakeDeps('ok');
+
+  await sendGmailEmail(db, { contactId, toEmail: 'renee@example.com', subject: 'Hello', body: 'Body' }, deps);
+  const plainRow = db.prepare('SELECT appointment_id, message_type, appointment_occurrence_at FROM emails WHERE contact_id = ?').get(contactId);
+  assert.equal(plainRow.appointment_id, null);
+  assert.equal(plainRow.message_type, null);
+  assert.equal(plainRow.appointment_occurrence_at, null);
+
+  await sendGmailEmail(db, {
+    contactId, toEmail: 'renee@example.com', subject: 'Reminder', body: 'Body',
+    appointmentId: 42, messageType: 'reminder_24h', appointmentOccurrenceAt: '2026-11-01T18:00:00.000Z',
+  }, deps);
+  const dedupRow = db.prepare(`SELECT appointment_id, message_type, appointment_occurrence_at FROM emails WHERE contact_id = ? AND subject = 'Reminder'`).get(contactId);
+  assert.equal(dedupRow.appointment_id, 42);
+  assert.equal(dedupRow.message_type, 'reminder_24h');
+  assert.equal(dedupRow.appointment_occurrence_at, '2026-11-01T18:00:00.000Z');
+});
+
 test('sendGmailEmail propagates a Gmail API failure to the caller (never silently swallowed)', async () => {
   const db = createLegacyDb();
   const contactId = seedContact(db);

@@ -158,6 +158,9 @@ function createLegacyDb(dbPath = ':memory:') {
       thread_id        TEXT,
       direction        TEXT NOT NULL DEFAULT 'outbound',
       failure_resolved_at DATETIME,
+      appointment_id   INTEGER,
+      message_type     TEXT,
+      appointment_occurrence_at TEXT,
       sent_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
     );
@@ -245,6 +248,7 @@ function createLegacyDb(dbPath = ':memory:') {
       condition_type     TEXT NOT NULL DEFAULT 'always',
       action_type        TEXT NOT NULL DEFAULT 'send_sms',
       message_template   TEXT NOT NULL,
+      email_subject      TEXT,
       enabled            INTEGER NOT NULL DEFAULT 1,
       is_system_default  INTEGER NOT NULL DEFAULT 0,
       created_at         DATETIME DEFAULT CURRENT_TIMESTAMP,

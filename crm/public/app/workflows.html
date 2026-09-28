@@ -45,6 +45,15 @@ const PLACEHOLDERS = [
   { key: 'intake_link', label: 'Intake Link', sample: 'https://insuranceladyllc.com/i/8f2a91c7b3…' },
 ];
 
+// day_phrase only ever renders inside the hardcoded 24-hour-reminder SMS
+// fallback (crm/lib/appointmentConfirmationSms.js) -- crm/lib/appointmentConfirmationEmail.js's
+// vars object never sets it, so it isn't offered as an Email insert (it
+// would just render blank). Every other placeholder is available to both
+// actions, per the approved variable list.
+function placeholdersForAction(actionType) {
+  return actionType === 'send_email' ? PLACEHOLDERS.filter(p => p.key !== 'day_phrase') : PLACEHOLDERS;
+}
+
 function whenLabel(w) {
   if (w.triggerType === 'appointment_booked') return 'At time of booking';
   return `${w.offsetValue} ${UNIT_LABELS[w.offsetUnit] || w.offsetUnit} before appointment`;
@@ -107,11 +116,11 @@ async function render() {
     ${brandSectionHtml('prosperity')}
   `;
 
-  function placeholderToolbarHtml() {
+  function placeholderToolbarHtml(actionType) {
     return `
       <div class="text-faint" style="margin:6px 0 2px;">Insert:</div>
-      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
-        ${PLACEHOLDERS.map(p => `<button type="button" class="btn small ghost" data-insert-placeholder="${p.key}">${esc(p.label)}</button>`).join('')}
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;" id="workflow-placeholder-buttons">
+        ${placeholdersForAction(actionType).map(p => `<button type="button" class="btn small ghost" data-insert-placeholder="${p.key}">${esc(p.label)}</button>`).join('')}
       </div>`;
   }
 
@@ -201,8 +210,17 @@ async function render() {
             </select>
           </div>
           <div class="form-field full" style="margin-top:10px;"><label>Action</label>
-            <select class="input" disabled><option>Send SMS</option></select>
-            <div class="text-faint" style="margin-top:2px;">Version 1 supports sending a text message only.</div>
+            <select class="input" name="actionType" id="workflow-action-type">
+              <option value="send_sms" ${(w.actionType || 'send_sms') === 'send_sms' ? 'selected' : ''}>Send SMS</option>
+              <option value="send_email" ${w.actionType === 'send_email' ? 'selected' : ''}>Send Email</option>
+            </select>
+            <div class="text-faint" id="workflow-email-brand-warning" style="margin-top:2px; color:#b3261e; display:none;">
+              Automated email is not yet configured for Insurance Lady — no email will be sent while this brand is paired with Send Email. Only Prosperity’s Gmail sender (loretta@prosperitylfs.com) is connected.
+            </div>
+          </div>
+
+          <div class="form-field full" id="workflow-email-subject-wrap" style="margin-top:10px; display:none;"><label>Email Subject</label>
+            <input class="input" name="emailSubject" id="workflow-email-subject" value="${esc(w.emailSubject || '')}" placeholder="e.g. Your appointment with {{brand_name}}">
           </div>
 
           <div id="workflow-message-type-wrap">
@@ -217,8 +235,8 @@ async function render() {
             <div class="text-faint">This message is only eligible to send after a Cal.com booking has been classified by the CRM as a Retirement Lead. Appointment Type: Any does not override that retirement classification.</div>
           </div>
 
-          <div class="form-field full" style="margin-top:10px;"><label>Message</label>
-            ${placeholderToolbarHtml()}
+          <div class="form-field full" style="margin-top:10px;" id="workflow-message-field"><label id="workflow-message-label">Message</label>
+            <div id="workflow-placeholder-toolbar">${placeholderToolbarHtml(w.actionType || 'send_sms')}</div>
             <textarea class="input" name="messageTemplate" id="workflow-message-template" rows="8" required>${esc(w.messageTemplate || '')}</textarea>
           </div>
           <div class="form-field full" style="margin-top:6px;">
@@ -257,6 +275,12 @@ async function render() {
     const retirementIntakeNote = dialog.querySelector('#workflow-retirement-intake-note');
     const textarea = dialog.querySelector('#workflow-message-template');
     const preview = dialog.querySelector('#workflow-message-preview');
+    const actionSelect = dialog.querySelector('#workflow-action-type');
+    const emailSubjectWrap = dialog.querySelector('#workflow-email-subject-wrap');
+    const emailSubjectInput = dialog.querySelector('#workflow-email-subject');
+    const emailBrandWarning = dialog.querySelector('#workflow-email-brand-warning');
+    const messageLabel = dialog.querySelector('#workflow-message-label');
+    const placeholderToolbar = dialog.querySelector('#workflow-placeholder-toolbar');
 
     function updatePreview() { preview.textContent = renderPreview(textarea.value) || '(empty)'; }
     function updateRetirementIntakeNote() {
@@ -267,19 +291,52 @@ async function render() {
     });
     messageTypeSelect.addEventListener('change', updateRetirementIntakeNote);
     textarea.addEventListener('input', updatePreview);
-    dialog.querySelectorAll('[data-insert-placeholder]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const key = btn.dataset.insertPlaceholder;
-        const start = textarea.selectionStart ?? textarea.value.length;
-        const end = textarea.selectionEnd ?? textarea.value.length;
-        const token = `{{${key}}}`;
-        textarea.value = textarea.value.slice(0, start) + token + textarea.value.slice(end);
-        textarea.focus();
-        textarea.selectionStart = textarea.selectionEnd = start + token.length;
-        updatePreview();
+
+    // Insert buttons target whichever field was last focused (message body
+    // or, for Send Email, the subject line) -- defaults to the message body
+    // since that's the only insertable field for Send SMS.
+    let insertTarget = textarea;
+    textarea.addEventListener('focus', () => { insertTarget = textarea; });
+    emailSubjectInput.addEventListener('focus', () => { insertTarget = emailSubjectInput; });
+
+    function bindPlaceholderButtons() {
+      dialog.querySelectorAll('[data-insert-placeholder]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const key = btn.dataset.insertPlaceholder;
+          const target = insertTarget;
+          const start = target.selectionStart ?? target.value.length;
+          const end = target.selectionEnd ?? target.value.length;
+          const token = `{{${key}}}`;
+          target.value = target.value.slice(0, start) + token + target.value.slice(end);
+          target.focus();
+          target.selectionStart = target.selectionEnd = start + token.length;
+          if (target === textarea) updatePreview();
+        });
       });
-    });
+    }
+    bindPlaceholderButtons();
     updatePreview();
+
+    // Send Email vs Send SMS: shows/hides the Email Subject field, swaps
+    // which placeholders are offered (day_phrase is SMS-only -- see
+    // placeholdersForAction), relabels "Message" to "Email Body" for
+    // clarity, and warns (without blocking save) when Insurance Lady is
+    // paired with Send Email, since Insurance Lady has no configured email
+    // sender yet -- see crm/lib/appointmentConfirmationEmail.js's header
+    // comment for why that combination fails closed at send time rather
+    // than being rejected here.
+    function updateActionFields() {
+      const isEmail = actionSelect.value === 'send_email';
+      emailSubjectWrap.style.display = isEmail ? '' : 'none';
+      emailSubjectInput.required = isEmail;
+      messageLabel.textContent = isEmail ? 'Email Body' : 'Message';
+      placeholderToolbar.innerHTML = placeholderToolbarHtml(actionSelect.value);
+      bindPlaceholderButtons();
+      emailBrandWarning.style.display = (isEmail && brandSelect.value === 'insurance-lady') ? '' : 'none';
+    }
+    actionSelect.addEventListener('change', updateActionFields);
+    brandSelect.addEventListener('change', updateActionFields);
+    updateActionFields();
 
     // ── CREATE-mode-only: template selection, brand-change refresh, and
     // unsaved-edit protection. Edit mode never runs any of this. ──────────
@@ -306,14 +363,17 @@ async function render() {
         const inferredMessageType = template ? template.messageType : (messageTypeSelect.options[0] ? messageTypeSelect.options[0].value : '');
         messageTypeSelect.value = inferredMessageType;
         messageTypeWrap.style.display = template ? 'none' : '';
+        actionSelect.value = template ? (template.actionType || 'send_sms') : 'send_sms';
+        emailSubjectInput.value = template ? (template.emailSubject || '') : '';
         textarea.value = template ? template.messageTemplate : '';
+        updateActionFields();
         updatePreview();
         updateRetirementIntakeNote();
         dirty = false;
       }
 
       function markDirty() { dirty = true; }
-      [nameInput, appointmentTypeSelect, triggerSelect, offsetValueInput, offsetUnitSelect, conditionSelect, messageTypeSelect, textarea]
+      [nameInput, appointmentTypeSelect, triggerSelect, offsetValueInput, offsetUnitSelect, conditionSelect, messageTypeSelect, actionSelect, emailSubjectInput, textarea]
         .forEach(el => {
           el.addEventListener('input', markDirty);
           el.addEventListener('change', markDirty);
@@ -357,9 +417,10 @@ async function render() {
       const payload = {
         name: fields.name, brandId: fields.brandId, appointmentType: fields.appointmentType || null,
         triggerType: fields.triggerType, messageType: fields.messageType, conditionType: fields.conditionType,
-        actionType: 'send_sms', messageTemplate: fields.messageTemplate, enabled: fields.enabled === 'true',
+        actionType: fields.actionType, messageTemplate: fields.messageTemplate, enabled: fields.enabled === 'true',
         offsetValue: fields.triggerType === 'time_before_appointment' ? Number(fields.offsetValue) : null,
         offsetUnit: fields.triggerType === 'time_before_appointment' ? fields.offsetUnit : null,
+        emailSubject: fields.actionType === 'send_email' ? fields.emailSubject : null,
       };
 
       try {

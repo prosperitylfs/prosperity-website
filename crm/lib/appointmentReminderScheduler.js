@@ -85,6 +85,8 @@
 // aborting the rest of the batch or crashing the poll.
 
 const { sendAppointmentConfirmationSms } = require('./appointmentConfirmationSms');
+const { sendAppointmentConfirmationEmail } = require('./appointmentConfirmationEmail');
+const { selectWorkflowForOccurrence } = require('./workflowService');
 
 // Listed smallest-window-first purely for readability -- the windows are
 // disjoint, so match order has no effect on which spec (if any) is found.
@@ -110,7 +112,7 @@ const DEFAULT_POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 function findEligibleAppointments(db, { nowIso, cutoffIso }) {
   return db.prepare(`
     SELECT a.id AS appointment_id, a.appt_type, a.appt_datetime, a.booking_brand,
-           c.id AS contact_id, c.first_name
+           c.id AS contact_id, c.first_name, c.email
     FROM appointments a
     JOIN contacts c ON c.id = a.contact_id
     WHERE a.status IN ('Scheduled', 'Rescheduled')
@@ -122,6 +124,20 @@ function findEligibleAppointments(db, { nowIso, cutoffIso }) {
 function alreadySent(db, { appointmentId, messageType, appointmentOccurrenceAt }) {
   const row = db.prepare(`
     SELECT 1 FROM sms_messages
+    WHERE appointment_id = ? AND message_type = ? AND appointment_occurrence_at = ? AND status != 'failed'
+    LIMIT 1
+  `).get(appointmentId, messageType, appointmentOccurrenceAt);
+  return !!row;
+}
+
+// Mirrors alreadySent above, against the emails table's identical dedup
+// columns (crm/db/database.js, added 2026-10-16) -- used only for a
+// send_email-actioned workflow, so a workflow switched from Send SMS to
+// Send Email (or back) starts its own independent dedup history rather
+// than inheriting the other channel's.
+function alreadySentEmail(db, { appointmentId, messageType, appointmentOccurrenceAt }) {
+  const row = db.prepare(`
+    SELECT 1 FROM emails
     WHERE appointment_id = ? AND message_type = ? AND appointment_occurrence_at = ? AND status != 'failed'
     LIMIT 1
   `).get(appointmentId, messageType, appointmentOccurrenceAt);
@@ -199,7 +215,7 @@ async function runReminderCheck(db, { now = new Date(), deps = {} } = {}) {
     try {
       const minutesUntil = (new Date(appt.appt_datetime).getTime() - now.getTime()) / 60000;
       const spec = findReminderSpec(minutesUntil);
-      if (!spec || alreadySent(db, { appointmentId: appt.appointment_id, messageType: spec.messageType, appointmentOccurrenceAt: appt.appt_datetime })) {
+      if (!spec) {
         summary.skipped += 1;
         continue;
       }
@@ -210,25 +226,52 @@ async function runReminderCheck(db, { now = new Date(), deps = {} } = {}) {
         console.warn(`[appointmentReminderScheduler] skipping ${spec.messageType} for appointment #${appt.appointment_id} -- brand could not be reliably determined (no booking_brand, and contact_brands has no single active relationship). Never guessed as Prosperity.`);
         continue;
       }
-      const smsResult = await sendAppointmentConfirmationSms(db, {
-        contactId: appt.contact_id,
-        firstName: appt.first_name,
-        appointmentType: appt.appt_type,
-        appointmentDatetimeIso: appt.appt_datetime,
-        brandId,
-        messageType: spec.messageType,
-        appointmentId: appt.appointment_id,
-        now,
-      }, deps);
 
-      if (smsResult.sent) {
+      // Peek at which action the matching workflow (if any) specifies so
+      // the right channel is dispatched to AND deduped against -- see
+      // crm/lib/appointmentConfirmationEmail.js's header comment. Both
+      // sendAppointmentConfirmationSms and sendAppointmentConfirmationEmail
+      // independently re-resolve this same workflow row before sending
+      // (a harmless redundant lookup); this keeps both senders' own logic
+      // byte-for-byte untouched by this file.
+      const workflow = selectWorkflowForOccurrence(db, { brandId, appointmentType: appt.appt_type, messageType: spec.messageType });
+      const useEmail = !!workflow && workflow.actionType === 'send_email';
+      const dedupCheck = useEmail ? alreadySentEmail : alreadySent;
+      if (dedupCheck(db, { appointmentId: appt.appointment_id, messageType: spec.messageType, appointmentOccurrenceAt: appt.appt_datetime })) {
+        summary.skipped += 1;
+        continue;
+      }
+
+      const result = useEmail
+        ? await sendAppointmentConfirmationEmail(db, {
+            contactId: appt.contact_id,
+            toEmail: appt.email,
+            firstName: appt.first_name,
+            appointmentType: appt.appt_type,
+            appointmentDatetimeIso: appt.appt_datetime,
+            brandId,
+            messageType: spec.messageType,
+            appointmentId: appt.appointment_id,
+          }, deps)
+        : await sendAppointmentConfirmationSms(db, {
+            contactId: appt.contact_id,
+            firstName: appt.first_name,
+            appointmentType: appt.appt_type,
+            appointmentDatetimeIso: appt.appt_datetime,
+            brandId,
+            messageType: spec.messageType,
+            appointmentId: appt.appointment_id,
+            now,
+          }, deps);
+
+      if (result.sent) {
         summary.sent += 1;
-      } else if (smsResult.attempted) {
+      } else if (result.attempted) {
         summary.skipped += 1;
         // Not an error-log-worthy event by itself (e.g. missing consent is
         // an expected, routine outcome) -- logged at the same level the
         // confirmation/reschedule sends already use for a not-sent result.
-        console.warn(`[appointmentReminderScheduler] ${spec.messageType} not sent for appointment #${appt.appointment_id}: ${smsResult.reason}`);
+        console.warn(`[appointmentReminderScheduler] ${spec.messageType} not sent for appointment #${appt.appointment_id}: ${result.reason}`);
       }
     } catch (err) {
       // One appointment's failure must never stop the batch. No contact

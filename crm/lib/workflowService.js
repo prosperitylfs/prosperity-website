@@ -35,7 +35,12 @@ const VALID_BRANDS = ['prosperity', 'insurance-lady'];
 const VALID_TRIGGER_TYPES = ['appointment_booked', 'time_before_appointment'];
 const VALID_CONDITION_TYPES = ['always', 'retirement_intake_completed', 'retirement_intake_not_completed'];
 const VALID_OFFSET_UNITS = ['minutes', 'hours', 'days'];
-const VALID_ACTION_TYPES = ['send_sms']; // Version 1 supports only sending an SMS.
+// 2026-10-16: 'send_email' added -- Prosperity only for now (see
+// createWorkflow/validateWorkflowFields' own brand+action check below, and
+// lib/appointmentConfirmationEmail.js's own header comment for why
+// Insurance Lady fails closed rather than silently using Prosperity's
+// Gmail identity).
+const VALID_ACTION_TYPES = ['send_sms', 'send_email'];
 
 // The complete, closed set of automations Version 1 can represent --
 // message_type must be one of these (2026-09-28: previously free-text, an
@@ -116,6 +121,16 @@ function validateWorkflowFields(fields) {
     throw new Error('workflowService: "At time of booking" workflows cannot have a timing value/unit');
   }
 
+  // 2026-10-16: Send Email requires a subject (there's nowhere else for one
+  // to come from); Send SMS must not carry one, mirroring the same
+  // strict-consistency pattern as the offsetValue/offsetUnit check above,
+  // rather than silently ignoring a stray value.
+  if (fields.actionType === 'send_email') {
+    if (!toStringOrNull(fields.emailSubject)) throw new Error('workflowService: an email subject is required for a Send Email workflow');
+  } else if (toStringOrNull(fields.emailSubject)) {
+    throw new Error('workflowService: a Send SMS workflow cannot have an email subject');
+  }
+
   if (MESSAGE_TYPES_REQUIRING_INTAKE_LINK.includes(fields.messageType) && !String(fields.messageTemplate).includes('{{intake_link}}')) {
     throw new Error('workflowService: this message must include the {{intake_link}} placeholder so the client\'s unique intake link is still sent');
   }
@@ -136,6 +151,7 @@ function mapRow(row) {
     conditionType: row.condition_type,
     actionType: row.action_type,
     messageTemplate: row.message_template,
+    emailSubject: row.email_subject,
     enabled: !!row.enabled,
     isSystemDefault: !!row.is_system_default,
     createdAt: row.created_at,
@@ -160,6 +176,7 @@ function createWorkflow(db, fields) {
     triggerType: fields.triggerType, offsetValue: fields.offsetValue ?? null, offsetUnit: fields.offsetUnit ?? null,
     messageType: fields.messageType, conditionType: fields.conditionType || 'always',
     actionType: fields.actionType || 'send_sms', messageTemplate: fields.messageTemplate,
+    emailSubject: toStringOrNull(fields.emailSubject),
     enabled: fields.enabled !== undefined ? !!fields.enabled : true,
   };
   validateWorkflowFields(merged);
@@ -168,16 +185,17 @@ function createWorkflow(db, fields) {
   const result = db.prepare(`
     INSERT INTO workflows (
       name, brand_id, appointment_type, trigger_type, offset_value, offset_unit, offset_minutes,
-      message_type, condition_type, action_type, message_template, enabled
+      message_type, condition_type, action_type, message_template, email_subject, enabled
     ) VALUES (
       @name, @brand_id, @appointment_type, @trigger_type, @offset_value, @offset_unit, @offset_minutes,
-      @message_type, @condition_type, @action_type, @message_template, @enabled
+      @message_type, @condition_type, @action_type, @message_template, @email_subject, @enabled
     )
   `).run({
     name: merged.name, brand_id: merged.brandId, appointment_type: merged.appointmentType,
     trigger_type: merged.triggerType, offset_value: merged.offsetValue, offset_unit: merged.offsetUnit,
     offset_minutes: offsetMinutes, message_type: merged.messageType, condition_type: merged.conditionType,
-    action_type: merged.actionType, message_template: merged.messageTemplate, enabled: merged.enabled ? 1 : 0,
+    action_type: merged.actionType, message_template: merged.messageTemplate, email_subject: merged.emailSubject,
+    enabled: merged.enabled ? 1 : 0,
   });
   return getWorkflow(db, result.lastInsertRowid);
 }
@@ -203,6 +221,7 @@ function updateWorkflow(db, id, fields) {
     conditionType: fields.conditionType !== undefined ? fields.conditionType : existing.condition_type,
     actionType: fields.actionType !== undefined ? fields.actionType : existing.action_type,
     messageTemplate: fields.messageTemplate !== undefined ? fields.messageTemplate : existing.message_template,
+    emailSubject: fields.emailSubject !== undefined ? toStringOrNull(fields.emailSubject) : existing.email_subject,
     enabled: fields.enabled !== undefined ? !!fields.enabled : !!existing.enabled,
   };
   validateWorkflowFields(merged);
@@ -213,14 +232,15 @@ function updateWorkflow(db, id, fields) {
       name = @name, brand_id = @brand_id, appointment_type = @appointment_type,
       trigger_type = @trigger_type, offset_value = @offset_value, offset_unit = @offset_unit,
       offset_minutes = @offset_minutes, message_type = @message_type, condition_type = @condition_type,
-      action_type = @action_type, message_template = @message_template, enabled = @enabled,
-      updated_at = CURRENT_TIMESTAMP
+      action_type = @action_type, message_template = @message_template, email_subject = @email_subject,
+      enabled = @enabled, updated_at = CURRENT_TIMESTAMP
     WHERE id = @id
   `).run({
     id, name: merged.name, brand_id: merged.brandId, appointment_type: merged.appointmentType,
     trigger_type: merged.triggerType, offset_value: merged.offsetValue, offset_unit: merged.offsetUnit,
     offset_minutes: offsetMinutes, message_type: merged.messageType, condition_type: merged.conditionType,
-    action_type: merged.actionType, message_template: merged.messageTemplate, enabled: merged.enabled ? 1 : 0,
+    action_type: merged.actionType, message_template: merged.messageTemplate, email_subject: merged.emailSubject,
+    enabled: merged.enabled ? 1 : 0,
   });
   return getWorkflow(db, id);
 }

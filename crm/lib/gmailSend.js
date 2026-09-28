@@ -64,7 +64,13 @@ function isConfigured() {
 // contactId is optional (omit to send without logging anywhere, matching
 // the original route's `if (contact_id) { ... }` guard) -- every existing
 // caller (crm/routes/email.js) always supplies one.
-async function sendGmailEmail(db, { contactId = null, toEmail, subject, body }, deps = {}) {
+//
+// appointmentId / messageType / appointmentOccurrenceAt (all optional,
+// default null) were added 2026-10-16 for crm/lib/appointmentConfirmationEmail.js's
+// automated-workflow-email dedup, mirroring sms_messages' identical columns.
+// Every pre-existing caller (crm/routes/email.js, crm/lib/existingClientOutreach.js)
+// omits them and gets NULL, exactly as before this change.
+async function sendGmailEmail(db, { contactId = null, toEmail, subject, body, appointmentId = null, messageType = null, appointmentOccurrenceAt = null }, deps = {}) {
   const auth = deps.authedClientFactory ? deps.authedClientFactory() : authedClient();
   const gmail = deps.gmailClientFactory ? deps.gmailClientFactory(auth) : google.gmail({ version: 'v1', auth });
 
@@ -90,9 +96,9 @@ async function sendGmailEmail(db, { contactId = null, toEmail, subject, body }, 
   if (contactId) {
     db.prepare(`
       INSERT OR IGNORE INTO emails
-        (contact_id, to_email, subject, body, status, gmail_message_id, thread_id, direction)
-      VALUES (?, ?, ?, ?, 'sent', ?, ?, 'outbound')
-    `).run(contactId, toEmail, subject, preview, gmailMessageId, threadId);
+        (contact_id, to_email, subject, body, status, gmail_message_id, thread_id, direction, appointment_id, message_type, appointment_occurrence_at)
+      VALUES (?, ?, ?, ?, 'sent', ?, ?, 'outbound', ?, ?, ?)
+    `).run(contactId, toEmail, subject, preview, gmailMessageId, threadId, appointmentId, messageType, appointmentOccurrenceAt);
 
     // Also land in the communications timeline (activity feed excludes comm_type='email')
     db.prepare(`

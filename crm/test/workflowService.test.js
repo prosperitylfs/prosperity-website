@@ -38,7 +38,7 @@ test('exported constant vocabularies match the approved Version 1 design', () =>
   assert.deepEqual(VALID_TRIGGER_TYPES, ['appointment_booked', 'time_before_appointment']);
   assert.deepEqual(VALID_CONDITION_TYPES, ['always', 'retirement_intake_completed', 'retirement_intake_not_completed']);
   assert.deepEqual(VALID_OFFSET_UNITS, ['minutes', 'hours', 'days']);
-  assert.deepEqual(VALID_ACTION_TYPES, ['send_sms']);
+  assert.deepEqual(VALID_ACTION_TYPES, ['send_sms', 'send_email']);
   assert.deepEqual(MESSAGE_TYPES_REQUIRING_INTAKE_LINK, ['retirement_intake', 'retirement_intake_2h_reminder']);
   assert.ok(VALID_MESSAGE_TYPES.includes('retirement_intake_2h_reminder'));
 });

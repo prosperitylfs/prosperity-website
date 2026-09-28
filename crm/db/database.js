@@ -436,6 +436,25 @@ try {
   if (!e.message.includes('already exists')) throw e;
 }
 
+// Workflows "Send Email" action support (2026-10-16) -- mirrors
+// sms_messages' own appointment_id/message_type/appointment_occurrence_at
+// columns and their own comment above exactly: lets
+// crm/lib/appointmentReminderScheduler.js dedupe an automated workflow
+// email the exact same way it already dedupes an automated workflow SMS
+// (appointment_id + message_type + the appointment's CURRENT
+// appt_datetime, so a reschedule doesn't get skipped or double-sent).
+// NULL for every existing row and every manual/outreach email, which
+// aren't tied to a specific scheduled appointment occurrence.
+addCol('emails', 'appointment_id', 'INTEGER REFERENCES appointments(id)');
+addCol('emails', 'message_type',   'TEXT');
+addCol('emails', 'appointment_occurrence_at', 'TEXT');
+try {
+  db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_emails_reminder_dedup
+    ON emails(appointment_id, message_type, appointment_occurrence_at)
+  `).run();
+} catch (e) { if (!e.message.includes('already exists')) throw e; }
+
 // Middle name/initial — client/policy CSV import (e.g. an existing carrier's
 // book of business), for accurate legal-name records.
 addCol('contacts', 'middle_name', 'TEXT');
@@ -597,6 +616,13 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_workflows_identity
     ON workflows(brand_id, message_type, COALESCE(appointment_type,''), condition_type);
 `);
+
+// "Send Email" action support (2026-10-16). Only meaningful when
+// action_type='send_email' -- NULL for every existing action_type='send_sms'
+// row (nothing about them changes). See crm/lib/workflowService.js's own
+// validation: required whenever action_type='send_email', ignored/cleared
+// otherwise.
+addCol('workflows', 'email_subject', 'TEXT');
 
 // Phase 2 (2026-09-28): seeds the `workflows` table with rows that
 // reproduce today's hardcoded automations exactly (see

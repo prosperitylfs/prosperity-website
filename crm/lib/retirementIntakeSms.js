@@ -168,7 +168,15 @@ async function sendRetirementIntakeSms(db, { intake, contactId, appointmentDatet
     const { date, time } = fmtApptDateTimeCT(appointmentDatetimeIso);
     const brand = BRANDS[brandId];
     body = renderWorkflowMessage(workflow.messageTemplate, {
-      first_name: firstName || '', appt_date: date, appt_time: time,
+      // Same fallback word every other "Hi {{first_name}}," workflow
+      // message in this codebase uses (buildConfirmationSmsBody's
+      // attendee_name: firstName || 'there') -- a missing first name must
+      // never render the literal string "undefined" or "null" (which
+      // renderWorkflowMessage's {{key}} substitution already can't do on
+      // its own, since a JS undefined/null var renders as '' there), and
+      // "there" reads naturally ("Hi there,") instead of leaving an
+      // awkward "Hi ,".
+      first_name: firstName || 'there', appt_date: date, appt_time: time,
       brand_name: brand ? brand.legalName : brandId,
       intake_link: buildIntakeUrl(intake.token, brandId),
     });

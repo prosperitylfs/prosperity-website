@@ -258,30 +258,30 @@ function selectWorkflowForOccurrence(db, params) {
   return rows.length ? rows[0] : null;
 }
 
-// ── Default seed data (Phase 2, 2026-09-28) ─────────────────────────────
-// A byte-for-byte migration of the CURRENT hardcoded automations into
-// workflow rows -- not new wording, not new timing, not a new automation.
-// Every message_template below is derived directly from the exact live
-// template it represents; see each entry's own comment for the source.
+// ── Default seed data (Phase 2, 2026-09-28; updated 2026-10-02) ─────────
+// Phase 2 was a byte-for-byte migration of the pre-Workflows hardcoded
+// automations. Two later, explicitly requested changes (2026-10-02) departed
+// from strict byte-identical fidelity on purpose:
+//   - Insurance Lady's retirement_intake now opens with "Hi {{first_name}},"
+//     -- it never had a greeting before. See DEFAULT_WORKFLOW_CORRECTIONS
+//     below for how an ALREADY-SEEDED production row (from the original
+//     Phase 2 deploy) picks up this wording safely.
+//   - Prosperity's retirement_intake is now seeded too, also always opening
+//     with "Hi {{first_name}}," -- this removes the one obstacle that kept
+//     it unseeded in Phase 2 (the hardcoded version's conditional greeting,
+//     present only when firstName was truthy, omitted as a whole LINE
+//     otherwise -- a flat {{first_name}} placeholder could only blank the
+//     name, not remove the line). Making the greeting unconditional (with a
+//     "there" fallback, matching every other "Hi {{first_name}}," message in
+//     this codebase) removes that obstacle entirely.
+// Both brands' underlying lib/retirementIntakeSms.js hardcoded fallback
+// strings are UNCHANGED -- if either seeded row is ever disabled, the send
+// reverts to the original (Insurance Lady: no greeting; Prosperity:
+// conditional greeting) wording, exactly as before this change.
 //
-// Two deliberate omissions, both because representing them here would
-// require either altering behavior or the message-template placeholder
-// language to grow beyond a flat {{key}} substitution -- neither is in
-// scope for "migrate current behavior":
-//   - 'reschedule' (both brands): not in the set Loretta asked to migrate
-//     this phase (confirmation/intake, 24h, 1h, 15m only). Stays on the
-//     config/templates.js hardcoded fallback, completely unaffected.
-//   - Prosperity's retirement_intake: the hardcoded version only prepends
-//     "Hi {firstName},\n\n" when firstName is present, and omits the
-//     greeting LINE ENTIRELY (not just a blank name) when it's not --
-//     lib/retirementIntakeSms.js's buildIntakeSmsBody's own `return
-//     firstName ? ... : message` branch. A flat {{first_name}} placeholder
-//     can't reproduce "the whole line disappears," only "the name is
-//     blank" -- so seeding this one would be a real (if narrow) wording
-//     change in the rare no-first-name case. Insurance Lady's version has
-//     no such conditional (it never adds a greeting at all, seeded below
-//     with full fidelity); Prosperity's stays on the hardcoded fallback
-//     for now.
+// One remaining deliberate omission:
+//   - 'reschedule' (both brands): not in the set Loretta asked to migrate.
+//     Stays on the config/templates.js hardcoded fallback, unaffected.
 function offsetFields(value, unit) {
   return { offsetValue: value, offsetUnit: unit, offsetMinutes: computeOffsetMinutes(value, unit) };
 }
@@ -316,8 +316,12 @@ const DEFAULT_WORKFLOWS = [
     name: 'Retirement Intake Link', brandId: 'insurance-lady', appointmentType: null,
     triggerType: 'appointment_booked', messageType: 'retirement_intake', conditionType: 'always',
     // Source: lib/retirementIntakeSms.js buildIntakeSmsBody's insurance-lady
-    // branch (no greeting -- that branch never adds one).
-    messageTemplate: `Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
+    // branch, plus a "Hi {{first_name}}," greeting added 2026-10-02 (that
+    // branch itself never had one) -- see DEFAULT_WORKFLOW_CORRECTIONS
+    // below for how an already-seeded production row picks this up.
+    messageTemplate: `Hi {{first_name}},
+
+Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
 
 Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
 
@@ -353,6 +357,32 @@ Insurance Lady LLC`,
     // Source: config/templates.js TEMPLATES.prosperity.reminder15mSms.body
     messageTemplate: 'Hi {{first_name}}, this is your 15-minute reminder. Your {{appointment_type}} with Loretta Stewart begins at {{appt_time}}. Loretta will call you at the scheduled time. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.',
   },
+  {
+    name: 'Retirement Intake Link', brandId: 'prosperity', appointmentType: null,
+    triggerType: 'appointment_booked', messageType: 'retirement_intake', conditionType: 'always',
+    // Source: lib/retirementIntakeSms.js buildIntakeSmsBody's prosperity
+    // branch (Loretta Stewart / "so Loretta has time" wording -- distinct
+    // from Insurance Lady's own phrasing, preserved exactly, not
+    // homogenized), plus an unconditional "Hi {{first_name}}," greeting
+    // added 2026-10-02 (the hardcoded branch only added one when firstName
+    // was truthy, omitting the whole line otherwise -- see this file's
+    // header comment for why that's what kept this row unseeded in Phase
+    // 2). The intake link itself is generated exactly as before -- see
+    // WORKFLOW_MESSAGE_TYPE's own comment in lib/retirementIntakeSms.js:
+    // buildIntakeUrl(intake.token, brandId) resolves Prosperity's own
+    // domain (prosperitylfs.com), never Insurance Lady's.
+    messageTemplate: `Hi {{first_name}},
+
+Your Safe Money & Retirement consultation with Loretta Stewart is scheduled for {{appt_date}} at {{appt_time}}.
+
+Please complete your Retirement Intake Form at least 2 hours before your appointment so Loretta has time to review and prepare:
+
+{{intake_link}}
+
+If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
+
+Prosperity Life & Financial Solutions`,
+  },
 ];
 
 // Idempotent: run at every boot (crm/db/database.js, right after the
@@ -385,6 +415,59 @@ function seedDefaultWorkflows(db) {
   }
 }
 
+// ── Wording corrections to an ALREADY-SEEDED default row (2026-10-02) ───
+// seedDefaultWorkflows()'s INSERT OR IGNORE only ever fills in a row that
+// doesn't exist yet -- it deliberately never touches one that's already
+// there, so Loretta's own edits survive a re-seed. That means changing
+// DEFAULT_WORKFLOWS above is NOT enough by itself to fix the wording of a
+// row a previous deploy already created (Insurance Lady's Retirement
+// Intake Link was seeded by the original Phase 2 deploy with no greeting).
+// This is the safe, narrow, one-time-per-correction fix for exactly that:
+// each entry only updates a row that (a) is still marked
+// is_system_default = 1 and (b) still holds the EXACT prior default text
+// -- so a row Loretta has since edited by hand is left completely alone,
+// and a database that never had the old row in the first place (a fresh
+// install, or one seeded for the first time after this change) never
+// touches this path at all, since DEFAULT_WORKFLOWS already has the
+// corrected wording from the start.
+const DEFAULT_WORKFLOW_CORRECTIONS = [
+  {
+    brandId: 'insurance-lady', messageType: 'retirement_intake', appointmentType: null, conditionType: 'always',
+    oldMessageTemplate: `Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
+
+Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
+
+{{intake_link}}
+
+If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
+
+Insurance Lady LLC`,
+    newMessageTemplate: `Hi {{first_name}},
+
+Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
+
+Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
+
+{{intake_link}}
+
+If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
+
+Insurance Lady LLC`,
+  },
+];
+
+function applyDefaultWorkflowCorrections(db) {
+  const stmt = db.prepare(`
+    UPDATE workflows SET message_template = @newMessageTemplate, updated_at = CURRENT_TIMESTAMP
+    WHERE brand_id = @brandId AND message_type = @messageType
+      AND COALESCE(appointment_type,'') = COALESCE(@appointmentType,'')
+      AND condition_type = @conditionType
+      AND is_system_default = 1
+      AND message_template = @oldMessageTemplate
+  `);
+  for (const c of DEFAULT_WORKFLOW_CORRECTIONS) stmt.run(c);
+}
+
 module.exports = {
   VALID_BRANDS, VALID_TRIGGER_TYPES, VALID_CONDITION_TYPES, VALID_OFFSET_UNITS, VALID_ACTION_TYPES,
   MESSAGE_TYPE_OPTIONS, VALID_MESSAGE_TYPES,
@@ -393,4 +476,5 @@ module.exports = {
   evaluateCondition, renderWorkflowMessage,
   selectWorkflowsForOccurrence, selectWorkflowForOccurrence,
   DEFAULT_WORKFLOWS, seedDefaultWorkflows,
+  DEFAULT_WORKFLOW_CORRECTIONS, applyDefaultWorkflowCorrections,
 };

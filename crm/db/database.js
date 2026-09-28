@@ -609,6 +609,13 @@ db.exec(`
 // fallback logic from Phase 1 -- seeding these rows is what makes that
 // path actually active for these five automations instead of always
 // falling through.
-require('../lib/workflowService').seedDefaultWorkflows(db);
+const workflowService = require('../lib/workflowService');
+workflowService.seedDefaultWorkflows(db);
+// 2026-10-02: applies the greeting-wording correction to Insurance Lady's
+// Retirement Intake Link row if it was already seeded by an earlier deploy
+// with the old (no-greeting) text -- see workflowService.js's own comment
+// on DEFAULT_WORKFLOW_CORRECTIONS for why this is a separate, narrower step
+// from seedDefaultWorkflows above rather than just changing DEFAULT_WORKFLOWS.
+workflowService.applyDefaultWorkflowCorrections(db);
 
 module.exports = db;

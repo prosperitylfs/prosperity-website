@@ -91,56 +91,16 @@ for (const { brandId, messageType } of SCENARIOS) {
   });
 }
 
-// ── Retirement Intake Link — Insurance Lady only (Prosperity intentionally not seeded this phase) ──
+// ── Retirement Intake Link — both brands, now seeded (2026-10-02) ────────
+// Both retirement_intake rows deliberately DIFFER from their pre-Workflows
+// hardcoded wording (an unconditional "Hi {{first_name}}," greeting was
+// added to both, per explicit request) -- so these tests assert against
+// the exact NEW expected text, not "byte-identical to hardcoded" like the
+// confirmation/reminder rows above. Each still helps() out its own
+// retirement_intakes table (not part of testSupport/legacyDb.js's central
+// schema -- see other retirement-intake test files' own setup()).
 
-test('seeded insurance-lady retirement_intake workflow produces byte-identical output to buildIntakeSmsBody, including the real unique token', async () => {
-  const dbA = setup();
-  const contactIdA = seedContact(dbA);
-  const apptIdA = dbA.prepare(`INSERT INTO appointments (contact_id, appt_type, appt_datetime, status) VALUES (?, 'Safe Money & Retirement Consultation', ?, 'Scheduled')`).run(contactIdA, '2026-09-15T18:00:00.000Z').lastInsertRowid;
-  dbA.exec(`
-    CREATE TABLE retirement_intakes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, contact_id INTEGER NOT NULL, appointment_id INTEGER NOT NULL,
-      token TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Not Sent', sent_at DATETIME, completed_at DATETIME,
-      responses_json TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  const intakeA = createIntakeForAppointment(dbA, { contactId: contactIdA, appointmentId: apptIdA });
-  const capA = captureDeps();
-  const resultA = await sendRetirementIntakeSms(dbA, { intake: intakeA, contactId: contactIdA, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', brandId: 'insurance-lady', firstName: 'Janet' }, capA.deps);
-
-  const dbB = setup();
-  seedDefaultWorkflows(dbB);
-  const contactIdB = seedContact(dbB);
-  const apptIdB = dbB.prepare(`INSERT INTO appointments (contact_id, appt_type, appt_datetime, status) VALUES (?, 'Safe Money & Retirement Consultation', ?, 'Scheduled')`).run(contactIdB, '2026-09-15T18:00:00.000Z').lastInsertRowid;
-  dbB.exec(`
-    CREATE TABLE retirement_intakes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, contact_id INTEGER NOT NULL, appointment_id INTEGER NOT NULL,
-      token TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Not Sent', sent_at DATETIME, completed_at DATETIME,
-      responses_json TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  const intakeB = createIntakeForAppointment(dbB, { contactId: contactIdB, appointmentId: apptIdB });
-  const capB = captureDeps();
-  const resultB = await sendRetirementIntakeSms(dbB, { intake: intakeB, contactId: contactIdB, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', brandId: 'insurance-lady', firstName: 'Janet' }, capB.deps);
-
-  assert.equal(resultA.sent, true);
-  assert.equal(resultB.sent, true);
-  // Tokens differ between the two independent intakes (each is its own
-  // crypto.randomBytes(32)) -- Insurance Lady's URL uses only the first 16
-  // hex chars of the token (the short-link feature added 2026-09-25; see
-  // lib/retirementIntakeService.js's shortCodeForToken), so normalize on
-  // THAT prefix, not the full 64-char token, before comparing so the
-  // assertion is about WORDING fidelity, not incidentally requiring two
-  // random short codes to collide.
-  const normalize = (body, token) => body.split(token.slice(0, 16)).join('SHORTCODE');
-  assert.equal(normalize(capB.state.body, intakeB.token), normalize(capA.state.body, intakeA.token), 'seeded retirement_intake workflow output must be byte-identical (aside from the token itself) to buildIntakeSmsBody\'s hardcoded output');
-});
-
-test('Prosperity retirement_intake is intentionally NOT seeded this phase -- a Prosperity retirement intake send still uses the hardcoded buildIntakeSmsBody path even with seedDefaultWorkflows() applied', async () => {
-  const db = setup();
-  seedDefaultWorkflows(db);
-  const contactId = seedContact(db);
-  const apptId = db.prepare(`INSERT INTO appointments (contact_id, appt_type, appt_datetime, status) VALUES (?, 'Safe Money & Retirement Consultation', ?, 'Scheduled')`).run(contactId, '2026-09-15T18:00:00.000Z').lastInsertRowid;
+function withRetirementIntakesTable(db) {
   db.exec(`
     CREATE TABLE retirement_intakes (
       id INTEGER PRIMARY KEY AUTOINCREMENT, contact_id INTEGER NOT NULL, appointment_id INTEGER NOT NULL,
@@ -148,24 +108,126 @@ test('Prosperity retirement_intake is intentionally NOT seeded this phase -- a P
       responses_json TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  return db;
+}
+
+function seedRetirementAppointment(db, contactId, apptDatetime = '2026-09-15T18:00:00.000Z') {
+  return db.prepare(`INSERT INTO appointments (contact_id, appt_type, appt_datetime, status) VALUES (?, 'Safe Money & Retirement Consultation', ?, 'Scheduled')`)
+    .run(contactId, apptDatetime).lastInsertRowid;
+}
+
+test('seeded insurance-lady retirement_intake workflow opens with "Hi {{first_name}}," and otherwise preserves the exact prior wording, including the real unique short-link token', async () => {
+  const db = setup();
+  seedDefaultWorkflows(db);
+  withRetirementIntakesTable(db);
+  const contactId = seedContact(db, { first_name: 'Janet' });
+  const apptId = seedRetirementAppointment(db, contactId);
   const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
   const cap = captureDeps();
-  await sendRetirementIntakeSms(db, { intake, contactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', brandId: 'prosperity', firstName: 'Janet' }, cap.deps);
+  const result = await sendRetirementIntakeSms(db, { intake, contactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', brandId: 'insurance-lady', firstName: 'Janet' }, cap.deps);
 
-  assert.match(cap.state.body, /^Hi Janet,\n\nYour Safe Money & Retirement consultation with Loretta Stewart/, 'must be buildIntakeSmsBody\'s original Prosperity wording, not a workflow row (none was seeded for Prosperity retirement_intake)');
+  assert.equal(result.sent, true);
+  assert.equal(cap.state.body, `Hi Janet,
+
+Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for Tuesday, September 15, 2026 at 1:00 PM CT.
+
+Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
+
+https://insuranceladyllc.com/i/${intake.token.slice(0, 16)}
+
+If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
+
+Insurance Lady LLC`);
 });
+
+test('seeded prosperity retirement_intake workflow opens with "Hi {{first_name}}," and otherwise preserves Prosperity\'s own existing wording/domain, using its own real unique token', async () => {
+  const db = setup();
+  seedDefaultWorkflows(db);
+  withRetirementIntakesTable(db);
+  const contactId = seedContact(db, { first_name: 'Janet' });
+  const apptId = seedRetirementAppointment(db, contactId);
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  const cap = captureDeps();
+  const result = await sendRetirementIntakeSms(db, { intake, contactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', brandId: 'prosperity', firstName: 'Janet' }, cap.deps);
+
+  assert.equal(result.sent, true);
+  assert.equal(cap.state.body, `Hi Janet,
+
+Your Safe Money & Retirement consultation with Loretta Stewart is scheduled for Tuesday, September 15, 2026 at 1:00 PM CT.
+
+Please complete your Retirement Intake Form at least 2 hours before your appointment so Loretta has time to review and prepare:
+
+https://www.prosperitylfs.com/retirement-intake?token=${intake.token}
+
+If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
+
+Prosperity Life & Financial Solutions`);
+});
+
+test('Insurance Lady and Prosperity retirement intake links use their own separate domains -- never cross-contaminated', async () => {
+  const db = setup();
+  seedDefaultWorkflows(db);
+  withRetirementIntakesTable(db);
+
+  const ilContactId = seedContact(db, { first_name: 'Janet', email: 'il@example.com' });
+  const ilApptId = seedRetirementAppointment(db, ilContactId);
+  const ilIntake = createIntakeForAppointment(db, { contactId: ilContactId, appointmentId: ilApptId });
+  const ilCap = captureDeps();
+  await sendRetirementIntakeSms(db, { intake: ilIntake, contactId: ilContactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', brandId: 'insurance-lady', firstName: 'Janet' }, ilCap.deps);
+  assert.match(ilCap.state.body, /https:\/\/insuranceladyllc\.com\/i\//);
+  assert.doesNotMatch(ilCap.state.body, /prosperitylfs\.com/);
+  assert.match(ilCap.state.body, /Insurance Lady LLC/);
+  assert.doesNotMatch(ilCap.state.body, /Prosperity/);
+
+  const prContactId = seedContact(db, { first_name: 'Janet', email: 'pr@example.com' });
+  const prApptId = seedRetirementAppointment(db, prContactId);
+  const prIntake = createIntakeForAppointment(db, { contactId: prContactId, appointmentId: prApptId });
+  const prCap = captureDeps();
+  await sendRetirementIntakeSms(db, { intake: prIntake, contactId: prContactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', brandId: 'prosperity', firstName: 'Janet' }, prCap.deps);
+  assert.match(prCap.state.body, /https:\/\/www\.prosperitylfs\.com\/retirement-intake\?token=/);
+  assert.doesNotMatch(prCap.state.body, /insuranceladyllc\.com/);
+  assert.match(prCap.state.body, /Prosperity Life & Financial Solutions/);
+  assert.doesNotMatch(prCap.state.body, /Insurance Lady/);
+});
+
+// ── "Hi {{first_name}}," safety: never "Hi undefined," or "Hi null," ────
+
+for (const brandId of ['insurance-lady', 'prosperity']) {
+  test(`${brandId} retirement_intake: a missing first name renders "Hi there," -- never "Hi undefined," or "Hi null,"`, async () => {
+    const db = setup();
+    seedDefaultWorkflows(db);
+    withRetirementIntakesTable(db);
+    const contactId = seedContact(db, { first_name: null });
+    const apptId = seedRetirementAppointment(db, contactId);
+    const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+    const cap = captureDeps();
+    const result = await sendRetirementIntakeSms(db, { intake, contactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', brandId, firstName: undefined }, cap.deps);
+
+    assert.equal(result.sent, true);
+    assert.match(cap.state.body, /^Hi there,/);
+    assert.doesNotMatch(cap.state.body, /Hi undefined,/);
+    assert.doesNotMatch(cap.state.body, /Hi null,/);
+  });
+}
 
 // ── Every DEFAULT_WORKFLOWS entry is well-formed ────────────────────────
 
-test('DEFAULT_WORKFLOWS has exactly the 9 rows Phase 2 was scoped to (5 Insurance Lady, 4 Prosperity) -- no reschedule, no Prosperity retirement_intake yet', () => {
-  assert.equal(DEFAULT_WORKFLOWS.length, 9);
+test('DEFAULT_WORKFLOWS has exactly the 10 rows Phase 2 (+ 2026-10-02 update) is scoped to (5 Insurance Lady, 5 Prosperity) -- no reschedule', () => {
+  assert.equal(DEFAULT_WORKFLOWS.length, 10);
   const il = DEFAULT_WORKFLOWS.filter(w => w.brandId === 'insurance-lady');
   const pr = DEFAULT_WORKFLOWS.filter(w => w.brandId === 'prosperity');
   assert.deepEqual(il.map(w => w.messageType).sort(), ['confirmation', 'reminder_15m', 'reminder_1h', 'reminder_24h', 'retirement_intake'].sort());
-  assert.deepEqual(pr.map(w => w.messageType).sort(), ['confirmation', 'reminder_15m', 'reminder_1h', 'reminder_24h'].sort());
+  assert.deepEqual(pr.map(w => w.messageType).sort(), ['confirmation', 'reminder_15m', 'reminder_1h', 'reminder_24h', 'retirement_intake'].sort());
   for (const w of DEFAULT_WORKFLOWS) {
     assert.equal(w.appointmentType, null, `${w.brandId} ${w.messageType} must apply to ALL appointment types (Any), matching today's actual behavior`);
     assert.equal(w.conditionType, 'always', `${w.brandId} ${w.messageType} must be unconditional, matching today's actual behavior`);
+  }
+});
+
+test('every retirement_intake entry in DEFAULT_WORKFLOWS opens with "Hi {{first_name}}," and still contains {{intake_link}}', () => {
+  for (const w of DEFAULT_WORKFLOWS.filter(w => w.messageType === 'retirement_intake')) {
+    assert.match(w.messageTemplate, /^Hi \{\{first_name\}\},/, `${w.brandId} retirement_intake must open with the greeting`);
+    assert.match(w.messageTemplate, /\{\{intake_link\}\}/, `${w.brandId} retirement_intake must still include the unique link placeholder`);
   }
 });
 
@@ -175,8 +237,65 @@ test('seedDefaultWorkflows is idempotent -- calling it twice never creates dupli
   const firstCount = db.prepare('SELECT COUNT(*) AS n FROM workflows').get().n;
   seedDefaultWorkflows(db);
   const secondCount = db.prepare('SELECT COUNT(*) AS n FROM workflows').get().n;
-  assert.equal(firstCount, 9);
-  assert.equal(secondCount, 9);
+  assert.equal(firstCount, 10);
+  assert.equal(secondCount, 10);
+});
+
+// ── applyDefaultWorkflowCorrections (2026-10-02) ─────────────────────────
+
+test('applyDefaultWorkflowCorrections updates an already-seeded default row that still has the OLD (no-greeting) wording', () => {
+  const { applyDefaultWorkflowCorrections, listWorkflows } = require('../lib/workflowService');
+  const db = setup();
+
+  // Simulate a database seeded by the ORIGINAL Phase 2 deploy, before this
+  // wording change -- insert the row directly with the old text, exactly
+  // as seedDefaultWorkflows would have at the time.
+  const oldTemplate = `Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
+
+Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
+
+{{intake_link}}
+
+If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
+
+Insurance Lady LLC`;
+  db.prepare(`
+    INSERT INTO workflows (name, brand_id, appointment_type, trigger_type, message_type, condition_type, action_type, message_template, enabled, is_system_default)
+    VALUES ('Retirement Intake Link', 'insurance-lady', NULL, 'appointment_booked', 'retirement_intake', 'always', 'send_sms', ?, 1, 1)
+  `).run(oldTemplate);
+
+  applyDefaultWorkflowCorrections(db);
+
+  const row = listWorkflows(db).find(w => w.brandId === 'insurance-lady' && w.messageType === 'retirement_intake');
+  assert.match(row.messageTemplate, /^Hi \{\{first_name\}\},/, 'the old-wording row must be corrected to the new greeting-prefixed wording');
+});
+
+test('applyDefaultWorkflowCorrections never touches a row Loretta has already customized away from the old default text', () => {
+  const { applyDefaultWorkflowCorrections, listWorkflows } = require('../lib/workflowService');
+  const db = setup();
+  const customWording = 'Loretta\'s own custom retirement intake wording: {{intake_link}}';
+  db.prepare(`
+    INSERT INTO workflows (name, brand_id, appointment_type, trigger_type, message_type, condition_type, action_type, message_template, enabled, is_system_default)
+    VALUES ('Retirement Intake Link', 'insurance-lady', NULL, 'appointment_booked', 'retirement_intake', 'always', 'send_sms', ?, 1, 1)
+  `).run(customWording);
+
+  applyDefaultWorkflowCorrections(db);
+
+  const row = listWorkflows(db).find(w => w.brandId === 'insurance-lady' && w.messageType === 'retirement_intake');
+  assert.equal(row.messageTemplate, customWording, 'a row that no longer matches the exact old default text must be left completely alone');
+});
+
+test('applyDefaultWorkflowCorrections is a no-op on a fresh database seeded for the first time -- DEFAULT_WORKFLOWS already has the corrected wording', () => {
+  const { applyDefaultWorkflowCorrections, listWorkflows } = require('../lib/workflowService');
+  const db = setup();
+  seedDefaultWorkflows(db);
+  const before = listWorkflows(db).find(w => w.brandId === 'insurance-lady' && w.messageType === 'retirement_intake');
+
+  applyDefaultWorkflowCorrections(db);
+
+  const after = listWorkflows(db).find(w => w.brandId === 'insurance-lady' && w.messageType === 'retirement_intake');
+  assert.equal(after.messageTemplate, before.messageTemplate);
+  assert.equal(after.updatedAt, before.updatedAt, 'a fresh seed already has the correct wording -- the correction must not even fire an UPDATE');
 });
 
 test('seedDefaultWorkflows never overwrites a row Loretta has since edited -- editing a seeded row\'s wording then re-seeding leaves the edit intact', () => {

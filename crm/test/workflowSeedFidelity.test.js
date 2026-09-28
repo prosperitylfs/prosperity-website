@@ -116,7 +116,7 @@ function seedRetirementAppointment(db, contactId, apptDatetime = '2026-09-15T18:
     .run(contactId, apptDatetime).lastInsertRowid;
 }
 
-test('seeded insurance-lady retirement_intake workflow opens with "Hi {{first_name}}," and otherwise preserves the exact prior wording, including the real unique short-link token', async () => {
+test('seeded insurance-lady retirement_intake (booking-time) workflow names Loretta Stewart, keeps the real unique short-link token, and uses the 2026-10-09 wording', async () => {
   const db = setup();
   seedDefaultWorkflows(db);
   withRetirementIntakesTable(db);
@@ -129,15 +129,15 @@ test('seeded insurance-lady retirement_intake workflow opens with "Hi {{first_na
   assert.equal(result.sent, true);
   assert.equal(cap.state.body, `Hi Janet,
 
-Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for Tuesday, September 15, 2026 at 1:00 PM CT.
+Your Safe Money & Retirement Consultation with Loretta Stewart of Insurance Lady LLC is scheduled for Tuesday, September 15, 2026 at 1:00 PM CT.
 
 Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
 
 https://insuranceladyllc.com/i/${intake.token.slice(0, 16)}
 
-If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
+If you have already completed the form, no further action is needed.
 
-Insurance Lady LLC`);
+– Loretta`);
 });
 
 test('seeded prosperity retirement_intake workflow opens with "Hi {{first_name}}," and otherwise preserves Prosperity\'s own existing wording/domain, using its own real unique token', async () => {
@@ -212,22 +212,35 @@ for (const brandId of ['insurance-lady', 'prosperity']) {
 
 // ── Every DEFAULT_WORKFLOWS entry is well-formed ────────────────────────
 
-test('DEFAULT_WORKFLOWS has exactly the 10 rows Phase 2 (+ 2026-10-02 update) is scoped to (5 Insurance Lady, 5 Prosperity) -- no reschedule', () => {
-  assert.equal(DEFAULT_WORKFLOWS.length, 10);
+test('DEFAULT_WORKFLOWS has exactly the 11 rows scoped so far (6 Insurance Lady incl. the 2-hour reminder, 5 Prosperity) -- no reschedule', () => {
+  assert.equal(DEFAULT_WORKFLOWS.length, 11);
   const il = DEFAULT_WORKFLOWS.filter(w => w.brandId === 'insurance-lady');
   const pr = DEFAULT_WORKFLOWS.filter(w => w.brandId === 'prosperity');
-  assert.deepEqual(il.map(w => w.messageType).sort(), ['confirmation', 'reminder_15m', 'reminder_1h', 'reminder_24h', 'retirement_intake'].sort());
+  assert.deepEqual(il.map(w => w.messageType).sort(), ['confirmation', 'reminder_15m', 'reminder_1h', 'reminder_24h', 'retirement_intake', 'retirement_intake_2h_reminder'].sort());
   assert.deepEqual(pr.map(w => w.messageType).sort(), ['confirmation', 'reminder_15m', 'reminder_1h', 'reminder_24h', 'retirement_intake'].sort());
   for (const w of DEFAULT_WORKFLOWS) {
+    if (w.messageType === 'retirement_intake_2h_reminder') continue; // deliberately appointment-type-specific -- see its own DEFAULT_WORKFLOWS comment
     assert.equal(w.appointmentType, null, `${w.brandId} ${w.messageType} must apply to ALL appointment types (Any), matching today's actual behavior`);
     assert.equal(w.conditionType, 'always', `${w.brandId} ${w.messageType} must be unconditional, matching today's actual behavior`);
   }
 });
 
-test('every retirement_intake entry in DEFAULT_WORKFLOWS opens with "Hi {{first_name}}," and still contains {{intake_link}}', () => {
-  for (const w of DEFAULT_WORKFLOWS.filter(w => w.messageType === 'retirement_intake')) {
-    assert.match(w.messageTemplate, /^Hi \{\{first_name\}\},/, `${w.brandId} retirement_intake must open with the greeting`);
-    assert.match(w.messageTemplate, /\{\{intake_link\}\}/, `${w.brandId} retirement_intake must still include the unique link placeholder`);
+test('the Insurance Lady 2-hour reminder is scoped to exactly the Safe Money & Retirement appointment type, on the retirement_intake_not_completed condition', () => {
+  const row = DEFAULT_WORKFLOWS.find(w => w.messageType === 'retirement_intake_2h_reminder');
+  assert.ok(row);
+  assert.equal(row.brandId, 'insurance-lady');
+  assert.equal(row.appointmentType, 'Safe Money & Retirement Consultation');
+  assert.equal(row.triggerType, 'time_before_appointment');
+  assert.equal(row.offsetValue, 2);
+  assert.equal(row.offsetUnit, 'hours');
+  assert.equal(row.offsetMinutes, 120);
+  assert.equal(row.conditionType, 'retirement_intake_not_completed');
+});
+
+test('every retirement_intake / retirement_intake_2h_reminder entry in DEFAULT_WORKFLOWS opens with "Hi {{first_name}}," and still contains {{intake_link}}', () => {
+  for (const w of DEFAULT_WORKFLOWS.filter(w => w.messageType === 'retirement_intake' || w.messageType === 'retirement_intake_2h_reminder')) {
+    assert.match(w.messageTemplate, /^Hi \{\{first_name\}\},/, `${w.brandId} ${w.messageType} must open with the greeting`);
+    assert.match(w.messageTemplate, /\{\{intake_link\}\}/, `${w.brandId} ${w.messageType} must still include the unique link placeholder`);
   }
 });
 
@@ -237,20 +250,20 @@ test('seedDefaultWorkflows is idempotent -- calling it twice never creates dupli
   const firstCount = db.prepare('SELECT COUNT(*) AS n FROM workflows').get().n;
   seedDefaultWorkflows(db);
   const secondCount = db.prepare('SELECT COUNT(*) AS n FROM workflows').get().n;
-  assert.equal(firstCount, 10);
-  assert.equal(secondCount, 10);
+  assert.equal(firstCount, 11);
+  assert.equal(secondCount, 11);
 });
 
 // ── applyDefaultWorkflowCorrections (2026-10-02) ─────────────────────────
 
-test('applyDefaultWorkflowCorrections updates an already-seeded default row that still has the OLD (no-greeting) wording', () => {
-  const { applyDefaultWorkflowCorrections, listWorkflows } = require('../lib/workflowService');
+test('applyDefaultWorkflowCorrections fast-forwards a row still on the ORIGINAL Phase 2 (no-greeting) wording all the way to the current 2026-10-09 text, in one call', () => {
+  const { applyDefaultWorkflowCorrections, listWorkflows, DEFAULT_WORKFLOWS: DW } = require('../lib/workflowService');
   const db = setup();
 
-  // Simulate a database seeded by the ORIGINAL Phase 2 deploy, before this
-  // wording change -- insert the row directly with the old text, exactly
-  // as seedDefaultWorkflows would have at the time.
-  const oldTemplate = `Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
+  // Simulate a database seeded by the ORIGINAL Phase 2 deploy, before EITHER
+  // later wording change -- insert the row directly with the oldest text,
+  // exactly as seedDefaultWorkflows would have at the time.
+  const oldestTemplate = `Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
 
 Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
 
@@ -262,12 +275,40 @@ Insurance Lady LLC`;
   db.prepare(`
     INSERT INTO workflows (name, brand_id, appointment_type, trigger_type, message_type, condition_type, action_type, message_template, enabled, is_system_default)
     VALUES ('Retirement Intake Link', 'insurance-lady', NULL, 'appointment_booked', 'retirement_intake', 'always', 'send_sms', ?, 1, 1)
-  `).run(oldTemplate);
+  `).run(oldestTemplate);
+
+  applyDefaultWorkflowCorrections(db); // one call -- both corrections apply in sequence
+
+  const row = listWorkflows(db).find(w => w.brandId === 'insurance-lady' && w.messageType === 'retirement_intake');
+  const current = DW.find(w => w.brandId === 'insurance-lady' && w.messageType === 'retirement_intake');
+  assert.equal(row.messageTemplate, current.messageTemplate, 'a row starting from the oldest deployed wording must land exactly on the current DEFAULT_WORKFLOWS text after one call');
+});
+
+test('applyDefaultWorkflowCorrections updates a row still on the 2026-10-02 (greeting-added, but pre-Loretta-Stewart) wording to the current text', () => {
+  const { applyDefaultWorkflowCorrections, listWorkflows, DEFAULT_WORKFLOWS: DW } = require('../lib/workflowService');
+  const db = setup();
+  const intermediateTemplate = `Hi {{first_name}},
+
+Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
+
+Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
+
+{{intake_link}}
+
+If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
+
+Insurance Lady LLC`;
+  db.prepare(`
+    INSERT INTO workflows (name, brand_id, appointment_type, trigger_type, message_type, condition_type, action_type, message_template, enabled, is_system_default)
+    VALUES ('Retirement Intake Link', 'insurance-lady', NULL, 'appointment_booked', 'retirement_intake', 'always', 'send_sms', ?, 1, 1)
+  `).run(intermediateTemplate);
 
   applyDefaultWorkflowCorrections(db);
 
   const row = listWorkflows(db).find(w => w.brandId === 'insurance-lady' && w.messageType === 'retirement_intake');
-  assert.match(row.messageTemplate, /^Hi \{\{first_name\}\},/, 'the old-wording row must be corrected to the new greeting-prefixed wording');
+  const current = DW.find(w => w.brandId === 'insurance-lady' && w.messageType === 'retirement_intake');
+  assert.equal(row.messageTemplate, current.messageTemplate);
+  assert.match(row.messageTemplate, /Loretta Stewart of Insurance Lady LLC/);
 });
 
 test('applyDefaultWorkflowCorrections never touches a row Loretta has already customized away from the old default text', () => {

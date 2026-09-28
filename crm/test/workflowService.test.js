@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
 const { createLegacyDb } = require('../testSupport/legacyDb');
 const {
   VALID_BRANDS, VALID_TRIGGER_TYPES, VALID_CONDITION_TYPES, VALID_OFFSET_UNITS, VALID_ACTION_TYPES,
-  MESSAGE_TYPES_REQUIRING_INTAKE_LINK,
+  VALID_MESSAGE_TYPES, MESSAGE_TYPES_REQUIRING_INTAKE_LINK,
   listWorkflows, getWorkflow, createWorkflow, updateWorkflow,
   evaluateCondition, renderWorkflowMessage,
   selectWorkflowsForOccurrence, selectWorkflowForOccurrence,
@@ -39,7 +39,8 @@ test('exported constant vocabularies match the approved Version 1 design', () =>
   assert.deepEqual(VALID_CONDITION_TYPES, ['always', 'retirement_intake_completed', 'retirement_intake_not_completed']);
   assert.deepEqual(VALID_OFFSET_UNITS, ['minutes', 'hours', 'days']);
   assert.deepEqual(VALID_ACTION_TYPES, ['send_sms']);
-  assert.deepEqual(MESSAGE_TYPES_REQUIRING_INTAKE_LINK, ['retirement_intake']);
+  assert.deepEqual(MESSAGE_TYPES_REQUIRING_INTAKE_LINK, ['retirement_intake', 'retirement_intake_2h_reminder']);
+  assert.ok(VALID_MESSAGE_TYPES.includes('retirement_intake_2h_reminder'));
 });
 
 // ── createWorkflow validation ────────────────────────────────────────────

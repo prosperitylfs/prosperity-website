@@ -42,6 +42,18 @@ const { sendLegacySms } = require('./legacySmsSend');
 const { getTemplate } = require('../config/templates');
 const { BRANDS } = require('../config/brands');
 const { selectWorkflowForOccurrence, evaluateCondition, renderWorkflowMessage } = require('./workflowService');
+// From retirementIntakeService.js, NOT retirementIntakeSms.js -- this file
+// already gets resolveFromNumberForBrand exported FROM here BY
+// retirementIntakeSms.js, so requiring retirementIntakeSms.js back from
+// here would be circular. retirementIntakeService.js is pure business
+// logic with no crm/lib dependencies of its own, so this is a safe,
+// one-directional import. buildIntakeUrl is pure/side-effect-free (no
+// token/short-link GENERATION here, just formatting the URL for a token
+// that already exists) -- see this file's own {{intake_link}} comment
+// below for why a scheduler-polled workflow message (e.g. the 2-hour
+// retirement intake reminder) needs it too, not just the booking-time
+// send lib/retirementIntakeSms.js already handles.
+const { buildIntakeUrl } = require('./retirementIntakeService');
 
 const DEFAULT_BRAND = 'prosperity';
 
@@ -89,8 +101,23 @@ function computeDayPhrase(appointmentDatetimeIso, now = new Date()) {
 // greeting is first-name-only ("Hi Janet,"), never the full name. `now` is
 // only used for the 24h reminder's "tomorrow" vs "on <date>" computation;
 // tests may pass a fixed value for determinism.
+//
+// Returns null (2026-10-09) for a messageType with no hardcoded fallback
+// template at all -- e.g. 'retirement_intake_2h_reminder', a scheduler-
+// polled messageType that exists ONLY as a crm/lib/workflowService.js
+// workflow row, never as a config/templates.js entry. Every messageType
+// this function has EVER been called with before this change (confirmation,
+// reschedule, reminder_24h/1h/15m) has a real entry in
+// TEMPLATE_KEY_BY_MESSAGE_TYPE, so this is unreachable for any existing
+// caller -- it only matters for the new scheduler window below, where it's
+// what keeps an appointment/brand with no matching workflow row (i.e.
+// every appointment except the one the 2-hour reminder is actually
+// configured for) from silently getting a fallback confirmation message
+// instead of nothing at all. See sendAppointmentConfirmationSms's own
+// comment for the caller-side half of this.
 function buildConfirmationSmsBody({ firstName, appointmentType, appointmentDatetimeIso, brandId = DEFAULT_BRAND, messageType = 'confirmation', now = new Date() }) {
-  const templateKey = TEMPLATE_KEY_BY_MESSAGE_TYPE[messageType] || TEMPLATE_KEY_BY_MESSAGE_TYPE.confirmation;
+  const templateKey = TEMPLATE_KEY_BY_MESSAGE_TYPE[messageType];
+  if (!templateKey) return null;
   const template = getTemplate(brandId, templateKey) || getTemplate(DEFAULT_BRAND, templateKey);
   const { date, time } = fmtApptDateTimeCT(appointmentDatetimeIso);
   return fillTemplate(template.body, {
@@ -154,10 +181,26 @@ async function sendAppointmentConfirmationSms(db, { contactId, firstName, appoin
     }
     const { date, time } = fmtApptDateTimeCT(appointmentDatetimeIso);
     const brand = BRANDS[brandId];
+    // {{intake_link}} support (2026-10-09) -- a scheduler-polled workflow
+    // message (e.g. the Insurance Lady 2-hour retirement intake reminder)
+    // needs the SAME real, unique link lib/retirementIntakeSms.js's
+    // booking-time send already provides, not a blank/missing one. Only
+    // queried when the template actually references {{intake_link}} --
+    // never generates a new token, only formats the URL for whichever one
+    // already exists (buildIntakeUrl is pure/stateless). Conditioned on
+    // the template text (not just "workflow exists") so every
+    // confirmation/reminder workflow -- which never references
+    // {{intake_link}} -- never touches the retirement_intakes table at
+    // all, exactly as before this change.
+    const needsIntakeLink = workflow.messageTemplate.includes('{{intake_link}}');
+    const intakeRow = needsIntakeLink && appointmentId
+      ? db.prepare('SELECT token FROM retirement_intakes WHERE appointment_id = ?').get(appointmentId)
+      : null;
     body = renderWorkflowMessage(workflow.messageTemplate, {
       first_name: firstName || 'there', appt_date: date, appt_time: `${time} CT`,
       appointment_type: appointmentType,
       brand_name: brand ? brand.legalName : brandId,
+      intake_link: intakeRow ? buildIntakeUrl(intakeRow.token, brandId) : undefined,
       // Only meaningful for a 24-hour-reminder workflow -- same
       // computeDayPhrase() the pre-Workflows hardcoded reminder_24h
       // template already uses, so a seeded 24h-reminder workflow can
@@ -169,6 +212,13 @@ async function sendAppointmentConfirmationSms(db, { contactId, firstName, appoin
     });
   } else {
     body = buildConfirmationSmsBody({ firstName, appointmentType, appointmentDatetimeIso, brandId, messageType, ...(now ? { now } : {}) });
+    // No workflow row matched AND no hardcoded fallback template exists for
+    // this messageType (buildConfirmationSmsBody returns null) -- e.g. a
+    // scheduler-polled messageType like 'retirement_intake_2h_reminder'
+    // reaching this for a brand/appointment it has no configured workflow
+    // for. Nothing is sent; this is not an error, just "not applicable
+    // here" -- see buildConfirmationSmsBody's own comment.
+    if (body == null) return { attempted: false, reason: 'no_matching_workflow_or_template' };
   }
   const fromNumber = resolveFromNumberForBrand(brandId);
   const send = deps.sendLegacySms || sendLegacySms;

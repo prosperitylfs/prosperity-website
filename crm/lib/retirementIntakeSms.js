@@ -16,7 +16,13 @@
 // resend once the prospect has already filled it out.
 
 const { sendLegacySms } = require('./legacySmsSend');
-const { markIntakeSent, shortCodeForToken } = require('./retirementIntakeService');
+// buildIntakeUrl moved to retirementIntakeService.js 2026-10-09 (still
+// re-exported below, verbatim, for backward compatibility -- see that
+// module's own comment on why: lib/appointmentConfirmationSms.js needed
+// it too, and importing it from HERE would have created a circular
+// require, since this file already imports resolveFromNumberForBrand FROM
+// appointmentConfirmationSms.js below).
+const { markIntakeSent, buildIntakeUrl } = require('./retirementIntakeService');
 const { selectWorkflowForOccurrence, evaluateCondition, renderWorkflowMessage } = require('./workflowService');
 // message_type key this send is looked up under in the Workflows table
 // (crm/lib/workflowService.js) -- distinct from sms_messages.message_type,
@@ -30,38 +36,6 @@ const WORKFLOW_MESSAGE_TYPE = 'retirement_intake';
 // own comment on resolveFromNumberForBrand.
 const { resolveFromNumberForBrand } = require('./appointmentConfirmationSms');
 const { BRANDS } = require('../config/brands');
-
-const PUBLIC_SITE_BASE_URL = 'https://www.prosperitylfs.com';
-
-// Insurance Lady's own public site (crm/config/brands.js's single source of
-// truth for that domain -- never hardcoded a second time here). Added
-// 2026-09-17 so an Insurance Lady retirement booking (event slug
-// retirement-safemoney-consultation-insurancelady) sends its intake link to
-// Insurance Lady's own domain instead of Prosperity's. NOTE: as of this
-// change, insuranceladyllc.com does not yet have a retirement-intake page of
-// its own -- that page lives entirely outside this repo (see
-// retirement-intake.html's own header comment) and still needs to be built
-// there, mirroring this repo's retirement-intake.html with Insurance Lady's
-// branding. The CRM's own API (crm/routes/retirementIntake.js) is already
-// brand-agnostic (token-keyed only) and needs no further changes once that
-// page exists.
-function baseUrlForBrand(brandId) {
-  if (brandId === 'insurance-lady') return BRANDS['insurance-lady'].website;
-  return PUBLIC_SITE_BASE_URL;
-}
-
-// Insurance Lady gets a short /i/<code> link (its own Cloudflare Worker
-// resolves the code server-side back to this same full token and
-// redirects into the exact same /retirement-intake?token=... flow --
-// see InsuranceLady-v4/src/worker.js). Prosperity's own branch is
-// completely untouched -- still the same long-form token URL as before,
-// byte-for-byte identical output for that branch.
-function buildIntakeUrl(token, brandId = 'prosperity') {
-  if (brandId === 'insurance-lady') {
-    return `${baseUrlForBrand(brandId)}/i/${shortCodeForToken(token)}`;
-  }
-  return `${baseUrlForBrand(brandId)}/retirement-intake?token=${token}`;
-}
 
 function fmtApptDateTimeCT(appointmentDatetimeIso) {
   const d = new Date(appointmentDatetimeIso);

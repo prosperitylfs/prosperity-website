@@ -13,6 +13,8 @@
 //   reminder_24h -> 1435-1445 minutes away (23h55m-24h5m, ~24h +/- 5m)
 //   reminder_1h  -> 55-65 minutes away     (~1h +/- 5m)
 //   reminder_15m -> 10-20 minutes away     (~15m +/- 5m)
+//   retirement_intake_2h_reminder -> 115-125 minutes away (~2h +/- 5m,
+//     added 2026-10-09 -- same window-width convention as the three above)
 // Each window is at least 10 minutes wide against a 5-minute poll interval
 // (crm/server.js, DEFAULT_POLL_INTERVAL_MS), so at least one poll always
 // lands inside it -- the poll cadence can never cause a miss. Being outside
@@ -23,16 +25,29 @@
 // treated reminder_24h as "anywhere from 1h to 24h away" rather than
 // "around the 24h mark".
 //
+// retirement_intake_2h_reminder is different from the other three in one
+// important way: it has NO hardcoded fallback template in
+// config/templates.js, only a crm/lib/workflowService.js workflow row
+// (Insurance Lady, appointment_type 'Safe Money & Retirement Consultation'
+// only). This window therefore matches EVERY eligible appointment of EVERY
+// brand/type that happens to be ~2 hours out -- but
+// sendAppointmentConfirmationSms (via buildConfirmationSmsBody returning
+// null for an unrecognized messageType) sends nothing at all unless a
+// workflow row actually matches that appointment's brand + appointment
+// type, which today is true for exactly one combination. See
+// appointmentConfirmationSms.js's own comment on this.
+//
 // ── Exactly one reminder per appointment, no cascade -- now structural ─────
-// The three windows above are disjoint (10-20, 55-65, and 1435-1445 all
-// have gaps between them), so a given minutesUntil value can match at most
-// one spec -- findReminderSpec() below just returns whichever single window
-// (if any) currently contains it. This also means a restart/deployment, or
-// a same-day/last-minute booking, can never retroactively fire a stale
-// reminder type: if the appointment is 30 minutes away when the process
-// (re)starts, it isn't in the 1h window (55-65) or the 15m window (10-20)
-// yet, so nothing sends until it actually enters one -- there is no "still
-// within 24h, still eligible" fallback left to trigger it early.
+// The four windows above are disjoint (10-20, 55-65, 115-125, and
+// 1435-1445 all have gaps between them), so a given minutesUntil value can
+// match at most one spec -- findReminderSpec() below just returns
+// whichever single window (if any) currently contains it. This also means
+// a restart/deployment, or a same-day/last-minute booking, can never
+// retroactively fire a stale reminder type: if the appointment is 30
+// minutes away when the process (re)starts, it isn't in the 1h window
+// (55-65) or the 15m window (10-20) yet, so nothing sends until it
+// actually enters one -- there is no "still within 24h, still eligible"
+// fallback left to trigger it early.
 //
 // ── Idempotency / reschedule handling ───────────────────────────────────────
 // Each (appointment, reminder type) pair is deduped by a compound key:
@@ -76,6 +91,13 @@ const { sendAppointmentConfirmationSms } = require('./appointmentConfirmationSms
 const REMINDER_SPECS = [
   { messageType: 'reminder_15m', minMinutes: 10, maxMinutes: 20 },
   { messageType: 'reminder_1h',  minMinutes: 55, maxMinutes: 65 },
+  // Added 2026-10-09 for the Insurance Lady Safe Money & Retirement 2-hour
+  // intake reminder -- see this file's own header comment and
+  // appointmentConfirmationSms.js's buildConfirmationSmsBody for why this
+  // window matching every brand/appointment-type that happens to be ~2h
+  // out is safe: nothing sends unless a workflow row actually exists for
+  // that specific brand + appointment type (today, exactly one does).
+  { messageType: 'retirement_intake_2h_reminder', minMinutes: 115, maxMinutes: 125 },
   { messageType: 'reminder_24h', minMinutes: 1435, maxMinutes: 1445 },
 ];
 

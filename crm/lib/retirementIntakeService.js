@@ -24,6 +24,7 @@
 // either raw ID to the browser.
 
 const crypto = require('crypto');
+const { BRANDS } = require('../config/brands');
 
 const INTAKE_DEADLINE_HOURS_BEFORE = 2;
 
@@ -65,6 +66,29 @@ function getIntakeByShortCode(db, shortCode) {
     .all(shortCode.toLowerCase() + '%');
   if (rows.length !== 1) return null;
   return rows[0].token;
+}
+
+// Moved here 2026-10-09 (from lib/retirementIntakeSms.js, which still
+// re-exports it verbatim for backward compatibility -- nothing about its
+// behavior changed) so lib/appointmentConfirmationSms.js can also build a
+// real intake link (for a scheduler-polled workflow message like the
+// Insurance Lady 2-hour retirement intake reminder) without creating a
+// circular require: appointmentConfirmationSms.js already gets
+// resolveFromNumberForBrand FROM retirementIntakeSms.js in the other
+// direction, so requiring retirementIntakeSms.js back from
+// appointmentConfirmationSms.js formed a cycle. This module (pure
+// business logic, no sending, no other crm/lib imports) is a safe common
+// home for both senders to depend on.
+const PUBLIC_SITE_BASE_URL = 'https://www.prosperitylfs.com';
+
+function baseUrlForBrand(brandId) {
+  if (brandId === 'insurance-lady') return BRANDS['insurance-lady'].website;
+  return PUBLIC_SITE_BASE_URL;
+}
+
+function buildIntakeUrl(token, brandId = 'prosperity') {
+  if (brandId === 'insurance-lady') return `${baseUrlForBrand(brandId)}/i/${shortCodeForToken(token)}`;
+  return `${baseUrlForBrand(brandId)}/retirement-intake?token=${token}`;
 }
 
 // appointmentDatetimeIso: an ISO datetime string (appointments.appt_datetime
@@ -257,6 +281,7 @@ module.exports = {
   generateIntakeToken,
   shortCodeForToken,
   getIntakeByShortCode,
+  buildIntakeUrl,
   computeIntakeDeadline,
   computeDisplayStatus,
   createIntakeForAppointment,

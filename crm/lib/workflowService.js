@@ -53,6 +53,21 @@ const MESSAGE_TYPE_OPTIONS = [
   { value: 'reminder_1h', label: '1 Hour Reminder' },
   { value: 'reminder_15m', label: '15 Minute Reminder' },
   { value: 'retirement_intake', label: 'Retirement Intake Link' },
+  // 2026-10-09: deliberately a DIFFERENT value from 'retirement_intake'
+  // above, even though both are conceptually "about the retirement
+  // intake" -- selectWorkflowForOccurrence (this file, below) keys purely
+  // on (brand_id, message_type), with appointment_type only breaking a
+  // tie WITHIN that same message_type. If this reminder shared
+  // 'retirement_intake' with the booking-time link, an Insurance Lady
+  // Safe Money booking would make THIS row (appointment_type-specific)
+  // win over the booking-time row (appointment_type: Any) for EVERY send
+  // of that message_type, including the one at booking time -- silently
+  // replacing the booking-time message with "coming up in 2 hours"
+  // wording the moment the appointment is created. A distinct
+  // message_type keeps the two sends completely independent: independent
+  // selection, independent sms_messages dedup, independent scheduling
+  // (see appointmentReminderScheduler.js's REMINDER_SPECS).
+  { value: 'retirement_intake_2h_reminder', label: 'Retirement Intake — 2 Hour Reminder' },
 ];
 const VALID_MESSAGE_TYPES = MESSAGE_TYPE_OPTIONS.map(o => o.value);
 
@@ -62,10 +77,8 @@ const MAX_OFFSET_MINUTES = 90 * 1440; // 90 days -- a sane upper bound, not a re
 // message_type values whose message_template MUST retain the literal
 // {{intake_link}} placeholder -- enforced on every create/update so the
 // wording can be freely edited without ever silently dropping the client's
-// unique link. Version 1 has exactly one: the retirement intake send
-// itself. (A future 2-hour intake-check workflow, added in a later phase,
-// would also require it.)
-const MESSAGE_TYPES_REQUIRING_INTAKE_LINK = ['retirement_intake'];
+// unique link.
+const MESSAGE_TYPES_REQUIRING_INTAKE_LINK = ['retirement_intake', 'retirement_intake_2h_reminder'];
 
 function toStringOrNull(v) {
   if (v === null || v === undefined) return null;
@@ -315,21 +328,47 @@ const DEFAULT_WORKFLOWS = [
   {
     name: 'Retirement Intake Link', brandId: 'insurance-lady', appointmentType: null,
     triggerType: 'appointment_booked', messageType: 'retirement_intake', conditionType: 'always',
-    // Source: lib/retirementIntakeSms.js buildIntakeSmsBody's insurance-lady
-    // branch, plus a "Hi {{first_name}}," greeting added 2026-10-02 (that
-    // branch itself never had one) -- see DEFAULT_WORKFLOW_CORRECTIONS
-    // below for how an already-seeded production row picks this up.
+    // Wording updated 2026-10-09 to name Loretta Stewart and shorten the
+    // deadline language -- see DEFAULT_WORKFLOW_CORRECTIONS below for how
+    // an already-seeded production row (from the original Phase 2 deploy,
+    // or the 2026-10-02 greeting update) picks this up safely.
     messageTemplate: `Hi {{first_name}},
 
-Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
+Your Safe Money & Retirement Consultation with Loretta Stewart of Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
 
 Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
 
 {{intake_link}}
 
-If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
+If you have already completed the form, no further action is needed.
 
-Insurance Lady LLC`,
+– Loretta`,
+  },
+  {
+    name: 'Retirement Intake - 2 Hour Reminder', brandId: 'insurance-lady',
+    // Specific on purpose (unlike every other Insurance Lady row, which is
+    // Any) -- this reminder must never fire for a Life Insurance
+    // Consultation or Policy Review appointment that happens to be 2 hours
+    // out at the same moment. See appointmentReminderScheduler.js's
+    // REMINDER_SPECS for the new 115-125 minute polling window this row
+    // depends on, and appointmentConfirmationSms.js's buildConfirmationSmsBody
+    // for why an appointment/brand with NO matching row here (i.e.
+    // everyone else in that same window) gets nothing sent at all rather
+    // than a fallback message.
+    appointmentType: 'Safe Money & Retirement Consultation',
+    triggerType: 'time_before_appointment', ...offsetFields(2, 'hours'),
+    messageType: 'retirement_intake_2h_reminder', conditionType: 'retirement_intake_not_completed',
+    messageTemplate: `Hi {{first_name}},
+
+Your Safe Money & Retirement Consultation with Loretta Stewart of Insurance Lady LLC is coming up in 2 hours.
+
+We have not yet received your Retirement Intake Form. Please complete it now so we have time to review your information and prepare for your consultation:
+
+{{intake_link}}
+
+If you have already completed the form, no further action is needed.
+
+– Loretta`,
   },
 
   // ── Prosperity ───────────────────────────────────────────────────────
@@ -453,6 +492,38 @@ Please complete your Retirement Intake Form at least 2 hours before your appoint
 If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
 
 Insurance Lady LLC`,
+  },
+  {
+    // 2026-10-09: second correction to the SAME row, chained onto the
+    // first -- a database that already picked up the 2026-10-02 greeting
+    // (oldMessageTemplate below is that correction's newMessageTemplate,
+    // verbatim) now picks up this update too, in the same
+    // is_system_default + exact-prior-text-match safe pattern. A row
+    // Loretta has since customized (so it no longer matches EITHER old
+    // text exactly) is, as always, left completely alone.
+    brandId: 'insurance-lady', messageType: 'retirement_intake', appointmentType: null, conditionType: 'always',
+    oldMessageTemplate: `Hi {{first_name}},
+
+Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
+
+Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
+
+{{intake_link}}
+
+If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
+
+Insurance Lady LLC`,
+    newMessageTemplate: `Hi {{first_name}},
+
+Your Safe Money & Retirement Consultation with Loretta Stewart of Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
+
+Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
+
+{{intake_link}}
+
+If you have already completed the form, no further action is needed.
+
+– Loretta`,
   },
 ];
 

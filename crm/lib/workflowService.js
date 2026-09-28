@@ -422,6 +422,40 @@ If your intake form is not received at least 2 hours before your appointment, yo
 
 Prosperity Life & Financial Solutions`,
   },
+  {
+    // 2026-10-13: mirrors the Insurance Lady 2-hour reminder above as
+    // closely as possible -- same appointment-type-specific scoping, same
+    // condition, same offset, and deliberately the SAME message_type
+    // ('retirement_intake_2h_reminder') rather than a new one. This is
+    // safe and intentional: selectWorkflowForOccurrence (below) keys on
+    // (brand_id, message_type) TOGETHER, so this row and Insurance Lady's
+    // never collide -- brand_id alone already keeps them completely
+    // independent for selection, sms_messages dedup, and scheduling. No
+    // scheduler, sender, or UI change was needed for this row at all: the
+    // 115-125 minute window in appointmentReminderScheduler.js's
+    // REMINDER_SPECS and the null-fallback safety fix in
+    // appointmentConfirmationSms.js's buildConfirmationSmsBody are both
+    // already brand-agnostic, and buildIntakeUrl already resolves
+    // Prosperity's own domain (prosperitylfs.com, full-token URL) from
+    // the same brandId parameter every other Prosperity send already
+    // uses -- see appointmentConfirmationSms.js's own {{intake_link}}
+    // comment for exactly how that lookup works.
+    name: 'Retirement Intake - 2 Hour Reminder', brandId: 'prosperity',
+    appointmentType: 'Safe Money & Retirement Consultation',
+    triggerType: 'time_before_appointment', ...offsetFields(2, 'hours'),
+    messageType: 'retirement_intake_2h_reminder', conditionType: 'retirement_intake_not_completed',
+    messageTemplate: `Hi {{first_name}},
+
+Your Safe Money & Retirement Consultation with Loretta Stewart of Prosperity Life & Financial Solutions is coming up in 2 hours.
+
+We have not yet received your Retirement Intake Form. Please complete it now so we have time to review your information and prepare for your consultation:
+
+{{intake_link}}
+
+If you have already completed the form, no further action is needed.
+
+– Loretta`,
+  },
 ];
 
 // Idempotent: run at every boot (crm/db/database.js, right after the

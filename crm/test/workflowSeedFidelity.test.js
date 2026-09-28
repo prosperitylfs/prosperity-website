@@ -212,12 +212,12 @@ for (const brandId of ['insurance-lady', 'prosperity']) {
 
 // ── Every DEFAULT_WORKFLOWS entry is well-formed ────────────────────────
 
-test('DEFAULT_WORKFLOWS has exactly the 11 rows scoped so far (6 Insurance Lady incl. the 2-hour reminder, 5 Prosperity) -- no reschedule', () => {
-  assert.equal(DEFAULT_WORKFLOWS.length, 11);
+test('DEFAULT_WORKFLOWS has exactly the 12 rows scoped so far (6 Insurance Lady, 6 Prosperity, both including their own 2-hour reminder) -- no reschedule', () => {
+  assert.equal(DEFAULT_WORKFLOWS.length, 12);
   const il = DEFAULT_WORKFLOWS.filter(w => w.brandId === 'insurance-lady');
   const pr = DEFAULT_WORKFLOWS.filter(w => w.brandId === 'prosperity');
   assert.deepEqual(il.map(w => w.messageType).sort(), ['confirmation', 'reminder_15m', 'reminder_1h', 'reminder_24h', 'retirement_intake', 'retirement_intake_2h_reminder'].sort());
-  assert.deepEqual(pr.map(w => w.messageType).sort(), ['confirmation', 'reminder_15m', 'reminder_1h', 'reminder_24h', 'retirement_intake'].sort());
+  assert.deepEqual(pr.map(w => w.messageType).sort(), ['confirmation', 'reminder_15m', 'reminder_1h', 'reminder_24h', 'retirement_intake', 'retirement_intake_2h_reminder'].sort());
   for (const w of DEFAULT_WORKFLOWS) {
     if (w.messageType === 'retirement_intake_2h_reminder') continue; // deliberately appointment-type-specific -- see its own DEFAULT_WORKFLOWS comment
     assert.equal(w.appointmentType, null, `${w.brandId} ${w.messageType} must apply to ALL appointment types (Any), matching today's actual behavior`);
@@ -225,16 +225,20 @@ test('DEFAULT_WORKFLOWS has exactly the 11 rows scoped so far (6 Insurance Lady 
   }
 });
 
-test('the Insurance Lady 2-hour reminder is scoped to exactly the Safe Money & Retirement appointment type, on the retirement_intake_not_completed condition', () => {
-  const row = DEFAULT_WORKFLOWS.find(w => w.messageType === 'retirement_intake_2h_reminder');
-  assert.ok(row);
-  assert.equal(row.brandId, 'insurance-lady');
-  assert.equal(row.appointmentType, 'Safe Money & Retirement Consultation');
-  assert.equal(row.triggerType, 'time_before_appointment');
-  assert.equal(row.offsetValue, 2);
-  assert.equal(row.offsetUnit, 'hours');
-  assert.equal(row.offsetMinutes, 120);
-  assert.equal(row.conditionType, 'retirement_intake_not_completed');
+test('both brands\' 2-hour reminders are scoped to exactly the Safe Money & Retirement appointment type, on the retirement_intake_not_completed condition, as two genuinely separate rows', () => {
+  const ilRow = DEFAULT_WORKFLOWS.find(w => w.messageType === 'retirement_intake_2h_reminder' && w.brandId === 'insurance-lady');
+  const prRow = DEFAULT_WORKFLOWS.find(w => w.messageType === 'retirement_intake_2h_reminder' && w.brandId === 'prosperity');
+  for (const row of [ilRow, prRow]) {
+    assert.ok(row);
+    assert.equal(row.appointmentType, 'Safe Money & Retirement Consultation');
+    assert.equal(row.triggerType, 'time_before_appointment');
+    assert.equal(row.offsetValue, 2);
+    assert.equal(row.offsetUnit, 'hours');
+    assert.equal(row.offsetMinutes, 120);
+    assert.equal(row.conditionType, 'retirement_intake_not_completed');
+  }
+  assert.match(ilRow.messageTemplate, /Insurance Lady LLC/);
+  assert.match(prRow.messageTemplate, /Prosperity Life & Financial Solutions/);
 });
 
 test('every retirement_intake / retirement_intake_2h_reminder entry in DEFAULT_WORKFLOWS opens with "Hi {{first_name}}," and still contains {{intake_link}}', () => {
@@ -250,8 +254,8 @@ test('seedDefaultWorkflows is idempotent -- calling it twice never creates dupli
   const firstCount = db.prepare('SELECT COUNT(*) AS n FROM workflows').get().n;
   seedDefaultWorkflows(db);
   const secondCount = db.prepare('SELECT COUNT(*) AS n FROM workflows').get().n;
-  assert.equal(firstCount, 11);
-  assert.equal(secondCount, 11);
+  assert.equal(firstCount, 12);
+  assert.equal(secondCount, 12);
 });
 
 // ── applyDefaultWorkflowCorrections (2026-10-02) ─────────────────────────

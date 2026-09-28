@@ -186,28 +186,71 @@ test('(d) does NOT send for a Policy Review appointment at the same brand and sa
 }));
 
 // ── (e) Insurance Lady / Prosperity isolation ────────────────────────────
+// 2026-10-13: Prosperity now has its OWN retirement_intake_2h_reminder row
+// too (see below), sharing the exact same message_type as Insurance
+// Lady's -- selectWorkflowForOccurrence keys on (brand_id, message_type)
+// TOGETHER, so this is safe. "Isolation" now means each brand gets
+// exactly its OWN correctly-worded message, never the other brand's
+// wording and never a double send -- not "Prosperity gets nothing",
+// which was the old (now superseded) premise these two tests asserted.
 
-test('(e) does NOT send for a Prosperity appointment, even with the identical appointment type string and timing', () => withEnv(TWILIO_ENV, async () => {
+test('(e) a Prosperity appointment gets Prosperity\'s OWN 2-hour reminder wording and domain -- never Insurance Lady\'s', () => withEnv(TWILIO_ENV, async () => {
   const db = setup();
   const contactId = seedContact(db);
-  seedAppointment(db, contactId, { booking_brand: 'prosperity', appt_datetime: minutesFromNow(120) });
+  const apptId = seedAppointment(db, contactId, { booking_brand: 'prosperity', appt_datetime: minutesFromNow(120) });
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
+  assert.equal(summary.sent, 1);
+  const rows = smsRowsFor(db, contactId, 'retirement_intake_2h_reminder');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].body, `Hi Janet,
+
+Your Safe Money & Retirement Consultation with Loretta Stewart of Prosperity Life & Financial Solutions is coming up in 2 hours.
+
+We have not yet received your Retirement Intake Form. Please complete it now so we have time to review your information and prepare for your consultation:
+
+https://www.prosperitylfs.com/retirement-intake?token=${intake.token}
+
+If you have already completed the form, no further action is needed.
+
+– Loretta`);
+  assert.doesNotMatch(rows[0].body, /Insurance Lady/);
+  assert.doesNotMatch(rows[0].body, /insuranceladyllc\.com/);
+}));
+
+test('(e/f) Insurance Lady and Prosperity appointments in the SAME poll each get exactly ONE message, with their own correct brand-specific wording -- no cross-contamination, no double send', () => withEnv(INSURANCE_LADY_ENV, async () => {
+  const db = setup();
+  const ilContactId = seedContact(db, { first_name: 'Janet', phone_e164: '+14143676486' });
+  const ilApptId = seedAppointment(db, ilContactId, { booking_brand: 'insurance-lady', appt_datetime: minutesFromNow(120) });
+  createIntakeForAppointment(db, { contactId: ilContactId, appointmentId: ilApptId });
+
+  const prContactId = seedContact(db, { first_name: 'Sam', phone_e164: '+14145550199' });
+  const prApptId = seedAppointment(db, prContactId, { booking_brand: 'prosperity', appt_datetime: minutesFromNow(120) });
+  createIntakeForAppointment(db, { contactId: prContactId, appointmentId: prApptId });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
+  assert.equal(summary.sent, 2, 'both appointments qualify -- each gets exactly its own brand\'s message');
+
+  const ilRows = smsRowsFor(db, ilContactId, 'retirement_intake_2h_reminder');
+  assert.equal(ilRows.length, 1);
+  assert.match(ilRows[0].body, /Insurance Lady LLC/);
+  assert.doesNotMatch(ilRows[0].body, /Prosperity/);
+
+  const prRows = smsRowsFor(db, prContactId, 'retirement_intake_2h_reminder');
+  assert.equal(prRows.length, 1);
+  assert.match(prRows[0].body, /Prosperity Life & Financial Solutions/);
+  assert.doesNotMatch(prRows[0].body, /Insurance Lady/);
+}));
+
+test('(f) the Prosperity 2-hour reminder does NOT send for an Insurance Lady appointment of any type', () => withEnv(INSURANCE_LADY_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  seedAppointment(db, contactId, { booking_brand: 'insurance-lady', appt_type: 'Life Insurance Consultation', appt_datetime: minutesFromNow(120) });
 
   const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
   assert.equal(summary.sent, 0);
-  assert.equal(smsRowsFor(db, contactId).length, 0, 'Prosperity has no retirement_intake_2h_reminder workflow row -- must get nothing, never Insurance Lady\'s wording or a fallback');
-}));
-
-test('(e) Insurance Lady and Prosperity appointments in the SAME poll each get only their own correct treatment', () => withEnv(INSURANCE_LADY_ENV, async () => {
-  const db = setup();
-  const ilContactId = seedContact(db, { first_name: 'Janet', phone_e164: '+14143676486' });
-  seedAppointment(db, ilContactId, { booking_brand: 'insurance-lady', appt_datetime: minutesFromNow(120) });
-  const prContactId = seedContact(db, { first_name: 'Sam', phone_e164: '+14145550199' });
-  seedAppointment(db, prContactId, { booking_brand: 'prosperity', appt_datetime: minutesFromNow(120) });
-
-  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
-  assert.equal(summary.sent, 1, 'only the Insurance Lady appointment gets a message');
-  assert.equal(smsRowsFor(db, ilContactId, 'retirement_intake_2h_reminder').length, 1);
-  assert.equal(smsRowsFor(db, prContactId).length, 0);
+  assert.equal(smsRowsFor(db, contactId).length, 0, 'an Insurance Lady Life Insurance appointment must get nothing from either brand\'s retirement_intake_2h_reminder row');
 }));
 
 // ── (f) existing reminders/workflows remain unchanged ────────────────────
@@ -278,4 +321,107 @@ test('(a) the booking-time Retirement Intake Link workflow is unaffected by the 
   assert.notEqual(bookingTimeRow.id, twoHourRow.id, 'the two must be genuinely separate rows, never resolving to the same one');
   assert.equal(bookingTimeRow.triggerType, 'appointment_booked');
   assert.equal(twoHourRow.triggerType, 'time_before_appointment');
+});
+
+// ── Prosperity 2-hour reminder (2026-10-13, mirrors Insurance Lady's) ────
+
+test('(b) Prosperity: sends, with the real unique Prosperity intake link, when the retirement intake has NOT been completed', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId, { booking_brand: 'prosperity', appt_datetime: minutesFromNow(120) });
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
+  assert.equal(summary.sent, 1);
+  const rows = smsRowsFor(db, contactId, 'retirement_intake_2h_reminder');
+  assert.equal(rows.length, 1);
+  assert.match(rows[0].body, new RegExp(`https://www\\.prosperitylfs\\.com/retirement-intake\\?token=${intake.token}`));
+}));
+
+test('(c) Prosperity: does NOT send when the retirement intake has been completed', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db, { first_name: 'Sam', last_name: 'Client' });
+  const apptId = seedAppointment(db, contactId, { booking_brand: 'prosperity', appt_datetime: minutesFromNow(120) });
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  submitIntakeResponses(db, { token: intake.token, responses: { about: { firstName: 'Sam', lastName: 'Client', email: 'sam@example.com', phone: '4145550199' } } });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
+  assert.equal(summary.sent, 0);
+  assert.equal(smsRowsFor(db, contactId).length, 0, 'no SMS of any kind once the Prosperity intake is Completed');
+}));
+
+test('(e) Prosperity: does NOT send for a Life Insurance Consultation appointment at the same brand and time offset', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  seedAppointment(db, contactId, { booking_brand: 'prosperity', appt_type: 'Life Insurance Consultation', appt_datetime: minutesFromNow(120) });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
+  assert.equal(summary.sent, 0);
+  assert.equal(smsRowsFor(db, contactId).length, 0);
+}));
+
+test('(e) Prosperity: does NOT send for a Policy Review appointment at the same brand and time offset', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  seedAppointment(db, contactId, { booking_brand: 'prosperity', appt_type: 'Policy Review', appt_datetime: minutesFromNow(120) });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
+  assert.equal(summary.sent, 0);
+  assert.equal(smsRowsFor(db, contactId).length, 0);
+}));
+
+test('(h) Prosperity: existing 1-hour and 24-hour reminders still fire correctly, unaffected by the new Prosperity 2h row existing', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contact1h = seedContact(db, { first_name: 'OneHour', phone_e164: '+14145550011' });
+  seedAppointment(db, contact1h, { booking_brand: 'prosperity', appt_type: 'Life Insurance Consultation', appt_datetime: minutesFromNow(60) });
+  const contact24h = seedContact(db, { first_name: 'TwentyFourHour', phone_e164: '+14145550012' });
+  seedAppointment(db, contact24h, { booking_brand: 'prosperity', appt_type: 'Life Insurance Consultation', appt_datetime: minutesFromNow(24 * 60) });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
+  assert.equal(summary.sent, 2);
+  assert.equal(smsRowsFor(db, contact1h, 'reminder_1h').length, 1);
+  assert.equal(smsRowsFor(db, contact24h, 'reminder_24h').length, 1);
+}));
+
+test('(i) Prosperity duplicate-send protection: running the poll twice for the same eligible appointment sends only once', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId, { booking_brand: 'prosperity', appt_datetime: minutesFromNow(120) });
+  createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+
+  const first = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
+  const second = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
+  assert.equal(first.sent, 1);
+  assert.equal(second.sent, 0, 'the second poll must see the dedup row and skip');
+  assert.equal(smsRowsFor(db, contactId, 'retirement_intake_2h_reminder').length, 1);
+}));
+
+test('a missing first name renders "Hi there," in the Prosperity 2-hour reminder too -- never "Hi undefined," or "Hi null,"', () => withEnv(TWILIO_ENV, async () => {
+  const db = setup();
+  const contactId = seedContact(db, { first_name: null });
+  const apptId = seedAppointment(db, contactId, { booking_brand: 'prosperity', appt_datetime: minutesFromNow(120) });
+  createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+
+  const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
+  assert.equal(summary.sent, 1);
+  const body = smsRowsFor(db, contactId, 'retirement_intake_2h_reminder')[0].body;
+  assert.match(body, /^Hi there,/);
+  assert.doesNotMatch(body, /Hi undefined,/);
+  assert.doesNotMatch(body, /Hi null,/);
+}));
+
+test('(g) Insurance Lady\'s own booking-time and 2-hour retirement intake workflows are unaffected by adding the Prosperity 2-hour row', () => {
+  const { selectWorkflowForOccurrence } = require('../lib/workflowService');
+  const db = setup();
+  const ilBooking = selectWorkflowForOccurrence(db, { brandId: 'insurance-lady', appointmentType: 'Safe Money & Retirement Consultation', messageType: 'retirement_intake' });
+  const il2h = selectWorkflowForOccurrence(db, { brandId: 'insurance-lady', appointmentType: 'Safe Money & Retirement Consultation', messageType: 'retirement_intake_2h_reminder' });
+  const pr2h = selectWorkflowForOccurrence(db, { brandId: 'prosperity', appointmentType: 'Safe Money & Retirement Consultation', messageType: 'retirement_intake_2h_reminder' });
+  assert.ok(ilBooking);
+  assert.ok(il2h);
+  assert.ok(pr2h);
+  assert.notEqual(il2h.id, pr2h.id, 'Insurance Lady and Prosperity must resolve to two genuinely separate rows');
+  assert.match(il2h.messageTemplate, /Insurance Lady LLC/);
+  assert.doesNotMatch(il2h.messageTemplate, /Prosperity/);
+  assert.match(pr2h.messageTemplate, /Prosperity Life & Financial Solutions/);
+  assert.doesNotMatch(pr2h.messageTemplate, /Insurance Lady/);
 });

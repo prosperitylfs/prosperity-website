@@ -121,27 +121,59 @@ async function render() {
       opts.map(t => `<option value="${esc(t)}" ${t === current ? 'selected' : ''}>${esc(t)}</option>`).join('');
   }
 
+  // Existing workflows for a brand, offered as "start from this" templates
+  // on the NEW WORKFLOW form -- see workflowFormModal's own comment.
+  function templateOptionsHtml(forBrandId) {
+    const options = data.workflows.filter(x => x.brandId === forBrandId);
+    return `<option value="">+ New Workflow</option>` +
+      options.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+  }
+
   // Same "Edit existing" / "Create new" single-form-shape pattern as
-  // templates.html's templateFormModal.
+  // templates.html's templateFormModal, with one addition for CREATE mode
+  // only (2026-10-06): "Workflow Name" is a TEMPLATE SELECTOR first --
+  // choosing an existing workflow for the selected brand copies its
+  // appointment type / timing / condition / message-type / message text
+  // into this form as a STARTING POINT, exactly like opening Edit on that
+  // row would show, EXCEPT saving always POSTs a brand-new row (this
+  // dialog never carries the source row's id) -- the original workflow is
+  // never read-modified-written, only read. "+ New Workflow" (the default)
+  // starts the form completely blank, same as before this change. Edit
+  // mode is completely unchanged below -- its Workflow Name is still the
+  // plain text field it always was, since you're editing ONE specific row
+  // directly, not picking a starting point for a new one.
   function workflowFormModal({ mode, brandId, existing } = {}) {
     const w = existing || {};
     const triggerType = w.triggerType || 'time_before_appointment';
+    const initialBrand = w.brandId || brandId;
     const dialog = CrmApp.openModal({
       title: mode === 'create' ? 'New Workflow' : 'Edit Workflow',
       wide: true,
       bodyHtml: `
         <form id="workflow-form">
           <div class="form-field full"><label>Brand</label>
-            <select class="input" name="brandId">
-              <option value="insurance-lady" ${(w.brandId || brandId) === 'insurance-lady' ? 'selected' : ''}>Insurance Lady</option>
-              <option value="prosperity" ${(w.brandId || brandId) === 'prosperity' ? 'selected' : ''}>Prosperity</option>
+            <select class="input" name="brandId" id="workflow-brand">
+              <option value="insurance-lady" ${initialBrand === 'insurance-lady' ? 'selected' : ''}>Insurance Lady</option>
+              <option value="prosperity" ${initialBrand === 'prosperity' ? 'selected' : ''}>Prosperity</option>
             </select>
           </div>
+
+          ${mode === 'create' ? `
+          <div class="form-field full" style="margin-top:10px;"><label>Workflow Name</label>
+            <select class="input" id="workflow-template-select">${templateOptionsHtml(initialBrand)}</select>
+            <div class="text-faint" style="margin-top:2px;">Choose an existing workflow to copy its settings and message as a starting point, or "+ New Workflow" to start from scratch. This always creates a separate, new workflow — the one you choose here is never changed.</div>
+          </div>
+          <div class="form-field full" style="margin-top:10px;"><label>Name</label>
+            <input class="input" name="name" id="workflow-name-input" value="" placeholder="e.g. Safe Money &amp; Retirement: 24 Hour Reminder" required>
+          </div>
+          ` : `
           <div class="form-field full" style="margin-top:10px;"><label>Workflow name</label>
             <input class="input" name="name" value="${esc(w.name || '')}" placeholder="e.g. Safe Money &amp; Retirement: 24 Hour Reminder" required>
           </div>
+          `}
+
           <div class="form-field full" style="margin-top:10px;"><label>Appointment type</label>
-            <select class="input" name="appointmentType">${appointmentTypeOptionsHtml(w.appointmentType || '')}</select>
+            <select class="input" name="appointmentType" id="workflow-appointment-type">${appointmentTypeOptionsHtml(w.appointmentType || '')}</select>
           </div>
 
           <div class="form-field full" style="margin-top:10px;"><label>When</label>
@@ -152,10 +184,10 @@ async function render() {
           </div>
           <div class="form-grid" id="workflow-offset-fields" style="margin-top:8px; ${triggerType === 'appointment_booked' ? 'display:none;' : ''}">
             <div class="form-field"><label>Timing value</label>
-              <input class="input" name="offsetValue" type="number" min="1" step="1" value="${w.offsetValue || ''}">
+              <input class="input" name="offsetValue" id="workflow-offset-value" type="number" min="1" step="1" value="${w.offsetValue || ''}">
             </div>
             <div class="form-field"><label>Unit</label>
-              <select class="input" name="offsetUnit">
+              <select class="input" name="offsetUnit" id="workflow-offset-unit">
                 <option value="minutes" ${w.offsetUnit === 'minutes' ? 'selected' : ''}>Minutes before appointment</option>
                 <option value="hours" ${!w.offsetUnit || w.offsetUnit === 'hours' ? 'selected' : ''}>Hours before appointment</option>
                 <option value="days" ${w.offsetUnit === 'days' ? 'selected' : ''}>Days before appointment</option>
@@ -164,7 +196,7 @@ async function render() {
           </div>
 
           <div class="form-field full" style="margin-top:10px;"><label>Condition</label>
-            <select class="input" name="conditionType">
+            <select class="input" name="conditionType" id="workflow-condition-type">
               ${Object.entries(CONDITION_LABELS).map(([k, label]) => `<option value="${k}" ${(w.conditionType || 'always') === k ? 'selected' : ''}>${esc(label)}</option>`).join('')}
             </select>
           </div>
@@ -173,10 +205,13 @@ async function render() {
             <div class="text-faint" style="margin-top:2px;">Version 1 supports sending a text message only.</div>
           </div>
 
-          <div class="form-field full" style="margin-top:10px;"><label>Which automated message is this?</label>
-            <select class="input" name="messageType" id="workflow-message-type" required>
-              ${(data.constants.messageTypes || []).map(mt => `<option value="${mt.value}" ${w.messageType === mt.value ? 'selected' : ''}>${esc(mt.label)}</option>`).join('')}
-            </select>
+          <div id="workflow-message-type-wrap">
+            <div class="form-field full" style="margin-top:10px;"><label>${mode === 'create' ? 'What kind of automated message is this?' : 'Which automated message is this?'}</label>
+              <select class="input" name="messageType" id="workflow-message-type" required>
+                ${(data.constants.messageTypes || []).map(mt => `<option value="${mt.value}" ${w.messageType === mt.value ? 'selected' : ''}>${esc(mt.label)}</option>`).join('')}
+              </select>
+              ${mode === 'create' ? '<div class="text-faint" style="margin-top:2px;">Picked automatically when you copy an existing workflow above — only asked here for a brand-new "+ New Workflow" message type.</div>' : ''}
+            </div>
           </div>
           <div class="form-field full" id="workflow-retirement-intake-note" style="margin-top:6px; ${w.messageType === 'retirement_intake' ? '' : 'display:none;'} background:var(--surface-alt); border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
             <div class="text-faint">This message is only eligible to send after a Cal.com booking has been classified by the CRM as a Retirement Lead. Appointment Type: Any does not override that retirement classification.</div>
@@ -210,20 +245,27 @@ async function render() {
     });
 
     const form = dialog.querySelector('#workflow-form');
+    const brandSelect = dialog.querySelector('#workflow-brand');
+    const appointmentTypeSelect = dialog.querySelector('#workflow-appointment-type');
     const offsetFields = dialog.querySelector('#workflow-offset-fields');
     const triggerSelect = dialog.querySelector('#workflow-trigger-type');
+    const offsetValueInput = dialog.querySelector('#workflow-offset-value');
+    const offsetUnitSelect = dialog.querySelector('#workflow-offset-unit');
+    const conditionSelect = dialog.querySelector('#workflow-condition-type');
     const messageTypeSelect = dialog.querySelector('#workflow-message-type');
+    const messageTypeWrap = dialog.querySelector('#workflow-message-type-wrap');
     const retirementIntakeNote = dialog.querySelector('#workflow-retirement-intake-note');
     const textarea = dialog.querySelector('#workflow-message-template');
     const preview = dialog.querySelector('#workflow-message-preview');
 
     function updatePreview() { preview.textContent = renderPreview(textarea.value) || '(empty)'; }
+    function updateRetirementIntakeNote() {
+      retirementIntakeNote.style.display = messageTypeSelect.value === 'retirement_intake' ? '' : 'none';
+    }
     triggerSelect.addEventListener('change', () => {
       offsetFields.style.display = triggerSelect.value === 'time_before_appointment' ? '' : 'none';
     });
-    messageTypeSelect.addEventListener('change', () => {
-      retirementIntakeNote.style.display = messageTypeSelect.value === 'retirement_intake' ? '' : 'none';
-    });
+    messageTypeSelect.addEventListener('change', updateRetirementIntakeNote);
     textarea.addEventListener('input', updatePreview);
     dialog.querySelectorAll('[data-insert-placeholder]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -238,6 +280,72 @@ async function render() {
       });
     });
     updatePreview();
+
+    // ── CREATE-mode-only: template selection, brand-change refresh, and
+    // unsaved-edit protection. Edit mode never runs any of this. ──────────
+    if (mode === 'create') {
+      const templateSelect = dialog.querySelector('#workflow-template-select');
+      const nameInput = dialog.querySelector('#workflow-name-input');
+      let dirty = false;
+      let lastTemplateValue = '';
+      let lastBrandValue = brandSelect.value;
+
+      // Applies `template` (a full workflow object from data.workflows, or
+      // null for "+ New Workflow") to every OTHER field on the form. Never
+      // touches brandId or the template selector itself -- callers set
+      // those first. Always resets dirty=false: a just-applied copy (or a
+      // just-cleared blank form) has no unsaved edits yet by definition.
+      function applyTemplate(template) {
+        nameInput.value = template ? template.name : '';
+        appointmentTypeSelect.innerHTML = appointmentTypeOptionsHtml(template ? (template.appointmentType || '') : '');
+        triggerSelect.value = template ? template.triggerType : 'time_before_appointment';
+        offsetFields.style.display = triggerSelect.value === 'time_before_appointment' ? '' : 'none';
+        offsetValueInput.value = template && template.offsetValue != null ? template.offsetValue : '';
+        offsetUnitSelect.value = template && template.offsetUnit ? template.offsetUnit : 'hours';
+        conditionSelect.value = template ? template.conditionType : 'always';
+        const inferredMessageType = template ? template.messageType : (messageTypeSelect.options[0] ? messageTypeSelect.options[0].value : '');
+        messageTypeSelect.value = inferredMessageType;
+        messageTypeWrap.style.display = template ? 'none' : '';
+        textarea.value = template ? template.messageTemplate : '';
+        updatePreview();
+        updateRetirementIntakeNote();
+        dirty = false;
+      }
+
+      function markDirty() { dirty = true; }
+      [nameInput, appointmentTypeSelect, triggerSelect, offsetValueInput, offsetUnitSelect, conditionSelect, messageTypeSelect, textarea]
+        .forEach(el => {
+          el.addEventListener('input', markDirty);
+          el.addEventListener('change', markDirty);
+        });
+
+      templateSelect.addEventListener('change', async () => {
+        if (dirty) {
+          const ok = await CrmApp.confirmAction('Choosing a different starting workflow will replace the message and settings currently in this form. Continue?', { confirmLabel: 'Continue' });
+          if (!ok) { templateSelect.value = lastTemplateValue; return; }
+        }
+        lastTemplateValue = templateSelect.value;
+        const template = templateSelect.value ? data.workflows.find(x => String(x.id) === templateSelect.value) : null;
+        applyTemplate(template);
+      });
+
+      brandSelect.addEventListener('change', async () => {
+        if (dirty) {
+          const ok = await CrmApp.confirmAction('Changing brand will refresh the workflows available to copy from and clear the current message and settings. Continue?', { confirmLabel: 'Continue' });
+          if (!ok) { brandSelect.value = lastBrandValue; return; }
+        }
+        lastBrandValue = brandSelect.value;
+        templateSelect.innerHTML = templateOptionsHtml(brandSelect.value);
+        templateSelect.value = '';
+        lastTemplateValue = '';
+        applyTemplate(null);
+      });
+
+      // Establishes the correct initial state for a freshly-opened New
+      // Workflow dialog -- template defaults to "+ New Workflow" (blank),
+      // so the message-type picker must start VISIBLE, not hidden.
+      applyTemplate(null);
+    }
 
     dialog.querySelector('#workflow-form-cancel').addEventListener('click', () => dialog.close());
     form.addEventListener('submit', async (e) => {
@@ -256,6 +364,9 @@ async function render() {
 
       try {
         if (mode === 'create') {
+          // Always a POST -- `existing`/`w.id` is never referenced here, so
+          // picking a template above can never turn into an edit of the
+          // row that was copied from, no matter what was selected.
           await CrmApp.postJSON('/api/app/workflows', 'POST', payload);
           CrmApp.toast('Workflow created.');
         } else {

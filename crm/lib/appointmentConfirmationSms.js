@@ -40,6 +40,8 @@
 
 const { sendLegacySms } = require('./legacySmsSend');
 const { getTemplate } = require('../config/templates');
+const { BRANDS } = require('../config/brands');
+const { selectWorkflowForOccurrence, evaluateCondition, renderWorkflowMessage } = require('./workflowService');
 
 const DEFAULT_BRAND = 'prosperity';
 
@@ -119,6 +121,22 @@ function resolveFromNumberForBrand(brandId) {
 //     sender not configured) or a Twilio send failure. Already logged in
 //     sms_messages by sendLegacySms where applicable — see that module's
 //     own comment.
+//   { attempted: false, reason: 'workflow_condition_not_met' }  — a Workflows
+//     (crm/lib/workflowService.js) row matched this brand/appointment
+//     type/message type, but its condition evaluated false (e.g. a future
+//     "only if retirement intake is still incomplete" row) -- nothing is
+//     sent, and this is NOT a fallback-to-hardcoded case: a specific
+//     workflow match, once found, is authoritative for this send even when
+//     its own condition says "don't send".
+//
+// Workflows integration (2026-09-28, Version 1): before building the
+// message, checks for an enabled crm/lib/workflowService.js row matching
+// (brandId, appointmentType, messageType). No row (the table is empty in
+// every environment until Loretta creates one) -> falls through to
+// buildConfirmationSmsBody below, completely unchanged from before this
+// feature existed. A row exists -> its own condition (default 'always') is
+// evaluated; true renders that row's own editable message_template instead
+// of config/templates.js's hardcoded one, false sends nothing at all.
 async function sendAppointmentConfirmationSms(db, { contactId, firstName, appointmentType, appointmentDatetimeIso, brandId = DEFAULT_BRAND, messageType = 'confirmation', appointmentId = null, now }, deps = {}) {
   // Fails closed rather than silently falling back to Prosperity's number:
   // an Insurance Lady booking must never go out under the wrong brand's
@@ -128,7 +146,21 @@ async function sendAppointmentConfirmationSms(db, { contactId, firstName, appoin
     return { attempted: true, sent: false, reason: 'INSURANCE_LADY_TWILIO_PHONE_NUMBER is not configured', status: 503 };
   }
 
-  const body = buildConfirmationSmsBody({ firstName, appointmentType, appointmentDatetimeIso, brandId, messageType, ...(now ? { now } : {}) });
+  let body;
+  const workflow = selectWorkflowForOccurrence(db, { brandId, appointmentType, messageType });
+  if (workflow) {
+    if (!evaluateCondition(db, workflow.conditionType, { appointmentId })) {
+      return { attempted: false, reason: 'workflow_condition_not_met' };
+    }
+    const { date, time } = fmtApptDateTimeCT(appointmentDatetimeIso);
+    const brand = BRANDS[brandId];
+    body = renderWorkflowMessage(workflow.messageTemplate, {
+      first_name: firstName || 'there', appt_date: date, appt_time: `${time} CT`,
+      brand_name: brand ? brand.legalName : brandId,
+    });
+  } else {
+    body = buildConfirmationSmsBody({ firstName, appointmentType, appointmentDatetimeIso, brandId, messageType, ...(now ? { now } : {}) });
+  }
   const fromNumber = resolveFromNumberForBrand(brandId);
   const send = deps.sendLegacySms || sendLegacySms;
   const result = await send(db, {

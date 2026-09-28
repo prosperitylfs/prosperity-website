@@ -291,3 +291,64 @@ test('a missing intake is a safe no-op', async () => {
   const result = await sendRetirementIntakeSms(db, { intake: null, contactId: 1, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z' });
   assert.equal(result.attempted, false);
 });
+
+// ── Workflows integration (2026-09-28, Version 1 Phase 1) ───────────────
+// Every test above runs against an empty `workflows` table (createLegacyDb's
+// fresh in-memory DB never seeds it) and already proves the fallback -- this
+// file's existing 'a successful send ... includes the correct token' test
+// still passes completely unmodified, sending buildIntakeSmsBody's original
+// hardcoded wording. These tests exercise a workflow row actually being
+// picked up.
+
+function insertIntakeWorkflow(db, overrides = {}) {
+  db.prepare(`
+    INSERT INTO workflows (name, brand_id, appointment_type, trigger_type, offset_value, offset_unit, offset_minutes, message_type, condition_type, action_type, message_template, enabled)
+    VALUES (@name, @brand_id, @appointment_type, @trigger_type, @offset_value, @offset_unit, @offset_minutes, @message_type, @condition_type, @action_type, @message_template, @enabled)
+  `).run({
+    name: 'Test Intake Workflow', brand_id: 'prosperity', appointment_type: null, trigger_type: 'appointment_booked',
+    offset_value: null, offset_unit: null, offset_minutes: null, message_type: 'retirement_intake',
+    condition_type: 'always', action_type: 'send_sms',
+    message_template: 'Hi {{first_name}}, complete your intake: {{intake_link}}',
+    enabled: 1, ...overrides,
+  });
+}
+
+test('an enabled retirement_intake workflow row renders its own template, with the real unique token substituted for {{intake_link}}', async () => {
+  const db = setup();
+  const contactId = seedContact(db, { first_name: 'Janet' });
+  const apptId = seedAppointment(db, contactId);
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  insertIntakeWorkflow(db);
+
+  let capturedBody = null;
+  const deps = { sendLegacySms: async (db2, { body }) => { capturedBody = body; return OK_DEPS.sendLegacySms(db2, { contactId, body }); } };
+  const result = await sendRetirementIntakeSms(db, { intake, contactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', firstName: 'Janet' }, deps);
+
+  assert.equal(result.sent, true);
+  assert.equal(capturedBody, `Hi Janet, complete your intake: https://www.prosperitylfs.com/retirement-intake?token=${intake.token}`);
+});
+
+test('a workflow row missing {{intake_link}} cannot be saved in the first place -- createWorkflow/updateWorkflow reject it (defense in depth for this send path)', () => {
+  const { createWorkflow } = require('../lib/workflowService');
+  const db = setup();
+  assert.throws(() => createWorkflow(db, {
+    name: 'Bad Intake Workflow', brandId: 'prosperity', triggerType: 'appointment_booked',
+    messageType: 'retirement_intake', conditionType: 'always', actionType: 'send_sms',
+    messageTemplate: 'Hi {{first_name}}, no link here.',
+  }), /\{\{intake_link\}\}/);
+});
+
+test('a DISABLED retirement_intake workflow row is ignored -- falls back to buildIntakeSmsBody\'s hardcoded wording', async () => {
+  const db = setup();
+  const contactId = seedContact(db, { first_name: 'Janet' });
+  const apptId = seedAppointment(db, contactId);
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  insertIntakeWorkflow(db, { enabled: 0 });
+
+  let capturedBody = null;
+  const deps = { sendLegacySms: async (db2, { body }) => { capturedBody = body; return OK_DEPS.sendLegacySms(db2, { contactId, body }); } };
+  const result = await sendRetirementIntakeSms(db, { intake, contactId, appointmentDatetimeIso: '2026-09-15T18:00:00.000Z', firstName: 'Janet' }, deps);
+
+  assert.equal(result.sent, true);
+  assert.match(capturedBody, /^Hi Janet,\n\nYour Safe Money & Retirement consultation/, 'must be the original hardcoded buildIntakeSmsBody wording');
+});

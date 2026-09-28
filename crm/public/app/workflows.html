@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workflows — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+// Workflows (Version 1, 2026-09-28) -- crm/lib/workflowService.js's CRUD,
+// via GET/POST/PATCH /api/app/workflows(/:id). Every automated appointment
+// message (confirmation, retirement intake link, 24h/1h/15m reminders) can
+// be represented here as a row; an empty list (Version 1's shipped state)
+// simply means every one of those messages still uses its original
+// hardcoded wording/timing -- see crm/lib/appointmentConfirmationSms.js and
+// crm/lib/retirementIntakeSms.js's own comments on that fallback.
+
+const APPOINTMENT_TYPE_SUGGESTIONS = [
+  'Safe Money & Retirement Consultation',
+  'Life Insurance Consultation',
+  'Policy Review',
+];
+
+// Business-facing labels for the technical vocabulary -- never show
+// brand_id/trigger_type/condition_type/message_type literals in the UI.
+const CONDITION_LABELS = {
+  always: 'Always',
+  retirement_intake_completed: 'Retirement Intake = Completed',
+  retirement_intake_not_completed: 'Retirement Intake = Not Completed',
+};
+const BRAND_LABELS = { prosperity: 'Prosperity', 'insurance-lady': 'Insurance Lady' };
+const UNIT_LABELS = { minutes: 'minutes', hours: 'hours', days: 'days' };
+
+const PLACEHOLDERS = [
+  { key: 'first_name', label: 'First Name', sample: 'Janet' },
+  { key: 'appt_date', label: 'Appt Date', sample: 'Tuesday, September 15, 2026' },
+  { key: 'appt_time', label: 'Appt Time', sample: '1:00 PM CT' },
+  { key: 'brand_name', label: 'Brand Name', sample: 'Insurance Lady LLC' },
+  { key: 'intake_link', label: 'Intake Link', sample: 'https://insuranceladyllc.com/i/8f2a91c7b3…' },
+];
+
+function whenLabel(w) {
+  if (w.triggerType === 'appointment_booked') return 'At time of booking';
+  return `${w.offsetValue} ${UNIT_LABELS[w.offsetUnit] || w.offsetUnit} before appointment`;
+}
+
+function renderPreview(template) {
+  const vars = Object.fromEntries(PLACEHOLDERS.map(p => [p.key, p.sample]));
+  return String(template || '').replace(/\{\{(\w+)\}\}/g, (_, key) => (vars[key] != null ? vars[key] : ''));
+}
+
+async function render() {
+  CrmApp.mount({
+    active: 'workflows', title: 'Workflows',
+    subtitle: 'The CRM’s automated appointment messages — enable, disable, retime, or reword them without a code change.',
+    showCompanyFilter: false,
+  });
+  const content = document.getElementById('page-content');
+  const esc = CrmApp.escapeHtml;
+
+  let data;
+  try {
+    data = await CrmApp.fetchJSON('/api/app/workflows');
+  } catch (e) {
+    content.innerHTML = `<div class="empty-state">Could not load workflows: ${esc(e.message)}</div>`;
+    return;
+  }
+
+  function workflowRowHtml(w) {
+    return `
+      <div style="padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:260px;">
+          <div style="font-weight:700; font-size:14px;">${esc(w.name)}</div>
+          <div class="text-faint" style="margin-top:4px;">
+            When: ${esc(whenLabel(w))} &nbsp;·&nbsp; Condition: ${esc(CONDITION_LABELS[w.conditionType] || w.conditionType)}
+            ${w.appointmentType ? `&nbsp;·&nbsp; Appointment type: ${esc(w.appointmentType)}` : ''}
+          </div>
+        </div>
+        <span class="pill ${w.enabled ? 'status-active' : 'status-pending'}">${w.enabled ? 'Enabled' : 'Disabled'}</span>
+        <button class="btn small ghost" data-edit-workflow="${w.id}">Edit</button>
+      </div>`;
+  }
+
+  function brandSectionHtml(brandId) {
+    const items = data.workflows.filter(w => w.brandId === brandId);
+    return `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <h2>${esc(BRAND_LABELS[brandId])}</h2>
+          <button class="btn small primary" data-new-workflow="${brandId}">+ New Workflow</button>
+        </div>
+        <div class="card-body no-pad">
+          ${items.length ? items.map(workflowRowHtml).join('') : '<div class="empty-state">No workflows configured yet — this brand’s appointment messages are using their original built-in wording and timing.</div>'}
+        </div>
+      </div>`;
+  }
+
+  content.innerHTML = `
+    ${brandSectionHtml('insurance-lady')}
+    ${brandSectionHtml('prosperity')}
+  `;
+
+  function placeholderToolbarHtml() {
+    return `
+      <div class="text-faint" style="margin:6px 0 2px;">Insert:</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+        ${PLACEHOLDERS.map(p => `<button type="button" class="btn small ghost" data-insert-placeholder="${p.key}">${esc(p.label)}</button>`).join('')}
+      </div>`;
+  }
+
+  function appointmentTypeOptionsHtml(current) {
+    const opts = [...new Set([...APPOINTMENT_TYPE_SUGGESTIONS, ...(current ? [current] : [])])];
+    return `<option value="">Any appointment type</option>` +
+      opts.map(t => `<option value="${esc(t)}" ${t === current ? 'selected' : ''}>${esc(t)}</option>`).join('');
+  }
+
+  // Same "Edit existing" / "Create new" single-form-shape pattern as
+  // templates.html's templateFormModal.
+  function workflowFormModal({ mode, brandId, existing } = {}) {
+    const w = existing || {};
+    const triggerType = w.triggerType || 'time_before_appointment';
+    const dialog = CrmApp.openModal({
+      title: mode === 'create' ? 'New Workflow' : 'Edit Workflow',
+      wide: true,
+      bodyHtml: `
+        <form id="workflow-form">
+          <div class="form-field full"><label>Brand</label>
+            <select class="input" name="brandId">
+              <option value="insurance-lady" ${(w.brandId || brandId) === 'insurance-lady' ? 'selected' : ''}>Insurance Lady</option>
+              <option value="prosperity" ${(w.brandId || brandId) === 'prosperity' ? 'selected' : ''}>Prosperity</option>
+            </select>
+          </div>
+          <div class="form-field full" style="margin-top:10px;"><label>Workflow name</label>
+            <input class="input" name="name" value="${esc(w.name || '')}" placeholder="e.g. Safe Money &amp; Retirement: 24 Hour Reminder" required>
+          </div>
+          <div class="form-field full" style="margin-top:10px;"><label>Appointment type</label>
+            <select class="input" name="appointmentType">${appointmentTypeOptionsHtml(w.appointmentType || '')}</select>
+          </div>
+
+          <div class="form-field full" style="margin-top:10px;"><label>When</label>
+            <select class="input" name="triggerType" id="workflow-trigger-type">
+              <option value="appointment_booked" ${triggerType === 'appointment_booked' ? 'selected' : ''}>At time of booking</option>
+              <option value="time_before_appointment" ${triggerType === 'time_before_appointment' ? 'selected' : ''}>Before the appointment</option>
+            </select>
+          </div>
+          <div class="form-grid" id="workflow-offset-fields" style="margin-top:8px; ${triggerType === 'appointment_booked' ? 'display:none;' : ''}">
+            <div class="form-field"><label>Timing value</label>
+              <input class="input" name="offsetValue" type="number" min="1" step="1" value="${w.offsetValue || ''}">
+            </div>
+            <div class="form-field"><label>Unit</label>
+              <select class="input" name="offsetUnit">
+                <option value="minutes" ${w.offsetUnit === 'minutes' ? 'selected' : ''}>Minutes before appointment</option>
+                <option value="hours" ${!w.offsetUnit || w.offsetUnit === 'hours' ? 'selected' : ''}>Hours before appointment</option>
+                <option value="days" ${w.offsetUnit === 'days' ? 'selected' : ''}>Days before appointment</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-field full" style="margin-top:10px;"><label>Condition</label>
+            <select class="input" name="conditionType">
+              ${Object.entries(CONDITION_LABELS).map(([k, label]) => `<option value="${k}" ${(w.conditionType || 'always') === k ? 'selected' : ''}>${esc(label)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-field full" style="margin-top:10px;"><label>Action</label>
+            <select class="input" disabled><option>Send SMS</option></select>
+            <div class="text-faint" style="margin-top:2px;">Version 1 supports sending a text message only.</div>
+          </div>
+
+          <div class="form-field full" style="margin-top:10px;"><label>Message type</label>
+            <input class="input" name="messageType" value="${esc(w.messageType || '')}" placeholder="e.g. reminder_24h, confirmation, retirement_intake" required>
+            <div class="text-faint" style="margin-top:2px;">Which existing automation this workflow controls — leave as the suggested value unless you're setting up something new.</div>
+          </div>
+
+          <div class="form-field full" style="margin-top:10px;"><label>Message</label>
+            ${placeholderToolbarHtml()}
+            <textarea class="input" name="messageTemplate" id="workflow-message-template" rows="8" required>${esc(w.messageTemplate || '')}</textarea>
+          </div>
+          <div class="form-field full" style="margin-top:6px;">
+            <div class="text-faint">Preview:</div>
+            <div id="workflow-message-preview" style="white-space:pre-wrap; background:var(--surface-alt); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-top:4px; font-size:13.5px;"></div>
+          </div>
+
+          <div class="form-field full" style="margin-top:10px;"><label>Status</label>
+            <label style="display:inline-flex; align-items:center; gap:6px; font-weight:400; margin-right:16px;">
+              <input type="radio" name="enabled" value="true" ${w.enabled !== false ? 'checked' : ''}> Enabled
+            </label>
+            <label style="display:inline-flex; align-items:center; gap:6px; font-weight:400;">
+              <input type="radio" name="enabled" value="false" ${w.enabled === false ? 'checked' : ''}> Disabled
+            </label>
+          </div>
+
+          <div class="form-error" id="workflow-form-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="workflow-form-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Workflow</button>
+          </div>
+        </form>
+      `,
+    });
+
+    const form = dialog.querySelector('#workflow-form');
+    const offsetFields = dialog.querySelector('#workflow-offset-fields');
+    const triggerSelect = dialog.querySelector('#workflow-trigger-type');
+    const textarea = dialog.querySelector('#workflow-message-template');
+    const preview = dialog.querySelector('#workflow-message-preview');
+
+    function updatePreview() { preview.textContent = renderPreview(textarea.value) || '(empty)'; }
+    triggerSelect.addEventListener('change', () => {
+      offsetFields.style.display = triggerSelect.value === 'time_before_appointment' ? '' : 'none';
+    });
+    textarea.addEventListener('input', updatePreview);
+    dialog.querySelectorAll('[data-insert-placeholder]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.insertPlaceholder;
+        const start = textarea.selectionStart ?? textarea.value.length;
+        const end = textarea.selectionEnd ?? textarea.value.length;
+        const token = `{{${key}}}`;
+        textarea.value = textarea.value.slice(0, start) + token + textarea.value.slice(end);
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + token.length;
+        updatePreview();
+      });
+    });
+    updatePreview();
+
+    dialog.querySelector('#workflow-form-cancel').addEventListener('click', () => dialog.close());
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      const errorEl = dialog.querySelector('#workflow-form-error');
+      errorEl.textContent = '';
+
+      const payload = {
+        name: fields.name, brandId: fields.brandId, appointmentType: fields.appointmentType || null,
+        triggerType: fields.triggerType, messageType: fields.messageType, conditionType: fields.conditionType,
+        actionType: 'send_sms', messageTemplate: fields.messageTemplate, enabled: fields.enabled === 'true',
+        offsetValue: fields.triggerType === 'time_before_appointment' ? Number(fields.offsetValue) : null,
+        offsetUnit: fields.triggerType === 'time_before_appointment' ? fields.offsetUnit : null,
+      };
+
+      try {
+        if (mode === 'create') {
+          await CrmApp.postJSON('/api/app/workflows', 'POST', payload);
+          CrmApp.toast('Workflow created.');
+        } else {
+          await CrmApp.postJSON(`/api/app/workflows/${w.id}`, 'PATCH', payload);
+          CrmApp.toast('Workflow updated.');
+        }
+        dialog.close();
+        location.reload();
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    });
+  }
+
+  content.addEventListener('click', (e) => {
+    const editBtn = e.target.closest('[data-edit-workflow]');
+    if (editBtn) {
+      const w = data.workflows.find(x => String(x.id) === editBtn.dataset.editWorkflow);
+      if (w) workflowFormModal({ mode: 'edit', existing: w });
+      return;
+    }
+    const newBtn = e.target.closest('[data-new-workflow]');
+    if (newBtn) {
+      workflowFormModal({ mode: 'create', brandId: newBtn.dataset.newWorkflow });
+    }
+  });
+}
+render();
+</script>
+</body>
+</html>

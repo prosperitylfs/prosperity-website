@@ -28,6 +28,7 @@ const callLogService = require('../lib/callLogService');
 const taskCalendarSync = require('../lib/taskCalendarSync');
 const existingClientOutreach = require('../lib/existingClientOutreach');
 const templateManagerService = require('../lib/templateManagerService');
+const workflowService = require('../lib/workflowService');
 const dashboardQueries = require('../lib/dashboardQueries');
 
 function handle(fn) {
@@ -103,6 +104,17 @@ router.post('/templates', handle((req, res) => {
     channel: req.body.channel, label: req.body.label, subject: req.body.subject, body: req.body.body,
   });
 }));
+
+// ── Workflows (crm/lib/workflowService.js) — Version 1, 2026-09-28 ───────
+// PATCH covers every field edit AND enable/disable (send { enabled:
+// true|false } alone to just toggle status) -- same partial-update pattern
+// clientService.updateClient already uses. Read side is
+// crm/routes/crmApp.js's GET /workflows.
+router.post('/workflows', handle((req, res) => {
+  created(res);
+  return workflowService.createWorkflow(db, req.body);
+}));
+router.patch('/workflows/:id', handle(req => workflowService.updateWorkflow(db, Number(req.params.id), req.body)));
 
 // ── Cases ────────────────────────────────────────────────────────────────
 // productName -> productId is resolved here, scoped to the CLIENT'S OWN

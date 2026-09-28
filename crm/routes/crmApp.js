@@ -37,6 +37,7 @@ const { getSenderGuardrailForCase, getSenderGuardrailForManualSelection, default
 const { listTasks } = require('../lib/taskService');
 const { getReconnectionTemplates, getExistingClientsForOutreach } = require('../lib/existingClientOutreach');
 const { listManagedTemplates, SUPPORTED_VARIABLES } = require('../lib/templateManagerService');
+const workflowService = require('../lib/workflowService');
 
 // Normalizes the ?company= query param used throughout this API to a valid
 // brandId value for crm/lib/dashboardQueries.js: null/'all' pass through as
@@ -58,6 +59,21 @@ function parseCompanyParam(raw) {
 // API/network issue never blocks editing a client.
 router.get('/lead-statuses', (req, res) => {
   res.json({ statuses: SELECTABLE_LEAD_STATUSES });
+});
+
+// Workflows (crm/lib/workflowService.js) -- Version 1, 2026-09-28. Read
+// side for the Workflows list screen (public/app/workflows.html). Write
+// side (create/update/enable/disable) is in crm/routes/crmActions.js,
+// matching the exact same read/write split every other feature in this
+// pair of files already uses.
+router.get('/workflows', (req, res) => {
+  res.json({ workflows: workflowService.listWorkflows(db), constants: {
+    brands: workflowService.VALID_BRANDS,
+    triggerTypes: workflowService.VALID_TRIGGER_TYPES,
+    conditionTypes: workflowService.VALID_CONDITION_TYPES,
+    offsetUnits: workflowService.VALID_OFFSET_UNITS,
+    actionTypes: workflowService.VALID_ACTION_TYPES,
+  } });
 });
 
 router.get('/dashboard', (req, res) => {

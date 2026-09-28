@@ -229,6 +229,29 @@ function createLegacyDb(dbPath = ':memory:') {
       updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(template_key, brand_id)
     );
+
+    -- Workflows (crm/lib/workflowService.js) -- mirrors crm/db/database.js's
+    -- own workflows table exactly.
+    CREATE TABLE workflows (
+      id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+      name               TEXT NOT NULL,
+      brand_id           TEXT NOT NULL,
+      appointment_type   TEXT,
+      trigger_type       TEXT NOT NULL,
+      offset_value       INTEGER,
+      offset_unit        TEXT,
+      offset_minutes     INTEGER,
+      message_type       TEXT NOT NULL,
+      condition_type     TEXT NOT NULL DEFAULT 'always',
+      action_type        TEXT NOT NULL DEFAULT 'send_sms',
+      message_template   TEXT NOT NULL,
+      enabled            INTEGER NOT NULL DEFAULT 1,
+      is_system_default  INTEGER NOT NULL DEFAULT 0,
+      created_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at         DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE UNIQUE INDEX idx_workflows_identity
+      ON workflows(brand_id, message_type, COALESCE(appointment_type,''), condition_type);
   `);
   return db;
 }

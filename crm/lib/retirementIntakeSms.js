@@ -17,6 +17,12 @@
 
 const { sendLegacySms } = require('./legacySmsSend');
 const { markIntakeSent, shortCodeForToken } = require('./retirementIntakeService');
+const { selectWorkflowForOccurrence, evaluateCondition, renderWorkflowMessage } = require('./workflowService');
+// message_type key this send is looked up under in the Workflows table
+// (crm/lib/workflowService.js) -- distinct from sms_messages.message_type,
+// which this send never sets at all (see this module's own header comment
+// on why: dedup here is entirely via intake.status, not sms_messages).
+const WORKFLOW_MESSAGE_TYPE = 'retirement_intake';
 // Reused rather than reimplemented: crm/lib/appointmentConfirmationSms.js
 // already has the exact tested "which brand's Twilio number sends this"
 // logic (fails closed if INSURANCE_LADY_TWILIO_PHONE_NUMBER isn't
@@ -143,7 +149,32 @@ async function sendRetirementIntakeSms(db, { intake, contactId, appointmentDatet
     return { attempted: true, sent: false, reason: 'INSURANCE_LADY_TWILIO_PHONE_NUMBER is not configured', status: 503 };
   }
 
-  const body = buildIntakeSmsBody({ appointmentDatetimeIso, token: intake.token, brandId, firstName });
+  // Workflows integration (2026-09-28, Version 1) -- same fallback pattern
+  // as crm/lib/appointmentConfirmationSms.js's sendAppointmentConfirmationSms:
+  // no enabled workflow row matching (brandId, this appointment's
+  // appt_type, 'retirement_intake') -> falls through to buildIntakeSmsBody
+  // below, byte-for-byte unchanged from before this feature existed. A row
+  // whose condition evaluates false is authoritative (nothing is sent),
+  // never a fallback trigger.
+  const apptRow = db.prepare('SELECT appt_type FROM appointments WHERE id = ?').get(intake.appointment_id);
+  const appointmentType = apptRow ? apptRow.appt_type : null;
+  const workflow = selectWorkflowForOccurrence(db, { brandId, appointmentType, messageType: WORKFLOW_MESSAGE_TYPE });
+
+  let body;
+  if (workflow) {
+    if (!evaluateCondition(db, workflow.conditionType, { appointmentId: intake.appointment_id })) {
+      return { attempted: false, reason: 'workflow_condition_not_met' };
+    }
+    const { date, time } = fmtApptDateTimeCT(appointmentDatetimeIso);
+    const brand = BRANDS[brandId];
+    body = renderWorkflowMessage(workflow.messageTemplate, {
+      first_name: firstName || '', appt_date: date, appt_time: time,
+      brand_name: brand ? brand.legalName : brandId,
+      intake_link: buildIntakeUrl(intake.token, brandId),
+    });
+  } else {
+    body = buildIntakeSmsBody({ appointmentDatetimeIso, token: intake.token, brandId, firstName });
+  }
   const fromNumber = resolveFromNumberForBrand(brandId);
   const send = deps.sendLegacySms || sendLegacySms;
   const result = await send(db, { contactId, body, fromNumber: fromNumber || undefined }, deps);

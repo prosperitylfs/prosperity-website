@@ -425,3 +425,114 @@ test('a Twilio failure is reported, not thrown', async () => {
   assert.equal(result.sent, false);
   assert.equal(result.reason, 'The number is unreachable');
 });
+
+// ── Workflows integration (2026-09-28, Version 1 Phase 1) ───────────────
+// crm/lib/workflowService.js's `workflows` table is EMPTY in every one of
+// the tests above (createLegacyDb's fresh in-memory DB never seeds it) --
+// they already prove the empty-table fallback produces byte-identical
+// output to before this feature existed, since every one of them still
+// passes unmodified. These tests exercise the OTHER side: a workflow row
+// that does exist is actually picked up and used.
+
+function insertWorkflow(db, overrides = {}) {
+  db.prepare(`
+    INSERT INTO workflows (name, brand_id, appointment_type, trigger_type, offset_value, offset_unit, offset_minutes, message_type, condition_type, action_type, message_template, enabled)
+    VALUES (@name, @brand_id, @appointment_type, @trigger_type, @offset_value, @offset_unit, @offset_minutes, @message_type, @condition_type, @action_type, @message_template, @enabled)
+  `).run({
+    name: 'Test Workflow', brand_id: 'prosperity', appointment_type: null, trigger_type: 'appointment_booked',
+    offset_value: null, offset_unit: null, offset_minutes: null, message_type: 'confirmation',
+    condition_type: 'always', action_type: 'send_sms', message_template: 'Custom message for {{first_name}}.',
+    enabled: 1, ...overrides,
+  });
+}
+
+test('an enabled workflow row matching (brand, appointmentType, messageType) is used instead of the hardcoded template', async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  insertWorkflow(db, { message_template: 'Hi {{first_name}}, custom confirmation text.' });
+
+  const result = await sendAppointmentConfirmationSms(db, {
+    contactId, firstName: 'Janet', appointmentType: 'Life Insurance Consultation',
+    appointmentDatetimeIso: '2026-09-01T19:00:00.000Z', brandId: 'prosperity',
+  }, OK_DEPS);
+
+  assert.equal(result.sent, true);
+  const rows = db.prepare('SELECT * FROM sms_messages WHERE contact_id = ?').all(contactId);
+  assert.equal(rows[0].body, 'Hi Janet, custom confirmation text.');
+});
+
+test('a DISABLED workflow row is ignored -- falls back to the hardcoded template exactly as if no row existed', async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  insertWorkflow(db, { message_template: 'Should never be used.', enabled: 0 });
+
+  const result = await sendAppointmentConfirmationSms(db, {
+    contactId, firstName: 'Janet', appointmentType: 'Life Insurance Consultation',
+    appointmentDatetimeIso: '2026-09-01T19:00:00.000Z', brandId: 'prosperity',
+  }, OK_DEPS);
+
+  assert.equal(result.sent, true);
+  const rows = db.prepare('SELECT * FROM sms_messages WHERE contact_id = ?').all(contactId);
+  assert.match(rows[0].body, /^Hi Janet,/);
+  assert.doesNotMatch(rows[0].body, /Should never be used/);
+});
+
+test('a workflow row for a DIFFERENT brand never applies to this send -- Prosperity keeps its own hardcoded wording when only an Insurance Lady row exists', async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  insertWorkflow(db, { brand_id: 'insurance-lady', message_template: 'Insurance Lady only text.' });
+
+  const result = await sendAppointmentConfirmationSms(db, {
+    contactId, firstName: 'Janet', appointmentType: 'Life Insurance Consultation',
+    appointmentDatetimeIso: '2026-09-01T19:00:00.000Z', brandId: 'prosperity',
+  }, OK_DEPS);
+
+  assert.equal(result.sent, true);
+  const rows = db.prepare('SELECT * FROM sms_messages WHERE contact_id = ?').all(contactId);
+  assert.match(rows[0].body, /^Hi Janet,/);
+  assert.doesNotMatch(rows[0].body, /Insurance Lady only text/);
+});
+
+test('a workflow row for a DIFFERENT messageType never applies -- a confirmation-only row does not hijack the 24h reminder send', async () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  insertWorkflow(db, { message_template: 'Confirmation-only custom text.' }); // message_type: 'confirmation'
+
+  const result = await sendAppointmentConfirmationSms(db, {
+    contactId, firstName: 'Janet', appointmentType: 'Life Insurance Consultation',
+    appointmentDatetimeIso: '2026-09-01T19:00:00.000Z', brandId: 'prosperity', messageType: 'reminder_24h',
+  }, OK_DEPS);
+
+  assert.equal(result.sent, true);
+  const rows = db.prepare('SELECT * FROM sms_messages WHERE contact_id = ?').all(contactId);
+  assert.doesNotMatch(rows[0].body, /Confirmation-only custom text/);
+});
+
+test('a workflow row whose condition evaluates false sends NOTHING -- it does not fall back to the hardcoded message either', async () => {
+  const db = setup();
+  db.exec(`
+    CREATE TABLE retirement_intakes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, contact_id INTEGER NOT NULL, appointment_id INTEGER NOT NULL,
+      token TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Not Sent', sent_at DATETIME, completed_at DATETIME,
+      responses_json TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  const contactId = seedContact(db);
+  insertWorkflow(db, {
+    message_type: 'reminder_1h', message_template: 'Should never be sent.',
+    condition_type: 'retirement_intake_completed',
+  });
+  // No retirement_intakes row at all for this appointment -- evaluateCondition
+  // must treat that as "not completed", so 'retirement_intake_completed' is false.
+
+  const result = await sendAppointmentConfirmationSms(db, {
+    contactId, firstName: 'Janet', appointmentType: 'Life Insurance Consultation',
+    appointmentDatetimeIso: '2026-09-01T19:00:00.000Z', brandId: 'prosperity', messageType: 'reminder_1h',
+    appointmentId: 999,
+  }, OK_DEPS);
+
+  assert.equal(result.attempted, false);
+  assert.equal(result.reason, 'workflow_condition_not_met');
+  const rows = db.prepare('SELECT * FROM sms_messages WHERE contact_id = ?').all(contactId);
+  assert.equal(rows.length, 0, 'nothing sent -- must never fall back to the generic reminder once a specific workflow row matched');
+});

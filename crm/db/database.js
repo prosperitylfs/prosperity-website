@@ -553,4 +553,49 @@ db.exec(`
   );
 `);
 
+// Workflows (crm/lib/workflowService.js) -- Version 1, 2026-09-28. Lets
+// Loretta view/edit/enable/disable the CRM's automated appointment
+// messages (confirmation, retirement intake link, 24h/1h/15m reminders)
+// from inside the CRM UI instead of a code deploy. message_type is the
+// same vocabulary already used by sms_messages.message_type
+// ('confirmation'|'reschedule'|'reminder_24h'|'reminder_1h'|'reminder_15m')
+// plus 'retirement_intake' (which has no sms_messages.message_type of its
+// own -- that send is deduped via retirement_intakes.status instead) and
+// any future value introduced by a new workflow -- it is intentionally NOT
+// constrained to a fixed SQL enum, so a new automation type never requires
+// a schema change, only application-level validation
+// (crm/lib/workflowService.js's own VALID_* lists).
+//
+// Selection is by (brand_id, message_type), with appointment_type used
+// ONLY to break a tie between a specific override and a generic "Any
+// appointment type" row for the same brand+message_type -- see
+// selectWorkflowForOccurrence's own comment. This table starts EMPTY on
+// every environment (including production) -- every sender that consults
+// it (crm/lib/appointmentConfirmationSms.js, crm/lib/retirementIntakeSms.js)
+// falls back to its existing pre-Workflows hardcoded behavior whenever no
+// enabled row matches, so an empty table is a fully supported, safe,
+// permanent state, not just a migration transient.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS workflows (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    name               TEXT NOT NULL,
+    brand_id           TEXT NOT NULL,
+    appointment_type   TEXT,
+    trigger_type       TEXT NOT NULL,
+    offset_value       INTEGER,
+    offset_unit        TEXT,
+    offset_minutes     INTEGER,
+    message_type       TEXT NOT NULL,
+    condition_type     TEXT NOT NULL DEFAULT 'always',
+    action_type        TEXT NOT NULL DEFAULT 'send_sms',
+    message_template   TEXT NOT NULL,
+    enabled            INTEGER NOT NULL DEFAULT 1,
+    is_system_default  INTEGER NOT NULL DEFAULT 0,
+    created_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at         DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_workflows_identity
+    ON workflows(brand_id, message_type, COALESCE(appointment_type,''), condition_type);
+`);
+
 module.exports = db;

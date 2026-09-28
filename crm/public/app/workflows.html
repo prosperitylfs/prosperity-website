@@ -37,8 +37,10 @@ const UNIT_LABELS = { minutes: 'minutes', hours: 'hours', days: 'days' };
 
 const PLACEHOLDERS = [
   { key: 'first_name', label: 'First Name', sample: 'Janet' },
+  { key: 'appointment_type', label: 'Appointment Type', sample: 'Safe Money & Retirement Consultation' },
   { key: 'appt_date', label: 'Appt Date', sample: 'Tuesday, September 15, 2026' },
   { key: 'appt_time', label: 'Appt Time', sample: '1:00 PM CT' },
+  { key: 'day_phrase', label: 'Day Phrase (24 Hour Reminder only)', sample: 'tomorrow' },
   { key: 'brand_name', label: 'Brand Name', sample: 'Insurance Lady LLC' },
   { key: 'intake_link', label: 'Intake Link', sample: 'https://insuranceladyllc.com/i/8f2a91c7b3…' },
 ];
@@ -77,8 +79,9 @@ async function render() {
           <div style="font-weight:700; font-size:14px;">${esc(w.name)}</div>
           <div class="text-faint" style="margin-top:4px;">
             When: ${esc(whenLabel(w))} &nbsp;·&nbsp; Condition: ${esc(CONDITION_LABELS[w.conditionType] || w.conditionType)}
-            ${w.appointmentType ? `&nbsp;·&nbsp; Appointment type: ${esc(w.appointmentType)}` : ''}
+            &nbsp;·&nbsp; Appointment type: ${esc(w.appointmentType || 'Any')}
           </div>
+          ${w.messageType === 'retirement_intake' ? `<div class="text-faint" style="margin-top:4px; font-style:italic;">Only eligible to send after a Cal.com booking has been classified by the CRM as a Retirement Lead — Appointment Type does not override that classification.</div>` : ''}
         </div>
         <span class="pill ${w.enabled ? 'status-active' : 'status-pending'}">${w.enabled ? 'Enabled' : 'Disabled'}</span>
         <button class="btn small ghost" data-edit-workflow="${w.id}">Edit</button>
@@ -170,9 +173,13 @@ async function render() {
             <div class="text-faint" style="margin-top:2px;">Version 1 supports sending a text message only.</div>
           </div>
 
-          <div class="form-field full" style="margin-top:10px;"><label>Message type</label>
-            <input class="input" name="messageType" value="${esc(w.messageType || '')}" placeholder="e.g. reminder_24h, confirmation, retirement_intake" required>
-            <div class="text-faint" style="margin-top:2px;">Which existing automation this workflow controls — leave as the suggested value unless you're setting up something new.</div>
+          <div class="form-field full" style="margin-top:10px;"><label>Which automated message is this?</label>
+            <select class="input" name="messageType" id="workflow-message-type" required>
+              ${(data.constants.messageTypes || []).map(mt => `<option value="${mt.value}" ${w.messageType === mt.value ? 'selected' : ''}>${esc(mt.label)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-field full" id="workflow-retirement-intake-note" style="margin-top:6px; ${w.messageType === 'retirement_intake' ? '' : 'display:none;'} background:var(--surface-alt); border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
+            <div class="text-faint">This message is only eligible to send after a Cal.com booking has been classified by the CRM as a Retirement Lead. Appointment Type: Any does not override that retirement classification.</div>
           </div>
 
           <div class="form-field full" style="margin-top:10px;"><label>Message</label>
@@ -205,12 +212,17 @@ async function render() {
     const form = dialog.querySelector('#workflow-form');
     const offsetFields = dialog.querySelector('#workflow-offset-fields');
     const triggerSelect = dialog.querySelector('#workflow-trigger-type');
+    const messageTypeSelect = dialog.querySelector('#workflow-message-type');
+    const retirementIntakeNote = dialog.querySelector('#workflow-retirement-intake-note');
     const textarea = dialog.querySelector('#workflow-message-template');
     const preview = dialog.querySelector('#workflow-message-preview');
 
     function updatePreview() { preview.textContent = renderPreview(textarea.value) || '(empty)'; }
     triggerSelect.addEventListener('change', () => {
       offsetFields.style.display = triggerSelect.value === 'time_before_appointment' ? '' : 'none';
+    });
+    messageTypeSelect.addEventListener('change', () => {
+      retirementIntakeNote.style.display = messageTypeSelect.value === 'retirement_intake' ? '' : 'none';
     });
     textarea.addEventListener('input', updatePreview);
     dialog.querySelectorAll('[data-insert-placeholder]').forEach(btn => {

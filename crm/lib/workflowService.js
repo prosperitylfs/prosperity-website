@@ -37,6 +37,25 @@ const VALID_CONDITION_TYPES = ['always', 'retirement_intake_completed', 'retirem
 const VALID_OFFSET_UNITS = ['minutes', 'hours', 'days'];
 const VALID_ACTION_TYPES = ['send_sms']; // Version 1 supports only sending an SMS.
 
+// The complete, closed set of automations Version 1 can represent --
+// message_type must be one of these (2026-09-28: previously free-text, an
+// internal-terminology dropdown replaces it in the Workflows UI so Loretta
+// never has to type an internal code like 'reminder_24h' by hand). Every
+// value here is either an sms_messages.message_type value already used by
+// the pre-Workflows hardcoded senders, or 'retirement_intake' (which has no
+// sms_messages.message_type of its own -- see workflowService's own header
+// comment / lib/retirementIntakeSms.js for why). Adding a genuinely new
+// automation type in a future phase means adding it here first.
+const MESSAGE_TYPE_OPTIONS = [
+  { value: 'confirmation', label: 'Booking Confirmation' },
+  { value: 'reschedule', label: 'Reschedule Notice' },
+  { value: 'reminder_24h', label: '24 Hour Reminder' },
+  { value: 'reminder_1h', label: '1 Hour Reminder' },
+  { value: 'reminder_15m', label: '15 Minute Reminder' },
+  { value: 'retirement_intake', label: 'Retirement Intake Link' },
+];
+const VALID_MESSAGE_TYPES = MESSAGE_TYPE_OPTIONS.map(o => o.value);
+
 const UNIT_TO_MINUTES = { minutes: 1, hours: 60, days: 1440 };
 const MAX_OFFSET_MINUTES = 90 * 1440; // 90 days -- a sane upper bound, not a real limit anyone should need.
 
@@ -73,7 +92,7 @@ function validateWorkflowFields(fields) {
   if (!VALID_TRIGGER_TYPES.includes(fields.triggerType)) throw new Error(`workflowService: trigger type must be one of ${VALID_TRIGGER_TYPES.join(', ')}`);
   if (!VALID_CONDITION_TYPES.includes(fields.conditionType)) throw new Error(`workflowService: condition must be one of ${VALID_CONDITION_TYPES.join(', ')}`);
   if (!VALID_ACTION_TYPES.includes(fields.actionType)) throw new Error(`workflowService: action must be one of ${VALID_ACTION_TYPES.join(', ')}`);
-  if (!toStringOrNull(fields.messageType)) throw new Error('workflowService: a message type is required');
+  if (!VALID_MESSAGE_TYPES.includes(fields.messageType)) throw new Error(`workflowService: message type must be one of ${VALID_MESSAGE_TYPES.join(', ')}`);
   if (!toStringOrNull(fields.messageTemplate)) throw new Error('workflowService: a message is required');
 
   if (fields.triggerType === 'time_before_appointment') {
@@ -239,10 +258,139 @@ function selectWorkflowForOccurrence(db, params) {
   return rows.length ? rows[0] : null;
 }
 
+// ── Default seed data (Phase 2, 2026-09-28) ─────────────────────────────
+// A byte-for-byte migration of the CURRENT hardcoded automations into
+// workflow rows -- not new wording, not new timing, not a new automation.
+// Every message_template below is derived directly from the exact live
+// template it represents; see each entry's own comment for the source.
+//
+// Two deliberate omissions, both because representing them here would
+// require either altering behavior or the message-template placeholder
+// language to grow beyond a flat {{key}} substitution -- neither is in
+// scope for "migrate current behavior":
+//   - 'reschedule' (both brands): not in the set Loretta asked to migrate
+//     this phase (confirmation/intake, 24h, 1h, 15m only). Stays on the
+//     config/templates.js hardcoded fallback, completely unaffected.
+//   - Prosperity's retirement_intake: the hardcoded version only prepends
+//     "Hi {firstName},\n\n" when firstName is present, and omits the
+//     greeting LINE ENTIRELY (not just a blank name) when it's not --
+//     lib/retirementIntakeSms.js's buildIntakeSmsBody's own `return
+//     firstName ? ... : message` branch. A flat {{first_name}} placeholder
+//     can't reproduce "the whole line disappears," only "the name is
+//     blank" -- so seeding this one would be a real (if narrow) wording
+//     change in the rare no-first-name case. Insurance Lady's version has
+//     no such conditional (it never adds a greeting at all, seeded below
+//     with full fidelity); Prosperity's stays on the hardcoded fallback
+//     for now.
+function offsetFields(value, unit) {
+  return { offsetValue: value, offsetUnit: unit, offsetMinutes: computeOffsetMinutes(value, unit) };
+}
+
+const DEFAULT_WORKFLOWS = [
+  // ── Insurance Lady ───────────────────────────────────────────────────
+  {
+    name: 'Booking Confirmation', brandId: 'insurance-lady', appointmentType: null,
+    triggerType: 'appointment_booked', messageType: 'confirmation', conditionType: 'always',
+    // Source: config/templates.js TEMPLATES['insurance-lady'].appointmentConfirmationSms.body
+    messageTemplate: 'Hi {{first_name}}, your {{appointment_type}} with Loretta Stewart is confirmed for {{appt_date}} at {{appt_time}}. Loretta will call you at the scheduled time. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.',
+  },
+  {
+    name: '24 Hour Reminder', brandId: 'insurance-lady', appointmentType: null,
+    triggerType: 'time_before_appointment', ...offsetFields(24, 'hours'), messageType: 'reminder_24h', conditionType: 'always',
+    // Source: config/templates.js TEMPLATES['insurance-lady'].reminder24hSms.body
+    messageTemplate: 'Hi {{first_name}}, this is your 24-hour reminder. Your {{appointment_type}} with Loretta Stewart is {{day_phrase}} at {{appt_time}}. Loretta will call you at the scheduled time. Need to reschedule? Reply RESCHEDULE. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.',
+  },
+  {
+    name: '1 Hour Reminder', brandId: 'insurance-lady', appointmentType: null,
+    triggerType: 'time_before_appointment', ...offsetFields(1, 'hours'), messageType: 'reminder_1h', conditionType: 'always',
+    // Source: config/templates.js TEMPLATES['insurance-lady'].reminder1hSms.body
+    messageTemplate: 'Hi {{first_name}}, this is your 1-hour reminder. Your {{appointment_type}} with Loretta Stewart begins at {{appt_time}}. Loretta will call you at the scheduled time. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.',
+  },
+  {
+    name: '15 Minute Reminder', brandId: 'insurance-lady', appointmentType: null,
+    triggerType: 'time_before_appointment', ...offsetFields(15, 'minutes'), messageType: 'reminder_15m', conditionType: 'always',
+    // Source: config/templates.js TEMPLATES['insurance-lady'].reminder15mSms.body
+    messageTemplate: 'Hi {{first_name}}, this is your 15-minute reminder. Your {{appointment_type}} with Loretta Stewart begins at {{appt_time}}. Loretta will call you at the scheduled time. - Insurance Lady LLC. Reply HELP for help or STOP to opt out.',
+  },
+  {
+    name: 'Retirement Intake Link', brandId: 'insurance-lady', appointmentType: null,
+    triggerType: 'appointment_booked', messageType: 'retirement_intake', conditionType: 'always',
+    // Source: lib/retirementIntakeSms.js buildIntakeSmsBody's insurance-lady
+    // branch (no greeting -- that branch never adds one).
+    messageTemplate: `Your Safe Money & Retirement consultation with Insurance Lady LLC is scheduled for {{appt_date}} at {{appt_time}}.
+
+Please complete your Retirement Intake Form at least 2 hours before your appointment so we have time to review and prepare:
+
+{{intake_link}}
+
+If your intake form is not received at least 2 hours before your appointment, your consultation may need to be rescheduled.
+
+Insurance Lady LLC`,
+  },
+
+  // ── Prosperity ───────────────────────────────────────────────────────
+  {
+    name: 'Booking Confirmation', brandId: 'prosperity', appointmentType: null,
+    triggerType: 'appointment_booked', messageType: 'confirmation', conditionType: 'always',
+    // Source: config/templates.js TEMPLATES.prosperity.appointmentConfirmationSms.body
+    messageTemplate: 'Hi {{first_name}}, your {{appointment_type}} with Loretta Stewart is confirmed for {{appt_date}} at {{appt_time}}. Loretta will call you at the scheduled time. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.',
+  },
+  {
+    name: '24 Hour Reminder', brandId: 'prosperity', appointmentType: null,
+    triggerType: 'time_before_appointment', ...offsetFields(24, 'hours'), messageType: 'reminder_24h', conditionType: 'always',
+    // Source: config/templates.js TEMPLATES.prosperity.reminder24hSms.body
+    messageTemplate: 'Hi {{first_name}}, this is your 24-hour reminder. Your {{appointment_type}} with Loretta Stewart is {{day_phrase}} at {{appt_time}}. Loretta will call you at the scheduled time. Need to reschedule? Reply RESCHEDULE. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.',
+  },
+  {
+    name: '1 Hour Reminder', brandId: 'prosperity', appointmentType: null,
+    triggerType: 'time_before_appointment', ...offsetFields(1, 'hours'), messageType: 'reminder_1h', conditionType: 'always',
+    // Source: config/templates.js TEMPLATES.prosperity.reminder1hSms.body
+    messageTemplate: 'Hi {{first_name}}, this is your 1-hour reminder. Your {{appointment_type}} with Loretta Stewart begins at {{appt_time}}. Loretta will call you at the scheduled time. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.',
+  },
+  {
+    name: '15 Minute Reminder', brandId: 'prosperity', appointmentType: null,
+    triggerType: 'time_before_appointment', ...offsetFields(15, 'minutes'), messageType: 'reminder_15m', conditionType: 'always',
+    // Source: config/templates.js TEMPLATES.prosperity.reminder15mSms.body
+    messageTemplate: 'Hi {{first_name}}, this is your 15-minute reminder. Your {{appointment_type}} with Loretta Stewart begins at {{appt_time}}. Loretta will call you at the scheduled time. - Prosperity Life & Financial Solutions. Reply HELP for help or STOP to opt out.',
+  },
+];
+
+// Idempotent: run at every boot (crm/db/database.js, right after the
+// `workflows` table itself is created), same philosophy as that file's own
+// CREATE TABLE IF NOT EXISTS statements. INSERT OR IGNORE relies on the
+// table's own unique index (brand_id, message_type, appointment_type,
+// condition_type) to silently skip a row that already exists -- so this
+// never overwrites a row Loretta has since edited, and never creates a
+// duplicate. Every seeded row is stamped is_system_default = 1 (informational
+// only -- nothing in this module treats it specially; a seeded row is
+// edited/disabled exactly like any other).
+function seedDefaultWorkflows(db) {
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO workflows (
+      name, brand_id, appointment_type, trigger_type, offset_value, offset_unit, offset_minutes,
+      message_type, condition_type, action_type, message_template, enabled, is_system_default
+    ) VALUES (
+      @name, @brand_id, @appointment_type, @trigger_type, @offset_value, @offset_unit, @offset_minutes,
+      @message_type, @condition_type, @action_type, @message_template, 1, 1
+    )
+  `);
+  for (const w of DEFAULT_WORKFLOWS) {
+    validateWorkflowFields({ ...w, actionType: 'send_sms' }); // defense in depth -- seed data must pass the exact same rules a manual create would.
+    stmt.run({
+      name: w.name, brand_id: w.brandId, appointment_type: w.appointmentType,
+      trigger_type: w.triggerType, offset_value: w.offsetValue ?? null, offset_unit: w.offsetUnit ?? null,
+      offset_minutes: w.offsetMinutes ?? null, message_type: w.messageType, condition_type: w.conditionType,
+      action_type: 'send_sms', message_template: w.messageTemplate,
+    });
+  }
+}
+
 module.exports = {
   VALID_BRANDS, VALID_TRIGGER_TYPES, VALID_CONDITION_TYPES, VALID_OFFSET_UNITS, VALID_ACTION_TYPES,
+  MESSAGE_TYPE_OPTIONS, VALID_MESSAGE_TYPES,
   MESSAGE_TYPES_REQUIRING_INTAKE_LINK,
   listWorkflows, getWorkflow, createWorkflow, updateWorkflow,
   evaluateCondition, renderWorkflowMessage,
   selectWorkflowsForOccurrence, selectWorkflowForOccurrence,
+  DEFAULT_WORKFLOWS, seedDefaultWorkflows,
 };

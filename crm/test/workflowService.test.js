@@ -256,7 +256,7 @@ test('an exact appointment_type match wins over a generic "Any" row for the same
   assert.equal(forLifeInsurance.id, generic.id, 'a different, non-matching appointment type must fall back to the generic row');
 });
 
-test('selectWorkflowsForOccurrence returns EVERY row in the winning specificity tier -- lets a caller evaluate multiple mutually-exclusive conditions for the same slot', () => {
+test('selectWorkflowsForOccurrence returns EVERY row in the winning specificity tier -- lets a caller evaluate multiple mutually-exclusive conditions for the same (brand, appointmentType, messageType) slot', () => {
   const db = setup();
   const completed = insertRow(db, {
     name: '1h if completed', appointmentType: 'Safe Money & Retirement Consultation',
@@ -264,14 +264,11 @@ test('selectWorkflowsForOccurrence returns EVERY row in the winning specificity 
   });
   const notCompleted = insertRow(db, {
     name: '1h if not completed', appointmentType: 'Safe Money & Retirement Consultation',
-    messageType: 'reminder_1h_reschedule_notice', offsetValue: 1, offsetUnit: 'hours', conditionType: 'retirement_intake_not_completed',
+    messageType: 'reminder_1h', offsetValue: 1, offsetUnit: 'hours', conditionType: 'retirement_intake_not_completed',
   });
 
-  const rowsForCompleted = selectWorkflowsForOccurrence(db, { brandId: 'prosperity', appointmentType: 'Safe Money & Retirement Consultation', messageType: 'reminder_1h' });
-  assert.deepEqual(rowsForCompleted.map(r => r.id), [completed.id]);
-
-  const rowsForNotCompleted = selectWorkflowsForOccurrence(db, { brandId: 'prosperity', appointmentType: 'Safe Money & Retirement Consultation', messageType: 'reminder_1h_reschedule_notice' });
-  assert.deepEqual(rowsForNotCompleted.map(r => r.id), [notCompleted.id]);
+  const rows = selectWorkflowsForOccurrence(db, { brandId: 'prosperity', appointmentType: 'Safe Money & Retirement Consultation', messageType: 'reminder_1h' });
+  assert.deepEqual(rows.map(r => r.id).sort(), [completed.id, notCompleted.id].sort(), 'both conditional rows for this slot must come back -- the caller evaluates each row\'s own condition to pick the one that applies');
 });
 
 test('the unique index prevents two enabled rows for the exact same (brand, messageType, appointmentType, conditionType) -- SQLite rejects the duplicate insert', () => {

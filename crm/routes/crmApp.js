@@ -72,6 +72,7 @@ router.get('/workflows', (req, res) => {
     triggerTypes: workflowService.VALID_TRIGGER_TYPES,
     conditionTypes: workflowService.VALID_CONDITION_TYPES,
     offsetUnits: workflowService.VALID_OFFSET_UNITS,
+    messageTypes: workflowService.MESSAGE_TYPE_OPTIONS,
     actionTypes: workflowService.VALID_ACTION_TYPES,
   } });
 });

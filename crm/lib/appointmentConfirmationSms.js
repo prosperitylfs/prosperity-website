@@ -156,7 +156,16 @@ async function sendAppointmentConfirmationSms(db, { contactId, firstName, appoin
     const brand = BRANDS[brandId];
     body = renderWorkflowMessage(workflow.messageTemplate, {
       first_name: firstName || 'there', appt_date: date, appt_time: `${time} CT`,
+      appointment_type: appointmentType,
       brand_name: brand ? brand.legalName : brandId,
+      // Only meaningful for a 24-hour-reminder workflow -- same
+      // computeDayPhrase() the pre-Workflows hardcoded reminder_24h
+      // template already uses, so a seeded 24h-reminder workflow can
+      // reproduce "tomorrow" vs "on <date>" exactly. Omitted (renders as
+      // empty string) for every other messageType, matching
+      // buildConfirmationSmsBody's own day_phrase: undefined for anything
+      // other than 'reminder_24h'.
+      day_phrase: messageType === 'reminder_24h' ? computeDayPhrase(appointmentDatetimeIso, now || new Date()) : undefined,
     });
   } else {
     body = buildConfirmationSmsBody({ firstName, appointmentType, appointmentDatetimeIso, brandId, messageType, ...(now ? { now } : {}) });

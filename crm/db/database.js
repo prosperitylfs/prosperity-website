@@ -598,4 +598,17 @@ db.exec(`
     ON workflows(brand_id, message_type, COALESCE(appointment_type,''), condition_type);
 `);
 
+// Phase 2 (2026-09-28): seeds the `workflows` table with rows that
+// reproduce today's hardcoded automations exactly (see
+// crm/lib/workflowService.js's own DEFAULT_WORKFLOWS comment for exactly
+// which ones, and the two deliberate omissions). Idempotent -- INSERT OR
+// IGNORE against the table's own unique index, so this never duplicates or
+// overwrites a row on a later boot, including one Loretta has since
+// edited. Every sender (crm/lib/appointmentConfirmationSms.js,
+// crm/lib/retirementIntakeSms.js) already has its DB-first/hardcoded-
+// fallback logic from Phase 1 -- seeding these rows is what makes that
+// path actually active for these five automations instead of always
+// falling through.
+require('../lib/workflowService').seedDefaultWorkflows(db);
+
 module.exports = db;

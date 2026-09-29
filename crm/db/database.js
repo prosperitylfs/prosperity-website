@@ -624,6 +624,24 @@ db.exec(`
 // otherwise.
 addCol('workflows', 'email_subject', 'TEXT');
 
+// Microsoft Graph delegated OAuth credential storage for Insurance Lady
+// email (2026-10-16) -- holds the serialized MSAL token cache (which
+// contains the refresh token internally; see crm/lib/msGraphAuth.js) so the
+// CRM can send email as loretta@insuranceladyllc.com without Loretta
+// re-authorizing on every send. Deliberately its own tiny table, separate
+// from `emails`/`communications` (which hold sent-message CONTENT, not
+// credentials) -- one row per provider, keyed by `provider` so a future
+// second Microsoft-authorized mailbox (if ever needed) would get its own
+// row rather than colliding. `token_cache` is written only by
+// lib/msGraphAuth.js's MSAL cache plugin; nothing else reads or writes it.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS oauth_credentials (
+    provider     TEXT PRIMARY KEY,
+    token_cache  TEXT NOT NULL,
+    updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // Phase 2 (2026-09-28): seeds the `workflows` table with rows that
 // reproduce today's hardcoded automations exactly (see
 // crm/lib/workflowService.js's own DEFAULT_WORKFLOWS comment for exactly

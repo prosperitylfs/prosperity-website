@@ -256,6 +256,12 @@ function createLegacyDb(dbPath = ':memory:') {
     );
     CREATE UNIQUE INDEX idx_workflows_identity
       ON workflows(brand_id, message_type, COALESCE(appointment_type,''), condition_type);
+
+    CREATE TABLE oauth_credentials (
+      provider     TEXT PRIMARY KEY,
+      token_cache  TEXT NOT NULL,
+      updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
   return db;
 }

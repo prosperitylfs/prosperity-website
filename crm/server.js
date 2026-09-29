@@ -243,6 +243,14 @@ app.use('/api/calendar', (req, res, next) => {
   requireApiKey(req, res, next);
 }, require('./routes/googleCalendarAuth'));
 
+// Microsoft Graph OAuth setup for Insurance Lady email (separate from
+// Gmail/Prosperity above -- see crm/routes/msEmail.js's own header
+// comment). Same /auth + /callback exemption pattern as Gmail/Calendar.
+app.use('/api/ms-email', (req, res, next) => {
+  if (req.path === '/auth' || req.path === '/callback') return next();
+  requireApiKey(req, res, next);
+}, require('./routes/msEmail'));
+
 // ─── Dashboard config — served dynamically so the API key comes from the server
 // environment rather than requiring manual localStorage setup in every browser.
 // This route takes priority over the static config.js in public/.

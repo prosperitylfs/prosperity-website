@@ -390,3 +390,78 @@ test('a Prosperity intake and an Insurance Lady intake for the SAME contact each
   assert.equal(byBrand.prosperity.appointment_id, prosperityApptId);
   assert.equal(byBrand['insurance-lady'].appointment_id, ilApptId);
 });
+
+// ── Orphaned appointment_id regression (2026-10-16) ───────────────────────
+// Root cause of the production bug: listIntakesForContact used a plain
+// (INNER) JOIN against appointments, which silently excluded an otherwise-
+// intact, fully-completed retirement_intakes row whenever its
+// appointment_id no longer matched any row in appointments -- exactly
+// Renee Jones's reported state (both the Communications tab's "View
+// Intake" and the new Planning tab card returned nothing for her, because
+// both ultimately call this same function). Fixed by changing JOIN to
+// LEFT JOIN. These tests reproduce that exact orphaned state directly
+// (foreign_keys temporarily OFF only to delete the appointment without
+// cascading away the retirement_intakes row under test -- never done
+// against a real database, and responses_json itself is never written to
+// or altered by these tests, only read back).
+
+test('a historical completed intake whose appointment record no longer exists is still returned -- never silently excluded -- with responses_json fully intact and appt/brand fields coming back null rather than guessed', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId, '2026-01-10T18:00:00.000Z', { booking_brand: 'insurance-lady' });
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  submitIntakeResponses(db, { token: intake.token, responses: { about: { ...validAbout, firstName: 'OrphanedSubmission' } } });
+
+  db.pragma('foreign_keys = OFF');
+  db.prepare('DELETE FROM appointments WHERE id = ?').run(apptId);
+  db.pragma('foreign_keys = ON');
+
+  const list = listIntakesForContact(db, contactId);
+  assert.equal(list.length, 1, 'the orphaned intake must still be returned, never silently excluded');
+  assert.equal(list[0].displayStatus, 'Completed');
+  assert.equal(list[0].responses.about.firstName, 'OrphanedSubmission', 'responses_json must still be fully intact and readable');
+  assert.equal(list[0].appt_type, null);
+  assert.equal(list[0].appt_datetime, null);
+  assert.equal(list[0].brand_id, null, 'brand must never be guessed/defaulted when the matching appointment is missing');
+});
+
+test('an orphaned intake still respects contact isolation -- it never appears for a different contact', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const otherContactId = seedContact(db, { email: 'other-contact@example.com' });
+  const apptId = seedAppointment(db, contactId, '2026-01-10T18:00:00.000Z');
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  submitIntakeResponses(db, { token: intake.token, responses: { about: validAbout } });
+
+  db.pragma('foreign_keys = OFF');
+  db.prepare('DELETE FROM appointments WHERE id = ?').run(apptId);
+  db.pragma('foreign_keys = ON');
+
+  assert.equal(listIntakesForContact(db, contactId).length, 1);
+  assert.equal(listIntakesForContact(db, otherContactId).length, 0, 'an orphaned intake must never leak to a different contact');
+});
+
+test('a contact with BOTH a normal (valid-appointment) completed intake AND an orphaned one gets both returned, each with its own correct brand', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+
+  const normalApptId = seedAppointment(db, contactId, '2026-09-10T18:00:00.000Z', { booking_brand: 'prosperity' });
+  const normalIntake = createIntakeForAppointment(db, { contactId, appointmentId: normalApptId });
+  submitIntakeResponses(db, { token: normalIntake.token, responses: { about: { ...validAbout, firstName: 'NormalSubmission' } } });
+
+  const orphanedApptId = seedAppointment(db, contactId, '2026-01-10T18:00:00.000Z', { booking_brand: 'insurance-lady' });
+  const orphanedIntake = createIntakeForAppointment(db, { contactId, appointmentId: orphanedApptId });
+  submitIntakeResponses(db, { token: orphanedIntake.token, responses: { about: { ...validAbout, firstName: 'OrphanedSubmission' } } });
+  db.pragma('foreign_keys = OFF');
+  db.prepare('DELETE FROM appointments WHERE id = ?').run(orphanedApptId);
+  db.pragma('foreign_keys = ON');
+
+  const list = listIntakesForContact(db, contactId);
+  assert.equal(list.length, 2);
+  const normal = list.find(i => i.responses.about.firstName === 'NormalSubmission');
+  const orphaned = list.find(i => i.responses.about.firstName === 'OrphanedSubmission');
+  assert.ok(normal, 'the normal intake must still be present');
+  assert.ok(orphaned, 'the orphaned intake must ALSO be present, not excluded');
+  assert.equal(normal.brand_id, 'prosperity');
+  assert.equal(orphaned.brand_id, null);
+});

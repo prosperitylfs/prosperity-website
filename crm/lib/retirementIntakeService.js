@@ -257,20 +257,41 @@ function markIntakeSent(db, intakeId) {
 
 // For Contact Detail's "Retirement Intake" card — one row per retirement
 // appointment this contact has, newest first, each with its live-computed
-// display status and deadline attached (never stored).
+// display status and deadline attached (never stored). Used by BOTH the
+// Communications tab's "View Intake" button (crm/public/app/client.html's
+// viewIntakeModal, no-argument call) and the Retirement & Annuity Planning
+// tab's "Completed Retirement Intake" card -- there is exactly one
+// retrieval path, not two.
+//
+// LEFT JOIN, not JOIN (fixed 2026-10-16): a plain (INNER) JOIN silently
+// EXCLUDED a retirement_intakes row entirely whenever its appointment_id
+// no longer matched any row in appointments -- a real production case
+// (an intake completed against an appointment that was since deleted/
+// replaced for reasons unrelated to this feature) that made an otherwise-
+// intact, fully-completed intake (responses_json and all) disappear from
+// both UI surfaces at once, even though the retirement_intakes row itself
+// was never touched. LEFT JOIN can only return a superset of what JOIN
+// already returned -- it adds back exactly the orphaned rows, changes
+// nothing else, and adds no new database writes. For an orphaned row,
+// appt_type/appt_datetime/appt_status/brand_id all come back NULL (see
+// below) rather than a guessed value.
 //
 // a.booking_brand AS brand_id (2026-10-16): the intake's own brand,
 // straight from the SAME column every other brand-routing decision in this
 // codebase already trusts (crm/lib/appointmentReminderScheduler.js's
 // resolveReminderBrand, crm/routes/email.js's brand resolution, etc.) --
 // never inferred from the contact's current brand assignment, which could
-// have changed since this specific appointment/intake happened. Read-only
-// addition; nothing about booking_brand itself is written here.
+// have changed since this specific appointment/intake happened. NULL for
+// an orphaned row (no matching appointment) -- never defaulted/guessed to
+// either brand, and never written back to the database. contact isolation
+// is unaffected by the LEFT JOIN: the WHERE clause still filters on
+// ri.contact_id, the column actually owned by retirement_intakes itself,
+// so this can never return a different contact's row.
 function listIntakesForContact(db, contactId) {
   const rows = db.prepare(`
     SELECT ri.*, a.appt_type, a.appt_datetime, a.status AS appt_status, a.booking_brand AS brand_id
     FROM retirement_intakes ri
-    JOIN appointments a ON a.id = ri.appointment_id
+    LEFT JOIN appointments a ON a.id = ri.appointment_id
     WHERE ri.contact_id = ?
     ORDER BY a.appt_datetime DESC
   `).all(contactId);

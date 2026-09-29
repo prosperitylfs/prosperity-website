@@ -182,14 +182,32 @@ function validateIntakeSubmission(responses) {
     if (!about.lastName || !String(about.lastName).trim()) errors.push('Last name is required');
     if (!about.email || !String(about.email).trim()) errors.push('Email address is required');
     if (!about.phone || !String(about.phone).trim()) errors.push('Phone number is required');
+    // Added 2026-10-16 alongside the redesigned 6-section intake form --
+    // matters for retirement/rollover planning since a spouse may need to
+    // participate in the decision, sign certain paperwork, or be present
+    // for the consultation. Enforced the same way as the other `about`
+    // fields above: only on a NEW incoming submission, never re-checked
+    // against an already-stored historical record.
+    if (!about.maritalStatus || !String(about.maritalStatus).trim()) errors.push('Marital status is required');
   }
 
   // Every other section is optional structurally, but if present must be an
   // object (accounts) or array (accounts list) — never a bare string/number
   // that would silently fail to render on Contact Detail.
+  //
+  // Section names (2026-10-16) match the shorter, 6-section intake form
+  // (retirement-intake.html) going forward: helpWith, accounts,
+  // retirementGoals, risk, beforeWeMeet. The OLD section names ('income',
+  // 'timeHorizon', 'existingProducts', 'beneficiaries', 'advisor',
+  // 'additional') are deliberately removed from this list -- this function
+  // only validates a NEW incoming submission, never re-validates an
+  // already-stored historical responses_json, so this change cannot affect
+  // any past record. mainReason itself is NOT hard-required here
+  // (matching this function's existing pattern: only the `about` fields
+  // are backend-required; every other question, old or new, is enforced
+  // by the form's own pre-submit check, not the server).
   const SECTION_KEYS = [
-    'helpWith', 'accounts', 'income', 'risk', 'timeHorizon',
-    'existingProducts', 'beneficiaries', 'advisor', 'additional',
+    'helpWith', 'accounts', 'retirementGoals', 'risk', 'beforeWeMeet',
   ];
   for (const key of SECTION_KEYS) {
     const val = responses[key];

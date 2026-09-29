@@ -71,7 +71,9 @@ function seedAppointment(db, contactId, apptDatetime, overrides = {}) {
   return r.lastInsertRowid;
 }
 
-const validAbout = { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100' };
+// maritalStatus added 2026-10-16 alongside the redesigned intake form --
+// now a required `about` field, matching firstName/lastName/email/phone.
+const validAbout = { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100', maritalStatus: 'Married' };
 
 // ── Token generation ────────────────────────────────────────────────────
 
@@ -175,13 +177,21 @@ test('buildPublicIntakeView returns null for an unknown/invalid token', () => {
 
 // ── Validation ───────────────────────────────────────────────────────────
 
-test('validateIntakeSubmission requires first name, last name, email, phone', () => {
+test('validateIntakeSubmission requires first name, last name, email, phone, and marital status', () => {
   const { valid, errors } = validateIntakeSubmission({ about: {} });
   assert.equal(valid, false);
   assert.ok(errors.some(e => /first name/i.test(e)));
   assert.ok(errors.some(e => /last name/i.test(e)));
   assert.ok(errors.some(e => /email/i.test(e)));
   assert.ok(errors.some(e => /phone/i.test(e)));
+  assert.ok(errors.some(e => /marital status/i.test(e)));
+});
+
+test('validateIntakeSubmission rejects a submission missing ONLY marital status, with every other required field present', () => {
+  const { valid, errors } = validateIntakeSubmission({ about: { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100' } });
+  assert.equal(valid, false);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /marital status/i);
 });
 
 test('validateIntakeSubmission passes with only the required "about" fields — no $15,000 or other minimum enforced', () => {
@@ -464,4 +474,107 @@ test('a contact with BOTH a normal (valid-appointment) completed intake AND an o
   assert.ok(orphaned, 'the orphaned intake must ALSO be present, not excluded');
   assert.equal(normal.brand_id, 'prosperity');
   assert.equal(orphaned.brand_id, null);
+});
+
+// ── New 6-section intake (intakeVersion 2, 2026-10-16) ────────────────────
+// retirement-intake.html's redesigned, shorter form submits this shape.
+// The service layer (submitIntakeResponses / validateIntakeSubmission /
+// listIntakesForContact) is intentionally shape-agnostic beyond the
+// `about` required fields, so these tests mainly confirm nothing about the
+// new shape trips up validation or storage, and that it round-trips
+// exactly through listIntakesForContact the same way any other
+// responses_json does.
+
+function v2Responses(overrides = {}) {
+  return {
+    intakeVersion: 2,
+    about: validAbout,
+    helpWith: { mainReason: 'Create reliable retirement income', mainConcern: 'Will my money last?' },
+    accounts: [{ accountType: '401(k)', institution: 'Fidelity', balance: '200000' }],
+    retirementGoals: { whenPlanTo: 'Already retired', needsIncome: 'Yes', otherIncomeSources: ['Social Security'] },
+    risk: { comfortWithLosses: 'Not sure', topPriority: 'Create reliable retirement income' },
+    beforeWeMeet: { ownsAnnuity: 'No', hasCurrentAdvisor: 'No', otherDecisionMaker: 'No' },
+    ...overrides,
+  };
+}
+
+test('submitIntakeResponses accepts the new 6-section (intakeVersion 2) shape and stores it without error', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId, '2026-09-10T18:00:00.000Z');
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+
+  const result = submitIntakeResponses(db, { token: intake.token, responses: v2Responses() });
+  assert.equal(result.ok, true);
+
+  const stored = db.prepare('SELECT status, responses_json FROM retirement_intakes WHERE id = ?').get(intake.id);
+  assert.equal(stored.status, 'Completed');
+  const parsed = JSON.parse(stored.responses_json);
+  assert.equal(parsed.intakeVersion, 2);
+  assert.equal(parsed.helpWith.mainReason, 'Create reliable retirement income');
+});
+
+test('a new intake can be retrieved by contact via listIntakesForContact, with intakeVersion intact and every new section present', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId, '2026-09-10T18:00:00.000Z', { booking_brand: 'prosperity' });
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  submitIntakeResponses(db, { token: intake.token, responses: v2Responses() });
+
+  const list = listIntakesForContact(db, contactId);
+  assert.equal(list.length, 1);
+  assert.equal(list[0].displayStatus, 'Completed');
+  assert.equal(list[0].responses.intakeVersion, 2);
+  assert.ok(list[0].responses.retirementGoals);
+  assert.ok(list[0].responses.beforeWeMeet);
+  assert.equal(list[0].brand_id, 'prosperity');
+});
+
+test('the new intake works identically for Insurance Lady -- brand isolation holds for intakeVersion 2 the same as for legacy intakes', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId, '2026-09-10T18:00:00.000Z', { booking_brand: 'insurance-lady' });
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  submitIntakeResponses(db, { token: intake.token, responses: v2Responses() });
+
+  const list = listIntakesForContact(db, contactId);
+  assert.equal(list[0].brand_id, 'insurance-lady');
+  assert.notEqual(list[0].brand_id, 'prosperity');
+});
+
+test('submitIntakeResponses\' existing communications-row logging still works unchanged with the new schema, since mainConcern kept the same key name', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId, '2026-09-10T18:00:00.000Z');
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+
+  submitIntakeResponses(db, { token: intake.token, responses: v2Responses({ helpWith: { mainReason: 'Grow retirement savings', mainConcern: 'A specific concern here' } }) });
+
+  const comm = db.prepare("SELECT * FROM communications WHERE contact_id = ? AND subject = 'Retirement Intake Form Completed'").get(contactId);
+  assert.ok(comm);
+  assert.match(comm.body, /A specific concern here/);
+});
+
+test('a legacy (pre-redesign) responses_json record already in the database is completely unaffected by the new schema -- still retrievable, still parses, still carries its own old shape', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId, '2026-01-10T18:00:00.000Z');
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  // Simulates a row completed BEFORE this redesign -- old section names,
+  // no intakeVersion key at all. Never written by submitIntakeResponses in
+  // this test; inserted directly to represent already-existing historical
+  // data, exactly as it would already sit in production.
+  const legacyResponses = {
+    about: { firstName: 'Legacy', lastName: 'Submission', email: 'legacy@example.com', phone: '4145550199', maritalStatus: 'Married' },
+    helpWith: { selections: ['Retirement income planning'], mainConcern: 'Old-shape concern' },
+    totalAssets: '100000',
+  };
+  db.prepare(`UPDATE retirement_intakes SET responses_json = ?, status = 'Completed', completed_at = ? WHERE id = ?`)
+    .run(JSON.stringify(legacyResponses), '2026-01-10T10:00:00.000Z', intake.id);
+
+  const list = listIntakesForContact(db, contactId);
+  assert.equal(list.length, 1);
+  assert.equal(list[0].responses.intakeVersion, undefined, 'a legacy record has no intakeVersion key at all');
+  assert.equal(list[0].responses.about.maritalStatus, 'Married');
+  assert.equal(list[0].responses.totalAssets, '100000');
 });

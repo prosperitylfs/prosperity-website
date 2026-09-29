@@ -73,7 +73,7 @@ test('GET /contact/:id includes the fully parsed responses once completed', asyn
   const { contactId, intake } = seedContactAndAppointment();
   submitIntakeResponses(db, {
     token: intake.token,
-    responses: { about: { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100' } },
+    responses: { about: { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100', maritalStatus: 'Married' } },
   });
   const res = await fetch(`${baseUrl}/contact/${contactId}`);
   const list = await res.json();
@@ -136,7 +136,7 @@ test('GET /contact/:id never touches the existing editable retirement/annuity pl
   const { contactId, intake } = seedContactAndAppointment();
   submitIntakeResponses(db, {
     token: intake.token,
-    responses: { about: { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100' } },
+    responses: { about: { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100', maritalStatus: 'Married' } },
   });
   db.prepare(`
     UPDATE contacts SET retirement_account_type = 'Roth IRA', annuity_type = 'Fixed Annuity' WHERE id = ?

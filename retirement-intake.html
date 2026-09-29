@@ -143,7 +143,7 @@
     <div class="container page-hero-inner">
       <div class="page-hero-tag">Retirement Consultation Intake</div>
       <h1>Retirement Consultation Intake Form</h1>
-      <p>Please complete this form so Loretta can review your situation and prepare for your upcoming Safe Money &amp; Retirement consultation.</p>
+      <p>Please complete this short form so Loretta can review your situation and prepare for your upcoming Safe Money &amp; Retirement consultation.</p>
     </div>
   </section>
 
@@ -213,24 +213,25 @@
                 <input type="date" id="ri-dob">
               </div>
               <div class="form-group" style="flex:1;">
-                <label class="form-label" for="ri-marital">Marital Status</label>
-                <select id="ri-marital">
-                  <option value="">&mdash; Select &mdash;</option>
-                  <option>Single</option><option>Married</option><option>Widowed</option><option>Divorced</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-row" style="gap:12px;">
-              <div class="form-group" style="flex:1;">
                 <label class="form-label" for="ri-state">State of Residence</label>
                 <input type="text" id="ri-state" placeholder="e.g. Wisconsin">
               </div>
+            </div>
+            <div class="form-row" style="gap:12px;">
               <div class="form-group" style="flex:1;">
                 <label class="form-label" for="ri-employment">Current Employment Status</label>
                 <select id="ri-employment">
                   <option value="">&mdash; Select &mdash;</option>
                   <option>Employed full-time</option><option>Employed part-time</option>
                   <option>Self-employed</option><option>Retired</option><option>Not currently working</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label class="form-label" for="ri-marital">Marital Status *</label>
+                <select id="ri-marital">
+                  <option value="">&mdash; Select &mdash;</option>
+                  <option>Single</option><option>Married</option><option>Divorced</option>
+                  <option>Widowed</option><option>Separated</option>
                 </select>
               </div>
             </div>
@@ -250,22 +251,23 @@
           <!-- SECTION 2 — What Would You Like Help With? -->
           <div class="ri-section">
             <h2><span class="ri-section-num">2</span> What Would You Like Help With?</h2>
-            <p class="ri-section-sub">Select everything that applies.</p>
+            <p class="ri-section-sub">Select the ONE that best describes your main goal.</p>
 
-            <div class="ri-check-group" id="ri-helpwith-group">
-              <label class="ri-check-row"><input type="checkbox" value="Retirement income planning"> Retirement income planning</label>
-              <label class="ri-check-row"><input type="checkbox" value="401(k)/403(b)/TSP/IRA or employer-plan rollover"> 401(k), 403(b), TSP, IRA, or employer-plan rollover</label>
-              <label class="ri-check-row"><input type="checkbox" value="Safe money / principal protection"> Safe money / principal protection</label>
-              <label class="ri-check-row"><input type="checkbox" value="Annuities / guaranteed income"> Annuities / guaranteed income</label>
-              <label class="ri-check-row"><input type="checkbox" value="CD alternatives"> CD alternatives</label>
-              <label class="ri-check-row"><input type="checkbox" value="Reducing market exposure"> Reducing market exposure</label>
-              <label class="ri-check-row"><input type="checkbox" value="Long-term growth"> Long-term growth</label>
-              <label class="ri-check-row"><input type="checkbox" value="Roth conversion discussion"> Roth conversion discussion</label>
-              <label class="ri-check-row"><input type="checkbox" value="Legacy / beneficiary planning"> Legacy / beneficiary planning</label>
-              <label class="ri-check-row"><input type="checkbox" value="Other"> Other</label>
+            <div class="ri-question">
+              <span class="ri-question-label">What is the main thing you would like help with? *</span>
+              <div class="ri-radio-group" id="ri-main-reason-group">
+                <label class="ri-radio-row"><input type="radio" name="ri-main-reason" value="Roll over a 401(k), 403(b), TSP, IRA, or old employer account"> Roll over a 401(k), 403(b), TSP, IRA, or old employer account</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-main-reason" value="Protect retirement savings from market losses"> Protect retirement savings from market losses</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-main-reason" value="Create reliable retirement income"> Create reliable retirement income</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-main-reason" value="Review or compare an annuity"> Review or compare an annuity</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-main-reason" value="Grow retirement savings"> Grow retirement savings</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-main-reason" value="Roth conversion / tax-efficient retirement planning"> Roth conversion / tax-efficient retirement planning</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-main-reason" value="Legacy / beneficiary planning"> Legacy / beneficiary planning</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-main-reason" value="I'm not sure — I want help understanding my options"> I&rsquo;m not sure &mdash; I want help understanding my options</label>
+              </div>
             </div>
             <div class="form-group" style="margin-top:16px;">
-              <label class="form-label" for="ri-main-concern">What is the main question or concern you want addressed during your consultation?</label>
+              <label class="form-label" for="ri-main-concern">What is your biggest question or concern?</label>
               <textarea id="ri-main-concern" rows="3"></textarea>
             </div>
           </div>
@@ -277,17 +279,16 @@
 
             <div id="ri-accounts-list"></div>
             <button type="button" class="ri-add-account-btn" onclick="riAddAccount()">+ Add Another Account</button>
-
-            <div class="form-group" style="margin-top:18px;">
-              <label class="form-label" for="ri-total-assets">Approximately how much do you have in total retirement or savings assets that you would like to discuss?</label>
-              <input type="text" id="ri-total-assets" inputmode="decimal" placeholder="$">
-            </div>
           </div>
 
-          <!-- SECTION 4 — Income Needs -->
+          <!-- SECTION 4 — Retirement & Income Goals -->
           <div class="ri-section">
-            <h2><span class="ri-section-num">4</span> Income Needs</h2>
+            <h2><span class="ri-section-num">4</span> Retirement &amp; Income Goals</h2>
 
+            <div class="form-group">
+              <label class="form-label" for="ri-when-plan">When do you plan to retire or begin using this money?</label>
+              <input type="text" id="ri-when-plan" placeholder="e.g. Already retired, age 67, or 2030">
+            </div>
             <div class="ri-question">
               <span class="ri-question-label">Do you expect to need income from these funds?</span>
               <div class="ri-radio-group">
@@ -297,36 +298,35 @@
               </div>
             </div>
             <div class="form-group">
-              <label class="form-label" for="ri-income-when">If yes, when would you need income to begin?</label>
-              <input type="text" id="ri-income-when" placeholder="e.g. Immediately, in 5 years, at age 70">
-            </div>
-            <div class="form-group">
               <label class="form-label" for="ri-income-amount">Approximately how much monthly income would you like these funds to provide?</label>
               <input type="text" id="ri-income-amount" inputmode="decimal" placeholder="$ per month">
             </div>
             <div class="ri-question">
-              <span class="ri-question-label">Other current income sources</span>
+              <span class="ri-question-label">What other income sources do you expect in retirement?</span>
               <div class="ri-check-group" id="ri-income-sources-group">
                 <label class="ri-check-row"><input type="checkbox" value="Social Security"> Social Security</label>
                 <label class="ri-check-row"><input type="checkbox" value="Pension"> Pension</label>
                 <label class="ri-check-row"><input type="checkbox" value="Employment income"> Employment income</label>
                 <label class="ri-check-row"><input type="checkbox" value="Rental income"> Rental income</label>
                 <label class="ri-check-row"><input type="checkbox" value="Other"> Other</label>
+                <label class="ri-check-row"><input type="checkbox" value="None / Not sure"> None / Not sure</label>
               </div>
             </div>
-            <div class="form-row" style="gap:12px;">
-              <div class="form-group" style="flex:1;">
-                <label class="form-label" for="ri-total-income">Approximate total monthly household income</label>
-                <input type="text" id="ri-total-income" inputmode="decimal" placeholder="$">
+            <div class="ri-question">
+              <span class="ri-question-label">Do you anticipate needing a large withdrawal from these funds within the next 5 years?</span>
+              <div class="ri-radio-group">
+                <label class="ri-radio-row"><input type="radio" name="ri-withdrawal" value="Yes"> Yes</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-withdrawal" value="No"> No</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-withdrawal" value="Not sure"> Not sure</label>
               </div>
-              <div class="form-group" style="flex:1;">
-                <label class="form-label" for="ri-total-expenses">Approximate total monthly household expenses</label>
-                <input type="text" id="ri-total-expenses" inputmode="decimal" placeholder="$">
-              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="ri-withdrawal-detail">If yes, approximately how much and what would it be for?</label>
+              <input type="text" id="ri-withdrawal-detail">
             </div>
           </div>
 
-          <!-- SECTION 5 — Risk / Priorities -->
+          <!-- SECTION 5 — Risk & Priorities -->
           <div class="ri-section">
             <h2><span class="ri-section-num">5</span> Risk &amp; Priorities</h2>
 
@@ -341,63 +341,34 @@
               </div>
             </div>
             <div class="ri-question">
-              <span class="ri-question-label">What are your priorities? Select all that apply.</span>
-              <div class="ri-check-group" id="ri-priorities-group">
-                <label class="ri-check-row"><input type="checkbox" value="Protect principal"> Protect principal</label>
-                <label class="ri-check-row"><input type="checkbox" value="Generate reliable income"> Generate reliable income</label>
-                <label class="ri-check-row"><input type="checkbox" value="Preserve access to money"> Preserve access to money</label>
-                <label class="ri-check-row"><input type="checkbox" value="Long-term growth"> Long-term growth</label>
-                <label class="ri-check-row"><input type="checkbox" value="Reduce market risk"> Reduce market risk</label>
-                <label class="ri-check-row"><input type="checkbox" value="Leave money to beneficiaries"> Leave money to beneficiaries</label>
-                <label class="ri-check-row"><input type="checkbox" value="Tax-efficient retirement strategies"> Tax-efficient retirement strategies</label>
-                <label class="ri-check-row"><input type="checkbox" value="Other"> Other</label>
+              <span class="ri-question-label">Which is MOST important to you right now?</span>
+              <div class="ri-radio-group">
+                <label class="ri-radio-row"><input type="radio" name="ri-top-priority" value="Protect principal"> Protect principal</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-top-priority" value="Create reliable retirement income"> Create reliable retirement income</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-top-priority" value="Grow my money"> Grow my money</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-top-priority" value="Maintain access/liquidity"> Maintain access/liquidity</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-top-priority" value="Reduce market risk"> Reduce market risk</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-top-priority" value="Leave money to beneficiaries"> Leave money to beneficiaries</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-top-priority" value="Tax-efficient retirement strategies"> Tax-efficient retirement strategies</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-top-priority" value="Not sure"> Not sure</label>
               </div>
             </div>
           </div>
 
-          <!-- SECTION 6 — Time Horizon -->
+          <!-- SECTION 6 — Before We Meet -->
           <div class="ri-section">
-            <h2><span class="ri-section-num">6</span> Time Horizon</h2>
+            <h2><span class="ri-section-num">6</span> Before We Meet</h2>
 
             <div class="ri-question">
-              <span class="ri-question-label">How long do you expect this money to remain invested?</span>
-              <div class="ri-radio-group">
-                <label class="ri-radio-row"><input type="radio" name="ri-horizon" value="Less than 5 years"> Less than 5 years</label>
-                <label class="ri-radio-row"><input type="radio" name="ri-horizon" value="5-10 years"> 5&ndash;10 years</label>
-                <label class="ri-radio-row"><input type="radio" name="ri-horizon" value="10+ years"> 10+ years</label>
-                <label class="ri-radio-row"><input type="radio" name="ri-horizon" value="Not sure"> Not sure</label>
+              <span class="ri-question-label">Do you currently own an annuity?</span>
+              <div class="ri-radio-group" id="ri-owns-annuity-group">
+                <label class="ri-radio-row"><input type="radio" name="ri-owns-annuity" value="Yes"> Yes</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-owns-annuity" value="No"> No</label>
+                <label class="ri-radio-row"><input type="radio" name="ri-owns-annuity" value="Not sure"> Not sure</label>
               </div>
             </div>
-            <div class="ri-question">
-              <span class="ri-question-label">Do you anticipate needing a large withdrawal within the next 5 years?</span>
-              <div class="ri-radio-group">
-                <label class="ri-radio-row"><input type="radio" name="ri-withdrawal" value="Yes"> Yes</label>
-                <label class="ri-radio-row"><input type="radio" name="ri-withdrawal" value="No"> No</label>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ri-withdrawal-detail">If yes, approximately how much and for what purpose?</label>
-              <input type="text" id="ri-withdrawal-detail">
-            </div>
-          </div>
-
-          <!-- SECTION 7 — Existing Products -->
-          <div class="ri-section">
-            <h2><span class="ri-section-num">7</span> Existing Products</h2>
-            <p class="ri-section-sub">Do you currently own any of the following?</p>
-
-            <div class="ri-check-group" id="ri-existing-products-group">
-              <label class="ri-check-row"><input type="checkbox" value="Annuities"> Annuities</label>
-              <label class="ri-check-row"><input type="checkbox" value="Life insurance"> Life insurance</label>
-              <label class="ri-check-row"><input type="checkbox" value="CDs"> CDs</label>
-              <label class="ri-check-row"><input type="checkbox" value="Brokerage/investment accounts"> Brokerage/investment accounts</label>
-              <label class="ri-check-row"><input type="checkbox" value="Employer retirement accounts"> Employer retirement accounts</label>
-              <label class="ri-check-row"><input type="checkbox" value="IRAs"> IRAs</label>
-              <label class="ri-check-row"><input type="checkbox" value="Other"> Other</label>
-            </div>
-
             <div id="ri-annuity-detail" style="margin-top:16px; display:none;">
-              <p class="ri-question-label">Annuity Details</p>
+              <p class="ri-question-label">Annuity Details (if known)</p>
               <div class="form-row" style="gap:12px;">
                 <div class="form-group" style="flex:1;">
                   <label class="form-label" for="ri-annuity-company">Company</label>
@@ -414,39 +385,13 @@
                   <input type="text" id="ri-annuity-type">
                 </div>
                 <div class="form-group" style="flex:1;">
-                  <label class="form-label" for="ri-annuity-surrender">Surrender Period / End Date (if known)</label>
+                  <label class="form-label" for="ri-annuity-surrender">Surrender Period / Surrender Charge Info (if known)</label>
                   <input type="text" id="ri-annuity-surrender">
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- SECTION 8 — Beneficiaries / Legacy -->
-          <div class="ri-section">
-            <h2><span class="ri-section-num">8</span> Beneficiaries &amp; Legacy</h2>
-
-            <div class="ri-question">
-              <span class="ri-question-label">Do you have beneficiaries you want these assets to pass to?</span>
-              <div class="ri-radio-group">
-                <label class="ri-radio-row"><input type="radio" name="ri-has-beneficiaries" value="Yes"> Yes</label>
-                <label class="ri-radio-row"><input type="radio" name="ri-has-beneficiaries" value="No"> No</label>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ri-beneficiaries">Primary beneficiaries</label>
-              <input type="text" id="ri-beneficiaries" placeholder="Names / relationships">
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ri-legacy-goals">Are there any special legacy or inheritance goals you want discussed?</label>
-              <textarea id="ri-legacy-goals" rows="2"></textarea>
-            </div>
-          </div>
-
-          <!-- SECTION 9 — Current Advisor / Decision-Making -->
-          <div class="ri-section">
-            <h2><span class="ri-section-num">9</span> Current Advisor &amp; Decision-Making</h2>
-
-            <div class="ri-question">
+            <div class="ri-question" style="margin-top:18px;">
               <span class="ri-question-label">Are you currently working with a financial advisor or insurance professional?</span>
               <div class="ri-radio-group">
                 <label class="ri-radio-row"><input type="radio" name="ri-has-advisor" value="Yes"> Yes</label>
@@ -454,52 +399,30 @@
               </div>
             </div>
             <div class="ri-question">
-              <span class="ri-question-label">Are you seeking a second opinion?</span>
-              <div class="ri-radio-group">
-                <label class="ri-radio-row"><input type="radio" name="ri-second-opinion" value="Yes"> Yes</label>
-                <label class="ri-radio-row"><input type="radio" name="ri-second-opinion" value="No"> No</label>
-              </div>
-            </div>
-            <div class="ri-question">
               <span class="ri-question-label">Is anyone else involved in making this financial decision?</span>
-              <div class="ri-radio-group">
+              <div class="ri-radio-group" id="ri-other-decision-maker-group">
                 <label class="ri-radio-row"><input type="radio" name="ri-other-decision-maker" value="Yes"> Yes</label>
                 <label class="ri-radio-row"><input type="radio" name="ri-other-decision-maker" value="No"> No</label>
               </div>
             </div>
-            <div class="form-group">
-              <label class="form-label" for="ri-decision-maker-who">If yes, who?</label>
-              <input type="text" id="ri-decision-maker-who">
-            </div>
-            <div class="ri-question">
-              <span class="ri-question-label">Would that person participate in the consultation?</span>
-              <div class="ri-radio-group">
-                <label class="ri-radio-row"><input type="radio" name="ri-participant" value="Yes"> Yes</label>
-                <label class="ri-radio-row"><input type="radio" name="ri-participant" value="No"> No</label>
-                <label class="ri-radio-row"><input type="radio" name="ri-participant" value="Not sure"> Not sure</label>
+            <div id="ri-decision-maker-detail" style="display:none;">
+              <div class="form-group">
+                <label class="form-label" for="ri-decision-maker-who">Who?</label>
+                <input type="text" id="ri-decision-maker-who">
+              </div>
+              <div class="ri-question">
+                <span class="ri-question-label">Will that person participate in the consultation?</span>
+                <div class="ri-radio-group">
+                  <label class="ri-radio-row"><input type="radio" name="ri-participant" value="Yes"> Yes</label>
+                  <label class="ri-radio-row"><input type="radio" name="ri-participant" value="No"> No</label>
+                  <label class="ri-radio-row"><input type="radio" name="ri-participant" value="Not sure"> Not sure</label>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- SECTION 10 — Additional Information -->
-          <div class="ri-section">
-            <h2><span class="ri-section-num">10</span> Additional Information</h2>
-
-            <div class="form-group">
-              <label class="form-label" for="ri-upcoming-changes">Any upcoming financial changes we should know about?</label>
-              <textarea id="ri-upcoming-changes" rows="2"></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ri-major-purchases">Any major planned purchases?</label>
-              <textarea id="ri-major-purchases" rows="2"></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ri-liquidity-concerns">Any concerns about liquidity/access to funds?</label>
-              <textarea id="ri-liquidity-concerns" rows="2"></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ri-anything-else">Anything else Loretta should know before the consultation?</label>
-              <textarea id="ri-anything-else" rows="2"></textarea>
+            <div class="form-group" style="margin-top:16px;">
+              <label class="form-label" for="ri-anything-else">Anything else you want Loretta to know before your consultation?</label>
+              <textarea id="ri-anything-else" rows="3"></textarea>
             </div>
           </div>
 
@@ -589,7 +512,8 @@
         }) + ' CT';
       }
 
-      // ── Section 3: repeatable account rows ──────────────────────────────
+      // ── Section 3: repeatable account rows (unchanged from the previous
+      // form version — same fields, same shape) ──────────────────────────
       var riAccountCount = 0;
       window.riAddAccount = function () {
         riAccountCount += 1;
@@ -643,14 +567,28 @@
         return el ? el.value.trim() : '';
       }
 
-      // Existing Products: show/hide the annuity detail block
+      // Section 6: show/hide the annuity detail block and the "who else is
+      // involved" detail block based on their own radio-button answers
+      // (previously a checkbox-driven toggle for annuity; the underlying
+      // "Existing Products" checklist itself is intentionally removed in
+      // this shorter form — see the form redesign notes).
       document.addEventListener('change', function (e) {
-        if (e.target.closest && e.target.closest('#ri-existing-products-group')) {
-          var annuityChecked = document.querySelector('#ri-existing-products-group input[value="Annuities"]').checked;
-          document.getElementById('ri-annuity-detail').style.display = annuityChecked ? 'block' : 'none';
+        if (!e.target || !e.target.name) return;
+        if (e.target.name === 'ri-owns-annuity') {
+          document.getElementById('ri-annuity-detail').style.display = (e.target.value === 'Yes') ? 'block' : 'none';
+        }
+        if (e.target.name === 'ri-other-decision-maker') {
+          document.getElementById('ri-decision-maker-detail').style.display = (e.target.value === 'Yes') ? 'block' : 'none';
         }
       });
 
+      // intakeVersion: 2 (2026-10-16) -- marks every NEW submission from
+      // this shorter, 6-section form so crm/public/app/client.html's
+      // completed-intake display can tell it apart from a pre-existing
+      // 10-section submission and render each with its own correct layout.
+      // Nothing here ever reads or migrates an OLD stored submission --
+      // this token/version is only ever written going forward, on a new
+      // POST from this page.
       function riCollectResponses() {
         var accounts = Array.from(document.querySelectorAll('.ri-account-block')).map(function (block) {
           return {
@@ -665,59 +603,41 @@
         });
 
         return {
+          intakeVersion: 2,
           about: {
             firstName: riVal('ri-fname'), lastName: riVal('ri-lname'),
             email: riVal('ri-email'), phone: riVal('ri-phone'),
-            dateOfBirth: riVal('ri-dob'), maritalStatus: riVal('ri-marital'),
-            state: riVal('ri-state'), employmentStatus: riVal('ri-employment'),
+            dateOfBirth: riVal('ri-dob'), state: riVal('ri-state'),
+            employmentStatus: riVal('ri-employment'), maritalStatus: riVal('ri-marital'),
             isRetired: riRadioValue('ri-retired'), retirementYear: riVal('ri-retire-year'),
           },
           helpWith: {
-            selections: riCheckedValues(document.getElementById('ri-helpwith-group')),
+            mainReason: riRadioValue('ri-main-reason'),
             mainConcern: riVal('ri-main-concern'),
           },
           accounts: accounts,
-          totalAssets: riVal('ri-total-assets'),
-          income: {
+          retirementGoals: {
+            whenPlanTo: riVal('ri-when-plan'),
             needsIncome: riRadioValue('ri-income-need'),
-            incomeStartWhen: riVal('ri-income-when'),
             desiredMonthlyIncome: riVal('ri-income-amount'),
-            otherSources: riCheckedValues(document.getElementById('ri-income-sources-group')),
-            totalMonthlyIncome: riVal('ri-total-income'),
-            totalMonthlyExpenses: riVal('ri-total-expenses'),
-          },
-          risk: {
-            comfortWithLosses: riRadioValue('ri-risk'),
-            priorities: riCheckedValues(document.getElementById('ri-priorities-group')),
-          },
-          timeHorizon: {
-            horizon: riRadioValue('ri-horizon'),
+            otherIncomeSources: riCheckedValues(document.getElementById('ri-income-sources-group')),
             needsLargeWithdrawal: riRadioValue('ri-withdrawal'),
             withdrawalDetail: riVal('ri-withdrawal-detail'),
           },
-          existingProducts: {
-            owns: riCheckedValues(document.getElementById('ri-existing-products-group')),
+          risk: {
+            comfortWithLosses: riRadioValue('ri-risk'),
+            topPriority: riRadioValue('ri-top-priority'),
+          },
+          beforeWeMeet: {
+            ownsAnnuity: riRadioValue('ri-owns-annuity'),
             annuity: {
               company: riVal('ri-annuity-company'), value: riVal('ri-annuity-value'),
               type: riVal('ri-annuity-type'), surrender: riVal('ri-annuity-surrender'),
             },
-          },
-          beneficiaries: {
-            hasBeneficiaries: riRadioValue('ri-has-beneficiaries'),
-            primaryBeneficiaries: riVal('ri-beneficiaries'),
-            legacyGoals: riVal('ri-legacy-goals'),
-          },
-          advisor: {
             hasCurrentAdvisor: riRadioValue('ri-has-advisor'),
-            seekingSecondOpinion: riRadioValue('ri-second-opinion'),
             otherDecisionMaker: riRadioValue('ri-other-decision-maker'),
             decisionMakerWho: riVal('ri-decision-maker-who'),
             decisionMakerWouldParticipate: riRadioValue('ri-participant'),
-          },
-          additional: {
-            upcomingChanges: riVal('ri-upcoming-changes'),
-            majorPurchases: riVal('ri-major-purchases'),
-            liquidityConcerns: riVal('ri-liquidity-concerns'),
             anythingElse: riVal('ri-anything-else'),
           },
         };
@@ -737,6 +657,8 @@
         if (!responses.about.firstName || !responses.about.lastName) { showSubmitError('Please enter your first and last name.'); return; }
         if (!responses.about.email || (typeof isValidEmail === 'function' && !isValidEmail(responses.about.email))) { showSubmitError('Please enter a valid email address.'); return; }
         if (!responses.about.phone) { showSubmitError('Please enter your phone number.'); return; }
+        if (!responses.about.maritalStatus) { showSubmitError('Please select your marital status.'); return; }
+        if (!responses.helpWith.mainReason) { showSubmitError('Please select what you would like help with.'); return; }
 
         var form = document.getElementById('ri-form');
         var turnstileToken = form ? form.dataset.turnstileToken : '';

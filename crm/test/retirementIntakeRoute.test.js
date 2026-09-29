@@ -52,7 +52,7 @@ function seedContactAndAppointment(apptDatetime = '2026-09-10T18:00:00.000Z') {
   return { contactId: contact.lastInsertRowid, appointmentId: appt.lastInsertRowid, intake };
 }
 
-const validAbout = { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100' };
+const validAbout = { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100', maritalStatus: 'Married' };
 
 test('GET with a valid token returns name/appointment/deadline/status and no raw IDs', async () => {
   const { intake } = seedContactAndAppointment('2026-09-10T18:00:00.000Z');

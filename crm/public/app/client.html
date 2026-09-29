@@ -1044,7 +1044,18 @@ async function render() {
   function riList(arr) { return (Array.isArray(arr) && arr.length) ? CrmApp.escapeHtml(arr.join(', ')) : '—'; }
   function riRow(label, value) { return `<div class="form-field"><label>${CrmApp.escapeHtml(label)}</label><div>${value}</div></div>`; }
 
+  // renderIntakeAnswers (2026-10-16) is now a small version dispatcher --
+  // see renderIntakeAnswersV2/renderIntakeAnswersLegacy below. Nothing
+  // about the LEGACY renderer's own code changed here; it was only
+  // renamed, so every pre-existing (10-section) intake record still
+  // renders exactly as it always has.
   function renderIntakeAnswers(responses) {
+    return (responses && responses.intakeVersion === 2)
+      ? renderIntakeAnswersV2(responses)
+      : renderIntakeAnswersLegacy(responses);
+  }
+
+  function renderIntakeAnswersLegacy(responses) {
     const r = responses || {};
     const about = r.about || {};
     const helpWith = r.helpWith || {};
@@ -1118,6 +1129,125 @@ async function render() {
         riRow('Upcoming Changes', riVal(additional.upcomingChanges)), riRow('Major Purchases', riVal(additional.majorPurchases)),
         riRow('Liquidity Concerns', riVal(additional.liquidityConcerns)), riRow('Anything Else', riVal(additional.anythingElse)),
       ].join(''))}
+    `;
+  }
+
+  // Parses a loosely-formatted currency string ("$12,345", "12345.00", "")
+  // into a number, or null if nothing usable is present. Never throws --
+  // an unparseable/blank balance is simply excluded from the total rather
+  // than treated as zero or crashing the display.
+  function riMoney(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  // "Total Assets to Discuss" (2026-10-16) -- computed here, at DISPLAY
+  // time, from each account's own Approximate Current Balance. Never
+  // submitted as its own form field and never stored in responses_json;
+  // this is purely a read-time sum so it can't drift from the individual
+  // account balances it's derived from. Returns null (rendered as "—")
+  // when there are no accounts or none of them have a parseable balance --
+  // never silently shown as $0.
+  function computeTotalAssetsToDiscuss(accounts) {
+    if (!Array.isArray(accounts) || !accounts.length) return null;
+    let total = 0, any = false;
+    for (const a of accounts) {
+      const n = riMoney(a && a.balance);
+      if (n !== null) { total += n; any = true; }
+    }
+    return any ? total : null;
+  }
+
+  // A visually distinct "prominent" field -- used for exactly the values
+  // Loretta most needs to scan at a glance (Main Reason, Total Assets to
+  // Discuss, Market Loss Comfort, #1 Priority), separate from the plain
+  // form-grid rows every other answer uses.
+  function riHighlight(label, value) {
+    return `<div style="margin-bottom:10px;">
+      <div class="text-faint" style="font-size:11.5px; text-transform:uppercase; letter-spacing:.03em;">${CrmApp.escapeHtml(label)}</div>
+      <div style="font-size:16px; font-weight:700;">${value}</div>
+    </div>`;
+  }
+
+  // New, shorter 6-section intake (2026-10-16, intakeVersion 2) -- mirrors
+  // retirement-intake.html's own 6 sections (About You / What Would You
+  // Like Help With? / Accounts & Assets to Discuss / Retirement & Income
+  // Goals / Risk & Priorities / Before We Meet) exactly, with Main Reason,
+  // Total Assets to Discuss, Market Loss Comfort, and #1 Priority shown
+  // prominently via riHighlight. Read-only, same as the legacy renderer --
+  // never writes anywhere, including never touching
+  // retirementAccountType/annuityType/etc. (the separate, still-editable
+  // Retirement Information / Annuity Planning cards).
+  function renderIntakeAnswersV2(responses) {
+    const r = responses || {};
+    const about = r.about || {};
+    const helpWith = r.helpWith || {};
+    const accounts = Array.isArray(r.accounts) ? r.accounts : [];
+    const goals = r.retirementGoals || {};
+    const risk = r.risk || {};
+    const meet = r.beforeWeMeet || {};
+    const annuity = meet.annuity || {};
+
+    const section = (title, bodyHtml) => `<div class="card" style="margin-bottom:12px;"><div class="card-header"><h3 style="margin:0; font-size:15px;">${CrmApp.escapeHtml(title)}</h3></div><div class="card-body">${bodyHtml}</div></div>`;
+
+    const totalAssets = computeTotalAssetsToDiscuss(accounts);
+    const totalAssetsDisplay = totalAssets !== null
+      ? '$' + totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })
+      : '—';
+
+    const accountsHtml = accounts.length
+      ? accounts.map((a, i) => `<div style="border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:8px;">
+          <div style="font-weight:700; margin-bottom:6px;">Account ${i + 1}</div>
+          <div class="form-grid">
+            ${riRow('Account Type', riVal(a.accountType))}
+            ${riRow('Institution', riVal(a.institution))}
+            ${riRow('Approximate Balance', riVal(a.balance))}
+            ${riRow('Receiving Contributions', riVal(a.receivingContributions))}
+            ${riRow('Invested in Market', riVal(a.investedInMarket))}
+            ${riRow('Generating Income', riVal(a.generatingIncome))}
+            ${riRow('Available to Move', riVal(a.availableToMove))}
+          </div>
+        </div>`).join('')
+      : '<div class="text-faint">No accounts entered.</div>';
+
+    return `
+      ${section('1. About You', `<div class="form-grid">${[
+        riRow('First Name', riVal(about.firstName)), riRow('Last Name', riVal(about.lastName)),
+        riRow('Email', riVal(about.email)), riRow('Phone', riVal(about.phone)),
+        riRow('Date of Birth', riVal(about.dateOfBirth)), riRow('State', riVal(about.state)),
+        riRow('Employment Status', riVal(about.employmentStatus)), riRow('Marital Status', riVal(about.maritalStatus)),
+        riRow('Currently Retired', riVal(about.isRetired)), riRow('Retirement Year', riVal(about.retirementYear)),
+      ].join('')}</div>`)}
+      ${section('2. What Would You Like Help With?', `
+        ${riHighlight('Main Reason', riVal(helpWith.mainReason))}
+        ${riHighlight('Biggest Question / Concern', riVal(helpWith.mainConcern))}
+      `)}
+      ${section('3. Accounts & Assets to Discuss', `
+        ${riHighlight('Total Assets to Discuss', totalAssetsDisplay)}
+        ${accountsHtml}
+      `)}
+      ${section('4. Retirement & Income Goals', `<div class="form-grid">${[
+        riRow('When Plan To Retire / Use Funds', riVal(goals.whenPlanTo)),
+        riRow('Needs Income', riVal(goals.needsIncome)),
+        riRow('Desired Monthly Income', riVal(goals.desiredMonthlyIncome)),
+        riRow('Other Income Sources', riList(goals.otherIncomeSources)),
+        riRow('Needs Large Withdrawal (next 5 yrs)', riVal(goals.needsLargeWithdrawal)),
+        riRow('Withdrawal Detail', riVal(goals.withdrawalDetail)),
+      ].join('')}</div>`)}
+      ${section('5. Risk & Priorities', `
+        ${riHighlight('Market Loss Comfort', riVal(risk.comfortWithLosses))}
+        ${riHighlight('#1 Priority', riVal(risk.topPriority))}
+      `)}
+      ${section('6. Before We Meet', `<div class="form-grid">${[
+        riRow('Owns Annuity', riVal(meet.ownsAnnuity)),
+        riRow('Annuity Company', riVal(annuity.company)), riRow('Annuity Value', riVal(annuity.value)),
+        riRow('Annuity Type', riVal(annuity.type)), riRow('Annuity Surrender', riVal(annuity.surrender)),
+        riRow('Has Current Advisor', riVal(meet.hasCurrentAdvisor)),
+        riRow('Other Decision Maker', riVal(meet.otherDecisionMaker)), riRow('Decision Maker Who', riVal(meet.decisionMakerWho)),
+        riRow('Decision Maker Would Participate', riVal(meet.decisionMakerWouldParticipate)),
+        riRow('Anything Else', riVal(meet.anythingElse)),
+      ].join('')}</div>`)}
     `;
   }
 

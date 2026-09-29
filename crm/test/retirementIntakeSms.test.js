@@ -270,7 +270,7 @@ test('a completed intake is never resent as a new intake request', async () => {
   const created = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
   submitIntakeResponses(db, {
     token: created.token,
-    responses: { about: { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100' } },
+    responses: { about: { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100', maritalStatus: 'Married' } },
   });
   const completedIntake = getIntakeByToken(db, created.token);
   assert.equal(completedIntake.status, 'Completed');

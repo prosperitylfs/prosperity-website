@@ -156,7 +156,7 @@ test('(c) the 2-hour reminder does NOT send when the retirement intake has been 
   const contactId = seedContact(db, { first_name: 'Renee', last_name: 'Jones' });
   const apptId = seedAppointment(db, contactId, { appt_datetime: minutesFromNow(120) });
   const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
-  submitIntakeResponses(db, { token: intake.token, responses: { about: { firstName: 'Renee', lastName: 'Jones', email: 'renee@example.com', phone: '4145550100' } } });
+  submitIntakeResponses(db, { token: intake.token, responses: { about: { firstName: 'Renee', lastName: 'Jones', email: 'renee@example.com', phone: '4145550100', maritalStatus: 'Married' } } });
 
   const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
   assert.equal(summary.sent, 0, 'nothing must be sent once the intake is Completed');
@@ -343,7 +343,7 @@ test('(c) Prosperity: does NOT send when the retirement intake has been complete
   const contactId = seedContact(db, { first_name: 'Sam', last_name: 'Client' });
   const apptId = seedAppointment(db, contactId, { booking_brand: 'prosperity', appt_datetime: minutesFromNow(120) });
   const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
-  submitIntakeResponses(db, { token: intake.token, responses: { about: { firstName: 'Sam', lastName: 'Client', email: 'sam@example.com', phone: '4145550199' } } });
+  submitIntakeResponses(db, { token: intake.token, responses: { about: { firstName: 'Sam', lastName: 'Client', email: 'sam@example.com', phone: '4145550199', maritalStatus: 'Married' } } });
 
   const summary = await runReminderCheck(db, { now: NOW, deps: { twilioClientFactory: fakeClient() } });
   assert.equal(summary.sent, 0);

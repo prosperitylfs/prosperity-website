@@ -1004,10 +1004,47 @@ function getDashboardSummary(db, { brandId = null } = {}) {
     WHERE t.status = 'Pending' AND t.due_date < ? ${bClause}
   `).get(todayStr, ...bParams).n;
 
-  const todaysAppointments = db.prepare(`
-    SELECT COUNT(*) AS n FROM appointments a
-    WHERE a.status = 'Scheduled' AND substr(a.appt_datetime, 1, 10) = ?
-  `).get(todayStr).n;
+  // Today's Appointments / Upcoming Appointments (2026-09-30 audit +
+  // correction). appt_datetime is stored as a UTC ISO string, but the
+  // business day is America/Chicago, not UTC -- comparing its raw UTC date
+  // substring against a UTC "today" (todayStr above) can put an
+  // appointment on the wrong side of midnight relative to Chicago (e.g.
+  // anything from ~7pm CT onward has already rolled to tomorrow in UTC).
+  // Bucketing by the Chicago LOCAL calendar date instead, using the exact
+  // en-CA/America/Chicago convention already used everywhere else in this
+  // codebase for "today" cutoffs (crm/routes/contacts.js,
+  // crm/routes/tasks.js, crm/public/app.js) rather than inventing a new
+  // one or hand-rolling DST-aware UTC boundaries in SQL (SQLite has no
+  // IANA timezone database, so it can't do this comparison itself).
+  //
+  // Brand scope: appointments carry their own `booking_brand` column (set
+  // by Cal.com bookings -- crm/routes/calcom.js), the same field
+  // crm/lib/retirementIntakeService.js already relies on for this exact
+  // purpose, rather than joining through contact_brands like the other
+  // metrics above (a single contact can have appointments under either
+  // brand, so the appointment's own brand -- not the contact's -- is what
+  // must be filtered on). A manually-added appointment (Appointments
+  // page's "Add Appointment", which never collects a brand) has no
+  // booking_brand and so is only visible under "All Companies" -- an
+  // existing limitation of that field, not introduced here.
+  //
+  // "Today's Appointments"' MEANING is unchanged: status = 'Scheduled',
+  // the appointment's own calendar day. Only its day boundary now matches
+  // the business timezone, and it is now brand-scoped like its siblings
+  // above. "Upcoming Appointments" is new: same status filter (so
+  // Cancelled/Rescheduled/Completed/No-Show never count), strictly AFTER
+  // today -- never double-counting with Today's.
+  const todayChicago = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const scheduledAppts = db.prepare(`SELECT appt_datetime, booking_brand FROM appointments WHERE status = 'Scheduled'`).all();
+  const brandScopedAppts = (brandId && brandId !== 'all')
+    ? scheduledAppts.filter(a => a.booking_brand === brandId)
+    : scheduledAppts;
+  let todaysAppointments = 0, upcomingAppointments = 0;
+  for (const a of brandScopedAppts) {
+    const apptDayChicago = new Date(a.appt_datetime).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+    if (apptDayChicago === todayChicago) todaysAppointments++;
+    else if (apptDayChicago > todayChicago) upcomingAppointments++;
+  }
 
   const casesInProgress = db.prepare(`
     SELECT COUNT(*) AS n FROM cases c
@@ -1035,7 +1072,7 @@ function getDashboardSummary(db, { brandId = null } = {}) {
 
   return {
     newLeads, newProspects, followUpsDue, overdueTasks,
-    todaysAppointments, casesInProgress, failedComms, reviewRequired,
+    todaysAppointments, upcomingAppointments, casesInProgress, failedComms, reviewRequired,
     verificationNeeded,
   };
 }

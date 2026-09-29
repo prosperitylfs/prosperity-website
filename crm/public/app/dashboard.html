@@ -68,6 +68,7 @@ async function render() {
         ${statTile(s.followUpsDue, 'Follow-ups Due Today', { kind: 'nav', href: 'tasks.html' })}
         ${statTile(s.overdueTasks, 'Overdue Tasks', { kind: 'nav', href: 'tasks.html' }, s.overdueTasks > 0)}
         ${statTile(s.todaysAppointments, "Today's Appointments", { kind: 'nav', href: 'appointments.html' })}
+        ${statTile(s.upcomingAppointments, 'Upcoming Appointments', { kind: 'nav', href: 'appointments.html' })}
         ${statTile(s.casesInProgress, 'Cases In Progress', { kind: 'nav', href: 'cases.html' })}
         ${statTile(s.failedComms, 'Failed Communications', { kind: 'nav', href: 'communications.html?status=Failed' }, s.failedComms > 0, 'stat-failed')}
         ${statTile(s.reviewRequired, 'Review Required', { kind: 'nav', href: 'review.html' }, s.reviewRequired > 0, 'stat-review')}

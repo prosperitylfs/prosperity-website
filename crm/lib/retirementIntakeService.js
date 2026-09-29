@@ -258,9 +258,17 @@ function markIntakeSent(db, intakeId) {
 // For Contact Detail's "Retirement Intake" card — one row per retirement
 // appointment this contact has, newest first, each with its live-computed
 // display status and deadline attached (never stored).
+//
+// a.booking_brand AS brand_id (2026-10-16): the intake's own brand,
+// straight from the SAME column every other brand-routing decision in this
+// codebase already trusts (crm/lib/appointmentReminderScheduler.js's
+// resolveReminderBrand, crm/routes/email.js's brand resolution, etc.) --
+// never inferred from the contact's current brand assignment, which could
+// have changed since this specific appointment/intake happened. Read-only
+// addition; nothing about booking_brand itself is written here.
 function listIntakesForContact(db, contactId) {
   const rows = db.prepare(`
-    SELECT ri.*, a.appt_type, a.appt_datetime, a.status AS appt_status
+    SELECT ri.*, a.appt_type, a.appt_datetime, a.status AS appt_status, a.booking_brand AS brand_id
     FROM retirement_intakes ri
     JOIN appointments a ON a.id = ri.appointment_id
     WHERE ri.contact_id = ?

@@ -62,11 +62,11 @@ function seedContact(db, overrides = {}) {
 
 function seedAppointment(db, contactId, apptDatetime, overrides = {}) {
   const r = db.prepare(`
-    INSERT INTO appointments (contact_id, appt_type, appt_datetime, status)
-    VALUES (@contact_id, @appt_type, @appt_datetime, @status)
+    INSERT INTO appointments (contact_id, appt_type, appt_datetime, status, booking_brand)
+    VALUES (@contact_id, @appt_type, @appt_datetime, @status, @booking_brand)
   `).run({
     contact_id: contactId, appt_type: 'Safe Money & Retirement Consultation',
-    appt_datetime: apptDatetime, status: 'Scheduled', ...overrides,
+    appt_datetime: apptDatetime, status: 'Scheduled', booking_brand: null, ...overrides,
   });
   return r.lastInsertRowid;
 }
@@ -321,4 +321,72 @@ test('listIntakesForContact returns an empty array for a contact with no retirem
   const db = setup();
   const contactId = seedContact(db);
   assert.deepEqual(listIntakesForContact(db, contactId), []);
+});
+
+// ── Completed Retirement Intake section (2026-10-16) ──────────────────────
+// crm/public/app/client.html's new Retirement & Annuity Planning card reads
+// listIntakesForContact directly -- these tests cover the exact guarantees
+// that section depends on: every completed intake is returned (never just
+// the newest), newest-first, each with its own correct appointment_id and
+// brand_id, and brand isolation holds with no cross-brand fallback.
+
+test('listIntakesForContact includes brand_id, taken from the appointment\'s own booking_brand', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId, '2026-09-10T18:00:00.000Z', { booking_brand: 'prosperity' });
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  submitIntakeResponses(db, { token: intake.token, responses: { about: validAbout } });
+
+  const list = listIntakesForContact(db, contactId);
+  assert.equal(list[0].brand_id, 'prosperity');
+});
+
+test('an Insurance Lady intake reports brand_id="insurance-lady", never falling back to or being confused with Prosperity', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+  const apptId = seedAppointment(db, contactId, '2026-09-10T18:00:00.000Z', { booking_brand: 'insurance-lady' });
+  const intake = createIntakeForAppointment(db, { contactId, appointmentId: apptId });
+  submitIntakeResponses(db, { token: intake.token, responses: { about: validAbout } });
+
+  const list = listIntakesForContact(db, contactId);
+  assert.equal(list[0].brand_id, 'insurance-lady');
+  assert.notEqual(list[0].brand_id, 'prosperity');
+});
+
+test('multiple completed intakes for the same contact are ALL returned, newest appointment first -- never silently collapsed to just one', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+
+  const olderApptId = seedAppointment(db, contactId, '2026-01-10T18:00:00.000Z', { booking_brand: 'prosperity' });
+  const olderIntake = createIntakeForAppointment(db, { contactId, appointmentId: olderApptId });
+  submitIntakeResponses(db, { token: olderIntake.token, responses: { about: { ...validAbout, firstName: 'OlderSubmission' } } });
+
+  const newerApptId = seedAppointment(db, contactId, '2026-09-10T18:00:00.000Z', { booking_brand: 'prosperity' });
+  const newerIntake = createIntakeForAppointment(db, { contactId, appointmentId: newerApptId });
+  submitIntakeResponses(db, { token: newerIntake.token, responses: { about: { ...validAbout, firstName: 'NewerSubmission' } } });
+
+  const list = listIntakesForContact(db, contactId);
+  assert.equal(list.length, 2, 'both completed intakes must be returned, not just the most recent');
+  assert.equal(list[0].responses.about.firstName, 'NewerSubmission', 'newest appointment must be first');
+  assert.equal(list[1].responses.about.firstName, 'OlderSubmission');
+  assert.notEqual(list[0].id, list[1].id, 'each retains its own distinct retirement_intakes id');
+  assert.notEqual(list[0].appointment_id, list[1].appointment_id, 'each retains its own distinct appointment');
+});
+
+test('a Prosperity intake and an Insurance Lady intake for the SAME contact each keep their own correct, isolated brand -- no cross-brand fallback', () => {
+  const db = setup();
+  const contactId = seedContact(db);
+
+  const prosperityApptId = seedAppointment(db, contactId, '2026-01-10T18:00:00.000Z', { booking_brand: 'prosperity' });
+  const prosperityIntake = createIntakeForAppointment(db, { contactId, appointmentId: prosperityApptId });
+  submitIntakeResponses(db, { token: prosperityIntake.token, responses: { about: validAbout } });
+
+  const ilApptId = seedAppointment(db, contactId, '2026-09-10T18:00:00.000Z', { booking_brand: 'insurance-lady' });
+  const ilIntake = createIntakeForAppointment(db, { contactId, appointmentId: ilApptId });
+  submitIntakeResponses(db, { token: ilIntake.token, responses: { about: validAbout } });
+
+  const list = listIntakesForContact(db, contactId);
+  const byBrand = Object.fromEntries(list.map(i => [i.brand_id, i]));
+  assert.equal(byBrand.prosperity.appointment_id, prosperityApptId);
+  assert.equal(byBrand['insurance-lady'].appointment_id, ilApptId);
 });

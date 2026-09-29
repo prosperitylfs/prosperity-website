@@ -60,6 +60,19 @@ async function render() {
     if (Array.isArray(leadStatusResult.statuses) && leadStatusResult.statuses.length) leadStatusChoices = leadStatusResult.statuses;
   } catch (e) { /* keep the fallback -- editing a client must never be blocked by this */ }
 
+  // Every retirement_intakes row for this contact (2026-10-16) -- reuses
+  // the existing, already-protected GET /api/retirement-intake-admin/contact/:id
+  // endpoint (crm/routes/retirementIntakeAdmin.js), the SAME one the
+  // Communications tab's "View Intake" button already calls. Fetched once
+  // here (not per-tab) so the Retirement & Annuity Planning tab's new
+  // "Completed Retirement Intake" section can render synchronously like
+  // every other tab on this page. A fetch failure degrades to an empty
+  // list rather than blocking the rest of the page.
+  let retirementIntakes = [];
+  try {
+    retirementIntakes = await CrmApp.fetchJSON(`/api/retirement-intake-admin/contact/${contactId}`);
+  } catch (e) { /* the Planning tab's new section just shows the empty state below */ }
+
   const c = detail.contact;
   const primaryBrand = detail.contactBrands[0] || null;
   const allCases = detail.contactBrands.flatMap(cb => cb.cases.map(cs => ({ ...cs, brandId: cb.brandId, brandShortName: cb.brandShortName })));
@@ -1108,12 +1121,38 @@ async function render() {
     `;
   }
 
-  async function viewIntakeModal() {
+  // preselectedIntake (2026-10-16, optional): when the caller already knows
+  // exactly WHICH retirement_intakes record to show (the new "Completed
+  // Retirement Intake" cards on the Retirement & Annuity Planning tab each
+  // pass their own specific intake object), that one is rendered directly
+  // -- no fetch, no re-selection, so a client with multiple completed
+  // intakes always opens the one whose own "View Completed Intake" button
+  // was actually clicked, never a silently-substituted different one.
+  //
+  // Omitted (the Communications tab's existing "View Intake" button, on
+  // the Form row for 'Retirement Intake Form Completed', still calls this
+  // with no argument): behavior is BYTE-FOR-BYTE unchanged from before --
+  // fetches fresh, filters to Completed, and shows the most recently
+  // completed one, exactly as it already did.
+  async function viewIntakeModal(preselectedIntake) {
     const dialog = CrmApp.openModal({
       title: 'Retirement Intake Form',
       wide: true,
-      bodyHtml: '<div class="text-faint">Loading…</div>',
+      bodyHtml: preselectedIntake ? '' : '<div class="text-faint">Loading…</div>',
     });
+
+    function renderIntake(intake) {
+      dialog.querySelector('.crmapp-modal-body').innerHTML = `
+        <div class="text-faint" style="margin-bottom:12px;">Completed ${CrmApp.escapeHtml(CrmApp.friendlyDateTime(intake.completed_at))} — ${CrmApp.escapeHtml(intake.appt_type || 'Appointment')}</div>
+        ${renderIntakeAnswers(intake.responses)}
+      `;
+    }
+
+    if (preselectedIntake) {
+      renderIntake(preselectedIntake);
+      return;
+    }
+
     try {
       const intakes = await CrmApp.fetchJSON(`/api/retirement-intake-admin/contact/${contactId}`);
       const completed = intakes.filter(i => i.displayStatus === 'Completed' || i.status === 'Completed')
@@ -1123,10 +1162,7 @@ async function render() {
         dialog.querySelector('.crmapp-modal-body').innerHTML = '<div class="empty-state">No completed intake found for this client.</div>';
         return;
       }
-      dialog.querySelector('.crmapp-modal-body').innerHTML = `
-        <div class="text-faint" style="margin-bottom:12px;">Completed ${CrmApp.escapeHtml(CrmApp.friendlyDateTime(intake.completed_at))} — ${CrmApp.escapeHtml(intake.appt_type || 'Appointment')}</div>
-        ${renderIntakeAnswers(intake.responses)}
-      `;
+      renderIntake(intake);
     } catch (err) {
       dialog.querySelector('.crmapp-modal-body').innerHTML = `<div class="form-error" style="display:block;">${CrmApp.escapeHtml(err.message)}</div>`;
     }
@@ -1212,6 +1248,54 @@ async function render() {
       list.map(o => `<option ${o === current ? 'selected' : ''}>${esc(o)}</option>`).join('');
   }
 
+  // Brand display labels for the "Completed Retirement Intake" section
+  // below only -- deliberately a small local literal map (not a lookup
+  // against detail.contactBrands) so a historical intake's own brand
+  // (crm/lib/retirementIntakeService.js's listIntakesForContact, joined
+  // straight from appointments.booking_brand) always renders correctly
+  // even if the contact's current brand assignment has since changed --
+  // never inferred, never falls back to the other brand.
+  const INTAKE_BRAND_LABELS = { prosperity: 'Prosperity', 'insurance-lady': 'Insurance Lady' };
+
+  // One compact, read-only summary per completed intake -- "View Completed
+  // Intake" carries the SPECIFIC intake's own id in data-view-completed-intake,
+  // so multiple completed intakes for the same client (one per Safe Money &
+  // Retirement appointment) each open their own correct historical
+  // submission, never a silently-substituted different one.
+  function retirementIntakeSummaryHtml(intake) {
+    const esc = CrmApp.escapeHtml;
+    const brandLabel = intake.brand_id ? (INTAKE_BRAND_LABELS[intake.brand_id] || intake.brand_id) : null;
+    return `<div style="border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap;">
+      <dl class="kv-list" style="margin:0; flex:1; min-width:220px;">
+        <dt>Status</dt><dd>Completed</dd>
+        <dt>Submitted</dt><dd>${intake.completed_at ? esc(CrmApp.friendlyDateTime(intake.completed_at)) : '—'}</dd>
+        <dt>Appointment</dt><dd>${esc(intake.appt_type || 'Appointment')}${intake.appt_datetime ? ' — ' + esc(CrmApp.friendlyDateTime(intake.appt_datetime)) : ''}</dd>
+        <dt>Brand</dt><dd>${brandLabel ? CrmApp.companyBadge(intake.brand_id, brandLabel) : '—'}</dd>
+      </dl>
+      <button type="button" class="btn small" data-view-completed-intake="${intake.id}">View Completed Intake</button>
+    </div>`;
+  }
+
+  // Newest-first, every Completed intake shown -- never silently collapsed
+  // to just one, since a client can have more than one Safe Money &
+  // Retirement appointment (and therefore more than one completed intake)
+  // over time. Uses the SAME retirement_intakes records/responses_json
+  // fetched once at page load (retirementIntakes, above) -- no second
+  // fetch, no duplicated storage. Does not read or write
+  // retirementAccountType/annuityType/etc. (the existing editable cards
+  // below) at all.
+  function completedRetirementIntakeHtml() {
+    const completed = retirementIntakes
+      .filter(i => i.displayStatus === 'Completed' || i.status === 'Completed')
+      .sort((a, b) => String(b.completed_at || '').localeCompare(String(a.completed_at || '')));
+    return `<div class="card" style="margin-bottom:14px;">
+      <div class="card-header"><h2>Completed Retirement Intake</h2></div>
+      <div class="card-body">
+        ${completed.length ? completed.map(retirementIntakeSummaryHtml).join('') : '<div class="empty-state">No retirement intake has been completed.</div>'}
+      </div>
+    </div>`;
+  }
+
   function planningHtml() {
     const esc = CrmApp.escapeHtml;
     const la = c.legacyAnnuity || {};
@@ -1268,6 +1352,8 @@ async function render() {
           </div>
         </form>
       </div>
+
+      ${completedRetirementIntakeHtml()}
     `;
   }
 
@@ -1558,6 +1644,11 @@ async function render() {
     if (e.target.closest('[data-view-intake]')) return viewIntakeModal();
     const viewEmailRow = e.target.closest('[data-view-email]');
     if (viewEmailRow) return emailDetailModal(JSON.parse(viewEmailRow.dataset.json));
+    const viewCompletedIntakeBtn = e.target.closest('[data-view-completed-intake]');
+    if (viewCompletedIntakeBtn) {
+      const intake = retirementIntakes.find(i => String(i.id) === viewCompletedIntakeBtn.dataset.viewCompletedIntake);
+      if (intake) return viewIntakeModal(intake);
+    }
   });
 
   // Overflow indication for the scrollable tab bar (correction #2): show

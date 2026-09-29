@@ -36,16 +36,16 @@ after(() => {
 });
 
 let seq = 0;
-function seedContactAndAppointment(apptDatetime = '2026-09-10T18:00:00.000Z') {
+function seedContactAndAppointment(apptDatetime = '2026-09-10T18:00:00.000Z', bookingBrand = null) {
   seq += 1;
   const contact = db.prepare(`
     INSERT INTO contacts (first_name, last_name, email, phone, phone_e164)
     VALUES (?, ?, ?, ?, ?)
   `).run('Jane', 'Doe', `jane-admin-${Date.now()}-${seq}@example.com`, '(414) 555-0100', '+14145550100');
   const appt = db.prepare(`
-    INSERT INTO appointments (contact_id, appt_type, appt_datetime, status)
-    VALUES (?, 'Safe Money & Retirement Consultation', ?, 'Scheduled')
-  `).run(contact.lastInsertRowid, apptDatetime);
+    INSERT INTO appointments (contact_id, appt_type, appt_datetime, status, booking_brand)
+    VALUES (?, 'Safe Money & Retirement Consultation', ?, 'Scheduled', ?)
+  `).run(contact.lastInsertRowid, apptDatetime, bookingBrand);
   const intake = createIntakeForAppointment(db, {
     contactId: contact.lastInsertRowid,
     appointmentId: appt.lastInsertRowid,
@@ -81,6 +81,19 @@ test('GET /contact/:id includes the fully parsed responses once completed', asyn
   assert.equal(list[0].responses.about.firstName, 'Jane');
 });
 
+test('GET /contact/:id includes brand_id end-to-end, for both Prosperity and Insurance Lady, with no cross-brand fallback', async () => {
+  const { contactId: prosperityContactId } = seedContactAndAppointment('2026-09-10T18:00:00.000Z', 'prosperity');
+  const { contactId: ilContactId } = seedContactAndAppointment('2026-09-10T18:00:00.000Z', 'insurance-lady');
+
+  const prosperityRes = await fetch(`${baseUrl}/contact/${prosperityContactId}`);
+  const ilRes = await fetch(`${baseUrl}/contact/${ilContactId}`);
+  const prosperityList = await prosperityRes.json();
+  const ilList = await ilRes.json();
+
+  assert.equal(prosperityList[0].brand_id, 'prosperity');
+  assert.equal(ilList[0].brand_id, 'insurance-lady');
+});
+
 test('PATCH /:id with action=mark_sent flips Not Sent to Sent', async () => {
   const { intake } = seedContactAndAppointment();
   const res = await fetch(`${baseUrl}/${intake.id}`, {
@@ -111,4 +124,45 @@ test('PATCH /:id for a nonexistent intake returns 404', async () => {
     body: JSON.stringify({ action: 'mark_sent' }),
   });
   assert.equal(res.status, 404);
+});
+
+// ── Read-only guarantees for the new "Completed Retirement Intake" section
+// (2026-10-16) -- GET /contact/:id is the exact endpoint that section
+// calls; these prove it never touches the existing editable Retirement
+// Information / Annuity Planning fields, and never writes anything at all
+// (no duplicate storage is created merely by viewing the list).
+
+test('GET /contact/:id never touches the existing editable retirement/annuity planning fields on contacts', async () => {
+  const { contactId, intake } = seedContactAndAppointment();
+  submitIntakeResponses(db, {
+    token: intake.token,
+    responses: { about: { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '4145550100' } },
+  });
+  db.prepare(`
+    UPDATE contacts SET retirement_account_type = 'Roth IRA', annuity_type = 'Fixed Annuity' WHERE id = ?
+  `).run(contactId);
+
+  await fetch(`${baseUrl}/contact/${contactId}`);
+
+  const contact = db.prepare('SELECT retirement_account_type, annuity_type FROM contacts WHERE id = ?').get(contactId);
+  assert.equal(contact.retirement_account_type, 'Roth IRA', 'the existing editable field must be completely unaffected by viewing the completed intake');
+  assert.equal(contact.annuity_type, 'Fixed Annuity');
+});
+
+test('GET /contact/:id is a pure read -- no row is inserted anywhere (no duplicate intake storage) merely by fetching the list', async () => {
+  const { contactId } = seedContactAndAppointment();
+  const before = {
+    intakes: db.prepare('SELECT COUNT(*) AS n FROM retirement_intakes').get().n,
+    communications: db.prepare('SELECT COUNT(*) AS n FROM communications').get().n,
+    contacts: db.prepare('SELECT COUNT(*) AS n FROM contacts').get().n,
+  };
+
+  await fetch(`${baseUrl}/contact/${contactId}`);
+
+  const after = {
+    intakes: db.prepare('SELECT COUNT(*) AS n FROM retirement_intakes').get().n,
+    communications: db.prepare('SELECT COUNT(*) AS n FROM communications').get().n,
+    contacts: db.prepare('SELECT COUNT(*) AS n FROM contacts').get().n,
+  };
+  assert.deepEqual(after, before);
 });

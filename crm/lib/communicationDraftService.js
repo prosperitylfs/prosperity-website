@@ -12,6 +12,7 @@ const { getSenderGuardrailForCase, getSenderGuardrailForManualSelection, default
 const { getAdapter } = require('./providers');
 const { toStringOrNull } = require('./leadNormalize');
 const { sendProsperitySmsForDraft } = require('./prosperitySmsGateway');
+const { sendEmailForDraft } = require('./emailSendGateway');
 
 function contactBrandIdFor(db, contactId) {
   const link = db.prepare(`SELECT id FROM contact_brands WHERE contact_id = ? AND status = 'Active'`).get(contactId);
@@ -89,13 +90,22 @@ function createDraft(db, fields, actor) {
 // The final confirmation step. The communication_drafts row itself is
 // ALWAYS marked 'blocked' here regardless of channel or outcome — it is
 // deliberately never a record of what actually happened with a provider;
-// that real, truthful lifecycle (queued -> sent | failed | blocked, and
-// delivered only via a later verified status callback) lives entirely in
-// sms_messages, written by crm/lib/prosperitySmsGateway.js for the text
-// channel. Email has no live adapter in this checkpoint and always routes
-// through whatever getAdapter() returns for sendEmail(), which stays
-// hard-blocked even when the live Twilio adapter is selected.
-async function confirmSend(db, draftId, actor) {
+// that real, truthful lifecycle lives elsewhere: sms_messages (queued ->
+// sent | failed | blocked, delivered only via a later verified status
+// callback), written by crm/lib/prosperitySmsGateway.js for the text
+// channel, and the emails/communications tables, written by
+// crm/lib/gmailSend.js / crm/lib/msGraphSend.js (via
+// crm/lib/emailSendGateway.js's sendEmailForDraft) for the email channel.
+//
+// Email routing (2026-10-16): sendEmailForDraft resolves the contact's
+// brand and sends through the SAME crm/lib/emailSendGateway.js primitive
+// crm/routes/email.js's POST /send already uses for the plain regular
+// Email button -- there is exactly one email-sending implementation in
+// this codebase, never a second one, and never a cross-brand fallback.
+// deps is optional and forwarded only to the email branch (fake
+// sendGmailEmail/sendMsGraphEmail for tests); the text branch is
+// deliberately untouched by this parameter.
+async function confirmSend(db, draftId, actor, deps = {}) {
   if (!actor) throw new Error('confirmSend: actor is required');
   const draft = db.prepare('SELECT * FROM communication_drafts WHERE id = ?').get(draftId);
   if (!draft) throw new Error(`confirmSend: draft ${draftId} does not exist`);
@@ -107,8 +117,7 @@ async function confirmSend(db, draftId, actor) {
     smsMessage = sendResult.message;
     result = sendResult.providerResult;
   } else {
-    const adapter = getAdapter();
-    result = await adapter.sendEmail({ toAddress: draft.to_address, subject: draft.subject, body: draft.body });
+    result = await sendEmailForDraft(db, draft, actor, deps);
   }
 
   db.prepare("UPDATE communication_drafts SET status = 'blocked', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(draftId);

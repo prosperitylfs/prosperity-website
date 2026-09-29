@@ -6,9 +6,7 @@ const db           = require('../db/database');
 const { google }   = require('googleapis');
 const { createAutoTask } = require('../lib/autoTasks');
 const { syncContactEmailReplies } = require('../lib/emailReplySync');
-const { sendGmailEmail } = require('../lib/gmailSend');
-const { sendMsGraphEmail } = require('../lib/msGraphSend');
-const { defaultManualBrandForContact } = require('../lib/senderGuardrail');
+const { sendBrandRoutedEmail } = require('../lib/emailSendGateway');
 
 const SCOPES    = [
   'https://www.googleapis.com/auth/gmail.send',
@@ -128,18 +126,24 @@ router.get('/callback', async (req, res) => {
 
 // ─── POST /api/email/send ──────────────────────────────────────────────────────
 //
-// Brand-aware routing (2026-10-16): resolves the contact's brand BEFORE
-// picking a sender, so a Prosperity contact always goes through the
-// existing Gmail path below (byte-for-byte unchanged) and an Insurance
-// Lady contact goes through Microsoft Graph (crm/lib/msGraphSend.js) --
-// never the other way, and never a guess. Uses the same
-// defaultManualBrandForContact() helper crm/lib/senderGuardrail.js already
-// exposes (only resolves when the contact has EXACTLY ONE active brand
-// relationship; ambiguous or missing is refused, never defaulted to either
-// brand). A request with no contact_id at all (no real caller does this
-// today -- see lib/gmailSend.js's own comment) keeps its exact prior
-// behavior of sending via Gmail, since there is no contact to resolve a
-// brand from in the first place.
+// Brand-aware routing (2026-10-16): delegates to crm/lib/emailSendGateway.js's
+// sendBrandRoutedEmail, the ONE shared brand-resolution + sender-dispatch
+// implementation for email in this codebase (also reused by
+// crm/lib/communicationDraftService.js's confirmSend for the redesigned
+// app's Draft Email flow) -- never duplicated here. A Prosperity contact
+// always goes through the existing Gmail path (byte-for-byte unchanged)
+// and an Insurance Lady contact goes through Microsoft Graph
+// (crm/lib/msGraphSend.js) -- never the other way, and never a guess. A
+// request with no contact_id at all (no real caller does this today --
+// see lib/gmailSend.js's own comment) keeps its exact prior behavior of
+// sending via Gmail, since there is no contact to resolve a brand from in
+// the first place.
+//
+// Status codes are preserved exactly as before this refactor: 409 for an
+// ambiguous/unresolvable brand (sendBrandRoutedEmail throws with
+// err.status=409 for this specific case), 500 for every other failure
+// (including Microsoft Graph's own "not configured"/"not authorized"
+// errors, which is unchanged from this route's original behavior).
 router.post('/send', async (req, res) => {
   const { contact_id, to_email, subject, body } = req.body;
 
@@ -147,26 +151,12 @@ router.post('/send', async (req, res) => {
   if (!subject)  return res.status(400).json({ error: 'subject is required' });
   if (!body)     return res.status(400).json({ error: 'body is required' });
 
-  let brandId = 'prosperity';
-  if (contact_id) {
-    brandId = defaultManualBrandForContact(db, contact_id);
-    if (!brandId) {
-      return res.status(409).json({
-        error: 'Cannot determine this contact\'s brand (no single active brand relationship) -- refusing to guess which email identity to send from.',
-      });
-    }
-  }
-
   try {
-    if (brandId === 'insurance-lady') {
-      await sendMsGraphEmail(db, { contactId: contact_id, toEmail: to_email, subject, body });
-      return res.json({ ok: true });
-    }
-    const result = await sendGmailEmail(db, { contactId: contact_id, toEmail: to_email, subject, body });
-    res.json({ ok: true, gmail_message_id: result.gmailMessageId });
+    const { result } = await sendBrandRoutedEmail(db, { contactId: contact_id, toEmail: to_email, subject, body });
+    res.json({ ok: true, ...(result.gmailMessageId ? { gmail_message_id: result.gmailMessageId } : {}) });
   } catch (err) {
     console.error('[email] send error:', err.message);
-    res.status(500).json({ error: err.message || 'Failed to send email' });
+    res.status(err.status === 409 ? 409 : 500).json({ error: err.message || 'Failed to send email' });
   }
 });
 

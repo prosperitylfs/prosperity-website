@@ -247,7 +247,13 @@ router.patch('/calls/:id', handle(async req => {
   return result;
 }));
 
-// ── Communications (draft-and-confirm; sending is always blocked) ──────
+// ── Communications (draft-and-confirm) ──────────────────────────────────
+// The communication_drafts row's own status is always 'blocked' after
+// confirm-send regardless of channel/outcome (see
+// crm/lib/communicationDraftService.js's confirmSend for why) -- but
+// sending itself is real for both channels: text via
+// crm/lib/prosperitySmsGateway.js, email via crm/lib/emailSendGateway.js
+// (added 2026-10-16, brand-routed to Gmail or Microsoft Graph).
 router.post('/communications/draft', handle((req, res) => { created(res); return draftService.createDraft(db, req.body, ACTOR); }));
 router.post('/communications/draft/:id/confirm-send', handle(req => draftService.confirmSend(db, Number(req.params.id), ACTOR)));
 router.post('/communications/call-preview', handle(req => draftService.previewCall(db, req.body)));

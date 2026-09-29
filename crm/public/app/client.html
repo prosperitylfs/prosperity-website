@@ -1636,27 +1636,38 @@ async function render() {
     `;
     dialog.querySelector('#draft-back').addEventListener('click', () => { CrmApp.toast('Saved as draft.'); dialog.close(); });
     dialog.querySelector('#draft-confirm-send').addEventListener('click', async () => {
+      const sendBtn = dialog.querySelector('#draft-confirm-send');
+      // Disabled IMMEDIATELY, before the request even starts -- a real
+      // send (text or email) is not idempotent, so a rapid double-click
+      // while the first request is still in flight must never fire a
+      // second one. Re-enabled only on a thrown/network error below, since
+      // that means nothing was sent and a retry is safe.
+      sendBtn.disabled = true;
       let result;
       try {
         result = await CrmApp.postJSON(`/api/app/communications/draft/${draft.id}/confirm-send`, 'POST');
       } catch (err) {
         dialog.querySelector('#draft-blocked-area').innerHTML = `<div class="blocked-notice">${CrmApp.escapeHtml(err.message)}</div>`;
+        sendBtn.disabled = false;
         return;
       }
       // Reflects the ACTUAL provider result (real Twilio send when
       // COMMUNICATION_PROVIDER=twilio is configured server-side, or the
-      // specific reason it didn't go out) instead of a hard-coded message —
-      // this only ever came from the fake adapter's own returned text
-      // before, which would have gone stale the moment live sending was
-      // configured.
+      // specific reason it didn't go out; real Gmail/Microsoft Graph send
+      // for email, added 2026-10-16 via crm/lib/emailSendGateway.js)
+      // instead of a hard-coded message — this only ever came from the
+      // fake adapter's own returned text before, which would have gone
+      // stale the moment live sending was configured.
       const sent = result.providerResult && result.providerResult.status === 'sent';
       const message = result.providerResult ? result.providerResult.message : null;
       dialog.querySelector('#draft-blocked-area').innerHTML = sent
         ? `<div class="confirm-message">Sent.</div>`
         : `<div class="blocked-notice">${CrmApp.escapeHtml(message || 'This message was not sent.')}</div>`;
-      dialog.querySelector('#draft-confirm-send').disabled = true;
-      if (sent) CrmApp.toast('Text sent — see the Texts tab.');
-      else if (result.smsMessage) CrmApp.toast('Not sent — see the Texts tab for details.', { error: true });
+      if (sent) {
+        CrmApp.toast(draft.channel === 'text' ? 'Text sent — see the Texts tab.' : 'Email sent — see the Communications tab.');
+      } else if (draft.channel === 'text' && result.smsMessage) {
+        CrmApp.toast('Not sent — see the Texts tab for details.', { error: true });
+      }
     });
   }
 

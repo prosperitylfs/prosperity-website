@@ -71,6 +71,97 @@ test('confirming a draft never marks it Sent or Delivered, and never contacts a 
   assert.match(providerResult.message, /disabled in this local checkpoint/i);
 });
 
+// ── Email channel confirmSend (2026-10-16) ───────────────────────────────
+// Unlike text (which stays hard-blocked here by the fake adapter -- see the
+// test above), email's confirmSend branch now genuinely sends via
+// crm/lib/emailSendGateway.js's sendEmailForDraft -- the SAME
+// brand-resolution + sender-dispatch primitive crm/routes/email.js's
+// POST /send already uses for the plain regular Email button. These tests
+// prove the Draft Email confirm-send step routes each brand to the correct
+// provider and never crosses.
+
+function fakeEmailDeps({ gmail = 'ok', msGraph = 'ok' } = {}) {
+  const gmailCalls = [];
+  const msGraphCalls = [];
+  return {
+    gmailCalls, msGraphCalls,
+    sendGmailEmail: async (db, params) => {
+      gmailCalls.push(params);
+      if (gmail === 'fail') throw new Error('Gmail API error');
+      return { gmailMessageId: 'gmail-fake-1', threadId: null };
+    },
+    sendMsGraphEmail: async (db, params) => {
+      msGraphCalls.push(params);
+      if (msGraph === 'fail') throw new Error('Microsoft Graph sendMail failed (HTTP 500): fake failure');
+      return { sentAt: new Date().toISOString() };
+    },
+  };
+}
+
+test('confirming a Prosperity email draft sends via the injected sendGmailEmail, and never touches Microsoft Graph', async () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Ivy', email: 'ivy@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const draft = createDraft(db, { contactId: client.contact.id, channel: 'email', subject: 'Hello', body: 'Hi Ivy' }, 'Loretta Stewart');
+  const deps = fakeEmailDeps();
+
+  const { draft: after, providerResult } = await confirmSend(db, draft.id, 'Loretta Stewart', deps);
+
+  assert.equal(after.status, 'blocked', 'the draft row itself is always marked blocked -- the real outcome lives in emails/communications');
+  assert.equal(providerResult.status, 'sent');
+  assert.equal(providerResult.brandId, 'prosperity');
+  assert.equal(deps.gmailCalls.length, 1);
+  assert.equal(deps.msGraphCalls.length, 0, 'a Prosperity draft must never touch the Microsoft Graph sender');
+  assert.equal(deps.gmailCalls[0].toEmail, 'ivy@example.com');
+});
+
+test('confirming an Insurance Lady email draft sends via the injected sendMsGraphEmail, and never touches Gmail', async () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Jade', email: 'jade@example.com', brandSlug: 'insurance-lady' }, 'Loretta Stewart');
+  const draft = createDraft(db, { contactId: client.contact.id, channel: 'email', subject: 'Hello', body: 'Hi Jade' }, 'Loretta Stewart');
+  const deps = fakeEmailDeps();
+
+  const { providerResult } = await confirmSend(db, draft.id, 'Loretta Stewart', deps);
+
+  assert.equal(providerResult.status, 'sent');
+  assert.equal(providerResult.brandId, 'insurance-lady');
+  assert.equal(deps.msGraphCalls.length, 1);
+  assert.equal(deps.gmailCalls.length, 0, 'an Insurance Lady draft must never touch the Prosperity Gmail sender, even though the fake would have succeeded');
+  assert.equal(deps.msGraphCalls[0].toEmail, 'jade@example.com');
+});
+
+test('confirming an email draft for a contact with no resolvable brand is reported as blocked, with a clear reason, and never calls either sender', async () => {
+  const { db } = setup();
+  // A client created via clientService with no brandSlug link at all (kept
+  // deliberately outside contact_brands) -- defaultManualBrandForContact
+  // returns null for this, matching every other "never guess" test in
+  // this codebase.
+  const contactId = db.prepare(`
+    INSERT INTO contacts (first_name, last_name, email) VALUES ('No', 'Brand', 'no-brand@example.com')
+  `).run().lastInsertRowid;
+  const draft = createDraft(db, { contactId, channel: 'email', subject: 'Hello', body: 'Hi' }, 'Loretta Stewart');
+  const deps = fakeEmailDeps();
+
+  const { providerResult } = await confirmSend(db, draft.id, 'Loretta Stewart', deps);
+
+  assert.equal(providerResult.status, 'blocked');
+  assert.match(providerResult.message, /cannot determine/i);
+  assert.equal(deps.gmailCalls.length, 0);
+  assert.equal(deps.msGraphCalls.length, 0);
+});
+
+test('a Microsoft Graph failure on an Insurance Lady draft is reported as blocked with the real reason, never thrown, and never falls back to Gmail', async () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Kim', email: 'kim@example.com', brandSlug: 'insurance-lady' }, 'Loretta Stewart');
+  const draft = createDraft(db, { contactId: client.contact.id, channel: 'email', subject: 'Hello', body: 'Hi Kim' }, 'Loretta Stewart');
+  const deps = fakeEmailDeps({ msGraph: 'fail' });
+
+  const { providerResult } = await confirmSend(db, draft.id, 'Loretta Stewart', deps);
+
+  assert.equal(providerResult.status, 'blocked');
+  assert.match(providerResult.message, /Microsoft Graph sendMail failed/);
+  assert.equal(deps.gmailCalls.length, 0);
+});
+
 test('the fake adapter is the only adapter reachable through getAdapter() and never throws a network error (because it never calls the network)', async () => {
   const adapter = getAdapter();
   const result = await adapter.sendText({ toNumber: '+14145550000', body: 'test' });

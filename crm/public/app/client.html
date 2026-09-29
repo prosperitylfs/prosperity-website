@@ -1665,6 +1665,27 @@ async function render() {
         : `<div class="blocked-notice">${CrmApp.escapeHtml(message || 'This message was not sent.')}</div>`;
       if (sent) {
         CrmApp.toast(draft.channel === 'text' ? 'Text sent — see the Texts tab.' : 'Email sent — see the Communications tab.');
+        // Only for a CONFIRMED successful email send (2026-10-16): `detail`
+        // (and therefore the already-rendered Communications tab) was
+        // fetched once at page load and never refreshes on its own, so the
+        // just-sent email would otherwise stay invisible until a manual
+        // browser reload. Re-fetches the client and re-renders only the
+        // Communications panel in place -- no other tab/section is
+        // touched, and nothing changes for the text channel here.
+        if (draft.channel === 'email') {
+          try {
+            detail = await CrmApp.fetchJSON(`/api/app/clients/${contactId}`);
+            const panel = document.querySelector('[data-panel="communications"]');
+            if (panel) panel.innerHTML = communicationsHtml();
+          } catch (err) {
+            // A failed refresh must never be mistaken for a failed send --
+            // the email already sent successfully; the user can still see
+            // it after a manual reload if this silently-logged refresh
+            // itself failed for some unrelated reason (e.g. a transient
+            // network blip).
+            console.error('[client] failed to refresh Communications after send:', err.message);
+          }
+        }
       } else if (draft.channel === 'text' && result.smsMessage) {
         CrmApp.toast('Not sent — see the Texts tab for details.', { error: true });
       }

@@ -11,6 +11,7 @@ const { dedupeContact, resolveContactBrand, matchOrCreateCase } = require('../li
 const {
   getCaseList, getBrandReviewQueue, getCaseReviewQueue,
   getMessageDeliveryStatus, resolveFailedCommunication, normalizeMessageStatus,
+  getClientDetail,
 } = require('../lib/dashboardQueries');
 
 function setup() {
@@ -504,4 +505,152 @@ test('Last Activity reflects the most recent related record, not just cases.upda
   const rows = flattenCases(getCaseList(db, { brandId: 'all' })).filter(r => r.caseId === c.case.id);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].lastActivity, '2026-08-12T10:06:05Z');
+});
+
+// ── getClientDetail: Communications history channel labeling (2026-10-16) ──
+// crm/lib/gmailSend.js / crm/lib/msGraphSend.js write TWO rows on a
+// successful send: one into `emails` (the authoritative record for this
+// view) and one into `communications` (comm_type='email', kept for the
+// separate legacy contact.html email-history view). Before this fix,
+// getClientDetail hardcoded every `communications` row to channel='form',
+// so a sent email showed up TWICE -- once correctly as 'email' (from
+// `emails`) and once mislabeled as 'form' (from `communications`, same
+// subject/body/status/timestamp). These tests prove: exactly one 'email'
+// entry per send, genuine 'form' rows are unaffected, and this holds
+// identically for both brands.
+
+function insertClientDetailContact(db, overrides = {}) {
+  return db.prepare(`
+    INSERT INTO contacts (first_name, last_name, email) VALUES (@first_name, @last_name, @email)
+  `).run({ first_name: 'Test', last_name: 'Client', email: 'client-detail-fake@example.test', ...overrides }).lastInsertRowid;
+}
+
+// Mirrors exactly what crm/lib/gmailSend.js / crm/lib/msGraphSend.js write
+// on a real successful send -- one `emails` row, one `communications` row,
+// same subject/body/status.
+function insertSuccessfulEmailSend(db, contactId, { subject = 'Your appointment', body = 'See you soon', fromEmail = 'loretta@prosperitylfs.com' } = {}) {
+  db.prepare(`
+    INSERT INTO emails (contact_id, to_email, from_email, subject, body, status, direction)
+    VALUES (?, 'recipient@example.test', ?, ?, ?, 'sent', 'outbound')
+  `).run(contactId, fromEmail, subject, body);
+  db.prepare(`
+    INSERT INTO communications (contact_id, comm_type, direction, subject, body, status)
+    VALUES (?, 'email', 'outbound', ?, ?, 'sent')
+  `).run(contactId, subject, body);
+}
+
+test('a successful email send appears as exactly ONE channel="email" history item, sourced from the emails table', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  insertSuccessfulEmailSend(db, contactId, { subject: 'Your appointment' });
+
+  const detail = getClientDetail(db, contactId);
+  const emailEntries = detail.communications.filter(c => c.channel === 'email');
+  assert.equal(emailEntries.length, 1, 'must appear exactly once, not once per table it happens to be logged in');
+  assert.equal(emailEntries[0].summary, 'Your appointment');
+  assert.equal(emailEntries[0].status, 'Sent');
+});
+
+test('the matching communications-table row (comm_type=\'email\') is never surfaced as channel="form"', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  insertSuccessfulEmailSend(db, contactId, { subject: 'Do not duplicate me' });
+
+  const detail = getClientDetail(db, contactId);
+  const formEntries = detail.communications.filter(c => c.channel === 'form' && c.summary === 'Do not duplicate me');
+  assert.equal(formEntries.length, 0, 'the email must never also appear mislabeled as a Form entry');
+});
+
+test('a genuine form communication (comm_type=\'form\', e.g. a completed intake) still appears as channel="form"', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  db.prepare(`
+    INSERT INTO communications (contact_id, comm_type, direction, subject, body, status)
+    VALUES (?, 'form', 'inbound', 'Retirement Intake Form Completed', 'answers here', 'received')
+  `).run(contactId);
+
+  const detail = getClientDetail(db, contactId);
+  const formEntries = detail.communications.filter(c => c.channel === 'form');
+  assert.equal(formEntries.length, 1);
+  assert.equal(formEntries[0].summary, 'Retirement Intake Form Completed');
+});
+
+test('SMS and call history are unaffected by the email-channel fix', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  db.prepare(`INSERT INTO sms_messages (contact_id, direction, body, status) VALUES (?, 'outbound', 'a text', 'sent')`).run(contactId);
+  db.prepare(`INSERT INTO comm_calls (contact_id, direction, status, notes) VALUES (?, 'outbound', 'completed', 'a call')`).run(contactId);
+  insertSuccessfulEmailSend(db, contactId);
+
+  const detail = getClientDetail(db, contactId);
+  assert.equal(detail.communications.filter(c => c.channel === 'sms').length, 1);
+  assert.equal(detail.communications.filter(c => c.channel === 'call').length, 1);
+});
+
+test('the email entry includes the recipient address (to_email) from the emails table', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  insertSuccessfulEmailSend(db, contactId);
+
+  const detail = getClientDetail(db, contactId);
+  const emailEntry = detail.communications.find(c => c.channel === 'email');
+  assert.equal(emailEntry.to_email, 'recipient@example.test');
+});
+
+test('non-email history rows have no to_email leaking in (stays null/undefined)', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  db.prepare(`
+    INSERT INTO communications (contact_id, comm_type, direction, subject, body, status)
+    VALUES (?, 'form', 'inbound', 'Retirement Intake Form Completed', 'x', 'received')
+  `).run(contactId);
+
+  const detail = getClientDetail(db, contactId);
+  const formEntry = detail.communications.find(c => c.channel === 'form');
+  assert.equal(formEntry.to_email, null);
+});
+
+test('a Prosperity email and an Insurance Lady email are both correctly represented, identically, with no cross-brand difference in this history logic', () => {
+  const { db } = setup();
+  const prosperityContactId = insertClientDetailContact(db, { email: 'prosperity-fake@example.test' });
+  const ilContactId = insertClientDetailContact(db, { email: 'il-fake@example.test' });
+  insertSuccessfulEmailSend(db, prosperityContactId, { subject: 'Prosperity email', fromEmail: 'loretta@prosperitylfs.com' });
+  insertSuccessfulEmailSend(db, ilContactId, { subject: 'Insurance Lady email', fromEmail: 'loretta@insuranceladyllc.com' });
+
+  const prosperityDetail = getClientDetail(db, prosperityContactId);
+  const ilDetail = getClientDetail(db, ilContactId);
+
+  const prosperityEmail = prosperityDetail.communications.filter(c => c.channel === 'email');
+  const ilEmail = ilDetail.communications.filter(c => c.channel === 'email');
+  assert.equal(prosperityEmail.length, 1);
+  assert.equal(ilEmail.length, 1);
+  assert.equal(prosperityEmail[0].summary, 'Prosperity email');
+  assert.equal(ilEmail[0].summary, 'Insurance Lady email');
+  assert.equal(prosperityEmail[0].status, 'Sent');
+  assert.equal(ilEmail[0].status, 'Sent');
+});
+
+test('a failed send (no emails row was ever written, since sendGmailEmail/sendMsGraphEmail only insert AFTER a successful provider response) produces no email history entry at all', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  // Deliberately nothing inserted into `emails` or `communications` -- this
+  // is exactly the real state after a thrown/failed send, which never
+  // reaches either INSERT statement.
+
+  const detail = getClientDetail(db, contactId);
+  assert.equal(detail.communications.filter(c => c.channel === 'email').length, 0);
+});
+
+test('an email logged with status=\'failed\' (defensive case) is reported as "Failed", never "Sent" or "Delivered"', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  db.prepare(`
+    INSERT INTO emails (contact_id, to_email, from_email, subject, body, status, direction)
+    VALUES (?, 'recipient@example.test', 'loretta@prosperitylfs.com', 'Attempted', 'x', 'failed', 'outbound')
+  `).run(contactId);
+
+  const detail = getClientDetail(db, contactId);
+  const emailEntry = detail.communications.find(c => c.channel === 'email');
+  assert.equal(emailEntry.status, 'Failed');
+  assert.notEqual(emailEntry.status, 'Delivered');
 });

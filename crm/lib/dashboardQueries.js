@@ -673,7 +673,7 @@ function getClientDetail(db, contactId) {
   // against every already-approved (older) db shape.
   const activitiesUnion = tableExists(db, 'activities')
     ? `UNION ALL
-       SELECT 'activity' AS channel, id, (activity_type || ': ' || COALESCE(summary, '')) AS summary, details AS body, NULL AS status, COALESCE(updated_at, activity_at) AS timestamp, contact_brand_id, case_id, NULL AS to_email FROM activities WHERE contact_id = ? AND archived_at IS NULL`
+       SELECT 'activity' AS channel, id, (activity_type || ': ' || COALESCE(summary, '')) AS summary, details AS body, NULL AS status, COALESCE(updated_at, activity_at) AS timestamp, contact_brand_id, case_id, NULL AS to_email, NULL AS from_email FROM activities WHERE contact_id = ? AND archived_at IS NULL`
     : '';
   const communicationsParams = [contactId, contactId, contactId, contactId];
   if (activitiesUnion) communicationsParams.push(contactId);
@@ -687,14 +687,21 @@ function getClientDetail(db, contactId) {
   // already supplies. Every OTHER comm_type value (e.g. 'form',
   // 'appointment') is unchanged and still reported as channel 'form' --
   // that broader distinction is out of scope for this fix.
+  //
+  // from_email is added (2026-10-16) alongside to_email so the client.html
+  // Communications tab's email detail view can show who it was sent from
+  // (Prosperity's loretta@prosperitylfs.com or Insurance Lady's
+  // loretta@insuranceladyllc.com) without any brand lookup -- it's already
+  // a plain column on `emails` (crm/lib/gmailSend.js / msGraphSend.js both
+  // populate it), just not previously selected here.
   const communications = db.prepare(`
-    SELECT 'form' AS channel, id, subject AS summary, body, status, created_at AS timestamp, contact_brand_id, case_id, NULL AS to_email FROM communications WHERE contact_id = ? AND comm_type != 'email'
+    SELECT 'form' AS channel, id, subject AS summary, body, status, created_at AS timestamp, contact_brand_id, case_id, NULL AS to_email, NULL AS from_email FROM communications WHERE contact_id = ? AND comm_type != 'email'
     UNION ALL
-    SELECT 'call' AS channel, id, COALESCE(${columnExists(db, 'comm_calls', 'outcome') ? "outcome || ' — ' || summary, summary" : 'NULL'}, notes) AS summary, COALESCE(notes, transcription) AS body, status, COALESCE(started_at, created_at) AS timestamp, contact_brand_id, case_id, NULL AS to_email FROM comm_calls WHERE contact_id = ?
+    SELECT 'call' AS channel, id, COALESCE(${columnExists(db, 'comm_calls', 'outcome') ? "outcome || ' — ' || summary, summary" : 'NULL'}, notes) AS summary, COALESCE(notes, transcription) AS body, status, COALESCE(started_at, created_at) AS timestamp, contact_brand_id, case_id, NULL AS to_email, NULL AS from_email FROM comm_calls WHERE contact_id = ?
     UNION ALL
-    SELECT 'sms' AS channel, id, NULL AS summary, body, status, sent_at AS timestamp, contact_brand_id, case_id, NULL AS to_email FROM sms_messages WHERE contact_id = ?
+    SELECT 'sms' AS channel, id, NULL AS summary, body, status, sent_at AS timestamp, contact_brand_id, case_id, NULL AS to_email, NULL AS from_email FROM sms_messages WHERE contact_id = ?
     UNION ALL
-    SELECT 'email' AS channel, id, subject AS summary, body, status, sent_at AS timestamp, contact_brand_id, case_id, to_email FROM emails WHERE contact_id = ?
+    SELECT 'email' AS channel, id, subject AS summary, body, status, sent_at AS timestamp, contact_brand_id, case_id, to_email, from_email FROM emails WHERE contact_id = ?
     ${activitiesUnion}
     ORDER BY timestamp DESC
   `).all(...communicationsParams).map(row => ({

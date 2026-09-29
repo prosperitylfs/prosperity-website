@@ -972,17 +972,51 @@ async function render() {
     });
   }
 
+  // Email rows (2026-10-16) are clickable -- opens a read-only detail view
+  // (emailDetailModal below) using data already present in this same `m`
+  // row (from crm/lib/dashboardQueries.js's getClientDetail; no extra
+  // fetch). Every other channel is unchanged. The row's data is carried in
+  // a data-json attribute, mirroring the existing data-call-outcome
+  // pattern elsewhere on this page.
   function communicationsHtml() {
     if (!detail.communications.length) return '<div class="empty-state">No communications yet.</div>';
     return `<div class="card"><div class="card-body no-pad table-scroll">
       <table class="data-table"><thead><tr><th>Channel</th><th>Summary</th><th>Status</th><th>When</th></tr></thead>
-      <tbody>${detail.communications.map(m => `<tr>
+      <tbody>${detail.communications.map(m => `<tr${m.channel === 'email' ? ` class="clickable" data-view-email data-json='${JSON.stringify(m).replace(/'/g, '&#39;')}'` : ''}>
         <td style="text-transform:capitalize;">${CrmApp.escapeHtml(m.channel)}</td>
         <td>${CrmApp.escapeHtml(m.summary || '—')}${m.summary === 'Retirement Intake Form Completed' ? ' <button type="button" class="btn small ghost" data-view-intake>View Intake</button>' : ''}</td>
         <td><span class="pill status-${(m.status || '').toLowerCase()}">${CrmApp.escapeHtml(m.status || '—')}</span></td>
         <td>${CrmApp.friendlyDateTime(m.timestamp)}</td>
       </tr>`).join('')}</tbody></table>
     </div></div>`;
+  }
+
+  // Read-only email detail view -- shows exactly what's already on the
+  // `emails` record (crm/lib/dashboardQueries.js's getClientDetail); no new
+  // fetch, no new storage, no resend/edit/reply/forward action. Works
+  // identically for Prosperity (Gmail) and Insurance Lady (Microsoft
+  // Graph) rows, and for both manually-sent and Workflow-sent emails --
+  // this view has no idea which sender or trigger produced the row, only
+  // the same fields every email row already carries.
+  function emailDetailModal(email) {
+    const dialog = CrmApp.openModal({
+      title: 'Email', wide: true,
+      bodyHtml: `
+        <dl class="kv-list" style="margin-bottom:14px;">
+          <dt>From</dt><dd>${CrmApp.escapeHtml(email.from_email || '—')}</dd>
+          <dt>To</dt><dd>${CrmApp.escapeHtml(email.to_email || '—')}</dd>
+          <dt>Subject</dt><dd>${CrmApp.escapeHtml(email.summary || '—')}</dd>
+          <dt>Status</dt><dd>${CrmApp.escapeHtml(email.status || '—')}</dd>
+          <dt>Sent</dt><dd>${CrmApp.friendlyDateTime(email.timestamp)}</dd>
+        </dl>
+        <div class="text-faint" style="margin-bottom:4px;">Message</div>
+        <div style="white-space:pre-wrap; background:var(--surface-alt); border:1px solid var(--border); border-radius:8px; padding:10px 12px;">${CrmApp.escapeHtml(email.body || '—')}</div>
+        <div class="crmapp-modal-actions">
+          <button type="button" class="btn" id="email-detail-close">Close</button>
+        </div>
+      `,
+    });
+    dialog.querySelector('#email-detail-close').addEventListener('click', () => dialog.close());
   }
 
   // Read-only view of a completed Retirement Intake Form -- reuses the
@@ -1522,6 +1556,8 @@ async function render() {
     const callOutcomeBtn = e.target.closest('[data-call-outcome]');
     if (callOutcomeBtn) return callOutcomeModal(JSON.parse(callOutcomeBtn.dataset.json));
     if (e.target.closest('[data-view-intake]')) return viewIntakeModal();
+    const viewEmailRow = e.target.closest('[data-view-email]');
+    if (viewEmailRow) return emailDetailModal(JSON.parse(viewEmailRow.dataset.json));
   });
 
   // Overflow indication for the scrollable tab bar (correction #2): show

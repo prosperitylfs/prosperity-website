@@ -654,3 +654,66 @@ test('an email logged with status=\'failed\' (defensive case) is reported as "Fa
   assert.equal(emailEntry.status, 'Failed');
   assert.notEqual(emailEntry.status, 'Delivered');
 });
+
+// ── getClientDetail: from_email for the email detail view (2026-10-16) ──
+// crm/public/app/client.html's clickable Email row / read-only detail
+// modal (emailDetailModal) is not unit-testable here (no browser/DOM
+// harness in this test suite) -- these tests instead prove the DATA it
+// renders from is correct and complete for every field the modal shows
+// (From, To, Subject, body, Status, Sent), for both brands, and that
+// nothing about this addition reintroduces a duplicate history entry.
+
+test('a Prosperity email\'s history entry carries from_email=loretta@prosperitylfs.com, enough to open its detail view', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  insertSuccessfulEmailSend(db, contactId, { subject: 'Prosperity detail check', fromEmail: 'loretta@prosperitylfs.com' });
+
+  const detail = getClientDetail(db, contactId);
+  const emailEntry = detail.communications.find(c => c.channel === 'email');
+  assert.equal(emailEntry.from_email, 'loretta@prosperitylfs.com');
+  assert.equal(emailEntry.to_email, 'recipient@example.test');
+  assert.equal(emailEntry.summary, 'Prosperity detail check');
+  assert.equal(emailEntry.body, 'See you soon');
+  assert.equal(emailEntry.status, 'Sent');
+  assert.ok(emailEntry.timestamp);
+});
+
+test('an Insurance Lady email\'s history entry carries from_email=loretta@insuranceladyllc.com, enough to open its detail view', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  insertSuccessfulEmailSend(db, contactId, { subject: 'Insurance Lady detail check', body: 'Thanks for calling', fromEmail: 'loretta@insuranceladyllc.com' });
+
+  const detail = getClientDetail(db, contactId);
+  const emailEntry = detail.communications.find(c => c.channel === 'email');
+  assert.equal(emailEntry.from_email, 'loretta@insuranceladyllc.com');
+  assert.equal(emailEntry.to_email, 'recipient@example.test');
+  assert.equal(emailEntry.summary, 'Insurance Lady detail check');
+  assert.equal(emailEntry.body, 'Thanks for calling');
+  assert.equal(emailEntry.status, 'Sent');
+});
+
+test('non-email history rows (form/sms/call) have no from_email leaking in', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  db.prepare(`
+    INSERT INTO communications (contact_id, comm_type, direction, subject, body, status)
+    VALUES (?, 'form', 'inbound', 'Retirement Intake Form Completed', 'x', 'received')
+  `).run(contactId);
+  db.prepare(`INSERT INTO sms_messages (contact_id, direction, body, status) VALUES (?, 'outbound', 'a text', 'sent')`).run(contactId);
+  db.prepare(`INSERT INTO comm_calls (contact_id, direction, status, notes) VALUES (?, 'outbound', 'completed', 'a call')`).run(contactId);
+
+  const detail = getClientDetail(db, contactId);
+  for (const entry of detail.communications) {
+    assert.equal(entry.from_email, null, `${entry.channel} entries must not carry a from_email value`);
+  }
+});
+
+test('adding from_email/to_email to the query does not reintroduce the duplicate email/form history problem -- still exactly one entry per send', () => {
+  const { db } = setup();
+  const contactId = insertClientDetailContact(db);
+  insertSuccessfulEmailSend(db, contactId, { subject: 'No duplicates please' });
+
+  const detail = getClientDetail(db, contactId);
+  assert.equal(detail.communications.length, 1);
+  assert.equal(detail.communications[0].channel, 'email');
+});

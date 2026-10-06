@@ -61,12 +61,23 @@ const PROSPERITY_LEAD_TYPE_TO_PRODUCT = {
   'Retirement Lead':     'Rollovers and safe-money solutions',
 };
 
-// No Phase 1 verified source resolves to insurance-lady yet (see
-// crm/config/leadSources.js) — kept empty rather than omitted so the shape
-// is ready for Phase 2 without requiring a change here.
+// Insurance Lady has its own verified source now (crm/config/leadSources.js's
+// 'insurance-lady-website'), but no lead_type from that source has a clean
+// 1:1 product match yet either — kept empty so its cases land in Case
+// Review Required instead of being guessed, same rule as the unmapped
+// Prosperity lead_types above.
 const LEAD_TYPE_TO_PRODUCT_BY_BRAND_SLUG = {
   prosperity: PROSPERITY_LEAD_TYPE_TO_PRODUCT,
   'insurance-lady': {},
+};
+
+// Which VERIFIED source (never anything from the payload) supplies
+// sms_consent_source/sms_consent_at evidence when a submission asserts
+// consent -- see enrichLegacyContactFields' own comment for the full
+// rationale. Only sources with an explicit, CRM-side consent checkbox of
+// their own belong here.
+const SMS_CONSENT_SOURCE_BY_SOURCE_ID = {
+  'insurance-lady-website': 'Insurance Lady website booking form',
 };
 
 function getBrandRow(db, slug) {
@@ -84,13 +95,33 @@ function getProductRow(db, brandRowId, productName) {
 // moved here unchanged so dedupeContact() can own contact IDENTITY
 // resolution while this keeps owning the legacy FIELD enrichment that other
 // CRM screens already depend on (lead_type/lead_status/lead_source/consent).
+//
+// smsConsentSource (added 2026-09-30, for retirement-booking.html's Step 1
+// consent checkbox): when provided AND this submission actually asserts
+// sms_consent, also records sms_consent_source/sms_consent_at -- the same
+// evidence-trail columns crm/routes/calcom.js's own webhook already writes
+// for its own consent checkbox, and crm/lib/clientService.js writes for a
+// manual edit. Every OTHER existing caller of this function (Prosperity's
+// book.html/life-insurance.html/etc., which pass no source) leaves these
+// two columns completely untouched, exactly as before this change -- only
+// a caller that explicitly supplies one gets it recorded. Deliberately
+// never touches sms_opted_out_at in either branch: an existing opt-out is
+// never cleared by a lead-intake submission (only an explicit START/UNSTOP
+// SMS reply -- crm/lib/inboundSmsService.js -- clears it), matching the
+// same precedent crm/routes/calcom.js's own consent-checkbox handling
+// already sets: sms_consent itself CAN be reasserted to 1 by a fresh
+// explicit consent capture (never silently downgraded either, per the
+// pre-existing MAX() below), but the opt-out gate that actually blocks
+// sending (crm/lib/legacySmsSend.js's checkConsentGate) is untouched and
+// stays authoritative regardless of sms_consent's value.
 function enrichLegacyContactFields(db, contact, fields) {
-  const { firstName, lastName, email, phoneDisplay, phoneE164, leadLabel, leadSource, smsConsentVal, emailConsentVal } = fields;
+  const { firstName, lastName, email, phoneDisplay, phoneE164, leadLabel, leadSource, smsConsentVal, emailConsentVal, smsConsentSource } = fields;
   const now = new Date().toISOString();
   const params = {
     first_name: firstName || null, last_name: lastName || null, email: email || null,
     phone: phoneDisplay, phone_e164: phoneE164, lead_type: leadLabel,
     lead_source: leadSource || null, sms_consent: smsConsentVal, email_consent: emailConsentVal,
+    sms_consent_source: smsConsentSource || null,
     now, id: contact.id,
   };
 
@@ -106,6 +137,8 @@ function enrichLegacyContactFields(db, contact, fields) {
         lead_source   = COALESCE(lead_source, @lead_source),
         sms_consent   = MAX(sms_consent,      @sms_consent),
         email_consent = MAX(email_consent,    @email_consent),
+        sms_consent_source = CASE WHEN @sms_consent = 1 AND @sms_consent_source IS NOT NULL THEN @sms_consent_source ELSE sms_consent_source END,
+        sms_consent_at     = CASE WHEN @sms_consent = 1 AND @sms_consent_source IS NOT NULL THEN @now ELSE sms_consent_at END,
         updated_at    = @now
       WHERE id = @id
     `).run(params);
@@ -120,6 +153,8 @@ function enrichLegacyContactFields(db, contact, fields) {
         lead_source   = COALESCE(lead_source, @lead_source),
         sms_consent   = MAX(sms_consent,      @sms_consent),
         email_consent = MAX(email_consent,    @email_consent),
+        sms_consent_source = CASE WHEN @sms_consent = 1 AND @sms_consent_source IS NOT NULL THEN @sms_consent_source ELSE sms_consent_source END,
+        sms_consent_at     = CASE WHEN @sms_consent = 1 AND @sms_consent_source IS NOT NULL THEN @now ELSE sms_consent_at END,
         updated_at    = @now
       WHERE id = @id
     `).run(params);
@@ -218,10 +253,18 @@ function processLeadIntake(db, { sourceId, payload }, deps = {}) {
 
   // ── 2-3. Normalize, then dedupe/create the one master contact, then
   //         preserve the exact legacy field-enrichment behavior. ─────────
+  // smsConsentSource is derived from the VERIFIED sourceId (never trusted
+  // from the payload itself) so the recorded evidence can never be spoofed
+  // by whatever a caller happens to put in the request body -- the same
+  // trust boundary brand resolution below already uses. Only
+  // 'insurance-lady-website' has an entry today (retirement-booking.html's
+  // Step 1); every other existing source is intentionally left unmapped,
+  // so this is a no-op for Prosperity's own lead forms.
+  const smsConsentSource = SMS_CONSENT_SOURCE_BY_SOURCE_ID[sourceId] || null;
   let contact = dedupeContact(db, { email, phone: phoneDisplay, phone_e164: phoneE164, first_name: firstName, last_name: lastName });
   contact = enrichLegacyContactFields(db, contact, {
     firstName, lastName, email, phoneDisplay, phoneE164,
-    leadLabel, leadSource, smsConsentVal, emailConsentVal,
+    leadLabel, leadSource, smsConsentVal, emailConsentVal, smsConsentSource,
   });
 
   // ── 4. Resolve brand strictly from the verified source — never from any

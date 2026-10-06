@@ -11,12 +11,18 @@
 // parameter.
 //
 // Trust model (corrected — see the Checkpoint E1 Phase 1 correction report):
-//   - PRIVATE server-to-server credential: CRM_INTERNAL_KEY, sent as the
-//     x-internal-key header. Known only to our own Cloudflare Pages
-//     Functions (functions/submit-lead.js, functions/send-guide.js) and
-//     this CRM server's environment — NEVER sent to, stored in, or
-//     readable by a browser. This is the ONLY signal that resolves a
-//     verified source/brand — see resolveSourceId() below.
+//   - PRIVATE server-to-server credentials: one PER VERIFIED SOURCE, sent as
+//     the x-internal-key header — CRM_INTERNAL_KEY for
+//     functions/submit-lead.js / functions/send-guide.js (Prosperity), and
+//     CRM_INTERNAL_KEY_INSURANCE_LADY for the insurance-lady-website
+//     Cloudflare Worker's own lead-capture relay (added 2026-09-30 for
+//     retirement-booking.html's 3-step qualification flow). Deliberately
+//     TWO DISTINCT secrets, not one shared key plus a caller-supplied label
+//     — a single shared secret could never tell which site a request came
+//     from, and brand must never be taken from anything the caller merely
+//     claims. Known only to our own backends — NEVER sent to, stored in, or
+//     readable by a browser. Which key (if any) matched is the ONLY signal
+//     that resolves a verified source/brand — see resolveSourceId() below.
 //   - PUBLIC source label: x-api-key. Historically shipped in browser code
 //     (assets/js/main.v2.js) and is documented there as public. A public
 //     value can prove a request came from *a* script that had the value —
@@ -33,8 +39,10 @@
 // life-insurance-qualifier.html, contact.html) now submits through the
 // same-origin /submit-lead Cloudflare Pages Function, which verifies
 // Turnstile/honeypot itself and then calls this endpoint server-to-server
-// with the private credential (functions/submit-lead.js). No browser script
-// calls POST /api/leads directly.
+// with its private credential (functions/submit-lead.js). Insurance Lady's
+// retirement-booking.html follows the identical pattern through its own
+// Worker instead of a Pages Function, with its own distinct credential. No
+// browser script calls POST /api/leads directly for either brand.
 
 const crypto = require('crypto');
 const { processLeadIntake } = require('./leadIntake');
@@ -80,17 +88,30 @@ async function verifyTurnstile(token, remoteIp) {
 
 // Which VERIFIED source this request came from, for brand resolution only —
 // never taken from the request body, and never taken from a browser-visible
-// value. isTrustedInternalCall (computed by the caller from the private
-// x-internal-key header — see handleLeadSubmission below) is the ONLY
-// signal that resolves a source. A browser-supplied x-api-key is
-// deliberately NOT consulted here at all — it is a public value and proves
-// nothing about which site a request originated from. A request that isn't
-// a trusted internal call is NOT rejected here (Turnstile has already
-// gated out bots for public callers) — it proceeds, but
-// processLeadIntake() stages it for Brand Review Required instead of
-// silently assigning a brand. See crm/config/leadSources.js.
-function resolveSourceId(isTrustedInternalCall) {
-  return isTrustedInternalCall ? 'prosperity-website' : null;
+// value. Checks the supplied x-internal-key against EVERY known source's
+// own configured key (never a single shared secret) and returns whichever
+// sourceId matched, or null if none did — that match is the ONLY signal
+// that resolves a source. A browser-supplied x-api-key is deliberately NOT
+// consulted here at all — it is a public value and proves nothing about
+// which site a request originated from. A request that matches no known
+// key is NOT rejected here (Turnstile has already gated out bots for
+// public callers) — it proceeds, but processLeadIntake() stages it for
+// Brand Review Required instead of silently assigning a brand. See
+// crm/config/leadSources.js.
+const INTERNAL_KEY_ENV_BY_SOURCE = {
+  'prosperity-website': 'CRM_INTERNAL_KEY',
+  'insurance-lady-website': 'CRM_INTERNAL_KEY_INSURANCE_LADY',
+};
+
+function resolveSourceId(suppliedInternalKey) {
+  if (!suppliedInternalKey) return null;
+  for (const [sourceId, envVar] of Object.entries(INTERNAL_KEY_ENV_BY_SOURCE)) {
+    const configuredKey = process.env[envVar];
+    if (configuredKey && safeEqualStrings(suppliedInternalKey, configuredKey)) {
+      return sourceId;
+    }
+  }
+  return null;
 }
 
 // Core request handler, independent of Express. Returns { status, body } —
@@ -108,20 +129,17 @@ async function handleLeadSubmission(db, { headers, body, ip }, deps = {}) {
     }
 
     // Internal server-to-server calls (functions/submit-lead.js,
-    // functions/send-guide.js) already verified Turnstile themselves before
-    // reaching here — a Turnstile token is single-use, so re-checking the
-    // same token here would always fail. Those calls authenticate instead
-    // with CRM_INTERNAL_KEY — the PRIVATE server-to-server credential,
-    // known only to our own backends and never sent to, stored in, or
-    // readable by any browser. Compared in constant time since this is now
-    // the sole signal that resolves a verified source (see resolveSourceId
-    // above). Direct public POSTs to this endpoint never have this header
+    // functions/send-guide.js, and Insurance Lady's own Worker relay)
+    // already verified Turnstile themselves before reaching here — a
+    // Turnstile token is single-use, so re-checking the same token here
+    // would always fail. Those calls authenticate instead with their own
+    // private per-source key (compared in constant time; see
+    // resolveSourceId above, the sole signal that resolves a verified
+    // source). Direct public POSTs to this endpoint never have this header
     // and must still pass Turnstile below.
-    const configuredInternalKey = process.env.CRM_INTERNAL_KEY;
-    const suppliedInternalKey   = headers && headers['x-internal-key'];
-    const isTrustedInternalCall =
-      !!configuredInternalKey && !!suppliedInternalKey &&
-      safeEqualStrings(suppliedInternalKey, configuredInternalKey);
+    const suppliedInternalKey = headers && headers['x-internal-key'];
+    const sourceId = resolveSourceId(suppliedInternalKey);
+    const isTrustedInternalCall = sourceId !== null;
 
     if (!isTrustedInternalCall) {
       const turnstileOk = await verifyTurnstileFn(turnstile_token, ip);
@@ -134,7 +152,6 @@ async function handleLeadSubmission(db, { headers, body, ip }, deps = {}) {
       return { status: 400, body: { error: 'email or phone required' } };
     }
 
-    const sourceId = resolveSourceId(isTrustedInternalCall);
     const result = processLeadIntake(db, { sourceId, payload: body });
 
     return { status: 201, body: { ok: true, contact_id: result.contact.id } };

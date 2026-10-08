@@ -52,6 +52,11 @@ function runCrmCoreMigrations(db) {
   // equivalent column on `policies` to reuse under another name (confirmed
   // by audit -- see crm/lib/policyService.js's own comment).
   addCol(db, 'policies', 'policy_type', 'TEXT');
+  // 2026-10-08: the one annuity-specific field with no existing equivalent
+  // column on `policies` (see crm/lib/caseService.js's saveAnnuityCase and
+  // crm/lib/policyService.js's own comment for why every other annuity
+  // field reuses an existing column instead).
+  addCol(db, 'policies', 'surrender_period_years', 'INTEGER');
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS activities (

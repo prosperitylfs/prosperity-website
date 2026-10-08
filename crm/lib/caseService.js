@@ -10,6 +10,7 @@
 
 const { createCase, findCaseByExternalRef, attachExternalRef } = require('./caseMatching');
 const { toStringOrNull } = require('./leadNormalize');
+const { createPolicy, updatePolicy } = require('./policyService');
 
 function activeContactBrand(db, contactId) {
   return db.prepare(`SELECT * FROM contact_brands WHERE contact_id = ? AND status = 'Active'`).get(contactId);
@@ -187,7 +188,96 @@ function deleteCaseForClient(db, caseId, actor, { confirmDelete } = {}) {
   return { deleted: true, caseId, policiesRemoved: preview.policyCount };
 }
 
+// Which seeded product name (crm/db/migrateBrands.js) represents "Annuity"
+// for whichever brand a contact's ACTIVE contact_brands relationship
+// actually resolves to -- never guessed/hardcoded to one brand slug, so
+// this works correctly for either company without this module needing to
+// know brand slugs at all. Both brands seed exactly one of these two names
+// (Prosperity: 'Annuities'; Insurance Lady: 'Annuities and safe-money
+// solutions') -- crm/public/app/client.html's own ANNUITY_PRODUCT_BY_BRAND
+// constant must stay in sync with this exact list.
+const ANNUITY_PRODUCT_NAMES = ['Annuities', 'Annuities and safe-money solutions'];
+
+function getAnnuityProductForContactBrand(db, contactBrandId) {
+  const link = db.prepare('SELECT * FROM contact_brands WHERE id = ?').get(contactBrandId);
+  if (!link) return null;
+  const placeholders = ANNUITY_PRODUCT_NAMES.map(() => '?').join(',');
+  return db.prepare(`SELECT * FROM products WHERE brand_id = ? AND name IN (${placeholders})`).get(link.brand_id, ...ANNUITY_PRODUCT_NAMES);
+}
+
+// New Case -> Annuity workflow (2026-10-08). Creates (or, when caseId is
+// supplied, updates) ONE case + its ONE annuity contract/policy together,
+// in a single transaction -- the case and the policy always save together
+// or neither does. Reuses createCaseForClient/updateCase (this file) and
+// createPolicy/updatePolicy (crm/lib/policyService.js) completely
+// unchanged; no parallel/duplicate case or policy write path is
+// introduced. Each distinct annuity contract gets its OWN case (the same
+// "separate opportunities remain separate cases" rule createCaseForClient
+// already documents above) -- a client's SECOND annuity contract is a
+// second, independent New Case -> Annuity call, never attached to the
+// first one's case.
+//
+// Double-submission (e.g. an impatient double-click on Save Annuity) is
+// guarded the same way every other create-with-policy flow in this app
+// already is -- crm/public/app/client.html disables the Save button
+// immediately on click, exactly like addLifeInsurancePolicyModal's own
+// submit handler already does; this function itself has no separate
+// idempotency key, matching that same established, accepted pattern
+// rather than inventing a new one.
+//
+// fields: carrier, contractNumber, annuityType, contractStatus,
+// initialPremium, currentAccountValue, effectiveDate, applicationDate,
+// surrenderPeriodYears, beneficiary, notes. currentAccountValue is
+// deliberately optional throughout -- never defaulted, never required.
+function saveAnnuityCase(db, { contactId, caseId, fields }, actor) {
+  if (!actor) throw new Error('saveAnnuityCase: actor is required for the audit trail');
+  const f = fields || {};
+  const policyFields = {
+    carrier: f.carrier,
+    policyNumber: f.contractNumber,
+    policyType: f.annuityType,
+    policyStatus: f.contractStatus || 'Pending',
+    premium: f.initialPremium,
+    coverageAmount: f.currentAccountValue,
+    effectiveDate: f.effectiveDate,
+    applicationDate: f.applicationDate,
+    surrenderPeriodYears: f.surrenderPeriodYears,
+    beneficiary: f.beneficiary,
+    notes: f.notes,
+  };
+  const title = toStringOrNull(f.carrier) ? `${f.carrier} — Annuity` : 'Annuity';
+
+  const run = db.transaction(() => {
+    if (caseId) {
+      // EDIT: update the existing case + its existing policy in place --
+      // never creates a second case or a second policy for this contract.
+      const existingCase = db.prepare('SELECT * FROM cases WHERE id = ?').get(caseId);
+      if (!existingCase) throw new Error(`saveAnnuityCase: case ${caseId} does not exist`);
+      const updatedCase = updateCase(db, caseId, { title });
+      const existingPolicy = db.prepare('SELECT * FROM policies WHERE case_id = ? ORDER BY id ASC').get(caseId);
+      const policy = existingPolicy
+        ? updatePolicy(db, existingPolicy.id, policyFields)
+        : createPolicy(db, { ...policyFields, caseId }, actor);
+      return { case: updatedCase, policy, outcome: 'updated' };
+    }
+
+    // CREATE: resolve the brand's annuity product from the contact's own
+    // active relationship (never guessed, never client-supplied) and
+    // create the case + policy together.
+    const link = activeContactBrand(db, contactId);
+    if (!link) throw new Error('saveAnnuityCase: this client has no active company assignment to create a case under');
+    const product = getAnnuityProductForContactBrand(db, link.id);
+    if (!product) throw new Error('saveAnnuityCase: no Annuity product is configured for this client\'s company — has crm/db/migrateBrands.js been run?');
+
+    const newCase = createCaseForClient(db, { contactId, productId: product.id, title }, actor);
+    const policy = createPolicy(db, { ...policyFields, caseId: newCase.id }, actor);
+    return { case: newCase, policy, outcome: 'created' };
+  });
+  return run();
+}
+
 module.exports = {
   createCaseForClient, updateCase, archiveCaseForClient, restoreCase,
   getCaseDeletionPreview, deleteCaseForClient,
+  saveAnnuityCase, ANNUITY_PRODUCT_NAMES,
 };

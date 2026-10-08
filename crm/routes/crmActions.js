@@ -143,6 +143,19 @@ router.post('/cases/:id/restore', handle(req => caseService.restoreCase(db, Numb
 router.post('/cases/:id/delete', handle(req => caseService.deleteCaseForClient(db, Number(req.params.id), ACTOR, {
   confirmDelete: req.body.confirmDelete === true,
 })));
+// New Case -> Annuity workflow: creates (caseId omitted) or updates
+// (caseId provided) the ONE case + its ONE annuity contract/policy
+// together, in one transaction. See caseService.saveAnnuityCase's own
+// header comment for why each contract gets its own case and how
+// double-submission is guarded.
+router.post('/cases/annuity', handle((req, res) => {
+  if (!req.body.caseId) created(res);
+  return caseService.saveAnnuityCase(db, {
+    contactId: Number(req.body.contactId),
+    caseId: req.body.caseId ? Number(req.body.caseId) : null,
+    fields: req.body.fields,
+  }, ACTOR);
+}));
 
 // ── Policies ─────────────────────────────────────────────────────────────
 router.post('/policies', handle((req, res) => { created(res); return policyService.createPolicy(db, req.body, ACTOR); }));

@@ -190,3 +190,18 @@ test('deletePolicy can remove even an In Force policy with full information -- i
   assert.equal(result.deleted, true);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies WHERE id = ?').get(policy.id).n, 0);
 });
+
+test('surrender_period_years round-trips through createPolicy and updatePolicy, and is optional (annuity contracts)', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Surrender', lastName: 'Period', email: 'surrender-period@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const c = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Annuities') }, 'Loretta Stewart');
+
+  const withoutIt = createPolicy(db, { caseId: c.id, carrier: 'Athene' }, 'Loretta Stewart');
+  assert.equal(withoutIt.surrender_period_years, null);
+
+  const updated = updatePolicy(db, withoutIt.id, { surrenderPeriodYears: '10' }, 'Loretta Stewart');
+  assert.equal(updated.surrender_period_years, 10);
+
+  const withIt = createPolicy(db, { caseId: c.id, carrier: 'Nationwide', surrenderPeriodYears: '7' }, 'Loretta Stewart');
+  assert.equal(withIt.surrender_period_years, 7);
+});

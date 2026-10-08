@@ -22,8 +22,8 @@ function createPolicy(db, fields, actor) {
   if (!actor) throw new Error('createPolicy: actor is required for the audit trail');
   requireCase(db, fields.caseId);
   const result = db.prepare(`
-    INSERT INTO policies (case_id, carrier, policy_number, policy_type, policy_status, effective_date, premium, premium_frequency, coverage_amount, beneficiary, renewal_date, application_date, notes)
-    VALUES (@case_id, @carrier, @policy_number, @policy_type, @policy_status, @effective_date, @premium, @premium_frequency, @coverage_amount, @beneficiary, @renewal_date, @application_date, @notes)
+    INSERT INTO policies (case_id, carrier, policy_number, policy_type, policy_status, effective_date, premium, premium_frequency, coverage_amount, beneficiary, renewal_date, application_date, notes, surrender_period_years)
+    VALUES (@case_id, @carrier, @policy_number, @policy_type, @policy_status, @effective_date, @premium, @premium_frequency, @coverage_amount, @beneficiary, @renewal_date, @application_date, @notes, @surrender_period_years)
   `).run(policyParams(fields));
   return db.prepare('SELECT * FROM policies WHERE id = ?').get(result.lastInsertRowid);
 }
@@ -43,6 +43,12 @@ function policyParams(fields) {
     renewal_date: toStringOrNull(fields.renewalDate),
     application_date: toStringOrNull(fields.applicationDate),
     notes: toStringOrNull(fields.notes),
+    // Annuity-specific (2026-10-08); harmless/always null for every other
+    // product type -- same generic-reuse pattern as every other column on
+    // this table (e.g. coverage_amount meaning "face amount" for life
+    // insurance and "current account value" for an annuity).
+    surrender_period_years: fields.surrenderPeriodYears != null && fields.surrenderPeriodYears !== ''
+      ? parseInt(fields.surrenderPeriodYears, 10) : null,
   };
 }
 
@@ -68,6 +74,7 @@ function updatePolicy(db, policyId, fields) {
       renewal_date      = COALESCE(@renewal_date, renewal_date),
       application_date  = COALESCE(@application_date, application_date),
       notes             = COALESCE(@notes, notes),
+      surrender_period_years = COALESCE(@surrender_period_years, surrender_period_years),
       updated_at        = CURRENT_TIMESTAMP
     WHERE id = @id
   `).run({ ...policyParams({ ...fields, caseId: existing.case_id }), id: policyId });

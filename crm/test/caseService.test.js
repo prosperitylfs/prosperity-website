@@ -7,7 +7,7 @@ const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
 const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
-const { createCaseForClient, updateCase, archiveCaseForClient, restoreCase, getCaseDeletionPreview, deleteCaseForClient } = require('../lib/caseService');
+const { createCaseForClient, updateCase, archiveCaseForClient, restoreCase, getCaseDeletionPreview, deleteCaseForClient, saveAnnuityCase } = require('../lib/caseService');
 const { createClient } = require('../lib/clientService');
 const { createPolicy } = require('../lib/policyService');
 
@@ -243,4 +243,219 @@ test('deleteCaseForClient clears (not deletes) stray case_id references in downs
 test('deleteCaseForClient rejects a nonexistent case id', () => {
   const { db } = setup();
   assert.throws(() => deleteCaseForClient(db, 999999, 'Loretta Stewart', { confirmDelete: true }));
+});
+
+// ── New Case -> Annuity workflow (2026-10-08) ───────────────────────────
+
+test('1. saveAnnuityCase creates the case and its contract/policy together, in one operation', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Anna', lastName: 'Nuity', email: 'anna-nuity@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+
+  const result = saveAnnuityCase(db, {
+    contactId: client.contact.id,
+    fields: {
+      carrier: 'Athene', contractNumber: 'ATH-1001', annuityType: 'Fixed Indexed Annuity (FIA)',
+      contractStatus: 'In Force', initialPremium: '100000', currentAccountValue: '104500',
+      effectiveDate: '2026-01-15', applicationDate: '2025-12-20', surrenderPeriodYears: '7',
+      beneficiary: 'Spouse', notes: '7% bonus credit; income rider attached',
+    },
+  }, 'Loretta Stewart');
+
+  assert.equal(result.outcome, 'created');
+  assert.ok(result.case);
+  assert.ok(result.policy);
+  assert.equal(result.case.contact_brand_id, client.contactBrand.id);
+
+  const product = db.prepare('SELECT * FROM products WHERE id = ?').get(result.case.product_id);
+  assert.equal(product.name, 'Annuities', 'must file under the real Annuities product, not a null-product case');
+
+  assert.equal(result.policy.case_id, result.case.id);
+  assert.equal(result.policy.carrier, 'Athene');
+  assert.equal(result.policy.policy_number, 'ATH-1001');
+  assert.equal(result.policy.policy_type, 'Fixed Indexed Annuity (FIA)');
+  assert.equal(result.policy.policy_status, 'In Force');
+  assert.equal(result.policy.premium, 100000);
+  assert.equal(result.policy.coverage_amount, 104500);
+  assert.equal(result.policy.effective_date, '2026-01-15');
+  assert.equal(result.policy.application_date, '2025-12-20');
+  assert.equal(result.policy.surrender_period_years, 7);
+  assert.equal(result.policy.beneficiary, 'Spouse');
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases WHERE contact_brand_id = ?').get(client.contactBrand.id).n, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies WHERE case_id = ?').get(result.case.id).n, 1);
+});
+
+test('2. saveAnnuityCase creates a Pending annuity with no contract number and no current account value -- neither is required', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Pending', lastName: 'App', email: 'pending-app@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+
+  const result = saveAnnuityCase(db, {
+    contactId: client.contact.id,
+    fields: { carrier: 'Nationwide', annuityType: 'MYGA', initialPremium: '50000' },
+  }, 'Loretta Stewart');
+
+  assert.equal(result.outcome, 'created');
+  assert.equal(result.policy.policy_status, 'Pending', 'defaults to Pending when no status is supplied');
+  assert.equal(result.policy.policy_number, null);
+  assert.equal(result.policy.coverage_amount, null);
+  assert.equal(result.policy.effective_date, null);
+});
+
+test('3. Current Account Value can be entered later via an edit, after being left blank at creation', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Later', lastName: 'Value', email: 'later-value@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+
+  const created = saveAnnuityCase(db, {
+    contactId: client.contact.id,
+    fields: { carrier: 'Allianz', initialPremium: '75000' },
+  }, 'Loretta Stewart');
+  assert.equal(created.policy.coverage_amount, null);
+
+  const updated = saveAnnuityCase(db, {
+    contactId: client.contact.id,
+    caseId: created.case.id,
+    fields: { currentAccountValue: '79800' },
+  }, 'Loretta Stewart');
+  assert.equal(updated.outcome, 'updated');
+  assert.equal(updated.policy.coverage_amount, 79800);
+  // Everything entered earlier must survive the update untouched.
+  assert.equal(updated.policy.carrier, 'Allianz');
+  assert.equal(updated.policy.premium, 75000);
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases WHERE id = ?').get(created.case.id).n, 1, 'still exactly one case');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies WHERE case_id = ?').get(created.case.id).n, 1, 'still exactly one policy');
+});
+
+test('4. editing an existing annuity updates the SAME case and policy -- never creates a duplicate', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Edit', lastName: 'Annuity', email: 'edit-annuity@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+
+  const created = saveAnnuityCase(db, {
+    contactId: client.contact.id,
+    fields: { carrier: 'Athene', contractNumber: 'ATH-2002', initialPremium: '60000', contractStatus: 'Pending' },
+  }, 'Loretta Stewart');
+
+  const edited = saveAnnuityCase(db, {
+    contactId: client.contact.id,
+    caseId: created.case.id,
+    fields: { contractStatus: 'In Force', contractNumber: 'ATH-2002-FINAL', effectiveDate: '2026-03-01' },
+  }, 'Loretta Stewart');
+
+  assert.equal(edited.case.id, created.case.id, 'must be the same case row');
+  assert.equal(edited.policy.id, created.policy.id, 'must be the same policy row');
+  assert.equal(edited.policy.policy_status, 'In Force');
+  assert.equal(edited.policy.policy_number, 'ATH-2002-FINAL');
+  assert.equal(edited.policy.effective_date, '2026-03-01');
+  assert.equal(edited.policy.carrier, 'Athene', 'untouched fields must survive the edit');
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases WHERE contact_brand_id = ?').get(client.contactBrand.id).n, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies').get().n, 1);
+});
+
+test('5. an annuity case is never recognized as Life Insurance by the brand\'s own life-insurance product classification', () => {
+  const { db, prosperityId, insuranceLadyId } = setup();
+  const prosperityClient = createClient(db, { firstName: 'Pros', lastName: 'Annuity', email: 'pros-annuity@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const ilClient = createClient(db, { firstName: 'IL', lastName: 'Annuity', email: 'il-annuity@example.com', brandSlug: 'insurance-lady' }, 'Loretta Stewart');
+
+  const prosperityResult = saveAnnuityCase(db, { contactId: prosperityClient.contact.id, fields: { carrier: 'Carrier A' } }, 'Loretta Stewart');
+  const ilResult = saveAnnuityCase(db, { contactId: ilClient.contact.id, fields: { carrier: 'Carrier B' } }, 'Loretta Stewart');
+
+  // client.html's LIFE_INSURANCE_PRODUCTS_BY_BRAND -- mirrored here without
+  // importing frontend code, matching how other backend tests in this
+  // suite already verify this exact classification boundary.
+  const LIFE_INSURANCE_PRODUCTS_BY_BRAND = {
+    prosperity: ['Life insurance'],
+    'insurance-lady': ['Online life-insurance application', 'Cash-building life insurance', 'Whole life/final expense'],
+  };
+  const prosperityProduct = db.prepare('SELECT name FROM products WHERE id = ?').get(prosperityResult.case.product_id);
+  const ilProduct = db.prepare('SELECT name FROM products WHERE id = ?').get(ilResult.case.product_id);
+  assert.ok(!LIFE_INSURANCE_PRODUCTS_BY_BRAND.prosperity.includes(prosperityProduct.name), 'Prosperity annuity must not be classified as Life Insurance');
+  assert.ok(!LIFE_INSURANCE_PRODUCTS_BY_BRAND['insurance-lady'].includes(ilProduct.name), 'Insurance Lady annuity must not be classified as Life Insurance');
+});
+
+test('6. creating/editing an annuity never touches an existing, unrelated life insurance case or policy for the same client', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Both', lastName: 'Products', email: 'both-products@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const lifeCase = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance'), title: 'Life insurance' }, 'Loretta Stewart');
+  const lifePolicy = createPolicy(db, { caseId: lifeCase.id, carrier: 'Midland National', policyNumber: 'LIFE-1', policyStatus: 'In Force', coverageAmount: 250000 }, 'Loretta Stewart');
+
+  saveAnnuityCase(db, { contactId: client.contact.id, fields: { carrier: 'Athene', initialPremium: '100000' } }, 'Loretta Stewart');
+
+  const lifePolicyAfter = db.prepare('SELECT * FROM policies WHERE id = ?').get(lifePolicy.id);
+  const lifeCaseAfter = db.prepare('SELECT * FROM cases WHERE id = ?').get(lifeCase.id);
+  assert.equal(lifePolicyAfter.carrier, 'Midland National');
+  assert.equal(lifePolicyAfter.policy_number, 'LIFE-1');
+  assert.equal(lifePolicyAfter.coverage_amount, 250000);
+  assert.equal(lifeCaseAfter.status, 'Open');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases WHERE contact_brand_id = ?').get(client.contactBrand.id).n, 2, 'the life insurance case and the new annuity case are two separate cases');
+});
+
+test('7. Insurance Lady and Prosperity annuities for different clients never cross brands', () => {
+  const { db, prosperityId, insuranceLadyId } = setup();
+  const prosperityClient = createClient(db, { firstName: 'Pros', lastName: 'Only', email: 'pros-only-annuity@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const ilClient = createClient(db, { firstName: 'IL', lastName: 'Only', email: 'il-only-annuity@example.com', brandSlug: 'insurance-lady' }, 'Loretta Stewart');
+
+  const prosperityResult = saveAnnuityCase(db, { contactId: prosperityClient.contact.id, fields: { carrier: 'Prosperity Carrier' } }, 'Loretta Stewart');
+  const ilResult = saveAnnuityCase(db, { contactId: ilClient.contact.id, fields: { carrier: 'IL Carrier' } }, 'Loretta Stewart');
+
+  const prosperityLink = db.prepare('SELECT * FROM contact_brands WHERE id = ?').get(prosperityResult.case.contact_brand_id);
+  const ilLink = db.prepare('SELECT * FROM contact_brands WHERE id = ?').get(ilResult.case.contact_brand_id);
+  assert.equal(prosperityLink.brand_id, prosperityId);
+  assert.equal(ilLink.brand_id, insuranceLadyId);
+
+  const prosperityProduct = db.prepare('SELECT * FROM products WHERE id = ?').get(prosperityResult.case.product_id);
+  const ilProduct = db.prepare('SELECT * FROM products WHERE id = ?').get(ilResult.case.product_id);
+  assert.equal(prosperityProduct.name, 'Annuities');
+  assert.equal(ilProduct.name, 'Annuities and safe-money solutions');
+  assert.equal(prosperityProduct.brand_id, prosperityId);
+  assert.equal(ilProduct.brand_id, insuranceLadyId);
+});
+
+test('8. calling saveAnnuityCase twice with caseId (an edit) is safe and idempotent -- it keeps updating the SAME case/policy, never creating a second pair; documents that CREATE-mode double-submission protection is the frontend Save-button-disable guard (crm/public/app/client.html\'s annuityCaseModal), matching the exact established pattern already used by addLifeInsurancePolicyModal', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'DoubleClick', lastName: 'Guard', email: 'double-click-guard@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+
+  const first = saveAnnuityCase(db, { contactId: client.contact.id, fields: { carrier: 'Carrier', initialPremium: '10000' } }, 'Loretta Stewart');
+  // A second call WITH the resulting caseId (what every subsequent Edit
+  // submission does, including a resubmission of the exact same edit
+  // form) never creates a second case/policy -- confirming the EDIT path
+  // is safe to call more than once by construction, regardless of any
+  // frontend guard.
+  const second = saveAnnuityCase(db, { contactId: client.contact.id, caseId: first.case.id, fields: { initialPremium: '10000' } }, 'Loretta Stewart');
+  assert.equal(second.case.id, first.case.id);
+  assert.equal(second.policy.id, first.policy.id);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases WHERE contact_brand_id = ?').get(client.contactBrand.id).n, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies').get().n, 1);
+
+  // By contrast (and only to document the known, accepted limitation --
+  // NOT a gap being silently introduced): calling saveAnnuityCase in
+  // CREATE mode (no caseId) twice, exactly as an unguarded double-click
+  // would, DOES create two independent cases/policies. This is the same
+  // limitation crm/public/app/client.html's addLifeInsurancePolicyModal
+  // already documents for createPolicy ("createPolicy has no dedup of its
+  // own, so two submits would otherwise create two policy rows") -- the
+  // real protection is the Save button disabling itself immediately on
+  // click (annuityCaseModal's own submit handler), not a backend
+  // idempotency key.
+  const dup1 = saveAnnuityCase(db, { contactId: client.contact.id, fields: { carrier: 'Second Contract' } }, 'Loretta Stewart');
+  const dup2 = saveAnnuityCase(db, { contactId: client.contact.id, fields: { carrier: 'Second Contract' } }, 'Loretta Stewart');
+  assert.notEqual(dup1.case.id, dup2.case.id, 'two unguarded CREATE-mode calls are two separate cases -- exactly why the frontend disables the button after the first click');
+});
+
+test('saveAnnuityCase requires an actor', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'NoActor', lastName: 'Test', email: 'no-actor-annuity@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  assert.throws(() => saveAnnuityCase(db, { contactId: client.contact.id, fields: { carrier: 'Carrier' } }, null));
+});
+
+test('saveAnnuityCase (edit) rejects a nonexistent case id', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'BadCase', lastName: 'Test', email: 'bad-case-annuity@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  assert.throws(() => saveAnnuityCase(db, { contactId: client.contact.id, caseId: 999999, fields: { carrier: 'Carrier' } }, 'Loretta Stewart'));
+});
+
+test('saveAnnuityCase (create) requires an active company assignment', () => {
+  const { db } = setup();
+  const orphanContact = db.prepare(`INSERT INTO contacts (first_name, last_name, email) VALUES ('Orphan', 'Contact', 'orphan-annuity@example.com')`).run();
+  assert.throws(() => saveAnnuityCase(db, { contactId: orphanContact.lastInsertRowid, fields: { carrier: 'Carrier' } }, 'Loretta Stewart'));
 });

@@ -654,6 +654,32 @@ async function render() {
     });
   }
 
+  // Clear Annuity Contract summary (2026-10-08) -- replaces the generic
+  // policy table for a case recognized as Annuity (isAnnuityCase above).
+  // By construction (saveAnnuityCase, crm/lib/caseService.js) an annuity
+  // case has exactly one policy/contract, so this always reads cs.policies[0]
+  // directly rather than mapping a list. Current Account Value is the one
+  // row shown only "if available" (per its own optional-field requirement)
+  // -- every other row always renders, with "—" standing in for not-yet-
+  // known information (e.g. Contract Number/Effective Date on a brand-new
+  // Pending application).
+  function annuityContractSummaryHtml(cs) {
+    const p = (cs.policies && cs.policies[0]) || {};
+    const esc = CrmApp.escapeHtml;
+    return `
+      <div class="text-faint" style="font-weight:700; text-transform:uppercase; font-size:11px; letter-spacing:.03em; margin-top:10px;">Annuity Contract</div>
+      <dl class="kv-list" style="margin-top:6px;">
+        <dt>Carrier</dt><dd>${esc(p.carrier || '— not on file —')}</dd>
+        <dt>Contract Number</dt><dd>${esc(p.policy_number || '— not on file —')}</dd>
+        <dt>Annuity Type</dt><dd>${esc(p.policy_type || '—')}</dd>
+        <dt>Status</dt><dd><span class="pill status-${(p.policy_status || '').toLowerCase().replace(/\s+/g, '-')}">${esc(p.policy_status || 'Pending')}</span></dd>
+        <dt>Initial Premium / Deposit</dt><dd>${p.premium != null ? '$' + Number(p.premium).toLocaleString() : '—'}</dd>
+        ${p.coverage_amount != null ? `<dt>Current Account Value</dt><dd>$${Number(p.coverage_amount).toLocaleString()}</dd>` : ''}
+        <dt>Effective Date</dt><dd>${esc(p.effective_date || '—')}</dd>
+      </dl>
+    `;
+  }
+
   // 2026-10-08: renamed from "Cases and Policies" to "Life Insurance
   // Policies" (see the tab definition above). Life insurance cases/
   // policies are already fully covered by lifeInsuranceHtml() above --
@@ -694,7 +720,7 @@ async function render() {
               </div>
               <div class="text-faint" style="margin-top:4px;">Opened ${CrmApp.friendlyDate(cs.openedAt)} · Last activity ${CrmApp.friendlyDate(cs.lastActivity)}</div>
               ${cs.nextAction ? `<div style="margin-top:6px; font-size:13px;">Next: ${CrmApp.escapeHtml(cs.nextAction.notes || cs.nextAction.taskType)} — ${CrmApp.friendlyDate(cs.nextAction.dueDate)}</div>` : ''}
-              ${cs.policies.length ? `
+              ${isAnnuityCase(cs) ? annuityContractSummaryHtml(cs) : (cs.policies.length ? `
                 <div class="table-scroll" style="margin-top:10px;">
                   <table class="data-table">
                     <thead><tr><th>Carrier</th><th>Policy #</th><th>Status</th><th>Coverage</th><th>Premium</th><th>Renewal</th><th></th></tr></thead>
@@ -708,8 +734,8 @@ async function render() {
                       <td><button class="btn small ghost" data-edit-policy="${p.id}" data-case-id="${cs.caseId}">Edit</button></td>
                     </tr>`).join('')}</tbody>
                   </table>
-                </div>` : '<div class="text-faint" style="margin-top:8px;">No policy on file yet.</div>'}
-              <div style="margin-top:10px;"><button class="btn small ghost" data-add-policy="${cs.caseId}">Add Policy</button></div>
+                </div>` : '<div class="text-faint" style="margin-top:8px;">No policy on file yet.</div>')}
+              ${isAnnuityCase(cs) ? '' : `<div style="margin-top:10px;"><button class="btn small ghost" data-add-policy="${cs.caseId}">Add Policy</button></div>`}
             </div>`).join('') : '<div class="empty-state">No other cases on file.</div>'}
         </div>
       </div>`;
@@ -721,6 +747,36 @@ async function render() {
     prosperity: ['Life insurance', 'Annuities', 'Rollovers and safe-money solutions', 'Follow-up/service'],
   };
 
+  // New Case -> Annuity workflow (2026-10-08). Which seeded product name
+  // (crm/db/migrateBrands.js) means "Annuity" for each brand -- MUST stay
+  // in sync with crm/lib/caseService.js's own ANNUITY_PRODUCT_NAMES list.
+  // Selecting this product in New Case, or clicking Edit on an existing
+  // case already filed under it, opens annuityCaseModal() below instead
+  // of the plain title/status editor.
+  const ANNUITY_PRODUCT_BY_BRAND = {
+    'insurance-lady': 'Annuities and safe-money solutions',
+    prosperity: 'Annuities',
+  };
+  function isAnnuityCase(cs) {
+    return ANNUITY_PRODUCT_BY_BRAND[cs.brandId] === cs.productName;
+  }
+  // Named distinctly from the pre-existing ANNUITY_TYPES constant below
+  // (Retirement & Annuity Planning's own contact-level planning fields --
+  // a completely different, older feature/data model) to avoid any
+  // collision -- these two must never be confused with each other.
+  const ANNUITY_CONTRACT_TYPES = ['Fixed Indexed Annuity (FIA)', 'Fixed Annuity', 'MYGA', 'Variable Annuity', 'Immediate Annuity', 'Other'];
+  // 'Pending' deliberately listed first/default -- an application just
+  // submitted, with no contract number or issue date yet, is the most
+  // common starting state for this form (see annuityCaseModal below,
+  // which requires none of those fields).
+  const ANNUITY_CONTRACT_STATUSES = ['Pending', 'In Force', 'Surrendered', 'Annuitized', 'Matured', 'Canceled'];
+
+  // Case Type -> Annuity (2026-10-08): the Product/Service select below is
+  // already exactly the "Case Type" dropdown requested (Life insurance /
+  // Annuities / Rollovers and safe-money solutions / Follow-up/service,
+  // per brand) -- selecting the brand's Annuity product immediately opens
+  // the dedicated annuityCaseModal() below instead of this plain Title-only
+  // form, which is otherwise completely unchanged for every other product.
   function newCaseModal(brandId) {
     const dialog = CrmApp.openModal({
       title: 'New Case',
@@ -739,6 +795,12 @@ async function render() {
       `,
     });
     dialog.querySelector('#new-case-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('select[name="productName"]').addEventListener('change', (e) => {
+      if (e.target.value === ANNUITY_PRODUCT_BY_BRAND[brandId]) {
+        dialog.close();
+        annuityCaseModal({ brandId });
+      }
+    });
     dialog.querySelector('#new-case-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fields = Object.fromEntries(new FormData(e.target).entries());
@@ -788,6 +850,76 @@ async function render() {
         reloadPage();
       } catch (err) {
         dialog.querySelector('#edit-case-error').textContent = err.message;
+      }
+    });
+  }
+
+  // New Case -> Annuity workflow (2026-10-08). One shared form for both
+  // create (no caseId/existing) and edit (caseId + existing supplied) --
+  // both POST to the SAME /api/app/cases/annuity endpoint
+  // (crm/lib/caseService.js's saveAnnuityCase), which creates or updates
+  // based on whether caseId is present. Current Account Value is the one
+  // field deliberately never required -- its label says so, and the input
+  // itself has no `required` attribute, matching that it may be unknown
+  // at entry and may later reflect bonus credits on top of the Initial
+  // Premium. Contract Number and Issue/Effective Date are equally
+  // optional for the same reason (an application just submitted may not
+  // have either yet) -- only Carrier is meaningfully useful to require,
+  // and even that is left optional here rather than blocking a quick
+  // "Pending" entry someone wants to flesh out later via Edit.
+  function annuityCaseModal({ brandId, caseId, existing } = {}) {
+    const esc = CrmApp.escapeHtml;
+    const p = (existing && existing.policies && existing.policies[0]) || {};
+    const isEdit = !!caseId;
+    const dialog = CrmApp.openModal({
+      title: isEdit ? 'Edit Annuity' : 'New Annuity',
+      wide: true,
+      bodyHtml: `
+        <form id="annuity-case-form">
+          <div class="form-grid">
+            <div class="form-field full"><label>Insurance Company / Carrier</label><input class="input" name="carrier" value="${esc(p.carrier || '')}"></div>
+            <div class="form-field"><label>Contract Number</label><input class="input" name="contractNumber" value="${esc(p.policy_number || '')}"></div>
+            <div class="form-field"><label>Annuity Type</label><select class="input" name="annuityType">${selectOptions(ANNUITY_CONTRACT_TYPES, p.policy_type)}</select></div>
+            <div class="form-field"><label>Contract Status</label><select class="input" name="contractStatus">${selectOptions(ANNUITY_CONTRACT_STATUSES, p.policy_status || 'Pending')}</select></div>
+            <div class="form-field"><label>Initial Premium / Deposit</label><input class="input" name="initialPremium" type="number" min="0" step="0.01" value="${p.premium != null ? p.premium : ''}"></div>
+            <div class="form-field"><label>Current Account Value <span class="text-faint">(optional)</span></label><input class="input" name="currentAccountValue" type="number" min="0" step="0.01" value="${p.coverage_amount != null ? p.coverage_amount : ''}"></div>
+            <div class="form-field"><label>Issue / Effective Date</label><input class="input" name="effectiveDate" type="date" value="${esc(p.effective_date || '')}"></div>
+            <div class="form-field"><label>Application Date</label><input class="input" name="applicationDate" type="date" value="${esc(p.application_date || '')}"></div>
+            <div class="form-field"><label>Surrender Period (years)</label><input class="input" name="surrenderPeriodYears" type="number" min="0" step="1" value="${p.surrender_period_years != null ? p.surrender_period_years : ''}"></div>
+            <div class="form-field full"><label>Beneficiary</label><input class="input" name="beneficiary" value="${esc(p.beneficiary || '')}"></div>
+            <div class="form-field full"><label>Notes <span class="text-faint">(income riders, bonuses, guaranteed rates, surrender charges, etc.)</span></label><textarea class="input" name="notes">${esc(p.notes || '')}</textarea></div>
+          </div>
+          <div class="form-error" id="annuity-case-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="annuity-case-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Save Annuity</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#annuity-case-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#annuity-case-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = dialog.querySelector('#annuity-case-form button[type="submit"]');
+      // Same double-click guard addLifeInsurancePolicyModal's own submit
+      // handler already uses -- saveAnnuityCase has no dedup of its own,
+      // so an impatient re-click would otherwise create two cases/policies
+      // (create) or race two updates (edit).
+      if (submitBtn.disabled) return;
+      submitBtn.disabled = true;
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      const errorEl = dialog.querySelector('#annuity-case-error');
+      errorEl.textContent = '';
+      try {
+        await CrmApp.postJSON('/api/app/cases/annuity', 'POST', {
+          contactId: Number(contactId), caseId: caseId || null, fields,
+        });
+        CrmApp.toast(isEdit ? 'Annuity updated.' : 'Annuity saved.');
+        dialog.close();
+        reloadPage();
+      } catch (err) {
+        submitBtn.disabled = false;
+        errorEl.textContent = err.message || 'Save failed. Nothing was changed.';
       }
     });
   }
@@ -1914,7 +2046,11 @@ async function render() {
     const newCaseBtn = e.target.closest('[data-new-case]');
     if (newCaseBtn) return newCaseModal(newCaseBtn.dataset.newCase);
     const editCaseBtn = e.target.closest('[data-edit-case]');
-    if (editCaseBtn) return editCaseModal(editCaseBtn.dataset.editCase, editCaseBtn.dataset.status, editCaseBtn.dataset.title);
+    if (editCaseBtn) {
+      const kase = allCases.find(cs => String(cs.caseId) === String(editCaseBtn.dataset.editCase));
+      if (kase && isAnnuityCase(kase)) return annuityCaseModal({ brandId: kase.brandId, caseId: kase.caseId, existing: kase });
+      return editCaseModal(editCaseBtn.dataset.editCase, editCaseBtn.dataset.status, editCaseBtn.dataset.title);
+    }
     const toggleCaseBtn = e.target.closest('[data-toggle-case]');
     if (toggleCaseBtn) return toggleCaseArchive(toggleCaseBtn.dataset.toggleCase, toggleCaseBtn.dataset.status);
     const deleteCaseBtn = e.target.closest('[data-delete-case]');

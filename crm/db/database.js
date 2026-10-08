@@ -489,6 +489,16 @@ if (tableExists('policies')) {
   addCol('policies', 'archived_at', 'DATETIME');
   addCol('policies', 'notes', 'TEXT');
   addCol('policies', 'policy_type', 'TEXT');
+  // 2026-10-08: the one annuity-specific field with no existing equivalent
+  // column (carrier/contract number/type/status/initial premium/current
+  // account value/effective date/application date/beneficiary/notes all
+  // reuse the existing carrier/policy_number/policy_type/policy_status/
+  // premium/coverage_amount/effective_date/application_date/beneficiary/
+  // notes columns above -- this is the one genuinely new concept). Self-
+  // provisioning here (not a manual-only migration file) for the same
+  // reason as the three columns above -- it must exist the moment
+  // crm/lib/policyService.js references it, on every boot, automatically.
+  addCol('policies', 'surrender_period_years', 'INTEGER');
 }
 
 // Google Calendar task/follow-up sync (crm/lib/taskCalendarSync.js). No

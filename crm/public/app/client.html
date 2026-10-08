@@ -99,7 +99,7 @@ async function render() {
   const TABS = [
     { key: 'overview', label: 'Overview' },
     { key: 'contact', label: 'Contact Information' },
-    { key: 'cases', label: 'Cases and Policies' },
+    { key: 'cases', label: 'Life Insurance Policies' },
     { key: 'planning', label: 'Retirement & Annuity Planning' },
     { key: 'tasks', label: 'Tasks and Next Action' },
     { key: 'appointments', label: 'Appointments' },
@@ -449,9 +449,9 @@ async function render() {
     </div>`;
   }
 
-  // Life Insurance section (dedicated, under Cases and Policies -- never a
-  // separate tab, never a competing record store). A life insurance POLICY
-  // is any row in the SAME `policies` table used by every other product --
+  // Life Insurance section (dedicated, under the "Life Insurance Policies"
+  // tab -- never a separate tab, never a competing record store). A life
+  // insurance POLICY is any row in the SAME `policies` table used by every other product --
   // "life insurance" is identified by which Case it's filed under, via that
   // case's product name. A brand's life-insurance-shaped product names:
   const LIFE_INSURANCE_PRODUCTS_BY_BRAND = {
@@ -654,17 +654,34 @@ async function render() {
     });
   }
 
+  // 2026-10-08: renamed from "Cases and Policies" to "Life Insurance
+  // Policies" (see the tab definition above). Life insurance cases/
+  // policies are already fully covered by lifeInsuranceHtml() above --
+  // showing them AGAIN here, in a second, differently-shaped table, was
+  // the exact redundant duplication this change removes. This section is
+  // now scoped to every OTHER product (Annuities, Rollovers, Follow-up/
+  // service, etc.) only -- it's still the one place in the CRM to
+  // manually create/edit/archive/delete a case for one of those, and
+  // "New Case" still offers every product (including life insurance) so
+  // creating one here still correctly routes into the Life Insurance
+  // section above if that's the product chosen, rather than being removed
+  // from this page's product list.
   function casesHtml() {
     const legacyBanner = legacyInsuranceBannerHtml();
     if (!detail.contactBrands.length) return legacyBanner + lifeInsuranceHtml() + '<div class="empty-state">No company relationship established yet.</div>';
-    return legacyBanner + lifeInsuranceHtml() + detail.contactBrands.map(cb => `
+    return legacyBanner + lifeInsuranceHtml() + `
+      <div class="text-faint" style="font-weight:700; text-transform:uppercase; font-size:11.5px; letter-spacing:.03em; margin:18px 0 8px;">Other Cases</div>
+    ` + detail.contactBrands.map(cb => {
+      const liProducts = LIFE_INSURANCE_PRODUCTS_BY_BRAND[cb.brandId] || [];
+      const otherCases = cb.cases.filter(cs => !liProducts.includes(cs.productName));
+      return `
       <div class="card" style="margin-bottom:14px;">
         <div class="card-header">
           <h2>${CrmApp.companyBadge(cb.brandId, cb.brandShortName)}</h2>
           <button class="btn small primary" data-new-case="${cb.brandId}">New Case</button>
         </div>
         <div class="card-body no-pad">
-          ${cb.cases.length ? cb.cases.map(cs => `
+          ${otherCases.length ? otherCases.map(cs => `
             <div style="padding:14px 18px; border-bottom:1px solid var(--border);">
               <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
                 <strong>${CrmApp.escapeHtml(cs.productName || cs.title || ('Case #' + cs.caseId))}</strong>
@@ -693,9 +710,10 @@ async function render() {
                   </table>
                 </div>` : '<div class="text-faint" style="margin-top:8px;">No policy on file yet.</div>'}
               <div style="margin-top:10px;"><button class="btn small ghost" data-add-policy="${cs.caseId}">Add Policy</button></div>
-            </div>`).join('') : '<div class="empty-state">No cases yet.</div>'}
+            </div>`).join('') : '<div class="empty-state">No other cases on file.</div>'}
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   const PRODUCTS_BY_BRAND = {
@@ -1571,7 +1589,7 @@ async function render() {
     const esc = CrmApp.escapeHtml;
     const la = c.legacyAnnuity || {};
     const legacyAnnuityNote = (la.annuityCarrier || la.annuityPremium != null)
-      ? `<div class="text-faint" style="margin-top:10px;">On file from before Policies existed — Carrier: ${esc(la.annuityCarrier || '—')}, Premium: ${la.annuityPremium != null ? '$' + Number(la.annuityPremium).toLocaleString() : '—'}. Add this as a real Policy on the Cases and Policies tab to make it current.</div>`
+      ? `<div class="text-faint" style="margin-top:10px;">On file from before Policies existed — Carrier: ${esc(la.annuityCarrier || '—')}, Premium: ${la.annuityPremium != null ? '$' + Number(la.annuityPremium).toLocaleString() : '—'}. Add this as a real Policy under Other Cases on the Life Insurance Policies tab to make it current.</div>`
       : '';
     return `
       <div class="card" style="margin-bottom:14px;">

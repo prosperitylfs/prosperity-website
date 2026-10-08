@@ -79,6 +79,28 @@ function createClient(db, fields, actor) {
   return { outcome: 'created', contact: db.prepare('SELECT * FROM contacts WHERE id = ?').get(contact.id), contactBrand };
 }
 
+// Which product (by name, matching a real row in `products`) a brand's
+// "Add Client" Policy Information section should file under. MUST stay the
+// same product crm/public/app/client.html's own LIFE_INSURANCE_PRODUCTS_BY_BRAND
+// recognizes as "Life Insurance" (the first entry of that same list, per
+// brand) -- that frontend list is what decides whether a case shows up in
+// the client page's top "Life Insurance" section at all. There is
+// deliberately no per-brand product CHOICE here (Add Client's Policy
+// Information section is intentionally just two fields, carrier + policy
+// number, with no product dropdown) -- this is a single, reasonable
+// default for "an existing policy entered at client-creation time," fully
+// editable afterward via "+ Add/Edit Life Insurance Policy" exactly like
+// any other case/policy.
+const DEFAULT_LIFE_INSURANCE_PRODUCT_BY_BRAND = {
+  prosperity: 'Life insurance',
+  'insurance-lady': 'Online life-insurance application',
+};
+
+function getProductIdByName(db, brandRowId, productName) {
+  const row = db.prepare('SELECT id FROM products WHERE brand_id = ? AND name = ?').get(brandRowId, productName);
+  return row ? row.id : null;
+}
+
 // Add Client modal's optional "Policy Information" section (2026-09-14) --
 // this client's FIRST policy, entered at the same time as the client
 // itself, using the CRM's existing Cases -> Policies structure (never a
@@ -102,22 +124,44 @@ function createClient(db, fields, actor) {
 // conflicting company is simply not created in that case -- exactly as
 // unusual/unrequested as the scenario itself.
 //
-// The case created to hold this policy is given NO product (Add Client has
-// no product field, and this section is intentionally just two fields) --
-// crm/lib/caseService.js's createCaseForClient already allows a null
-// product, and the case's title is set to the carrier name (or a generic
-// fallback) purely so it reads sensibly in the Cases list, never used for
-// classification.
+// 2026-10-07 correction: the case created to hold this policy MUST carry a
+// real life-insurance product id, not null. A null-product case is
+// completely invisible to client.html's lifeInsuranceCases() filter (which
+// matches on product NAME against LIFE_INSURANCE_PRODUCTS_BY_BRAND), so
+// the policy never appeared in the top "Life Insurance" section at all --
+// it only ever showed up as an unclassified, confusing "Pending" case in
+// the generic Cases and Policies tab. A policy's `case_id` FK is NOT NULL
+// (crm/db/migrateCrmApp.js) -- there is no way to attach a policy without
+// SOME case, so a case is still created here exactly as before; the fix is
+// only that it's now correctly classified, identical in shape to what
+// "+ Add Life Insurance Policy" itself creates for a brand-new case
+// (crm/public/app/client.html's addLifeInsurancePolicyModal), so the
+// result is indistinguishable from a policy entered that way. If no
+// matching product row exists for this brand (should never happen once
+// crm/db/migrateBrands.js has seeded products -- defensive only), this
+// falls back to the prior null-product behavior rather than throwing, so a
+// missing/renamed product can never block creating the client itself.
+//
+// policyStatus defaults to 'In Force' here (not createPolicy's own
+// 'Pending' fallback) for the same documented reason
+// addLifeInsurancePolicyModal's own form already defaults to 'In Force':
+// this flow exists to enter an EXISTING client's already-active policy,
+// not a brand-new application -- still fully editable afterward.
 function createClientWithPolicy(db, fields, actor) {
   const run = db.transaction(() => {
     const result = createClient(db, fields, actor);
     const carrier = toStringOrNull(fields.carrier);
     const policyNumber = toStringOrNull(fields.policyNumber);
     if ((carrier || policyNumber) && result.outcome === 'created') {
+      const brandRow = getBrandRow(db, fields.brandSlug);
+      const defaultProductName = DEFAULT_LIFE_INSURANCE_PRODUCT_BY_BRAND[fields.brandSlug] || null;
+      const productId = defaultProductName ? getProductIdByName(db, brandRow.id, defaultProductName) : null;
       const newCase = createCaseForClient(db, {
-        contactId: result.contact.id, productId: null, title: carrier || 'Policy',
+        contactId: result.contact.id, productId, title: productId ? defaultProductName : (carrier || 'Policy'),
       }, actor);
-      const policy = createPolicy(db, { caseId: newCase.id, carrier, policyNumber }, actor);
+      const policy = createPolicy(db, {
+        caseId: newCase.id, carrier, policyNumber, policyStatus: 'In Force',
+      }, actor);
       result.initialCase = newCase;
       result.initialPolicy = policy;
     }

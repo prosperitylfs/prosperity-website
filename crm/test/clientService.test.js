@@ -154,6 +154,53 @@ test('4. createClientWithPolicy with policy number only still creates the client
   assert.equal(result.initialPolicy.policy_number, 'PN-999');
 });
 
+test('6. createClientWithPolicy (2026-10-07 fix) files the policy under a REAL life-insurance product, not a null-product case, so it is recognized by client.html\'s own Life Insurance classification (Prosperity)', () => {
+  const { db, prosperityId } = setup();
+  const result = createClientWithPolicy(db, {
+    firstName: 'Mae', lastName: 'Example', email: 'mae-example@example.com', brandSlug: 'prosperity',
+    carrier: 'Occidental Life', policyNumber: '005178887E',
+  }, 'Loretta Stewart');
+
+  assert.ok(result.initialCase.product_id, 'the case must have a real product_id, never null');
+  const product = db.prepare('SELECT * FROM products WHERE id = ?').get(result.initialCase.product_id);
+  assert.equal(product.name, 'Life insurance', 'must be the exact product name client.html\'s LIFE_INSURANCE_PRODUCTS_BY_BRAND.prosperity recognizes');
+  assert.equal(product.brand_id, prosperityId);
+});
+
+test('7. createClientWithPolicy (2026-10-07 fix) files the policy under a real life-insurance product for Insurance Lady too', () => {
+  const { db, insuranceLadyId } = setup();
+  const result = createClientWithPolicy(db, {
+    firstName: 'Patrick', lastName: 'Example', email: 'patrick-example@example.com', brandSlug: 'insurance-lady',
+    carrier: 'Some Carrier', policyNumber: 'PK-0001',
+  }, 'Loretta Stewart');
+
+  assert.ok(result.initialCase.product_id);
+  const product = db.prepare('SELECT * FROM products WHERE id = ?').get(result.initialCase.product_id);
+  assert.equal(product.name, 'Online life-insurance application', 'must be one of the three names client.html\'s LIFE_INSURANCE_PRODUCTS_BY_BRAND[\'insurance-lady\'] recognizes');
+  assert.equal(product.brand_id, insuranceLadyId);
+});
+
+test('8. createClientWithPolicy (2026-10-07 fix) defaults the new policy\'s status to "In Force", matching the exact default addLifeInsurancePolicyModal itself uses for an existing client\'s already-active policy', () => {
+  const { db } = setup();
+  const result = createClientWithPolicy(db, {
+    firstName: 'InForce', lastName: 'Default', email: 'inforce-default@example.com', brandSlug: 'prosperity',
+    carrier: 'Some Carrier', policyNumber: 'IF-1',
+  }, 'Loretta Stewart');
+  assert.equal(result.initialPolicy.policy_status, 'In Force');
+});
+
+test('9. createClientWithPolicy never creates a duplicate client, case, or policy -- exactly one of each', () => {
+  const { db } = setup();
+  const result = createClientWithPolicy(db, {
+    firstName: 'Test', lastName: 'Carrier', email: 'test-carrier-dup@example.com', brandSlug: 'prosperity',
+    carrier: 'Test Carrier', policyNumber: 'TEST12345',
+  }, 'Loretta Stewart');
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE email = ?').get('test-carrier-dup@example.com').n, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases WHERE contact_brand_id = ?').get(result.contactBrand.id).n, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies WHERE case_id = ?').get(result.initialCase.id).n, 1);
+});
+
 test('createClientWithPolicy never creates a case/policy for a company_conflict outcome, even when policy fields are provided', () => {
   const { db } = setup();
   createClient(db, { firstName: 'Existing', lastName: 'Person', email: 'conflict-policy@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');

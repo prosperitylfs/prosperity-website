@@ -134,12 +134,27 @@ router.post('/cases', handle((req, res) => { created(res); return caseService.cr
 router.patch('/cases/:id', handle(req => caseService.updateCase(db, Number(req.params.id), req.body)));
 router.post('/cases/:id/archive', handle(req => caseService.archiveCaseForClient(db, Number(req.params.id), ACTOR)));
 router.post('/cases/:id/restore', handle(req => caseService.restoreCase(db, Number(req.params.id), ACTOR)));
+// Permanent case delete — distinct from archive above, same
+// confirmDelete:true backend-enforced guard crm/lib/clientService.js's
+// deleteClientPermanently already uses. caseService.deleteCaseForClient
+// itself refuses (throws, caught by handle() above as a 400) if the case
+// holds any policy with real information on file — there is no way to
+// force past that from this route.
+router.post('/cases/:id/delete', handle(req => caseService.deleteCaseForClient(db, Number(req.params.id), ACTOR, {
+  confirmDelete: req.body.confirmDelete === true,
+})));
 
 // ── Policies ─────────────────────────────────────────────────────────────
 router.post('/policies', handle((req, res) => { created(res); return policyService.createPolicy(db, req.body, ACTOR); }));
 router.patch('/policies/:id', handle(req => policyService.updatePolicy(db, Number(req.params.id), req.body)));
 router.post('/policies/:id/archive', handle(req => policyService.archivePolicy(db, Number(req.params.id), ACTOR)));
 router.post('/policies/:id/restore', handle(req => policyService.restorePolicy(db, Number(req.params.id), ACTOR)));
+// Permanent single-policy delete — same confirmDelete:true backend guard
+// every other delete action in this file uses. Deletes only this one
+// policy row; never the case it belongs to, never a sibling policy.
+router.post('/policies/:id/delete', handle(req => policyService.deletePolicy(db, Number(req.params.id), ACTOR, {
+  confirmDelete: req.body.confirmDelete === true,
+})));
 
 // ── Tasks ────────────────────────────────────────────────────────────────
 // Every mutation here is followed by a best-effort Google Calendar sync

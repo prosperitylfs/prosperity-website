@@ -90,4 +90,30 @@ function restorePolicy(db, policyId, actor) {
   return db.prepare('SELECT * FROM policies WHERE id = ?').get(policyId);
 }
 
-module.exports = { createPolicy, updatePolicy, archivePolicy, restorePolicy };
+// Permanent, single-policy delete (2026-10-08) -- distinct from
+// archivePolicy above (reversible, hides it) and from
+// crm/lib/caseService.js's deleteCaseForClient (deletes a whole case and
+// refuses if ANY of its policies carry real information). This is the
+// opposite shape on purpose: a deliberate, individually-confirmed delete
+// of exactly ONE named policy (the UI shows its carrier/policy number
+// before calling this), never the case it belongs to and never a sibling
+// policy under the same case -- the WHERE clause only ever matches this
+// one row.
+//
+// No table in this schema references policies.id as a foreign key
+// (confirmed: policies are a leaf -- nothing is filed "under" a policy),
+// so there is no cascading cleanup to perform and nothing else that could
+// be left dangling. If a future column ever does reference a policy, this
+// function's WHERE id = ? here would need revisiting before it could stay
+// safe -- deliberately not guarded against today since no such column
+// exists yet to guard against.
+function deletePolicy(db, policyId, actor, { confirmDelete } = {}) {
+  if (!actor) throw new Error('deletePolicy: actor is required for the audit trail');
+  if (!confirmDelete) throw new Error('deletePolicy: explicit confirmation is required to permanently delete a policy');
+  const existing = db.prepare('SELECT * FROM policies WHERE id = ?').get(policyId);
+  if (!existing) throw new Error(`deletePolicy: policy ${policyId} does not exist`);
+  db.prepare('DELETE FROM policies WHERE id = ?').run(policyId);
+  return { deleted: true, policyId, caseId: existing.case_id };
+}
+
+module.exports = { createPolicy, updatePolicy, archivePolicy, restorePolicy, deletePolicy };

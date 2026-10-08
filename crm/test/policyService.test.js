@@ -7,7 +7,7 @@ const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
 const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
-const { createPolicy, updatePolicy, archivePolicy, restorePolicy } = require('../lib/policyService');
+const { createPolicy, updatePolicy, archivePolicy, restorePolicy, deletePolicy } = require('../lib/policyService');
 const { createClient } = require('../lib/clientService');
 const { createCaseForClient } = require('../lib/caseService');
 
@@ -116,4 +116,77 @@ test('a lapsed/cancelled policy is never deleted -- it remains a distinct row al
   const rows = db.prepare('SELECT * FROM policies WHERE case_id = ?').all(c.id);
   assert.equal(rows.length, 2, 'a Lapsed status must not remove the policy -- it stays a historical record');
   assert.ok(rows.some(r => r.id === lapsed.id && r.policy_status === 'Lapsed'));
+});
+
+// ── Permanent single-policy delete (2026-10-08) ─────────────────────────
+
+test('deletePolicy requires actor and explicit confirmDelete', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Guard', lastName: 'Policy', email: 'guard-policy@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const c = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+  const policy = createPolicy(db, { caseId: c.id, carrier: 'Guard Carrier', policyNumber: 'G-1' }, 'Loretta Stewart');
+
+  assert.throws(() => deletePolicy(db, policy.id, null, { confirmDelete: true }));
+  assert.throws(() => deletePolicy(db, policy.id, 'Loretta Stewart', { confirmDelete: false }));
+  assert.throws(() => deletePolicy(db, policy.id, 'Loretta Stewart', {}));
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies WHERE id = ?').get(policy.id).n, 1, 'none of the rejected calls above may have deleted anything');
+});
+
+test('deletePolicy rejects a nonexistent policy id', () => {
+  const { db } = setup();
+  assert.throws(() => deletePolicy(db, 999999, 'Loretta Stewart', { confirmDelete: true }));
+});
+
+test('deletePolicy deletes exactly the selected policy, never the case, never a sibling policy under the same case', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Mixed', lastName: 'Siblings', email: 'mixed-siblings@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const c = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+  const keep1 = createPolicy(db, { caseId: c.id, carrier: 'Keep Carrier 1', policyNumber: 'KEEP-1', policyStatus: 'In Force' }, 'Loretta Stewart');
+  const toDelete = createPolicy(db, { caseId: c.id, carrier: 'Delete Me', policyNumber: 'DEL-1' }, 'Loretta Stewart');
+  const keep2 = createPolicy(db, { caseId: c.id, carrier: 'Keep Carrier 2', policyNumber: 'KEEP-2', policyStatus: 'In Force' }, 'Loretta Stewart');
+
+  const result = deletePolicy(db, toDelete.id, 'Loretta Stewart', { confirmDelete: true });
+  assert.equal(result.deleted, true);
+  assert.equal(result.caseId, c.id);
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies WHERE id = ?').get(toDelete.id).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies WHERE id = ?').get(keep1.id).n, 1, 'sibling policy #1 must survive untouched');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies WHERE id = ?').get(keep2.id).n, 1, 'sibling policy #2 must survive untouched');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases WHERE id = ?').get(c.id).n, 1, 'the case itself must still exist');
+});
+
+test('deletePolicy on the LAST remaining policy under a case leaves the (now-empty) case intact -- it does not cascade to delete the case', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Last', lastName: 'Policy', email: 'last-policy@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const c = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+  const onlyPolicy = createPolicy(db, { caseId: c.id, carrier: 'Only Carrier', policyNumber: 'ONLY-1' }, 'Loretta Stewart');
+
+  deletePolicy(db, onlyPolicy.id, 'Loretta Stewart', { confirmDelete: true });
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases WHERE id = ?').get(c.id).n, 1, 'the case must still exist, now simply empty');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies WHERE case_id = ?').get(c.id).n, 0);
+});
+
+test('deletePolicy never touches the client record', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Client', lastName: 'Untouched', email: 'client-untouched-policy@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const c = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+  const policy = createPolicy(db, { caseId: c.id, carrier: 'Carrier', policyNumber: 'P-1' }, 'Loretta Stewart');
+
+  deletePolicy(db, policy.id, 'Loretta Stewart', { confirmDelete: true });
+
+  const contactAfter = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+  assert.ok(contactAfter);
+  assert.equal(contactAfter.archived_at, null);
+});
+
+test('deletePolicy can remove even an In Force policy with full information -- it is a deliberate, individually-confirmed delete, not subject to deleteCaseForClient\'s "never delete a meaningful policy" restriction (that restriction protects against deleting a WHOLE CASE as collateral damage, not against this explicit, single-record action)', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Deliberate', lastName: 'Delete', email: 'deliberate-delete@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const c = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+  const policy = createPolicy(db, { caseId: c.id, carrier: 'Occidental Life', policyNumber: '005178887E', policyStatus: 'In Force', coverageAmount: 50000 }, 'Loretta Stewart');
+
+  const result = deletePolicy(db, policy.id, 'Loretta Stewart', { confirmDelete: true });
+  assert.equal(result.deleted, true);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies WHERE id = ?').get(policy.id).n, 0);
 });

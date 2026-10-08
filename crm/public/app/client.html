@@ -524,7 +524,10 @@ async function render() {
             <dt>Application date</dt><dd>${CrmApp.escapeHtml(p.application_date || '—')}</dd>
             ${p.beneficiary ? `<dt>Beneficiary</dt><dd>${CrmApp.escapeHtml(p.beneficiary)}</dd>` : ''}
           </dl>
-          <div style="margin-top:10px;"><button class="btn small ghost" data-edit-policy="${p.id}" data-case-id="${p.caseId}">View / Edit</button></div>
+          <div style="margin-top:10px; display:flex; gap:8px;">
+            <button class="btn small ghost" data-edit-policy="${p.id}" data-case-id="${p.caseId}">View / Edit</button>
+            <button class="btn small ghost text-danger" data-delete-policy="${p.id}" data-carrier="${CrmApp.escapeHtml(p.carrier || '')}" data-policy-number="${CrmApp.escapeHtml(p.policy_number || '')}" title="Permanently delete this one policy">Delete</button>
+          </div>
         </div>
       </div>`;
 
@@ -669,6 +672,7 @@ async function render() {
                   <span class="pill status-${cs.status.toLowerCase()}">${cs.status}</span>
                   <button class="btn small ghost" data-edit-case="${cs.caseId}" data-status="${cs.status}" data-title="${CrmApp.escapeHtml(cs.productName || cs.title || '')}">Edit</button>
                   <button class="btn small ghost" data-toggle-case="${cs.caseId}" data-status="${cs.status}">${cs.status === 'Archived' ? 'Restore' : 'Archive'}</button>
+                  <button class="btn small ghost text-danger" data-delete-case="${cs.caseId}" title="Permanently delete this case — only allowed when it has no policy with real information on file">Delete</button>
                 </span>
               </div>
               <div class="text-faint" style="margin-top:4px;">Opened ${CrmApp.friendlyDate(cs.openedAt)} · Last activity ${CrmApp.friendlyDate(cs.lastActivity)}</div>
@@ -777,6 +781,143 @@ async function render() {
     await CrmApp.postJSON(`/api/app/cases/${caseId}/${archiving ? 'archive' : 'restore'}`, 'POST');
     CrmApp.toast(archiving ? 'Case archived.' : 'Case restored.');
     reloadPage();
+  }
+
+  // Mirrors crm/lib/caseService.js's own isPolicyMeaningless EXACTLY (same
+  // field list, same "status must still be the untouched 'Pending'
+  // default" rule) -- this copy is for the confirmation dialog's UX only
+  // (showing the block reason immediately, without a round trip); the
+  // backend re-checks the same rule itself and is the only thing that can
+  // actually refuse the delete. A case can hold more than one policy
+  // (crm/lib/policyService.js) -- ANY one of them carrying real
+  // information blocks deleting the whole case.
+  const MEANINGFUL_POLICY_FIELDS = ['carrier', 'policy_number', 'policy_type', 'effective_date', 'premium', 'coverage_amount', 'beneficiary', 'renewal_date', 'application_date', 'notes'];
+  function isPolicyMeaningless(p) {
+    const fieldsBlank = MEANINGFUL_POLICY_FIELDS.every(f => p[f] === null || p[f] === undefined || p[f] === '');
+    const statusIsUntouchedDefault = !p.policy_status || p.policy_status === 'Pending';
+    return fieldsBlank && statusIsUntouchedDefault;
+  }
+
+  // Permanent case delete (2026-10-07) -- a separate, deliberately
+  // harder-to-trigger action than Archive above, same "type DELETE to
+  // confirm" pattern deleteClientModal already uses. Uses the case/policy
+  // data already loaded on this page (allCases) -- no extra request needed
+  // just to show the confirmation. If any policy under this case carries
+  // real information, this shows WHY deletion is blocked and never offers
+  // a way around it from here -- the backend (crm/lib/caseService.js's
+  // deleteCaseForClient) enforces the exact same rule regardless, so
+  // there's no path to actually delete a case with a real policy on it.
+  function deleteCaseModal(caseId) {
+    const kase = allCases.find(cs => String(cs.caseId) === String(caseId));
+    if (!kase) return;
+    const caseTitle = kase.productName || kase.title || `Case #${kase.caseId}`;
+    const policies = kase.policies || [];
+    const blocking = policies.filter(p => !isPolicyMeaningless(p));
+    const esc = CrmApp.escapeHtml;
+
+    if (blocking.length) {
+      const dialog = CrmApp.openModal({
+        title: 'Cannot Delete Case',
+        bodyHtml: `
+          <p class="confirm-message"><strong>${esc(caseTitle)}</strong> cannot be deleted because it has ${blocking.length} polic${blocking.length === 1 ? 'y' : 'ies'} with real information on file:</p>
+          <ul style="margin:10px 0 0 18px; padding:0;">
+            ${blocking.map(p => `<li>${esc(p.carrier || 'Carrier not on file')} — Policy #${esc(p.policy_number || 'not on file')} (${esc(p.policy_status || 'Pending')})</li>`).join('')}
+          </ul>
+          <p class="confirm-message" style="margin-top:10px;">A client's completed policy is never deleted this way. Use Archive instead to hide this case without losing any data, or correct the policy information first if it is genuinely a mistaken entry.</p>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" data-act="ok">OK</button>
+          </div>
+        `,
+      });
+      dialog.querySelector('[data-act="ok"]').addEventListener('click', () => dialog.close());
+      return;
+    }
+
+    const dialog = CrmApp.openModal({
+      title: 'Permanently Delete Case',
+      bodyHtml: `
+        <p class="confirm-message">
+          This permanently deletes the case <strong>${esc(caseTitle)}</strong>.
+          ${policies.length
+            ? `It has ${policies.length} policy record${policies.length === 1 ? '' : 's'} with no information on file (${policies.map(p => esc(p.policy_number || 'no policy number')).join(', ')}), which will be removed along with it.`
+            : 'It has no policy records on file.'}
+          <strong>This action cannot be undone.</strong>
+        </p>
+        <p class="confirm-message">Type <strong>DELETE</strong> to confirm.</p>
+        <input type="text" class="input" id="delete-case-confirm-input" autocomplete="off" placeholder="Type DELETE" style="width:100%; margin-top:6px;" />
+        <div class="form-error" id="delete-case-error"></div>
+        <div class="crmapp-modal-actions">
+          <button type="button" class="btn" data-act="cancel">Cancel</button>
+          <button type="button" class="btn" id="delete-case-confirm-btn" disabled
+            style="background:var(--danger);border-color:var(--danger);color:#fff;">Permanently Delete Case</button>
+        </div>
+      `,
+    });
+    const input = dialog.querySelector('#delete-case-confirm-input');
+    const confirmBtn = dialog.querySelector('#delete-case-confirm-btn');
+    const errorEl = dialog.querySelector('#delete-case-error');
+    input.addEventListener('input', () => { confirmBtn.disabled = input.value !== 'DELETE'; });
+    dialog.querySelector('[data-act="cancel"]').addEventListener('click', () => dialog.close());
+    confirmBtn.addEventListener('click', async () => {
+      if (input.value !== 'DELETE') return;
+      confirmBtn.disabled = true;
+      try {
+        await CrmApp.postJSON(`/api/app/cases/${caseId}/delete`, 'POST', { confirmDelete: true });
+        dialog.close();
+        CrmApp.toast('Case permanently deleted.');
+        reloadPage();
+      } catch (err) {
+        confirmBtn.disabled = false;
+        errorEl.textContent = err.message || 'Delete failed. Nothing was changed.';
+      }
+    });
+    input.focus();
+  }
+
+  // Permanent, single-policy delete (2026-10-08) -- deletes only the ONE
+  // named policy, never the case it belongs to and never a sibling policy
+  // under the same case (crm/lib/policyService.js's deletePolicy only ever
+  // matches WHERE id = @policyId). Lighter-weight confirmation than
+  // deleteCaseModal/deleteClientModal's "type DELETE" -- this is a single,
+  // individually-reviewed record (carrier + policy number shown directly
+  // in the dialog, read from this exact button's own data attributes, not
+  // re-fetched), not a bulk/cascading action, so a clear "are you sure"
+  // naming exactly what's being deleted is the right amount of friction.
+  // The backend's own confirmDelete:true + actor requirement is still the
+  // real enforcement either way.
+  function deletePolicyModal(policyId, carrier, policyNumber) {
+    const esc = CrmApp.escapeHtml;
+    const dialog = CrmApp.openModal({
+      title: 'Delete Policy',
+      bodyHtml: `
+        <p class="confirm-message">
+          Permanently delete this policy?<br>
+          <strong>${esc(carrier || 'Carrier not on file')}</strong> — Policy Number: <strong>${esc(policyNumber || 'not on file')}</strong>
+        </p>
+        <p class="confirm-message">Only this one policy is deleted. The case it belongs to, and any other policy, is unaffected. <strong>This action cannot be undone.</strong></p>
+        <div class="form-error" id="delete-policy-error"></div>
+        <div class="crmapp-modal-actions">
+          <button type="button" class="btn" data-act="cancel">Cancel</button>
+          <button type="button" class="btn" id="delete-policy-confirm-btn"
+            style="background:var(--danger);border-color:var(--danger);color:#fff;">Delete Policy</button>
+        </div>
+      `,
+    });
+    const confirmBtn = dialog.querySelector('#delete-policy-confirm-btn');
+    const errorEl = dialog.querySelector('#delete-policy-error');
+    dialog.querySelector('[data-act="cancel"]').addEventListener('click', () => dialog.close());
+    confirmBtn.addEventListener('click', async () => {
+      confirmBtn.disabled = true;
+      try {
+        await CrmApp.postJSON(`/api/app/policies/${policyId}/delete`, 'POST', { confirmDelete: true });
+        dialog.close();
+        CrmApp.toast('Policy permanently deleted.');
+        reloadPage();
+      } catch (err) {
+        confirmBtn.disabled = false;
+        errorEl.textContent = err.message || 'Delete failed. Nothing was changed.';
+      }
+    });
   }
 
   function policyFormModal({ caseId, policyId, existing } = {}) {
@@ -1758,6 +1899,8 @@ async function render() {
     if (editCaseBtn) return editCaseModal(editCaseBtn.dataset.editCase, editCaseBtn.dataset.status, editCaseBtn.dataset.title);
     const toggleCaseBtn = e.target.closest('[data-toggle-case]');
     if (toggleCaseBtn) return toggleCaseArchive(toggleCaseBtn.dataset.toggleCase, toggleCaseBtn.dataset.status);
+    const deleteCaseBtn = e.target.closest('[data-delete-case]');
+    if (deleteCaseBtn) return deleteCaseModal(deleteCaseBtn.dataset.deleteCase);
     const addPolicyBtn = e.target.closest('[data-add-policy]');
     if (addPolicyBtn) return policyFormModal({ caseId: addPolicyBtn.dataset.addPolicy });
     const editPolicyBtn = e.target.closest('[data-edit-policy]');
@@ -1766,6 +1909,8 @@ async function render() {
       const existing = caseObj ? caseObj.policies.find(p => p.id == editPolicyBtn.dataset.editPolicy) : null;
       return policyFormModal({ caseId: editPolicyBtn.dataset.caseId, policyId: editPolicyBtn.dataset.editPolicy, existing });
     }
+    const deletePolicyBtn = e.target.closest('[data-delete-policy]');
+    if (deletePolicyBtn) return deletePolicyModal(deletePolicyBtn.dataset.deletePolicy, deletePolicyBtn.dataset.carrier, deletePolicyBtn.dataset.policyNumber);
     if (e.target.closest('#add-note-btn')) return noteFormModal();
     const editNoteBtn = e.target.closest('[data-edit-note]');
     if (editNoteBtn) return noteFormModal({ noteId: editNoteBtn.dataset.editNote, currentBody: editNoteBtn.dataset.body });

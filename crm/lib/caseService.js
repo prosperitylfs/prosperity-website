@@ -276,8 +276,46 @@ function saveAnnuityCase(db, { contactId, caseId, fields }, actor) {
   return run();
 }
 
+// Life & Annuities tab (2026-10-10): permanently deletes ONE annuity case
+// together with its one contract/policy -- unlike deleteCaseForClient
+// above, this is NEVER blocked by "the policy has real information on
+// file." That restriction exists to stop a case delete from taking a real
+// policy down as collateral damage when the case itself might hold
+// several policies of unclear importance; here the user is looking
+// directly at this one named annuity contract and deliberately deleting
+// it, the same single-record, individually-confirmed action
+// crm/lib/policyService.js's deletePolicy already is for a life insurance
+// policy (see its own comment: "not subject to deleteCaseForClient's
+// restriction -- that protects against deleting a WHOLE CASE as
+// collateral damage, not against this explicit, single-record action").
+// `policies.case_id` is ON DELETE CASCADE (crm/db/migrateBrands.js), so
+// deleting the case row removes its one policy with it in the same
+// statement -- no separate policy delete call needed.
+function deleteAnnuityCase(db, caseId, actor, { confirmDelete } = {}) {
+  if (!actor) throw new Error('deleteAnnuityCase: actor is required for the audit trail');
+  if (!confirmDelete) throw new Error('deleteAnnuityCase: explicit confirmation is required to permanently delete an annuity');
+  const kase = db.prepare('SELECT * FROM cases WHERE id = ?').get(caseId);
+  if (!kase) throw new Error(`deleteAnnuityCase: case ${caseId} does not exist`);
+  const annuityProduct = getAnnuityProductForContactBrand(db, kase.contact_brand_id);
+  if (!annuityProduct || kase.product_id !== annuityProduct.id) {
+    throw new Error(`deleteAnnuityCase: case ${caseId} is not an annuity case -- refusing to delete`);
+  }
+  const policiesRemoved = db.prepare('SELECT COUNT(*) AS n FROM policies WHERE case_id = ?').get(caseId).n;
+
+  const run = db.transaction(() => {
+    for (const table of TABLES_WITH_PLAIN_CASE_REF) {
+      if (!tableExists(db, table)) continue;
+      db.prepare(`UPDATE ${table} SET case_id = NULL WHERE case_id = ?`).run(caseId);
+    }
+    db.prepare('DELETE FROM cases WHERE id = ?').run(caseId);
+  });
+  run();
+
+  return { deleted: true, caseId, policiesRemoved };
+}
+
 module.exports = {
   createCaseForClient, updateCase, archiveCaseForClient, restoreCase,
   getCaseDeletionPreview, deleteCaseForClient,
-  saveAnnuityCase, ANNUITY_PRODUCT_NAMES,
+  saveAnnuityCase, deleteAnnuityCase, ANNUITY_PRODUCT_NAMES,
 };

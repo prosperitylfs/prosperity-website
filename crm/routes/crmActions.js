@@ -156,6 +156,12 @@ router.post('/cases/annuity', handle((req, res) => {
     fields: req.body.fields,
   }, ACTOR);
 }));
+// Permanently deletes one annuity (its case + its one contract/policy
+// together) -- see caseService.deleteAnnuityCase's own header comment for
+// why this is never blocked the way deleteCaseForClient is.
+router.post('/cases/:id/delete-annuity', handle(req => caseService.deleteAnnuityCase(db, Number(req.params.id), ACTOR, {
+  confirmDelete: req.body.confirmDelete === true,
+})));
 
 // ── Policies ─────────────────────────────────────────────────────────────
 router.post('/policies', handle((req, res) => { created(res); return policyService.createPolicy(db, req.body, ACTOR); }));

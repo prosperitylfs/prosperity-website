@@ -99,7 +99,7 @@ async function render() {
   const TABS = [
     { key: 'overview', label: 'Overview' },
     { key: 'contact', label: 'Contact Information' },
-    { key: 'cases', label: 'Life Insurance Policies' },
+    { key: 'cases', label: 'Life & Annuities Policies' },
     { key: 'planning', label: 'Retirement & Annuity Planning' },
     { key: 'tasks', label: 'Tasks and Next Action' },
     { key: 'appointments', label: 'Appointments' },
@@ -557,7 +557,7 @@ async function render() {
     return `<div class="card" style="margin-bottom:14px;">
       <div class="card-header">
         <h2>Life Insurance</h2>
-        <button class="btn small primary" id="action-add-life-policy">${policies.length ? '+ Add Another Life Insurance Policy' : '+ Add Life Insurance Policy'}</button>
+        <button class="btn small primary" id="action-add-life-policy">+ Add Life Insurance Policy</button>
       </div>
       <div class="card-body">
         ${policies.length
@@ -677,105 +677,159 @@ async function render() {
     });
   }
 
-  // Clear Annuity Contract summary (2026-10-08) -- replaces the generic
-  // policy table for a case recognized as Annuity (isAnnuityCase above).
-  // By construction (saveAnnuityCase, crm/lib/caseService.js) an annuity
-  // case has exactly one policy/contract, so this always reads cs.policies[0]
-  // directly rather than mapping a list. Current Account Value is the one
-  // row shown only "if available" (per its own optional-field requirement)
-  // -- every other row always renders, with "—" standing in for not-yet-
-  // known information (e.g. Contract Number/Effective Date on a brand-new
-  // Pending application).
-  function annuityContractSummaryHtml(cs) {
-    const p = (cs.policies && cs.policies[0]) || {};
-    const esc = CrmApp.escapeHtml;
-    return `
-      <div class="text-faint" style="font-weight:700; text-transform:uppercase; font-size:11px; letter-spacing:.03em; margin-top:10px;">Annuity Contract</div>
-      <dl class="kv-list" style="margin-top:6px;">
-        <dt>Carrier</dt><dd>${esc(p.carrier || '— not on file —')}</dd>
-        <dt>Contract Number</dt><dd>${esc(p.policy_number || '— not on file —')}</dd>
-        <dt>Annuity Type</dt><dd>${esc(p.policy_type || '—')}</dd>
-        <dt>Status</dt><dd><span class="pill status-${(p.policy_status || '').toLowerCase().replace(/\s+/g, '-')}">${esc(p.policy_status || 'Pending')}</span></dd>
-        <dt>Initial Premium / Deposit</dt><dd>${p.premium != null ? '$' + Number(p.premium).toLocaleString() : '—'}</dd>
-        ${p.coverage_amount != null ? `<dt>Current Account Value</dt><dd>$${Number(p.coverage_amount).toLocaleString()}</dd>` : ''}
-        <dt>Effective Date</dt><dd>${esc(p.effective_date || '—')}</dd>
-      </dl>
-    `;
+  // 2026-10-10: "Life & Annuities Policies" tab -- Other Cases (and its
+  // per-company "New Case" button) is no longer shown here at all. Any
+  // existing non-life, non-annuity case (Rollovers, Follow-up/service,
+  // etc.) is NOT deleted, migrated, or hidden from the database -- its
+  // case/policy rows and contact_brand relationship are untouched; it
+  // simply has no visible card on THIS tab any more. allCases (used by the
+  // data-edit-case delegation and elsewhere on this page) still includes
+  // it, so nothing that already depends on that data breaks.
+  function annuityCases() {
+    const result = [];
+    for (const cb of detail.contactBrands) {
+      for (const cs of cb.cases) {
+        const withBrand = { ...cs, brandId: cb.brandId, brandShortName: cb.brandShortName };
+        if (isAnnuityCase(withBrand)) result.push(withBrand);
+      }
+    }
+    return result;
   }
 
-  // 2026-10-08: renamed from "Cases and Policies" to "Life Insurance
-  // Policies" (see the tab definition above). Life insurance cases/
-  // policies are already fully covered by lifeInsuranceHtml() above --
-  // showing them AGAIN here, in a second, differently-shaped table, was
-  // the exact redundant duplication this change removes. This section is
-  // now scoped to every OTHER product (Annuities, Rollovers, Follow-up/
-  // service, etc.) only -- it's still the one place in the CRM to
-  // manually create/edit/archive/delete a case for one of those, and
-  // "New Case" still offers every product (including life insurance) so
-  // creating one here still correctly routes into the Life Insurance
-  // section above if that's the product chosen, rather than being removed
-  // from this page's product list.
-  function casesHtml() {
-    const legacyBanner = legacyInsuranceBannerHtml();
-    if (!detail.contactBrands.length) return legacyBanner + lifeInsuranceHtml() + '<div class="empty-state">No company relationship established yet.</div>';
-    return legacyBanner + lifeInsuranceHtml() + `
-      <div class="text-faint" style="font-weight:700; text-transform:uppercase; font-size:11.5px; letter-spacing:.03em; margin:18px 0 8px;">Other Cases</div>
-    ` + detail.contactBrands.map(cb => {
-      const liProducts = LIFE_INSURANCE_PRODUCTS_BY_BRAND[cb.brandId] || [];
-      const otherCases = cb.cases.filter(cs => !isLifeInsuranceCase(cs, liProducts));
+  // One card per annuity contract -- each annuity case has exactly one
+  // policy by construction (saveAnnuityCase), so this always reads
+  // cs.policies[0] directly. Document management is deliberately NOT a
+  // real upload button yet -- see the implementation report for why (no
+  // persistent, private file storage is configured in
+  // this app yet) -- a disabled-looking label instead of a button that
+  // would do nothing on click.
+  function annuitiesHtml() {
+    const cases = annuityCases();
+    const esc = CrmApp.escapeHtml;
+    const card = (cs) => {
+      const p = (cs.policies && cs.policies[0]) || {};
       return `
-      <div class="card" style="margin-bottom:14px;">
-        <div class="card-header">
-          <h2>${CrmApp.companyBadge(cb.brandId, cb.brandShortName)}</h2>
-          <button class="btn small primary" data-new-case="${cb.brandId}">New Case</button>
-        </div>
-        <div class="card-body no-pad">
-          ${otherCases.length ? otherCases.map(cs => `
-            <div style="padding:14px 18px; border-bottom:1px solid var(--border);">
-              <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-                <strong>${CrmApp.escapeHtml(cs.productName || cs.title || ('Case #' + cs.caseId))}</strong>
-                <span style="display:flex; gap:8px; align-items:center;">
-                  <span class="pill status-${cs.status.toLowerCase()}">${cs.status}</span>
-                  <button class="btn small ghost" data-edit-case="${cs.caseId}" data-status="${cs.status}" data-title="${CrmApp.escapeHtml(cs.productName || cs.title || '')}">Edit</button>
-                  <button class="btn small ghost" data-toggle-case="${cs.caseId}" data-status="${cs.status}">${cs.status === 'Archived' ? 'Restore' : 'Archive'}</button>
-                  <button class="btn small ghost text-danger" data-delete-case="${cs.caseId}" title="Permanently delete this case — only allowed when it has no policy with real information on file">Delete</button>
-                </span>
-              </div>
-              <div class="text-faint" style="margin-top:4px;">Opened ${CrmApp.friendlyDate(cs.openedAt)} · Last activity ${CrmApp.friendlyDate(cs.lastActivity)}</div>
-              ${cs.nextAction ? `<div style="margin-top:6px; font-size:13px;">Next: ${CrmApp.escapeHtml(cs.nextAction.notes || cs.nextAction.taskType)} — ${CrmApp.friendlyDate(cs.nextAction.dueDate)}</div>` : ''}
-              ${isAnnuityCase(cs) ? annuityContractSummaryHtml(cs) : (cs.policies.length ? `
-                <div class="table-scroll" style="margin-top:10px;">
-                  <table class="data-table">
-                    <thead><tr><th>Carrier</th><th>Policy #</th><th>Status</th><th>Coverage</th><th>Premium</th><th>Renewal</th><th></th></tr></thead>
-                    <tbody>${cs.policies.map(p => `<tr>
-                      <td>${CrmApp.escapeHtml(p.carrier || '—')}</td>
-                      <td>${CrmApp.escapeHtml(p.policy_number || '—')}</td>
-                      <td><span class="pill status-${(p.policy_status || '').toLowerCase()}">${CrmApp.escapeHtml(p.policy_status || '—')}</span></td>
-                      <td>${p.coverage_amount ? '$' + Number(p.coverage_amount).toLocaleString() : '—'}</td>
-                      <td>${p.premium ? '$' + Number(p.premium).toLocaleString() : '—'}</td>
-                      <td>${CrmApp.escapeHtml(p.renewal_date || '—')}</td>
-                      <td style="display:flex; gap:6px;">
-                        <button class="btn small ghost" data-edit-policy="${p.id}" data-case-id="${cs.caseId}">Edit</button>
-                        <button class="btn small ghost text-danger" data-delete-policy="${p.id}" data-carrier="${CrmApp.escapeHtml(p.carrier || '')}" data-policy-number="${CrmApp.escapeHtml(p.policy_number || '')}" title="Permanently delete this one policy">Delete</button>
-                      </td>
-                    </tr>`).join('')}</tbody>
-                  </table>
-                </div>` : '<div class="text-faint" style="margin-top:8px;">No policy on file yet.</div>')}
-              ${isAnnuityCase(cs) ? '' : `<div style="margin-top:10px;"><button class="btn small ghost" data-add-policy="${cs.caseId}">Add Policy</button></div>`}
-            </div>`).join('') : '<div class="empty-state">No other cases on file.</div>'}
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-body">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            ${CrmApp.companyBadge(cs.brandId, cs.brandShortName)}
+            <span class="pill status-${(p.policy_status || '').toLowerCase().replace(/\s+/g, '-')}">${esc(p.policy_status || 'Pending')}</span>
+          </div>
+          <div style="margin-top:6px; font-size:17px; font-weight:800; line-height:1.3;">${esc(p.carrier || 'Carrier not on file')}</div>
+          <div style="margin-top:2px; font-size:15px; font-weight:700; color: var(--accent);">Contract Number: ${esc(p.policy_number || '— not on file —')}</div>
+          <dl class="kv-list" style="margin-top:10px;">
+            <dt>Annuity type</dt><dd>${esc(p.policy_type || '—')}</dd>
+            <dt>Initial premium / deposit</dt><dd>${p.premium != null ? '$' + Number(p.premium).toLocaleString() : '—'}</dd>
+            ${p.coverage_amount != null ? `<dt>Current account value</dt><dd>$${Number(p.coverage_amount).toLocaleString()}</dd>` : ''}
+            <dt>Effective date</dt><dd>${esc(p.effective_date || '—')}</dd>
+          </dl>
+          <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <button class="btn small ghost" data-edit-case="${cs.caseId}">View / Edit</button>
+            <button class="btn small ghost text-danger" data-delete-annuity="${cs.caseId}" data-carrier="${esc(p.carrier || '')}" data-contract-number="${esc(p.policy_number || '')}" title="Permanently delete this annuity">Delete</button>
+            <span class="text-faint" style="font-size:12px;" title="Document uploads require a storage decision -- see the implementation report">Documents: pending storage setup</span>
+          </div>
         </div>
       </div>`;
-    }).join('');
+    };
+    return `<div class="card" style="margin-bottom:14px;">
+      <div class="card-header">
+        <h2>Annuities</h2>
+        <button class="btn small primary" id="action-add-annuity">+ Add Annuity</button>
+      </div>
+      <div class="card-body">
+        ${cases.length ? `<div class="grid grid-2">${cases.map(card).join('')}</div>` : '<div class="empty-state">No annuities on file.</div>'}
+      </div>
+    </div>`;
+  }
+
+  // "+ Add Annuity": the vast majority of clients have exactly one active
+  // company relationship, so this opens the existing annuityCaseModal
+  // directly for it -- zero extra clicks. A client linked to more than one
+  // company is asked which one first (same information newCaseModal's own
+  // per-company button used to carry implicitly); annuityCaseModal itself
+  // is completely unchanged either way.
+  function addAnnuityModal() {
+    const brands = detail.contactBrands;
+    if (!brands.length) { CrmApp.toast('This client has no company relationship to file an annuity under.', { error: true }); return; }
+    if (brands.length === 1) { annuityCaseModal({ brandId: brands[0].brandId }); return; }
+    const esc = CrmApp.escapeHtml;
+    const dialog = CrmApp.openModal({
+      title: 'Add Annuity',
+      bodyHtml: `
+        <form id="add-annuity-brand-form">
+          <div class="form-field full"><label>Company</label>
+            <select class="input" name="brandId">${brands.map(cb => `<option value="${cb.brandId}">${esc(cb.brandShortName)}</option>`).join('')}</select>
+          </div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="add-annuity-brand-cancel">Cancel</button>
+            <button type="submit" class="btn primary">Continue</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#add-annuity-brand-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#add-annuity-brand-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const brandId = new FormData(e.target).get('brandId');
+      dialog.close();
+      annuityCaseModal({ brandId });
+    });
+  }
+
+  // Permanently deletes one annuity (its case + its one contract/policy
+  // together, crm/lib/caseService.js's deleteAnnuityCase) -- deliberately
+  // never blocked by "real information on file" the way deleteCaseModal
+  // below is; see that function's own header comment for why.
+  function deleteAnnuityModal(caseId, carrier, contractNumber) {
+    const esc = CrmApp.escapeHtml;
+    const dialog = CrmApp.openModal({
+      title: 'Delete Annuity',
+      bodyHtml: `
+        <p class="confirm-message">
+          Permanently delete this annuity?<br>
+          <strong>${esc(carrier || 'Carrier not on file')}</strong> — Contract Number: <strong>${esc(contractNumber || 'not on file')}</strong>
+        </p>
+        <p class="confirm-message">This removes the annuity contract and its case together. <strong>This action cannot be undone.</strong></p>
+        <div class="form-error" id="delete-annuity-error"></div>
+        <div class="crmapp-modal-actions">
+          <button type="button" class="btn" data-act="cancel">Cancel</button>
+          <button type="button" class="btn" id="delete-annuity-confirm-btn"
+            style="background:var(--danger);border-color:var(--danger);color:#fff;">Delete Annuity</button>
+        </div>
+      `,
+    });
+    const confirmBtn = dialog.querySelector('#delete-annuity-confirm-btn');
+    const errorEl = dialog.querySelector('#delete-annuity-error');
+    dialog.querySelector('[data-act="cancel"]').addEventListener('click', () => dialog.close());
+    confirmBtn.addEventListener('click', async () => {
+      confirmBtn.disabled = true;
+      try {
+        await CrmApp.postJSON(`/api/app/cases/${caseId}/delete-annuity`, 'POST', { confirmDelete: true });
+        dialog.close();
+        CrmApp.toast('Annuity permanently deleted.');
+        reloadPage();
+      } catch (err) {
+        confirmBtn.disabled = false;
+        errorEl.textContent = err.message || 'Delete failed. Nothing was changed.';
+      }
+    });
+  }
+
+  function casesHtml() {
+    const legacyBanner = legacyInsuranceBannerHtml();
+    if (!detail.contactBrands.length) return legacyBanner + '<div class="empty-state">No company relationship established yet.</div>';
+    return legacyBanner + lifeInsuranceHtml() + annuitiesHtml();
   }
 
   // 2026-10-09: Rollover / Safe Money Solutions / Follow-up-Service removed
   // from the New Case dropdown per request -- Annuity (and Life insurance)
   // remain the supported products a NEW case can be filed under. This is a
   // frontend-only list; it never deletes the underlying `products` rows or
-  // touches any EXISTING case already filed under a removed product (those
-  // still render correctly under Other Cases by their own stored product
-  // name -- see casesHtml() -- and editCaseModal only ever edits Title/
-  // Status, never Product, so they stay fully manageable).
+  // touches any EXISTING case already filed under a removed product --
+  // those cases are untouched in the database (editCaseModal only ever
+  // edits Title/Status, never Product), they just have no visible card on
+  // the Life & Annuities Policies tab any more (2026-10-10: Other Cases
+  // removed from that tab entirely).
   const PRODUCTS_BY_BRAND = {
     'insurance-lady': ['Online life-insurance application', 'Cash-building life insurance', 'Whole life/final expense', 'Cash cancer insurance', 'Annuities and safe-money solutions'],
     prosperity: ['Life insurance', 'Annuities'],
@@ -1755,7 +1809,7 @@ async function render() {
     const esc = CrmApp.escapeHtml;
     const la = c.legacyAnnuity || {};
     const legacyAnnuityNote = (la.annuityCarrier || la.annuityPremium != null)
-      ? `<div class="text-faint" style="margin-top:10px;">On file from before Policies existed — Carrier: ${esc(la.annuityCarrier || '—')}, Premium: ${la.annuityPremium != null ? '$' + Number(la.annuityPremium).toLocaleString() : '—'}. Add this as a real Policy under Other Cases on the Life Insurance Policies tab to make it current.</div>`
+      ? `<div class="text-faint" style="margin-top:10px;">On file from before Policies existed — Carrier: ${esc(la.annuityCarrier || '—')}, Premium: ${la.annuityPremium != null ? '$' + Number(la.annuityPremium).toLocaleString() : '—'}. Add this as a real Annuity via "+ Add Annuity" on the Life & Annuities Policies tab to make it current.</div>`
       : '';
     return `
       <div class="card" style="margin-bottom:14px;">
@@ -2099,6 +2153,8 @@ async function render() {
     }
     const deletePolicyBtn = e.target.closest('[data-delete-policy]');
     if (deletePolicyBtn) return deletePolicyModal(deletePolicyBtn.dataset.deletePolicy, deletePolicyBtn.dataset.carrier, deletePolicyBtn.dataset.policyNumber);
+    const deleteAnnuityBtn = e.target.closest('[data-delete-annuity]');
+    if (deleteAnnuityBtn) return deleteAnnuityModal(deleteAnnuityBtn.dataset.deleteAnnuity, deleteAnnuityBtn.dataset.carrier, deleteAnnuityBtn.dataset.contractNumber);
     if (e.target.closest('#add-note-btn')) return noteFormModal();
     const editNoteBtn = e.target.closest('[data-edit-note]');
     if (editNoteBtn) return noteFormModal({ noteId: editNoteBtn.dataset.editNote, currentBody: editNoteBtn.dataset.body });
@@ -2392,6 +2448,7 @@ async function render() {
   document.getElementById('action-archive-client').addEventListener('click', toggleArchiveClient);
   document.getElementById('action-delete-client').addEventListener('click', deleteClientModal);
   document.getElementById('action-add-life-policy').addEventListener('click', addLifeInsurancePolicyModal);
+  document.getElementById('action-add-annuity').addEventListener('click', addAnnuityModal);
 
   // Retirement & Annuity Planning tab: each card saves independently
   // (mirrors the old standalone CRM's per-section Save Changes pattern) by

@@ -7,7 +7,7 @@ const { runMigrations } = require('../db/migrateBrands');
 const { runDashboardMigrations } = require('../db/migrateDashboard');
 const { runCrmAppMigrations } = require('../db/migrateCrmApp');
 const { runCrmCoreMigrations } = require('../db/migrateCrmCore');
-const { createCaseForClient, updateCase, archiveCaseForClient, restoreCase, getCaseDeletionPreview, deleteCaseForClient, saveAnnuityCase } = require('../lib/caseService');
+const { createCaseForClient, updateCase, archiveCaseForClient, restoreCase, getCaseDeletionPreview, deleteCaseForClient, saveAnnuityCase, deleteAnnuityCase } = require('../lib/caseService');
 const { createClient } = require('../lib/clientService');
 const { createPolicy } = require('../lib/policyService');
 
@@ -458,4 +458,55 @@ test('saveAnnuityCase (create) requires an active company assignment', () => {
   const { db } = setup();
   const orphanContact = db.prepare(`INSERT INTO contacts (first_name, last_name, email) VALUES ('Orphan', 'Contact', 'orphan-annuity@example.com')`).run();
   assert.throws(() => saveAnnuityCase(db, { contactId: orphanContact.lastInsertRowid, fields: { carrier: 'Carrier' } }, 'Loretta Stewart'));
+});
+
+// ── Life & Annuities tab: deleteAnnuityCase (2026-10-10) ────────────────
+
+test('deleteAnnuityCase requires actor and explicit confirmDelete', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'DelAnn', lastName: 'Guard', email: 'del-ann-guard@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const { case: kase } = saveAnnuityCase(db, { contactId: client.contact.id, fields: { carrier: 'Athene' } }, 'Loretta Stewart');
+  assert.throws(() => deleteAnnuityCase(db, kase.id, null, { confirmDelete: true }));
+  assert.throws(() => deleteAnnuityCase(db, kase.id, 'Loretta Stewart', { confirmDelete: false }));
+});
+
+test('deleteAnnuityCase rejects a nonexistent case id', () => {
+  const { db } = setup();
+  assert.throws(() => deleteAnnuityCase(db, 999999, 'Loretta Stewart', { confirmDelete: true }));
+});
+
+test('deleteAnnuityCase refuses to delete a case that is not an annuity (e.g. a real Life insurance case)', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'NotAnn', lastName: 'Refuse', email: 'not-ann-refuse@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const lifeCase = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+  assert.throws(() => deleteAnnuityCase(db, lifeCase.id, 'Loretta Stewart', { confirmDelete: true }), /not an annuity/);
+  assert.ok(db.prepare('SELECT * FROM cases WHERE id = ?').get(lifeCase.id), 'the life insurance case must survive untouched');
+});
+
+test('deleteAnnuityCase deletes a FULLY populated annuity (carrier, contract number, premium all on file) in one call -- unlike deleteCaseForClient, this is never blocked by "real information on file"', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Full', lastName: 'Annuity', email: 'full-annuity-delete@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const { case: kase, policy } = saveAnnuityCase(db, {
+    contactId: client.contact.id,
+    fields: { carrier: 'Athene', contractNumber: 'ATH-9999', initialPremium: '100000', contractStatus: 'In Force' },
+  }, 'Loretta Stewart');
+
+  const result = deleteAnnuityCase(db, kase.id, 'Loretta Stewart', { confirmDelete: true });
+  assert.equal(result.deleted, true);
+  assert.equal(result.policiesRemoved, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases WHERE id = ?').get(kase.id).n, 0, 'case is gone');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM policies WHERE id = ?').get(policy.id).n, 0, 'its policy cascaded away with it');
+});
+
+test('deleteAnnuityCase only deletes the ONE targeted annuity, never a sibling annuity or the client itself', () => {
+  const { db } = setup();
+  const client = createClient(db, { firstName: 'Sibling', lastName: 'Annuity', email: 'sibling-annuity@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const first = saveAnnuityCase(db, { contactId: client.contact.id, fields: { carrier: 'Athene' } }, 'Loretta Stewart');
+  const second = saveAnnuityCase(db, { contactId: client.contact.id, caseId: null, fields: { carrier: 'Nationwide' } }, 'Loretta Stewart');
+
+  deleteAnnuityCase(db, first.case.id, 'Loretta Stewart', { confirmDelete: true });
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cases WHERE id = ?').get(first.case.id).n, 0);
+  assert.ok(db.prepare('SELECT * FROM cases WHERE id = ?').get(second.case.id), 'the second annuity case must survive');
+  assert.ok(db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id), 'the contact itself must survive');
 });

@@ -473,6 +473,29 @@ async function render() {
   // own fallback-preserves-unknown-value behavior, used here too).
   const POLICY_STATUSES = ['Pending', 'Applied', 'In Force', 'Lapsed', 'Surrendered', 'Cancelled', 'Terminated'];
 
+  // 2026-10-09: "New Case" didn't always have a Product/Service field --
+  // see crm/lib/caseService.js's createCaseForClient, where productId has
+  // always been nullable. A case created back then (title + status only)
+  // has no productName at all, so the exact-match check below can never
+  // place it in this section even when its own attached policy is
+  // unmistakably a life insurance policy -- its Policy Type (set via the
+  // Policy Type field on that specific policy, same POLICY_TYPES list as
+  // above) says so directly. Recognizing that ONE narrow case -- no
+  // product at all, AND a real, specifically-named Policy Type ('Other' is
+  // too ambiguous to count) -- here, and ONLY here, moves it into this
+  // section instead of Other Cases. It is still the exact same case and
+  // policy rows; nothing is created, deleted, or moved in the database.
+  // A case that already has some OTHER real product (Rollovers,
+  // Follow-up/service, etc.) is never affected by this -- only a
+  // genuinely unclassified legacy case is.
+  function hasUnclassifiedLifeInsurancePolicy(cs) {
+    if (cs.productName) return false;
+    return (cs.policies || []).some(p => p.policy_type && p.policy_type !== 'Other' && POLICY_TYPES.includes(p.policy_type));
+  }
+  function isLifeInsuranceCase(cs, liProducts) {
+    return liProducts.includes(cs.productName) || hasUnclassifiedLifeInsurancePolicy(cs);
+  }
+
   // All life-insurance-category cases across every company this client is
   // linked to, each annotated with its own policies (already loaded by
   // getClientDetail -- SELECT * FROM policies WHERE case_id = ?, no
@@ -485,7 +508,7 @@ async function render() {
     for (const cb of detail.contactBrands) {
       const liProducts = LIFE_INSURANCE_PRODUCTS_BY_BRAND[cb.brandId] || [];
       for (const cs of cb.cases) {
-        if (liProducts.includes(cs.productName)) result.push({ ...cs, brandId: cb.brandId, brandShortName: cb.brandShortName });
+        if (isLifeInsuranceCase(cs, liProducts)) result.push({ ...cs, brandId: cb.brandId, brandShortName: cb.brandShortName });
       }
     }
     return result;
@@ -699,7 +722,7 @@ async function render() {
       <div class="text-faint" style="font-weight:700; text-transform:uppercase; font-size:11.5px; letter-spacing:.03em; margin:18px 0 8px;">Other Cases</div>
     ` + detail.contactBrands.map(cb => {
       const liProducts = LIFE_INSURANCE_PRODUCTS_BY_BRAND[cb.brandId] || [];
-      const otherCases = cb.cases.filter(cs => !liProducts.includes(cs.productName));
+      const otherCases = cb.cases.filter(cs => !isLifeInsuranceCase(cs, liProducts));
       return `
       <div class="card" style="margin-bottom:14px;">
         <div class="card-header">
@@ -731,7 +754,10 @@ async function render() {
                       <td>${p.coverage_amount ? '$' + Number(p.coverage_amount).toLocaleString() : '—'}</td>
                       <td>${p.premium ? '$' + Number(p.premium).toLocaleString() : '—'}</td>
                       <td>${CrmApp.escapeHtml(p.renewal_date || '—')}</td>
-                      <td><button class="btn small ghost" data-edit-policy="${p.id}" data-case-id="${cs.caseId}">Edit</button></td>
+                      <td style="display:flex; gap:6px;">
+                        <button class="btn small ghost" data-edit-policy="${p.id}" data-case-id="${cs.caseId}">Edit</button>
+                        <button class="btn small ghost text-danger" data-delete-policy="${p.id}" data-carrier="${CrmApp.escapeHtml(p.carrier || '')}" data-policy-number="${CrmApp.escapeHtml(p.policy_number || '')}" title="Permanently delete this one policy">Delete</button>
+                      </td>
                     </tr>`).join('')}</tbody>
                   </table>
                 </div>` : '<div class="text-faint" style="margin-top:8px;">No policy on file yet.</div>')}
@@ -742,9 +768,17 @@ async function render() {
     }).join('');
   }
 
+  // 2026-10-09: Rollover / Safe Money Solutions / Follow-up-Service removed
+  // from the New Case dropdown per request -- Annuity (and Life insurance)
+  // remain the supported products a NEW case can be filed under. This is a
+  // frontend-only list; it never deletes the underlying `products` rows or
+  // touches any EXISTING case already filed under a removed product (those
+  // still render correctly under Other Cases by their own stored product
+  // name -- see casesHtml() -- and editCaseModal only ever edits Title/
+  // Status, never Product, so they stay fully manageable).
   const PRODUCTS_BY_BRAND = {
-    'insurance-lady': ['Online life-insurance application', 'Cash-building life insurance', 'Whole life/final expense', 'Cash cancer insurance', 'Annuities and safe-money solutions', 'Follow-up/service'],
-    prosperity: ['Life insurance', 'Annuities', 'Rollovers and safe-money solutions', 'Follow-up/service'],
+    'insurance-lady': ['Online life-insurance application', 'Cash-building life insurance', 'Whole life/final expense', 'Cash cancer insurance', 'Annuities and safe-money solutions'],
+    prosperity: ['Life insurance', 'Annuities'],
   };
 
   // New Case -> Annuity workflow (2026-10-08). Which seeded product name

@@ -1188,8 +1188,8 @@ async function render() {
             </div>
             <div class="form-field"><label>Effective date</label><input class="input" name="effectiveDate" type="date" value="${esc(p.effective_date || '')}"></div>
             <div class="form-field"><label>Application date</label><input class="input" name="applicationDate" type="date" value="${esc(p.application_date || '')}"></div>
-            <div class="form-field"><label>Coverage / account value (face amount)</label><input class="input" name="coverageAmount" type="number" value="${p.coverage_amount || ''}"></div>
-            <div class="form-field"><label>Premium / contribution</label><input class="input" name="premium" type="number" value="${p.premium || ''}"></div>
+            <div class="form-field"><label>Coverage / account value (face amount)</label><input class="input" name="coverageAmount" type="number" min="0" step="0.01" value="${p.coverage_amount || ''}"></div>
+            <div class="form-field"><label>Premium / contribution</label><input class="input" name="premium" type="number" min="0" step="0.01" value="${p.premium || ''}"></div>
             <div class="form-field"><label>Payment frequency</label>
               <select class="input" name="premiumFrequency">${['Monthly', 'Quarterly', 'Annual', 'One-time'].map(f => `<option ${p.premium_frequency === f ? 'selected' : ''}>${f}</option>`).join('')}</select>
             </div>

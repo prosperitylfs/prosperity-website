@@ -205,3 +205,23 @@ test('surrender_period_years round-trips through createPolicy and updatePolicy, 
   const withIt = createPolicy(db, { caseId: c.id, carrier: 'Nationwide', surrenderPeriodYears: '7' }, 'Loretta Stewart');
   assert.equal(withIt.surrender_period_years, 7);
 });
+
+test('2026-10-09 bug fix: a decimal premium (dollars and cents) round-trips exactly through createPolicy and updatePolicy -- not truncated to a whole dollar', () => {
+  const { db, prosperityId } = setup();
+  const client = createClient(db, { firstName: 'Decimal', lastName: 'Premium', email: 'decimal-premium@example.com', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const c = createCaseForClient(db, { contactId: client.contact.id, productId: getProductId(db, prosperityId, 'Life insurance') }, 'Loretta Stewart');
+
+  const policy = createPolicy(db, { caseId: c.id, carrier: 'Midland National', premium: '38.34', coverageAmount: '115.50' }, 'Loretta Stewart');
+  assert.equal(policy.premium, 38.34);
+  assert.equal(policy.coverage_amount, 115.5);
+
+  const updated = updatePolicy(db, policy.id, { premium: '250.75' }, 'Loretta Stewart');
+  assert.equal(updated.premium, 250.75);
+
+  // Re-read from a fresh query (not just the in-memory return value) to
+  // confirm SQLite's REAL column genuinely stored the cents, not just that
+  // the JS object in memory happened to hold them.
+  const reread = db.prepare('SELECT premium, coverage_amount FROM policies WHERE id = ?').get(policy.id);
+  assert.equal(reread.premium, 250.75);
+  assert.equal(reread.coverage_amount, 115.5);
+});

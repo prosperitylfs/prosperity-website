@@ -34,6 +34,49 @@ const { sendLegacySms } = require('./legacySmsSend');
 const STOP_KEYWORDS = new Set(['stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit']);
 const START_KEYWORDS = new Set(['start', 'yes', 'unstop']);
 const HELP_KEYWORDS = new Set(['help', 'info']);
+
+// 2026-10-09: normalizes an inbound body for every exact-whole-message
+// keyword/phrase comparison in this file -- lowercased, trimmed, sentence
+// punctuation stripped (. , ! ? ; :), internal whitespace collapsed to
+// single spaces. A strict widening of the previous trim+lowercase-only
+// comparison: every message that matched before still matches (none of
+// the existing single-word keywords contain punctuation), and messages
+// that only missed due to trailing/embedded punctuation ("Stop!", "Sure,
+// you can text me.") now correctly match too -- see
+// CLEAR_AFFIRMATIVE_PHRASES below for why this matters for multi-word
+// phrases specifically.
+function normalizeForMatching(body) {
+  return (body || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[.,!?;:]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// 2026-10-09: additional CLEAR, unambiguous affirmative consent phrases
+// (Loretta's own list) -- treated IDENTICALLY to a bare "yes": granting
+// consent AND triggering the automated booking-link reply (folded into
+// BOOKING_LINK_REPLY_KEYWORDS below), so there is no inconsistent
+// distinction between "yes" and "y"/"i consent"/etc. Matched via the same
+// exact-whole-normalized-message comparison as every other keyword set
+// here, never a substring match -- a longer message that merely contains
+// one of these phrases does not match (e.g. "ok to text me later, not
+// right now" does not equal "ok to text me").
+const CLEAR_AFFIRMATIVE_PHRASES = new Set([
+  'y', 'i agree', 'i consent', 'you can text me',
+  'ok to text me', 'sure you can text me', 'sounds good you can text me',
+]);
+
+// 2026-10-09: AMBIGUOUS replies -- explicitly NOT treated as consent
+// either way (sms_consent is left completely untouched) and NEVER
+// trigger the booking-link reply. Instead, flagged for Loretta's manual
+// review via a dedicated follow-up task (createAmbiguousConsentReviewTask
+// below) so she can follow up and confirm permission herself. Distinct
+// from NO_KEYWORDS (an explicit decline) and from CLEAR_AFFIRMATIVE_PHRASES
+// (an explicit, unambiguous yes) -- this set exists specifically for
+// replies that could reasonably mean either.
+const AMBIGUOUS_CONSENT_PHRASES = new Set(['ok', 'okay', 'sure', 'sounds good']);
 // REVIEW: a reply to the Existing Client - Reconnect Life Insurance
 // Awareness Month SMS template requesting a policy review. Treated exactly like YES for
 // consent purposes (same audit stamping as START_KEYWORDS below) PLUS it
@@ -55,7 +98,11 @@ const REVIEW_KEYWORDS = new Set(['review']);
 // here -- those are the general Twilio-standard re-subscribe keywords, a
 // different signal than this campaign's own "yes, send me the link" reply,
 // and still grant consent alone via the plain START_KEYWORDS branch.
-const BOOKING_LINK_REPLY_KEYWORDS = new Set(['yes', 'review']);
+// 2026-10-09: expanded to include CLEAR_AFFIRMATIVE_PHRASES above (Y, "I
+// consent", "you can text me", etc.) -- per Loretta's explicit decision,
+// every one of those phrases behaves identically to "yes" here, both for
+// granting consent and for triggering the booking-link reply.
+const BOOKING_LINK_REPLY_KEYWORDS = new Set(['yes', 'review', ...CLEAR_AFFIRMATIVE_PHRASES]);
 // NO: an explicit "not right now" reply -- distinct from STOP. Sets
 // sms_consent = 0 (blocks ordinary future SMS the same way START/YES sets
 // it to 1) but deliberately does NOT set sms_opted_out_at -- that column is
@@ -287,25 +334,74 @@ function createLegacySmsReplyTask(db, contactId) {
   return result.lastInsertRowid;
 }
 
-function isConsentCommand(body) {
-  const lower = (body || '').trim().toLowerCase();
-  return STOP_KEYWORDS.has(lower) || START_KEYWORDS.has(lower) || HELP_KEYWORDS.has(lower) || NO_KEYWORDS.has(lower) || REVIEW_KEYWORDS.has(lower);
+const AMBIGUOUS_CONSENT_REVIEW_TASK_DEDUP_KEYWORD = 'Ambiguous SMS consent reply';
+
+// 2026-10-09: creates a dedicated follow-up task so Loretta can manually
+// review an AMBIGUOUS reply and confirm permission herself — this never
+// auto-approves or auto-denies anything; sms_consent is left completely
+// untouched by the caller. Dedups the same way createLegacySmsReplyTask
+// above does (an existing PENDING task already carrying this keyword), so
+// repeated ambiguous replies while she hasn't yet resolved the first one
+// don't pile up duplicates; once that task is completed, the next
+// ambiguous reply creates a fresh one. The exact incoming reply text is
+// embedded verbatim in the notes so she can see precisely what the
+// client said without cross-referencing the Texts tab.
+function createAmbiguousConsentReviewTask(db, contactId, exactReplyText) {
+  const existing = db.prepare(`
+    SELECT id FROM follow_up_tasks WHERE contact_id = ? AND task_type = 'SMS' AND status = 'Pending' AND notes LIKE ?
+  `).get(contactId, `%${AMBIGUOUS_CONSENT_REVIEW_TASK_DEDUP_KEYWORD}%`);
+  if (existing) return null;
+  const { date, time } = ctDueDateAndTimeLocal(15);
+  const safeReplyText = String(exactReplyText || '').slice(0, 500);
+  const result = db.prepare(`
+    INSERT INTO follow_up_tasks (contact_id, task_type, due_date, due_time, notes, priority)
+    VALUES (?, 'SMS', ?, ?, ?, 'Medium')
+  `).run(contactId, date, time, `${AMBIGUOUS_CONSENT_REVIEW_TASK_DEDUP_KEYWORD}: "${safeReplyText}" — review and confirm permission before marking SMS Approved.`);
+  return result.lastInsertRowid;
 }
 
-// Fires the automated booking-link reply for a REVIEW keyword reply — the
-// same fire-and-forget pattern as triggerRescheduleRequest below (and for
-// the identical reason: this module's functions stay synchronous). Reuses
-// sendLegacySms, the SAME send-and-log primitive every other automated SMS
-// in this codebase uses, sent from the SAME number the inbound REVIEW text
-// arrived TO (the Prosperity number — this is only ever called from the
-// Prosperity-number branch) so the reply threads on the client's phone.
-// sms_consent is already stamped to 1 synchronously, immediately before
-// this is called, so sendLegacySms's own consent gate passes normally.
+function isConsentCommand(body) {
+  const lower = normalizeForMatching(body);
+  return STOP_KEYWORDS.has(lower) || START_KEYWORDS.has(lower) || HELP_KEYWORDS.has(lower) || NO_KEYWORDS.has(lower) || REVIEW_KEYWORDS.has(lower)
+    || CLEAR_AFFIRMATIVE_PHRASES.has(lower) || AMBIGUOUS_CONSENT_PHRASES.has(lower);
+}
+
+const REVIEW_BOOKING_LINK_MESSAGE_TYPE = 'existing_client_review_booking_link_reply';
+
+// 2026-10-09: true if this contact has ALREADY received the automated
+// booking-link reply at least once -- checked synchronously, BEFORE any
+// send is attempted, so a qualifying approval (YES/REVIEW/any
+// CLEAR_AFFIRMATIVE_PHRASES reply) sends the link only once per contact,
+// no matter how many separate qualifying replies arrive afterward (e.g.
+// "yes" today, "sounds good you can text me" next week). Same dedup
+// query shape as crm/lib/existingClientOutreach.js's own
+// checkReconnectionSmsEligibility 'alreadySent' check -- excludes a
+// 'failed' send, so a genuinely failed attempt can still be retried by a
+// later qualifying reply.
+function hasAlreadyReceivedBookingLinkReply(db, contactId) {
+  return !!db.prepare(`
+    SELECT 1 FROM sms_messages WHERE contact_id = ? AND message_type = ? AND status != 'failed' LIMIT 1
+  `).get(contactId, REVIEW_BOOKING_LINK_MESSAGE_TYPE);
+}
+
+// Fires the automated booking-link reply for a REVIEW/YES-equivalent
+// reply — the same fire-and-forget pattern as triggerRescheduleRequest
+// below (and for the identical reason: this module's functions stay
+// synchronous). Reuses sendLegacySms, the SAME send-and-log primitive
+// every other automated SMS in this codebase uses, sent from the SAME
+// number the inbound text arrived TO (the Prosperity number — this is
+// only ever called from the Prosperity-number branch) so the reply
+// threads on the client's phone. sms_consent is already stamped to 1
+// synchronously, immediately before this is called, so sendLegacySms's
+// own consent gate passes normally.
 function triggerReviewBookingLinkReply(db, { contactId, To }, deps) {
+  if (hasAlreadyReceivedBookingLinkReply(db, contactId)) {
+    return Promise.resolve({ ok: true, skipped: true, reason: 'already_sent' });
+  }
   const send = deps.sendLegacySms || sendLegacySms;
   return send(db, {
     contactId, body: REVIEW_BOOKING_LINK_REPLY, fromNumber: To || undefined,
-    messageType: 'existing_client_review_booking_link_reply',
+    messageType: REVIEW_BOOKING_LINK_MESSAGE_TYPE,
   }, deps).catch(err => {
     console.error(`[inboundSmsService] REVIEW booking-link reply failed for contact #${contactId}:`, err.message);
     return { ok: false, status: 500, error: err.message };
@@ -421,7 +517,7 @@ function handleProsperityInboundSms(db, { From, To, Body, MessageSid }, deps = {
     }
 
     let consentAction = null;
-    const bodyLower = (Body || '').trim().toLowerCase();
+    const bodyLower = normalizeForMatching(Body);
     if (STOP_KEYWORDS.has(bodyLower)) {
       db.prepare(`UPDATE contacts SET sms_consent = 0, sms_opted_out_at = CURRENT_TIMESTAMP WHERE id = ?`).run(match.id);
       consentAction = 'opted_out';
@@ -469,17 +565,33 @@ function handleProsperityInboundSms(db, { From, To, Body, MessageSid }, deps = {
       consentAction = 'declined';
     } else if (HELP_KEYWORDS.has(bodyLower)) {
       consentAction = 'help_requested';
+    } else if (AMBIGUOUS_CONSENT_PHRASES.has(bodyLower)) {
+      // Explicitly NOT a consent change in either direction -- sms_consent,
+      // sms_consent_source, and sms_consent_at are all left completely
+      // untouched. The exact reply (Body) is already saved verbatim in
+      // sms_messages.body above, with its own timestamp (sent_at) and
+      // phone number (from_number); this task is the "review flag" that
+      // makes it actionable rather than just sitting in the Texts tab.
+      consentAction = 'ambiguous_flagged_for_review';
     }
 
     // A follow-up task is only ever created for a genuine, non-command
-    // reply — STOP/START/HELP/REVIEW must never generate a "reply to this
-    // lead" task.
+    // reply — STOP/START/HELP/REVIEW/ambiguous-consent must never generate
+    // a "reply to this lead" task (an ambiguous reply gets its own
+    // dedicated review task below instead).
     const autoTaskId = !isCommand ? createLegacySmsReplyTask(db, match.id) : null;
+    let ambiguousConsentReviewTaskId = null;
+    if (consentAction === 'ambiguous_flagged_for_review') {
+      ambiguousConsentReviewTaskId = createAmbiguousConsentReviewTask(db, match.id, Body);
+    }
 
     const result = {
       outcome: 'processed', contactId: match.id, contactCreated: false, contactBrandId: match.contact_brand_id,
       autoTaskId, consentAction, reviewStaged: null, isProsperityNumber: true,
     };
+    if (consentAction === 'ambiguous_flagged_for_review') {
+      result.ambiguousConsentReviewTaskId = ambiguousConsentReviewTaskId;
+    }
     if (consentAction === 'review_requested') {
       result.reviewRequested = true;
       result.reviewBookingLinkPromise = triggerReviewBookingLinkReply(db, { contactId: match.id, To }, deps);
@@ -554,13 +666,18 @@ module.exports = {
   handleInboundProsperitySms,
   handleInboundSmsUnified,
   findActiveProsperityContactByPhone,
+  normalizeForMatching,
   STOP_KEYWORDS,
   START_KEYWORDS,
   HELP_KEYWORDS,
   NO_KEYWORDS,
   REVIEW_KEYWORDS,
+  CLEAR_AFFIRMATIVE_PHRASES,
+  AMBIGUOUS_CONSENT_PHRASES,
   BOOKING_LINK_REPLY_KEYWORDS,
   REVIEW_BOOKING_LINK_REPLY,
+  REVIEW_BOOKING_LINK_MESSAGE_TYPE,
   PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL,
   INBOUND_SMS_CONSENT_SOURCE,
+  AMBIGUOUS_CONSENT_REVIEW_TASK_DEDUP_KEYWORD,
 };

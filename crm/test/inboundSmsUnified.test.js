@@ -560,6 +560,154 @@ test('YES now DOES trigger the automated booking-link reply, exactly like REVIEW
   assert.equal(bookingReplies.length, 1, 'a YES must automatically send the booking link exactly once');
 });
 
+// ── 2026-10-09: expanded consent-recognition + ambiguous-reply review ─────
+
+test('each new CLEAR affirmative phrase grants consent and triggers the booking link exactly like YES, tolerating punctuation and case', async () => {
+  const db = setup();
+  const phrases = ['Y', 'I agree', 'I CONSENT', 'you can text me', 'OK to text me.', 'Sure, you can text me!', 'Sounds good, you can text me.'];
+  for (const [i, body] of phrases.entries()) {
+    const client = createClient(db, { firstName: 'Clear', lastName: `Affirmative${i}`, phone: `41455593${String(i).padStart(2, '0')}`, brandSlug: 'prosperity', relationshipType: 'active_client' }, 'Loretta Stewart');
+    const result = handleInboundSmsUnified(db, {
+      From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: body, MessageSid: `SM_clear_affirmative_${i}`,
+    }, OK_REVIEW_SEND_DEPS);
+    assert.equal(result.consentAction, 'review_requested', `"${body}" must be recognized as a clear affirmative`);
+    assert.equal(result.autoTaskId, null, `"${body}" must not create an ordinary reply task`);
+
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+    assert.equal(contact.sms_consent, 1, `"${body}" must grant consent`);
+    assert.equal(contact.sms_consent_source, 'Inbound SMS');
+    assert.ok(contact.sms_consent_at);
+
+    const sendOutcome = await result.reviewBookingLinkPromise;
+    assert.equal(sendOutcome.ok, true, `"${body}" must trigger the booking-link reply`);
+    const detail = getClientDetail(db, client.contact.id);
+    assert.ok(detail.smsThread.some(m => m.body === body && m.direction === 'inbound'), 'the exact inbound reply text must be preserved verbatim');
+    const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL));
+    assert.equal(bookingReplies.length, 1, `"${body}" must send the booking link exactly once`);
+  }
+});
+
+test('a qualifying approval sends the booking link only ONCE, even when a second, different qualifying reply arrives later', async () => {
+  const db = setup();
+  const client = createClient(db, { firstName: 'Once', lastName: 'Only', phone: '4145559340', brandSlug: 'prosperity', relationshipType: 'active_client' }, 'Loretta Stewart');
+
+  const first = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'YES', MessageSid: 'SM_once_1' }, OK_REVIEW_SEND_DEPS);
+  const firstSend = await first.reviewBookingLinkPromise;
+  assert.equal(firstSend.ok, true);
+  assert.equal(firstSend.skipped, undefined, 'the first qualifying reply must actually send');
+
+  const second = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'I consent', MessageSid: 'SM_once_2' }, OK_REVIEW_SEND_DEPS);
+  const secondSend = await second.reviewBookingLinkPromise;
+  assert.equal(secondSend.ok, true);
+  assert.equal(secondSend.skipped, true, 'a second qualifying reply must be recognized as already having received the link');
+
+  const detail = getClientDetail(db, client.contact.id);
+  const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL));
+  assert.equal(bookingReplies.length, 1, 'only ONE booking-link message must ever exist in history, no matter how many qualifying replies arrive');
+});
+
+test('AMBIGUOUS replies (OK, Okay, Sure, Sounds good) are never auto-approved, never get the booking link, and are flagged with a dedicated review task carrying the exact reply text', () => {
+  const db = setup();
+  const phrases = ['OK', 'Okay', 'Sure', 'Sounds good', ' ok ', 'OK!', 'Sure.'];
+  for (const [i, body] of phrases.entries()) {
+    const client = createClient(db, { firstName: 'Ambiguous', lastName: `Reply${i}`, phone: `41455594${String(i).padStart(2, '0')}`, brandSlug: 'prosperity', relationshipType: 'active_client' }, 'Loretta Stewart');
+    const result = handleInboundSmsUnified(db, {
+      From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: body, MessageSid: `SM_ambiguous_${i}`,
+    }, OK_REVIEW_SEND_DEPS);
+
+    assert.equal(result.consentAction, 'ambiguous_flagged_for_review', `"${body}" must be flagged ambiguous, not auto-approved`);
+    assert.equal(result.reviewRequested, undefined, 'ambiguous must never set reviewRequested (that flag means the booking link was sent)');
+    assert.equal(result.autoTaskId, null, 'ambiguous must not ALSO create the generic "reply to this lead" task');
+    assert.ok(result.ambiguousConsentReviewTaskId, 'a dedicated review task must be created');
+
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+    assert.equal(contact.sms_consent, 0, `"${body}" must leave sms_consent untouched (still the default 0)`);
+    assert.equal(contact.sms_consent_source, null, 'sms_consent_source must never be stamped for an ambiguous reply');
+    assert.equal(contact.sms_consent_at, null);
+
+    const task = db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(result.ambiguousConsentReviewTaskId);
+    assert.equal(task.contact_id, client.contact.id);
+    assert.equal(task.status, 'Pending');
+    assert.ok(task.notes.includes(body.trim()), 'the task notes must contain the exact incoming reply text');
+
+    const detail = getClientDetail(db, client.contact.id);
+    const bookingReplies = detail.smsThread.filter(m => m.direction === 'outbound' && m.body.includes(PROSPERITY_LIFE_INSURANCE_SHORT_BOOKING_URL));
+    assert.equal(bookingReplies.length, 0, `"${body}" must never trigger the automated booking-link reply`);
+  }
+});
+
+test('a repeated ambiguous reply while the first review task is still Pending does not create a second, duplicate task', () => {
+  const db = setup();
+  const client = createClient(db, { firstName: 'Repeat', lastName: 'Ambiguous', phone: '4145559350', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const first = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'OK', MessageSid: 'SM_repeat_amb_1' }, OK_REVIEW_SEND_DEPS);
+  const second = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'Sure', MessageSid: 'SM_repeat_amb_2' }, OK_REVIEW_SEND_DEPS);
+  assert.ok(first.ambiguousConsentReviewTaskId);
+  assert.equal(second.ambiguousConsentReviewTaskId, null, 'no second task while the first is still Pending');
+  const taskCount = db.prepare(`SELECT COUNT(*) AS n FROM follow_up_tasks WHERE contact_id = ? AND notes LIKE '%Ambiguous SMS consent reply%'`).get(client.contact.id).n;
+  assert.equal(taskCount, 1);
+});
+
+test('once the review task is completed, a later ambiguous reply creates a fresh task', () => {
+  const db = setup();
+  const client = createClient(db, { firstName: 'Fresh', lastName: 'AfterResolved', phone: '4145559360', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const first = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'OK', MessageSid: 'SM_fresh_amb_1' }, OK_REVIEW_SEND_DEPS);
+  db.prepare(`UPDATE follow_up_tasks SET status = 'Completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?`).run(first.ambiguousConsentReviewTaskId);
+
+  const second = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'Sure', MessageSid: 'SM_fresh_amb_2' }, OK_REVIEW_SEND_DEPS);
+  assert.ok(second.ambiguousConsentReviewTaskId, 'a new task must be created once the prior one is resolved');
+  assert.notEqual(second.ambiguousConsentReviewTaskId, first.ambiguousConsentReviewTaskId);
+});
+
+test('mixed/unrelated sentences merely containing an ambiguous or affirmative word are NOT matched -- only the exact whole message counts', () => {
+  const db = setup();
+  const bodies = ['ok i will think about it', 'sure, but not right now', 'you can text me later maybe', 'okay whatever'];
+  for (const [i, body] of bodies.entries()) {
+    const client = createClient(db, { firstName: 'Mixed', lastName: `Sentence${i}`, phone: `41455596${String(i).padStart(2, '0')}`, brandSlug: 'prosperity' }, 'Loretta Stewart');
+    const result = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: body, MessageSid: `SM_mixed_${i}` });
+    assert.equal(result.consentAction, null, `"${body}" must not match any consent keyword/phrase at all`);
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+    assert.equal(contact.sms_consent, 0);
+  }
+});
+
+test('STOP remains authoritative and is checked before any affirmative/ambiguous phrase -- a message cannot be both', () => {
+  const db = setup();
+  // STOP_KEYWORDS and the new phrase sets never overlap, but this
+  // explicitly proves STOP still blocks even after a prior clear
+  // affirmative grant, matching the existing STOP-is-authoritative
+  // guarantee this file already covers for plain YES.
+  const client = createClient(db, { firstName: 'Stop', lastName: 'StillWorks', phone: '4145559370', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'I consent', MessageSid: 'SM_stop_check_1' }, OK_REVIEW_SEND_DEPS);
+  let contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+  assert.equal(contact.sms_consent, 1);
+
+  const stopResult = handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'STOP', MessageSid: 'SM_stop_check_2' });
+  assert.equal(stopResult.consentAction, 'opted_out');
+  contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(client.contact.id);
+  assert.equal(contact.sms_consent, 0);
+  assert.ok(contact.sms_opted_out_at);
+});
+
+test('the exact incoming response, timestamp, and phone number are always saved for both a clear-affirmative and an ambiguous reply', () => {
+  const db = setup();
+  const client = createClient(db, { firstName: 'Audit', lastName: 'Trail', phone: '4145559380', brandSlug: 'prosperity' }, 'Loretta Stewart');
+
+  handleInboundSmsUnified(db, { From: client.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'I agree', MessageSid: 'SM_audit_1' }, OK_REVIEW_SEND_DEPS);
+  const msg1 = db.prepare(`SELECT * FROM sms_messages WHERE twilio_sid = 'SM_audit_1'`).get();
+  assert.equal(msg1.body, 'I agree');
+  assert.equal(msg1.from_number, client.contact.phone_e164);
+  assert.ok(msg1.sent_at);
+
+  const client2 = createClient(db, { firstName: 'Audit', lastName: 'Trail2', phone: '4145559381', brandSlug: 'prosperity' }, 'Loretta Stewart');
+  const ambResult = handleInboundSmsUnified(db, { From: client2.contact.phone_e164, To: PROSPERITY_NUMBER, Body: 'Sounds good', MessageSid: 'SM_audit_2' }, OK_REVIEW_SEND_DEPS);
+  const msg2 = db.prepare(`SELECT * FROM sms_messages WHERE twilio_sid = 'SM_audit_2'`).get();
+  assert.equal(msg2.body, 'Sounds good');
+  assert.equal(msg2.from_number, client2.contact.phone_e164);
+  assert.ok(msg2.sent_at);
+  const task = db.prepare('SELECT * FROM follow_up_tasks WHERE id = ?').get(ambResult.ambiguousConsentReviewTaskId);
+  assert.ok(task.notes.includes('Sounds good'));
+});
+
 test('SCENARIO 14: both inbound endpoint paths remain behaviorally identical (same shared handler, same outcome)', () => {
   const db1 = setup();
   const db2 = setup();

@@ -168,6 +168,37 @@ function buildClientListOrderBy(sort) {
   return `(ct.last_name IS NULL OR ct.last_name = ''), ct.last_name COLLATE NOCASE, ct.first_name COLLATE NOCASE, ct.id`;
 }
 
+// 2026-10-10 fix: this used to be driven FROM cases (INNER JOIN out to
+// contact_brands/contacts/brands), which meant a contact with ZERO cases
+// on file -- e.g. an Existing Client added to the CRM before any
+// policy/case was ever entered for them -- could never appear on this
+// page at all, under any filter, because there was no `cases` row to
+// join against. The "Existing Client Outreach" list
+// (crm/lib/existingClientOutreach.js's getExistingClientsForOutreach)
+// queries straight FROM contacts and has no such requirement, which is
+// exactly why a contact could show there but not here. Now driven FROM
+// contacts, with cases/products LEFT JOINed in -- a case-less contact
+// still appears (with an empty `cases` array, which the per-page re-fetch
+// and merge logic below this point already handled gracefully even
+// before this fix). cb.status = 'Active' is now explicit here (every
+// case was already implicitly scoped to an active relationship, since
+// createCaseForClient only ever creates a case under one, so this adds
+// no change for a contact who has at least one case -- it only matters
+// for a case-less contact, who must not appear under a brand they only
+// have an ARCHIVED/past relationship with).
+//
+// Critically, a case-less contact is NOT shown just for having an active
+// company relationship -- that would also surface every brand-new LEAD
+// (relationship_type NULL, no case yet), which belongs exclusively in
+// New Prospects / Prospect Pipeline (crm/lib/dashboardQueries.js's
+// getNewProspectsQueue / getProspectPipelineQueue), never duplicated onto
+// the Clients page. The isExistingClientOrHasACase clause below requires
+// EITHER a real case OR the exact same "Existing Client" classification
+// crm/lib/existingClientOutreach.js's isExistingClient() already uses
+// (relationship_type = 'active_client' OR lead_type = 'Existing Client')
+// -- so a case-less, still-a-lead contact correctly stays invisible here
+// (crm/test/appQueries.test.js's own "must never go through the Clients
+// page's case-based query" tests depend on exactly this staying true).
 function getCaseList(db, { brandId = null, statusFilter = 'active', search = '', page = 1, pageSize = 25, sort = 'name' } = {}) {
   const clauses = [];
   const params = [];
@@ -176,7 +207,10 @@ function getCaseList(db, { brandId = null, statusFilter = 'active', search = '',
     clauses.push('b.slug = ?');
     params.push(brandId);
   }
-  if (statusFilter === 'active') clauses.push("c.status != 'Archived'");
+  clauses.push("(c.id IS NOT NULL OR ct.relationship_type = 'active_client' OR ct.lead_type = 'Existing Client')");
+  // A case-less contact (c.id IS NULL) always counts as "active" --
+  // they have nothing to be archived -- but never as "archived".
+  if (statusFilter === 'active') clauses.push("(c.id IS NULL OR c.status != 'Archived')");
   else if (statusFilter === 'archived') clauses.push("c.status = 'Archived'");
   // 'all' adds no status clause
 
@@ -197,11 +231,11 @@ function getCaseList(db, { brandId = null, statusFilter = 'active', search = '',
 
   const totalRow = db.prepare(`
     SELECT COUNT(DISTINCT ct.id) AS n
-    FROM cases c
-    JOIN contact_brands cb ON cb.id = c.contact_brand_id
-    JOIN contacts ct       ON ct.id = cb.contact_id
-    JOIN brands b           ON b.id = cb.brand_id
-    LEFT JOIN products p    ON p.id = c.product_id
+    FROM contacts ct
+    JOIN contact_brands cb ON cb.contact_id = ct.id AND cb.status = 'Active'
+    JOIN brands b          ON b.id = cb.brand_id
+    LEFT JOIN cases c      ON c.contact_brand_id = cb.id
+    LEFT JOIN products p   ON p.id = c.product_id
     ${where}
   `).get(...params);
   const totalContacts = totalRow.n;
@@ -211,11 +245,11 @@ function getCaseList(db, { brandId = null, statusFilter = 'active', search = '',
 
   const pageContacts = db.prepare(`
     SELECT DISTINCT ct.id AS contact_id, ct.first_name, ct.last_name
-    FROM cases c
-    JOIN contact_brands cb ON cb.id = c.contact_brand_id
-    JOIN contacts ct       ON ct.id = cb.contact_id
-    JOIN brands b           ON b.id = cb.brand_id
-    LEFT JOIN products p    ON p.id = c.product_id
+    FROM contacts ct
+    JOIN contact_brands cb ON cb.contact_id = ct.id AND cb.status = 'Active'
+    JOIN brands b          ON b.id = cb.brand_id
+    LEFT JOIN cases c      ON c.contact_brand_id = cb.id
+    LEFT JOIN products p   ON p.id = c.product_id
     ${where}
     ORDER BY ${buildClientListOrderBy(sort)}
     LIMIT ? OFFSET ?
@@ -950,8 +984,9 @@ function getNewProspectsQueue(db, { brandId = null } = {}) {
 // "Prospect Pipeline" (2026-09-23 audit): the permanent home for every
 // currently-unresolved prospect, regardless of how long ago they entered
 // the CRM -- unlike New Prospects (a 7-day recent-arrivals/attention
-// indicator) and unlike the Clients page (getCaseList, which requires a
-// case and therefore never shows a contact who hasn't had one opened yet).
+// indicator) and unlike the Clients page (getCaseList, which shows every
+// contact with an active company relationship whether or not they have a
+// case yet -- see that function's own 2026-10-10 fix comment).
 // Reads the exact same underlying contacts rows as New Prospects through
 // queryProspects() above -- no duplicate prospect table, no separate
 // record. A contact leaves this list the instant relationship_type is

@@ -25,6 +25,7 @@ const MIGRATION_STEPS = [
   { name: 'migrateCrmApp', run: (db) => require('../db/migrateCrmApp').runCrmAppMigrations(db) },
   { name: 'migrateCrmCore', run: (db) => require('../db/migrateCrmCore').runCrmCoreMigrations(db) },
   { name: 'migrateRevenueMvp', run: (db) => require('../db/migrateRevenueMvp').runRevenueMvpMigrations(db) },
+  { name: 'migrateBackNine', run: (db) => require('../db/migrateBackNine').runBackNineMigrations(db) },
 ];
 const MIGRATION_ORDER = MIGRATION_STEPS.map((s) => s.name);
 

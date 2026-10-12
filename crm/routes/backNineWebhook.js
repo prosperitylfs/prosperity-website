@@ -4,14 +4,13 @@
 // documentation describes for these webhooks. Same "external service, own
 // trust model" placement as crm/routes/calcom.js.
 //
-// Phase 1 only, by design -- see crm/lib/backNineWebhook.js's header comment
-// for exactly why. This route:
-//   - Verifies the request is genuinely from BackNine.
-//   - Logs ONLY the confirmed, non-sensitive-beyond-name fields (uuid/id,
-//     applicant name, product, face amount, premium, status/step) -- never
-//     health, financial-detail, or other application content.
-//   - Acknowledges receipt (200) so BackNine does not retry.
-//   - Creates or updates NOTHING in the CRM database yet.
+// Phase 2: the eApp endpoint now stores/updates a backnine_applications row
+// (crm/lib/backNineApplications.js) using only the confirmed fields --
+// never health, financial-detail, or other application content beyond
+// what's logged. Contact matching is never automatic here (see that
+// file's header comment for why); every new application lands as
+// match_status='needs_review' until a human matches it. The Case endpoint
+// remains receive-and-log only -- see its own handler below for why.
 // Two separate secrets (one per BOSS webhook field) rather than one shared
 // value, since BackNine's docs describe the secret as configured "per
 // endpoint" without saying whether BOSS allows the same value for both --
@@ -20,7 +19,9 @@
 
 const express = require('express');
 const router = express.Router();
+const db = require('../db/database');
 const { verifyBackNineAuth, extractConfirmedEappSummary } = require('../lib/backNineWebhook');
+const { upsertApplicationFromEapp } = require('../lib/backNineApplications');
 
 router.get('/eapp', (_req, res) => {
   res.json({ ok: true, message: 'BackNine eApp webhook endpoint is active' });
@@ -38,19 +39,35 @@ router.post('/eapp', (req, res) => {
 
   const summary = extractConfirmedEappSummary(req.body);
   if (!summary || !summary.backNineUuid) {
-    console.warn('BackNine eApp webhook: verified request had no recognizable payload/uuid -- nothing logged or processed');
-  } else {
-    const applicantName = `${summary.firstName || ''} ${summary.lastName || ''}`.trim();
-    console.log(
-      `BackNine eApp webhook received: uuid=${summary.backNineUuid} id=${summary.backNineId} ` +
-      `applicant="${applicantName}" ` +
-      `product=${summary.productCategory} faceAmount=${summary.faceAmount} premium=${summary.premium} ` +
-      `status=${summary.eappStatus} step=${summary.step} (${summary.namedStep}) ` +
-      `caseStatus=${summary.caseStatus} -- not yet processed (Phase 1: receive + verify only)`
-    );
+    console.warn('BackNine eApp webhook: verified request had no recognizable payload/uuid -- nothing stored');
+    return res.status(200).json({ ok: true, received: true, processed: false });
   }
 
-  res.status(200).json({ ok: true, received: true, processed: false });
+  const applicantName = `${summary.firstName || ''} ${summary.lastName || ''}`.trim();
+  console.log(
+    `BackNine eApp webhook received: uuid=${summary.backNineUuid} id=${summary.backNineId} ` +
+    `applicant="${applicantName}" ` +
+    `product=${summary.productCategory} faceAmount=${summary.faceAmount} premium=${summary.premium} ` +
+    `status=${summary.eappStatus} step=${summary.step} (${summary.namedStep}) caseStatus=${summary.caseStatus}`
+  );
+
+  let result;
+  try {
+    result = upsertApplicationFromEapp(db, summary, req.body);
+  } catch (err) {
+    console.error(`BackNine eApp webhook: failed to store application uuid=${summary.backNineUuid}:`, err.message);
+    return res.status(200).json({ ok: true, received: true, processed: false });
+  }
+
+  if (!result.ok) {
+    if (result.reason === 'migration_not_run') {
+      console.error('BackNine eApp webhook: backnine_applications table does not exist -- run crm/scripts/migrateProduction.js (migrateBackNine step) against production before this can store applications.');
+    }
+    return res.status(200).json({ ok: true, received: true, processed: false });
+  }
+
+  console.log(`BackNine eApp webhook: application ${result.outcome} (id=${result.application.id}, match_status=${result.application.match_status})`);
+  res.status(200).json({ ok: true, received: true, processed: true, outcome: result.outcome });
 });
 
 router.post('/case', (req, res) => {

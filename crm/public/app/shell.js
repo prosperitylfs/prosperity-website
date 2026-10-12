@@ -42,6 +42,7 @@
     { key: 'workflows', label: 'Workflows', href: 'workflows.html', icon: 'workflows' },
     { key: 'reports', label: 'Reports', href: 'reports.html', icon: 'reports' },
     { key: 'review', label: 'Review Required', href: 'review.html', icon: 'review', badgeKey: 'reviewRequired' },
+    { key: 'backnine-applications', label: 'BackNine Applications', href: 'backnine-applications.html', icon: 'policies' },
     { key: 'settings', label: 'Settings', href: '/settings.html', icon: 'settings' },
   ];
 

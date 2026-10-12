@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BackNine Applications — Prosperity CRM</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app-root"></div>
+<script src="../config.js"></script>
+<script src="shell.js"></script>
+<script>
+async function render() {
+  CrmApp.mount({ active: 'backnine-applications', title: 'BackNine Applications', subtitle: 'Applications received from BackNine BOSS that need to be matched to an existing client', showCompanyFilter: false });
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  let data;
+  try { data = await CrmApp.fetchJSON('/api/app/backnine-applications/needs-review'); }
+  catch (e) { content.innerHTML = `<div class="empty-state">Could not load applications: ${CrmApp.escapeHtml(e.message)}</div>`; return; }
+
+  renderList(data.applications || []);
+
+  function money(n) {
+    return n == null ? '—' : '$' + Number(n).toLocaleString();
+  }
+
+  function appCardHtml(app) {
+    const name = [app.first_name, app.last_name].filter(Boolean).join(' ') || 'Name not provided';
+    return `<div class="card" style="margin-bottom:12px;" data-app-card="${app.id}"><div class="card-body">
+      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <strong>${CrmApp.escapeHtml(name)}</strong>
+        <span class="text-faint">BackNine case ${CrmApp.escapeHtml(app.backnine_id || app.backnine_uuid)} · received ${CrmApp.friendlyDate(app.received_at)}</span>
+      </div>
+      <div style="margin-top:6px;" class="text-faint">
+        ${CrmApp.escapeHtml(app.product_category || 'Product not provided')}
+        · Face amount ${money(app.face_amount)} · Premium ${money(app.premium)}
+      </div>
+      <div style="margin-top:6px;">
+        <span class="pill">${CrmApp.escapeHtml(app.display_status)}</span>
+        <span class="text-faint">BackNine status: ${CrmApp.escapeHtml(app.backnine_status || '—')}${app.named_step ? ' · ' + CrmApp.escapeHtml(app.named_step) : ''}</span>
+      </div>
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input class="input" style="max-width:240px;" type="text" placeholder="Search client by name…" data-search-input="${app.id}">
+        <button class="btn small" data-search-btn="${app.id}">Search</button>
+        <select class="input" style="max-width:260px; display:none;" data-client-select="${app.id}"></select>
+        <button class="btn small primary" style="display:none;" data-match-btn="${app.id}">Match to This Client</button>
+      </div>
+      <div class="text-faint" data-match-status="${app.id}" style="margin-top:6px;"></div>
+    </div></div>`;
+  }
+
+  function renderList(applications) {
+    content.innerHTML = `<div class="card-header-sub" style="margin-bottom:8px;">${applications.length} application${applications.length === 1 ? '' : 's'} waiting to be matched</div>` +
+      (applications.length ? applications.map(appCardHtml).join('') : '<div class="empty-state">Nothing waiting here.</div>');
+
+    content.querySelectorAll('[data-search-btn]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.dataset.searchBtn;
+        const input = content.querySelector(`[data-search-input="${appId}"]`);
+        const select = content.querySelector(`[data-client-select="${appId}"]`);
+        const matchBtn = content.querySelector(`[data-match-btn="${appId}"]`);
+        const q = (input.value || '').trim();
+        if (!q) return;
+        let results;
+        try { results = await CrmApp.fetchJSON('/api/app/clients?search=' + encodeURIComponent(q) + '&pageSize=25'); }
+        catch (e) { select.innerHTML = `<option>Search failed</option>`; select.style.display = ''; return; }
+        const contacts = results.contacts || [];
+        select.innerHTML = contacts.length
+          ? contacts.map(c => `<option value="${c.contactId}">${CrmApp.escapeHtml(c.name)}</option>`).join('')
+          : `<option value="">No matching clients</option>`;
+        select.style.display = '';
+        matchBtn.style.display = contacts.length ? '' : 'none';
+      });
+    });
+
+    content.querySelectorAll('[data-match-btn]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.dataset.matchBtn;
+        const select = content.querySelector(`[data-client-select="${appId}"]`);
+        const statusEl = content.querySelector(`[data-match-status="${appId}"]`);
+        const contactId = select.value;
+        if (!contactId) return;
+        btn.disabled = true;
+        try {
+          await CrmApp.postJSON(`/api/app/backnine-applications/${appId}/match`, { contactId: Number(contactId) });
+          const card = content.querySelector(`[data-app-card="${appId}"]`);
+          card.remove();
+        } catch (e) {
+          statusEl.textContent = 'Could not match: ' + e.message;
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+}
+render();
+</script>
+</body>
+</html>

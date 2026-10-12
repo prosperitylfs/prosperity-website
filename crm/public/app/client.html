@@ -818,8 +818,50 @@ async function render() {
   function casesHtml() {
     const legacyBanner = legacyInsuranceBannerHtml();
     if (!detail.contactBrands.length) return legacyBanner + '<div class="empty-state">No company relationship established yet.</div>';
-    return legacyBanner + lifeInsuranceHtml() + annuitiesHtml();
+    return legacyBanner + lifeInsuranceHtml() + annuitiesHtml() + pendingApplicationsHtml();
   }
+  // 2026-10-12: Pending Applications -- BackNine BOSS applications matched
+  // to this client (crm/lib/backNineApplications.js), kept entirely
+  // separate from the Life Insurance / Annuity policy cards above: an
+  // application here has NOT become an in-force policy, so it must never
+  // be confused with one. Read-only -- matching to a client happens on the
+  // dedicated backnine-applications.html page, not here, and this section
+  // has no Edit/Delete control. Follow-up tasks for an application use the
+  // CRM's existing Tasks feature (the BackNine case ID shown below is what
+  // to reference when creating one) rather than a new task UI, since
+  // BackNine's webhook does not provide any verified task/requirement data
+  // to auto-generate tasks from.
+  function pendingApplicationsHtml() {
+    const apps = detail.backNineApplications || [];
+    if (!apps.length) return '';
+    const esc = CrmApp.escapeHtml;
+    const money = (n) => n == null ? '—' : '$' + Number(n).toLocaleString();
+
+    const appCard = (a) => `
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-body">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <strong>${esc(a.product_category || 'BackNine Application')}</strong>
+            <span class="pill">${esc(a.display_status)}</span>
+          </div>
+          <div class="text-faint" style="margin-top:4px;">BackNine case ${esc(a.backnine_id || a.backnine_uuid)} · Received ${CrmApp.friendlyDate(a.received_at)} · Last updated ${CrmApp.friendlyDate(a.updated_at)}</div>
+          <dl class="kv-list" style="margin-top:8px;">
+            <dt>Face Amount</dt><dd>${money(a.face_amount)}</dd>
+            <dt>Premium</dt><dd>${money(a.premium)}</dd>
+            <dt>BackNine Status</dt><dd>${esc(a.backnine_status || '—')}${a.named_step ? ' — ' + esc(a.named_step) : ''}</dd>
+          </dl>
+        </div>
+      </div>`;
+
+    return `<div class="card" style="margin-bottom:14px;">
+      <div class="card-header"><h2>Pending Applications — BackNine</h2></div>
+      <div class="card-body">
+        <div class="text-faint" style="margin-bottom:12px;">Applications submitted through BackNine BOSS, not yet in-force policies. Read-only — matching and status come directly from BackNine's webhook.</div>
+        ${apps.map(appCard).join('')}
+      </div>
+    </div>`;
+  }
+
 
   // 2026-10-09: Rollover / Safe Money Solutions / Follow-up-Service removed
   // from the New Case dropdown per request -- Annuity (and Life insurance)

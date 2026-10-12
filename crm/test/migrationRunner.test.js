@@ -38,9 +38,9 @@ function makeFakeProductionDbFile(dir, name = 'fake-prod.db') {
   return filePath;
 }
 
-test('MIGRATION_ORDER is the exact five approved migrations in their required order', () => {
+test('MIGRATION_ORDER is the exact six approved migrations in their required order', () => {
   assert.deepEqual(MIGRATION_ORDER, [
-    'migrateBrands', 'migrateDashboard', 'migrateCrmApp', 'migrateCrmCore', 'migrateRevenueMvp',
+    'migrateBrands', 'migrateDashboard', 'migrateCrmApp', 'migrateCrmCore', 'migrateRevenueMvp', 'migrateBackNine',
   ]);
 });
 

@@ -226,6 +226,12 @@ app.use('/api/app', requireApiKey, require('./routes/crmApp'));
 // Same /api/app prefix and protection tier as the read-only routes above.
 app.use('/api/app', requireApiKey, require('./routes/crmActions'));
 
+// BackNine application manual matching (list needs-review applications,
+// match one to an existing contact) — same /api/app prefix and protection
+// tier as crmApp/crmActions above. The public webhook receivers that feed
+// this data live separately at /api/backnine (see above).
+app.use('/api/app', requireApiKey, require('./routes/backNineApplications'));
+
 // Email / Gmail
 // /auth and /callback are browser redirects — no API key header is possible
 // there, but they're still behind dashboardAuth above (the browser already

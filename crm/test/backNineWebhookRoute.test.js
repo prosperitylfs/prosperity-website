@@ -1,9 +1,11 @@
-// Tests for POST /api/backnine/webhook/{eapp,case} (crm/routes/backNineWebhook.js)
-// and crm/lib/backNineWebhook.js. Phase 1 scope only: these routes verify the
-// X-BACKNINE-AUTHENTICATION shared secret and acknowledge receipt -- they
-// never touch the database, so these tests confirm exactly that (no db
-// import at all in the router under test) alongside the auth/logging
-// behavior itself.
+// Tests for POST /api/backnine/{eapp,case} (crm/routes/backNineWebhook.js)
+// and crm/lib/backNineWebhook.js. The eapp route now stores/updates a
+// backnine_applications row (crm/lib/backNineApplications.js) on a
+// verified request -- DB_PATH is pointed at an in-memory database BEFORE
+// crm/db/database.js is first required anywhere in this process (mirrors
+// crm/test/calcomWebhookRoute.test.js), and the new migrateBackNine step
+// is run so the table exists. The case route remains log-only (no
+// confirmed payload schema), so it never touches the database.
 
 const test = require('node:test');
 const { before, after } = test;
@@ -13,18 +15,23 @@ const express = require('express');
 const EAPP_SECRET = 'unit-test-fake-backnine-eapp-secret';
 const CASE_SECRET = 'unit-test-fake-backnine-case-secret';
 const savedEnv = {
+  DB_PATH: process.env.DB_PATH,
   BACKNINE_EAPP_WEBHOOK_SECRET: process.env.BACKNINE_EAPP_WEBHOOK_SECRET,
   BACKNINE_CASE_WEBHOOK_SECRET: process.env.BACKNINE_CASE_WEBHOOK_SECRET,
 };
+process.env.DB_PATH = ':memory:';
 process.env.BACKNINE_EAPP_WEBHOOK_SECRET = EAPP_SECRET;
 process.env.BACKNINE_CASE_WEBHOOK_SECRET = CASE_SECRET;
 
+const db = require('../db/database');
+const { runBackNineMigrations } = require('../db/migrateBackNine');
 const { verifyBackNineAuth, extractConfirmedEappSummary, safeEqualStrings } = require('../lib/backNineWebhook');
 const backNineRouter = require('../routes/backNineWebhook');
 
 let server, baseUrl;
 
 before(() => {
+  runBackNineMigrations(db);
   const app = express();
   app.use(express.json());
   app.use('/api/backnine', backNineRouter);
@@ -131,11 +138,41 @@ test('K. POST /eapp: 401 with a wrong secret', async () => {
   assert.equal(res.status, 401);
 });
 
-test('L. POST /eapp: 200 + processed:false with the correct secret', async () => {
-  const res = await post('/eapp', { id: 1, uuid: 'abc', first_name: 'Jane' }, { 'x-backnine-authentication': EAPP_SECRET });
+test('L. POST /eapp: 200 + processed:true, stores a new backnine_applications row, with the correct secret', async () => {
+  const res = await post('/eapp', { id: 1, uuid: 'route-test-l-uuid', first_name: 'Jane', last_name: 'Doe' }, { 'x-backnine-authentication': EAPP_SECRET });
   assert.equal(res.status, 200);
   const body = await res.json();
-  assert.deepEqual(body, { ok: true, received: true, processed: false });
+  assert.deepEqual(body, { ok: true, received: true, processed: true, outcome: 'created' });
+
+  const row = db.prepare('SELECT * FROM backnine_applications WHERE backnine_uuid = ?').get('route-test-l-uuid');
+  assert.ok(row);
+  assert.equal(row.first_name, 'Jane');
+  assert.equal(row.match_status, 'needs_review');
+  assert.equal(row.contact_id, null);
+});
+
+test('P. POST /eapp: a repeat delivery for the same uuid updates the same row, never creates a second one', async () => {
+  await post('/eapp', { id: 2, uuid: 'route-test-p-uuid', first_name: 'First', premium: 10 }, { 'x-backnine-authentication': EAPP_SECRET });
+  const res = await post('/eapp', { id: 2, uuid: 'route-test-p-uuid', first_name: 'First', premium: 25 }, { 'x-backnine-authentication': EAPP_SECRET });
+  const body = await res.json();
+  assert.equal(body.outcome, 'updated');
+
+  const rows = db.prepare('SELECT * FROM backnine_applications WHERE backnine_uuid = ?').all('route-test-p-uuid');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].premium, 25);
+});
+
+test('Q. POST /eapp: a repeat delivery never overwrites a manual match already made on that row', async () => {
+  await post('/eapp', { id: 3, uuid: 'route-test-q-uuid' }, { 'x-backnine-authentication': EAPP_SECRET });
+  const contactId = db.prepare(`INSERT INTO contacts (first_name, last_name) VALUES ('Test', 'Client')`).run().lastInsertRowid;
+  db.prepare(`UPDATE backnine_applications SET contact_id = ?, match_status = 'matched' WHERE backnine_uuid = ?`).run(contactId, 'route-test-q-uuid');
+
+  await post('/eapp', { id: 3, uuid: 'route-test-q-uuid', premium: 99 }, { 'x-backnine-authentication': EAPP_SECRET });
+
+  const row = db.prepare('SELECT * FROM backnine_applications WHERE backnine_uuid = ?').get('route-test-q-uuid');
+  assert.equal(row.match_status, 'matched');
+  assert.equal(row.contact_id, contactId);
+  assert.equal(row.premium, 99);
 });
 
 test('M. POST /eapp: the case secret does NOT authenticate the eapp endpoint', async () => {

@@ -6,6 +6,7 @@
 
 const { publicBrandIdentity } = require('../config/brands');
 const { humanizeSlug, formatUtmSourceLabel } = require('./marketingAttribution');
+const { listApplicationsForContact } = require('./backNineApplications');
 
 function contactDisplayName(contact) {
   const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ').trim();
@@ -879,6 +880,7 @@ function getClientDetail(db, contactId) {
     },
     contactBrands,
     contactConflict,
+    backNineApplications: listApplicationsForContact(db, contactId),
     tasks: tasks.map(t => ({ ...t, due_date: t.due_date, created_at: toIsoUtc(t.created_at) })),
     appointments: appointments.map(a => ({ ...a, appt_datetime: toIsoUtc(a.appt_datetime) })),
     communications,

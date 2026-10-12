@@ -156,6 +156,13 @@ app.use('/api/twilio-prosperity', require('./routes/twilioProsperitySms'));
 // Optional HMAC protection via CALCOM_WEBHOOK_SECRET env var
 app.use('/api/calcom', require('./routes/calcom'));
 
+// BackNine BOSS webhooks — PUBLIC (BackNine posts from its own servers, no
+// CRM key), protected by the X-BACKNINE-AUTHENTICATION shared-secret header
+// instead (BACKNINE_EAPP_WEBHOOK_SECRET / BACKNINE_CASE_WEBHOOK_SECRET).
+// Phase 1 only: verifies + logs confirmed fields, does not yet create or
+// update any CRM record — see crm/routes/backNineWebhook.js.
+app.use('/api/backnine', require('./routes/backNineWebhook'));
+
 // Retirement Intake Form — PUBLIC (a prospect filling this out has no CRM
 // login; the unguessable per-appointment token, not a CRM key, is what
 // limits access to any one record — see routes/retirementIntake.js).

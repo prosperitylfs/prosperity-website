@@ -14,15 +14,31 @@
 //     of example values were ever confirmed (e.g. step 14 / "DocuSign -
 //     Final Step"; case.timeline entries like "Approved", "Issued",
 //     "Submitted to Carrier") -- nowhere near a complete enumeration.
-//   - `first_name` / `last_name` / `product_category` / `face_amount` /
-//     `premium` appear at the top level of the eApp payload.
+//   - `first_name` / `last_name` appear at the top level of the eApp payload.
+//
+// CONFIRMED 2026-10-12 from a REAL production delivery (BackNine case
+// #560015, Janet Jackson) -- this superseded the docs' own illustrative
+// example, which had product_category/face_amount/premium at the TOP
+// LEVEL. The real payload nests quote data instead:
+//   - `product.name` -- the specific product (e.g. "OPTerm 20")
+//   - `product.carrier.name` -- the carrier (e.g. "Banner")
+//   - `individuals[0].quote.product_category` -- e.g. "20 Year Term"
+//   - `individuals[0].quote.face_amount` / `.premium` / `.pay_duration`
+//     (pay_duration is the term length in years, e.g. 20)
+// Both the old top-level paths and the new confirmed-real nested paths are
+// read here (nested checked first) -- the docs' shape is kept as a
+// fallback rather than deleted outright, since only ONE real payload has
+// been inspected and a different BackNine product/flow could still use it.
 //
 // NOT CONFIRMED, and deliberately NOT guessed at here:
-//   - The applicant/insured's own email or phone number. The only email/
-//     phone fields found are nested under case.contract_parties[], which are
-//     nullable and not labeled by role (owner vs. insured vs. beneficiary) --
-//     matching a contact by one of those without knowing which party is the
-//     insured risks attaching a real application to the wrong person.
+//   - The applicant/insured's own email or phone number. Case #560015's
+//     own `individuals[0]` had both as null (an early-stage quote, per its
+//     named_step "Quote - 10% Complete"), so this remains unconfirmed
+//     either way. The only OTHER email/phone fields ever found are nested
+//     under case.contract_parties[], nullable and not labeled by role
+//     (owner vs. insured vs. beneficiary) -- matching a contact by one of
+//     those without knowing which party is the insured risks attaching a
+//     real application to the wrong person.
 //   - The Case webhook's payload shape -- BackNine's docs point only to a
 //     live example-fetch endpoint for it, not a documented schema.
 //   - The complete application-status/step vocabulary needed to drive
@@ -66,14 +82,25 @@ function extractConfirmedEappSummary(payload) {
   const row = Array.isArray(payload) ? payload[0] : payload;
   if (!row || typeof row !== 'object') return null;
   const nestedCase = (row.case && typeof row.case === 'object') ? row.case : null;
+  const product = (row.product && typeof row.product === 'object') ? row.product : null;
+  const carrier = (product && product.carrier && typeof product.carrier === 'object') ? product.carrier : null;
+  const individual = Array.isArray(row.individuals) ? row.individuals[0] : null;
+  const quote = (individual && individual.quote && typeof individual.quote === 'object') ? individual.quote : null;
+
   return {
     backNineUuid:   row.uuid != null ? String(row.uuid) : null,
     backNineId:     row.id   != null ? String(row.id)   : null,
     firstName:      row.first_name || null,
     lastName:       row.last_name  || null,
-    productCategory: row.product_category || null,
-    faceAmount:     row.face_amount != null ? row.face_amount : null,
-    premium:        row.premium     != null ? row.premium     : null,
+    productName:    product ? (product.name || null) : null,
+    carrierName:    carrier ? (carrier.name || null) : null,
+    // Nested quote path confirmed against a real delivery; the docs'
+    // top-level path is kept as a fallback -- see this file's header
+    // comment for why both are checked.
+    productCategory: (quote && quote.product_category) || row.product_category || null,
+    faceAmount:      (quote && quote.face_amount != null) ? quote.face_amount : (row.face_amount != null ? row.face_amount : null),
+    premium:         (quote && quote.premium != null) ? quote.premium : (row.premium != null ? row.premium : null),
+    payDurationYears: quote && quote.pay_duration != null ? quote.pay_duration : null,
     eappStatus:     row.status || null,
     step:           row.step != null ? row.step : null,
     namedStep:      row.named_step || null,

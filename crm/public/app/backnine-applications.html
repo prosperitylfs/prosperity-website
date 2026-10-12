@@ -26,6 +26,11 @@ async function render() {
     return n == null ? '—' : '$' + Number(n).toLocaleString();
   }
 
+  // PRELIMINARY QUOTE labeling throughout: BackNine's own named_step for a
+  // real delivery (case #560015, "Quote - 10% Complete") confirms these are
+  // frequently still just quotes, not submitted applications or issued
+  // policies -- never implied otherwise anywhere in this card or the detail
+  // view below.
   function appCardHtml(app) {
     const name = [app.first_name, app.last_name].filter(Boolean).join(' ') || 'Name not provided';
     return `<div class="card" style="margin-bottom:12px;" data-app-card="${app.id}"><div class="card-body">
@@ -34,14 +39,16 @@ async function render() {
         <span class="text-faint">BackNine case ${CrmApp.escapeHtml(app.backnine_id || app.backnine_uuid)} · received ${CrmApp.friendlyDate(app.received_at)}</span>
       </div>
       <div style="margin-top:6px;" class="text-faint">
-        ${CrmApp.escapeHtml(app.product_category || 'Product not provided')}
+        ${CrmApp.escapeHtml(app.product_name || app.product_category || 'Product not provided')}${app.carrier_name ? ' — ' + CrmApp.escapeHtml(app.carrier_name) : ''}
         · Face amount ${money(app.face_amount)} · Premium ${money(app.premium)}
       </div>
-      <div style="margin-top:6px;">
+      <div style="margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
         <span class="pill">${CrmApp.escapeHtml(app.display_status)}</span>
+        <span class="pill" style="background:var(--amber-light, #fff3cd);">PRELIMINARY QUOTE</span>
         <span class="text-faint">BackNine status: ${CrmApp.escapeHtml(app.backnine_status || '—')}${app.named_step ? ' · ' + CrmApp.escapeHtml(app.named_step) : ''}</span>
       </div>
       <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <button class="btn small ghost" data-detail-btn="${app.id}">View Details</button>
         <input class="input" style="max-width:240px;" type="text" placeholder="Search client by name…" data-search-input="${app.id}">
         <button class="btn small" data-search-btn="${app.id}">Search</button>
         <select class="input" style="max-width:260px; display:none;" data-client-select="${app.id}"></select>
@@ -51,9 +58,36 @@ async function render() {
     </div></div>`;
   }
 
+  function detailModalHtml(app) {
+    const esc = CrmApp.escapeHtml;
+    return `
+      <div class="pill" style="background:var(--amber-light, #fff3cd); margin-bottom:12px;">PRELIMINARY QUOTE — not a submitted application or issued policy</div>
+      <dl class="kv-list">
+        <dt>BackNine Case</dt><dd>${esc(app.backnine_id || app.backnine_uuid)}</dd>
+        <dt>Product</dt><dd>${esc(app.product_name || '—')}</dd>
+        <dt>Carrier</dt><dd>${esc(app.carrier_name || '—')}</dd>
+        <dt>Category</dt><dd>${esc(app.product_category || '—')}</dd>
+        <dt>Face Amount</dt><dd>${money(app.face_amount)}</dd>
+        <dt>Premium</dt><dd>${money(app.premium)}</dd>
+        <dt>Term</dt><dd>${app.pay_duration_years != null ? app.pay_duration_years + ' years' : '—'}</dd>
+        <dt>BackNine Status</dt><dd>${esc(app.backnine_status || '—')}${app.named_step ? ' — ' + esc(app.named_step) : ''}</dd>
+        <dt>Received</dt><dd>${CrmApp.friendlyDate(app.received_at)}</dd>
+        <dt>Last Updated</dt><dd>${CrmApp.friendlyDate(app.updated_at)}</dd>
+      </dl>
+    `;
+  }
+
   function renderList(applications) {
     content.innerHTML = `<div class="card-header-sub" style="margin-bottom:8px;">${applications.length} application${applications.length === 1 ? '' : 's'} waiting to be matched</div>` +
       (applications.length ? applications.map(appCardHtml).join('') : '<div class="empty-state">Nothing waiting here.</div>');
+
+    content.querySelectorAll('[data-detail-btn]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const app = applications.find(a => String(a.id) === btn.dataset.detailBtn);
+        if (!app) return;
+        CrmApp.openModal({ title: 'BackNine Application — Preliminary Quote', bodyHtml: detailModalHtml(app) });
+      });
+    });
 
     content.querySelectorAll('[data-search-btn]').forEach(btn => {
       btn.addEventListener('click', async () => {

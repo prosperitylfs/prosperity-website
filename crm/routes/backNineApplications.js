@@ -7,12 +7,22 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
-const { listNeedsReviewApplications, matchApplicationToContact } = require('../lib/backNineApplications');
+const { listNeedsReviewApplications, matchApplicationToContact, getApplicationById } = require('../lib/backNineApplications');
 
 const ACTOR = 'Loretta Stewart';
 
 router.get('/backnine-applications/needs-review', (_req, res) => {
   res.json({ applications: listNeedsReviewApplications(db) });
+});
+
+// Detail view -- same structured fields as the list endpoints (never
+// raw_payload; see getApplicationById's own comment).
+router.get('/backnine-applications/:id', (req, res) => {
+  const applicationId = Number(req.params.id);
+  if (!Number.isInteger(applicationId)) return res.status(400).json({ error: 'invalid application id' });
+  const application = getApplicationById(db, applicationId);
+  if (!application) return res.status(404).json({ error: 'not found' });
+  res.json({ application });
 });
 
 router.post('/backnine-applications/:id/match', (req, res) => {

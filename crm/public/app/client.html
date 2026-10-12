@@ -818,50 +818,91 @@ async function render() {
   function casesHtml() {
     const legacyBanner = legacyInsuranceBannerHtml();
     if (!detail.contactBrands.length) return legacyBanner + '<div class="empty-state">No company relationship established yet.</div>';
-    return legacyBanner + lifeInsuranceHtml() + annuitiesHtml() + pendingApplicationsHtml();
+    return legacyBanner + lifeInsuranceHtml() + annuitiesHtml() + pendingApplicationsHtml() + legacyCasesNeedsReviewHtml();
   }
+
   // 2026-10-12: Pending Applications -- BackNine BOSS applications matched
   // to this client (crm/lib/backNineApplications.js), kept entirely
   // separate from the Life Insurance / Annuity policy cards above: an
   // application here has NOT become an in-force policy, so it must never
-  // be confused with one. Read-only -- matching to a client happens on the
-  // dedicated backnine-applications.html page, not here, and this section
-  // has no Edit/Delete control. Follow-up tasks for an application use the
-  // CRM's existing Tasks feature (the BackNine case ID shown below is what
-  // to reference when creating one) rather than a new task UI, since
-  // BackNine's webhook does not provide any verified task/requirement data
-  // to auto-generate tasks from.
+  // be confused with one -- every card and the detail view both label this
+  // explicitly as a PRELIMINARY QUOTE, never a submitted application or
+  // issued policy (BackNine's own named_step for case #560015, "Quote -
+  // 10% Complete", confirms this is frequently still just a quote).
+  // Matching to a client happens on the dedicated backnine-applications.html
+  // page, not here, and this section has no Edit/Delete control. Follow-up
+  // tasks for an application use the CRM's existing Tasks feature (the
+  // BackNine case ID shown below is what to reference when creating one)
+  // rather than a new task UI, since BackNine's webhook does not provide
+  // any verified task/requirement data to auto-generate tasks from.
+  //
+  // Clicking a card opens a read-only detail view (backNineApplicationDetailModal
+  // below) showing the same structured fields, nothing more -- the complete
+  // raw webhook payload is never shown in this interface.
   function pendingApplicationsHtml() {
     const apps = detail.backNineApplications || [];
     if (!apps.length) return '';
     const esc = CrmApp.escapeHtml;
-    const money = (n) => n == null ? '—' : '$' + Number(n).toLocaleString();
 
     const appCard = (a) => `
-      <div class="card" style="margin-bottom:12px;">
+      <div class="card" style="margin-bottom:12px; cursor:pointer;" data-backnine-app="${a.id}">
         <div class="card-body">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-            <strong>${esc(a.product_category || 'BackNine Application')}</strong>
+            <strong>${esc(a.product_name || a.product_category || 'BackNine Application')}</strong>
             <span class="pill">${esc(a.display_status)}</span>
           </div>
           <div class="text-faint" style="margin-top:4px;">BackNine case ${esc(a.backnine_id || a.backnine_uuid)} · Received ${CrmApp.friendlyDate(a.received_at)} · Last updated ${CrmApp.friendlyDate(a.updated_at)}</div>
-          <dl class="kv-list" style="margin-top:8px;">
-            <dt>Face Amount</dt><dd>${money(a.face_amount)}</dd>
-            <dt>Premium</dt><dd>${money(a.premium)}</dd>
-            <dt>BackNine Status</dt><dd>${esc(a.backnine_status || '—')}${a.named_step ? ' — ' + esc(a.named_step) : ''}</dd>
-          </dl>
+          <div class="pill" style="margin-top:8px; background:var(--amber-light, #fff3cd);">PRELIMINARY QUOTE — not a submitted application or issued policy</div>
         </div>
       </div>`;
 
-    return `<div class="card" style="margin-bottom:14px;">
+    const html = `<div class="card" style="margin-bottom:14px;">
       <div class="card-header"><h2>Pending Applications — BackNine</h2></div>
       <div class="card-body">
-        <div class="text-faint" style="margin-bottom:12px;">Applications submitted through BackNine BOSS, not yet in-force policies. Read-only — matching and status come directly from BackNine's webhook.</div>
+        <div class="text-faint" style="margin-bottom:12px;">Preliminary quote information submitted through BackNine BOSS, not yet in-force policies. Click a card for details. Read-only — matching and status come directly from BackNine's webhook.</div>
         ${apps.map(appCard).join('')}
       </div>
     </div>`;
+
+    // Deferred to after this HTML is inserted into the page -- see
+    // this file's own render() loop, which calls wireBackNineApplicationCards()
+    // once per tab render (same pattern already used for other
+    // post-render click wiring in this file, e.g. callOutcomeModal's buttons).
+    queueMicrotask(() => wireBackNineApplicationCards(apps));
+    return html;
   }
 
+  function wireBackNineApplicationCards(apps) {
+    document.querySelectorAll('[data-backnine-app]').forEach(card => {
+      card.addEventListener('click', () => {
+        const app = apps.find(a => String(a.id) === card.dataset.backnineApp);
+        if (app) backNineApplicationDetailModal(app);
+      });
+    });
+  }
+
+  function backNineApplicationDetailModal(a) {
+    const esc = CrmApp.escapeHtml;
+    const money = (n) => n == null ? '—' : '$' + Number(n).toLocaleString();
+    CrmApp.openModal({
+      title: 'BackNine Application — Preliminary Quote',
+      bodyHtml: `
+        <div class="pill" style="background:var(--amber-light, #fff3cd); margin-bottom:12px;">PRELIMINARY QUOTE — not a submitted application or issued policy</div>
+        <dl class="kv-list">
+          <dt>BackNine Case</dt><dd>${esc(a.backnine_id || a.backnine_uuid)}</dd>
+          <dt>Product</dt><dd>${esc(a.product_name || '—')}</dd>
+          <dt>Carrier</dt><dd>${esc(a.carrier_name || '—')}</dd>
+          <dt>Category</dt><dd>${esc(a.product_category || '—')}</dd>
+          <dt>Face Amount</dt><dd>${money(a.face_amount)}</dd>
+          <dt>Premium</dt><dd>${money(a.premium)}</dd>
+          <dt>Term</dt><dd>${a.pay_duration_years != null ? a.pay_duration_years + ' years' : '—'}</dd>
+          <dt>BackNine Status</dt><dd>${esc(a.backnine_status || '—')}${a.named_step ? ' — ' + esc(a.named_step) : ''}</dd>
+          <dt>Received</dt><dd>${CrmApp.friendlyDate(a.received_at)}</dd>
+          <dt>Last Updated</dt><dd>${CrmApp.friendlyDate(a.updated_at)}</dd>
+        </dl>
+      `,
+    });
+  }
 
   // 2026-10-09: Rollover / Safe Money Solutions / Follow-up-Service removed
   // from the New Case dropdown per request -- Annuity (and Life insurance)

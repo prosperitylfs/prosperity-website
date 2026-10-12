@@ -78,7 +78,7 @@ test('E. safeEqualStrings: false for falsy inputs, true only for exact matches',
   assert.equal(safeEqualStrings('abc', 'abc'), true);
 });
 
-test('F. extractConfirmedEappSummary: reads only the confirmed fields, from an array-wrapped payload', () => {
+test('F. extractConfirmedEappSummary: reads the docs-example (top-level, fallback) shape from an array-wrapped payload', () => {
   const payload = [{
     id: 116662,
     uuid: 'ae9f4263-95e6-4fab-ab65-7a641bef0e81',
@@ -117,6 +117,51 @@ test('H. extractConfirmedEappSummary: returns null for an unrecognizable payload
   assert.equal(extractConfirmedEappSummary(null), null);
   assert.equal(extractConfirmedEappSummary([]), null);
   assert.equal(extractConfirmedEappSummary('not an object'), null);
+});
+
+test('F2. extractConfirmedEappSummary: reads the CONFIRMED-REAL nested shape (BackNine case #560015, Janet Jackson)', () => {
+  const payload = {
+    id: 560015,
+    uuid: 'janet-560015-uuid',
+    first_name: 'Janet',
+    last_name: 'Jackson',
+    named_step: 'Quote - 10% Complete',
+    product: { name: 'OPTerm 20', carrier: { name: 'Banner' } },
+    individuals: [{ quote: { product_category: '20 Year Term', face_amount: 1000000, premium: 224.73, pay_duration: 20 }, phone: null, email: null }],
+  };
+  const summary = extractConfirmedEappSummary(payload);
+  assert.equal(summary.backNineUuid, 'janet-560015-uuid');
+  assert.equal(summary.backNineId, '560015');
+  assert.equal(summary.productName, 'OPTerm 20');
+  assert.equal(summary.carrierName, 'Banner');
+  assert.equal(summary.productCategory, '20 Year Term');
+  assert.equal(summary.faceAmount, 1000000);
+  assert.equal(summary.premium, 224.73);
+  assert.equal(summary.payDurationYears, 20);
+  assert.equal(summary.namedStep, 'Quote - 10% Complete');
+});
+
+test('F3. extractConfirmedEappSummary: the nested (confirmed-real) path wins over the top-level (docs-only) fallback when both are present', () => {
+  const payload = {
+    uuid: 'both-shapes-uuid',
+    product_category: 'TOP LEVEL (should be ignored)', face_amount: 1, premium: 1,
+    product: { name: 'Nested Product' },
+    individuals: [{ quote: { product_category: 'Nested Category', face_amount: 999, premium: 50 } }],
+  };
+  const summary = extractConfirmedEappSummary(payload);
+  assert.equal(summary.productCategory, 'Nested Category');
+  assert.equal(summary.faceAmount, 999);
+  assert.equal(summary.premium, 50);
+});
+
+test('F4. extractConfirmedEappSummary: missing product/individuals/quote never throws, returns null for those fields', () => {
+  const summary = extractConfirmedEappSummary({ uuid: 'no-product-uuid' });
+  assert.equal(summary.productName, null);
+  assert.equal(summary.carrierName, null);
+  assert.equal(summary.productCategory, null);
+  assert.equal(summary.faceAmount, null);
+  assert.equal(summary.premium, null);
+  assert.equal(summary.payDurationYears, null);
 });
 
 test('I. extractConfirmedEappSummary: never reads case.contract_parties (unconfirmed field, deliberately not guessed)', () => {

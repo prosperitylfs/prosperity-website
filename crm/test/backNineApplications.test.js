@@ -14,7 +14,23 @@ const {
   matchApplicationToContact,
   listApplicationsForContact,
   listNeedsReviewApplications,
+  backfillApplicationFields,
+  getApplicationById,
 } = require('../lib/backNineApplications');
+const { extractConfirmedEappSummary } = require('../lib/backNineWebhook');
+
+// Real production payload shape confirmed 2026-10-12 against BackNine case
+// #560015 (Janet Jackson) -- product/carrier/face amount/premium/term are
+// nested, not top-level as the docs' own illustrative example suggested.
+const JANET_560015_PAYLOAD = {
+  id: 560015,
+  uuid: 'janet-560015-uuid',
+  first_name: 'Janet',
+  last_name: 'Jackson',
+  named_step: 'Quote - 10% Complete',
+  product: { name: 'OPTerm 20', carrier: { name: 'Banner' } },
+  individuals: [{ quote: { product_category: '20 Year Term', face_amount: 1000000, premium: 224.73, pay_duration: 20 }, phone: null, email: null }],
+};
 
 before(() => {
   runBackNineMigrations(db);
@@ -151,5 +167,90 @@ test('M. listNeedsReviewApplications: only needs_review rows, excludes matched o
   const results = listNeedsReviewApplications(freshDb);
   assert.equal(results.length, 2);
   assert.ok(results.every(r => r.match_status === 'needs_review'));
+  freshDb.close();
+});
+
+test('N. upsertApplicationFromEapp + extractConfirmedEappSummary: Janet Jackson (#560015) real payload shape extracts product/carrier/term correctly', () => {
+  const summary = extractConfirmedEappSummary(JANET_560015_PAYLOAD);
+  const result = upsertApplicationFromEapp(db, summary, JANET_560015_PAYLOAD);
+  assert.equal(result.ok, true);
+  const app = result.application;
+  assert.equal(app.product_name, 'OPTerm 20');
+  assert.equal(app.carrier_name, 'Banner');
+  assert.equal(app.product_category, '20 Year Term');
+  assert.equal(app.face_amount, 1000000);
+  assert.equal(app.premium, 224.73);
+  assert.equal(app.pay_duration_years, 20);
+  assert.equal(app.named_step, 'Quote - 10% Complete');
+});
+
+test('O. listNeedsReviewApplications / listApplicationsForContact / getApplicationById never return raw_payload', () => {
+  const summary = extractConfirmedEappSummary(JANET_560015_PAYLOAD);
+  const created = upsertApplicationFromEapp(db, { ...summary, backNineUuid: 'lib-test-o-uuid' }, JANET_560015_PAYLOAD);
+
+  const needsReview = listNeedsReviewApplications(db).find(a => a.id === created.application.id);
+  assert.equal(Object.prototype.hasOwnProperty.call(needsReview, 'raw_payload'), false);
+
+  const contactId = db.prepare(`INSERT INTO contacts (first_name) VALUES ('O Target')`).run().lastInsertRowid;
+  matchApplicationToContact(db, { applicationId: created.application.id, contactId, actor: 'test' });
+  const matchedList = listApplicationsForContact(db, contactId);
+  assert.equal(Object.prototype.hasOwnProperty.call(matchedList[0], 'raw_payload'), false);
+
+  const detail = getApplicationById(db, created.application.id);
+  assert.equal(Object.prototype.hasOwnProperty.call(detail, 'raw_payload'), false);
+  assert.equal(detail.product_name, 'OPTerm 20');
+});
+
+test('P. getApplicationById: returns null for an unknown id, without throwing', () => {
+  assert.equal(getApplicationById(db, 999999), null);
+});
+
+test('Q. backfillApplicationFields: re-derives product/carrier/face amount/premium/term from stored raw_payload, using the field mapping that existed BEFORE the 2026-10-12 fix', () => {
+  // Simulates exactly what happened to Janet's real application: stored
+  // under the OLD (docs-only) extraction logic, which only read top-level
+  // product_category/face_amount/premium -- none of which exist in the
+  // real payload, so they were stored null even though raw_payload always
+  // had the full, correct data.
+  const Database = require('better-sqlite3');
+  const freshDb = new Database(':memory:');
+  freshDb.exec('CREATE TABLE contacts (id INTEGER PRIMARY KEY, first_name TEXT)');
+  runBackNineMigrations(freshDb);
+
+  const oldSummary = {
+    backNineUuid: 'lib-test-q-uuid', backNineId: '560015', firstName: 'Janet', lastName: 'Jackson',
+    productCategory: null, faceAmount: null, premium: null, namedStep: 'Quote - 10% Complete',
+  };
+  const created = upsertApplicationFromEapp(freshDb, oldSummary, JANET_560015_PAYLOAD);
+  assert.equal(created.application.product_category, null);
+  assert.equal(created.application.face_amount, null);
+
+  const contactId = freshDb.prepare(`INSERT INTO contacts (first_name) VALUES ('Janet')`).run().lastInsertRowid;
+  matchApplicationToContact(freshDb, { applicationId: created.application.id, contactId, actor: 'loretta' });
+
+  const result = backfillApplicationFields(freshDb, { extractConfirmedEappSummary });
+  assert.equal(result.ok, true);
+  assert.equal(result.updated, 1);
+
+  const after = freshDb.prepare('SELECT * FROM backnine_applications WHERE id = ?').get(created.application.id);
+  assert.equal(after.product_name, 'OPTerm 20');
+  assert.equal(after.carrier_name, 'Banner');
+  assert.equal(after.face_amount, 1000000);
+  assert.equal(after.premium, 224.73);
+  assert.equal(after.pay_duration_years, 20);
+  // Never touched by the backfill:
+  assert.equal(after.contact_id, contactId);
+  assert.equal(after.match_status, 'matched');
+  assert.deepEqual(JSON.parse(after.raw_payload), JANET_560015_PAYLOAD);
+
+  freshDb.close();
+});
+
+test('R. backfillApplicationFields: returns ok:false/migration_not_run rather than throwing when the table does not exist', () => {
+  const Database = require('better-sqlite3');
+  const freshDb = new Database(':memory:');
+  freshDb.exec('CREATE TABLE contacts (id INTEGER PRIMARY KEY)');
+  const result = backfillApplicationFields(freshDb, { extractConfirmedEappSummary });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'migration_not_run');
   freshDb.close();
 });

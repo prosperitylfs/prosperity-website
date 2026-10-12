@@ -65,62 +65,127 @@ function upsertApplicationFromEapp(db, summary, rawPayload) {
   const rawPayloadJson = JSON.stringify(rawPayload || {});
 
   const existing = db.prepare('SELECT * FROM backnine_applications WHERE backnine_uuid = ?').get(summary.backNineUuid);
+  const params = summaryToRowParams(summary, displayStatus, rawPayloadJson);
 
   if (existing) {
     db.prepare(`
       UPDATE backnine_applications SET
-        backnine_id      = @backnine_id,
-        first_name       = @first_name,
-        last_name        = @last_name,
-        product_category = @product_category,
-        face_amount      = @face_amount,
-        premium          = @premium,
-        backnine_status  = @backnine_status,
-        named_step       = @named_step,
-        case_status      = @case_status,
-        display_status   = @display_status,
-        raw_payload      = @raw_payload,
-        updated_at       = CURRENT_TIMESTAMP
+        backnine_id        = @backnine_id,
+        first_name         = @first_name,
+        last_name          = @last_name,
+        product_name       = @product_name,
+        carrier_name       = @carrier_name,
+        product_category   = @product_category,
+        face_amount        = @face_amount,
+        premium            = @premium,
+        pay_duration_years = @pay_duration_years,
+        backnine_status    = @backnine_status,
+        named_step         = @named_step,
+        case_status        = @case_status,
+        display_status     = @display_status,
+        raw_payload        = @raw_payload,
+        updated_at         = CURRENT_TIMESTAMP
       WHERE id = @id
-    `).run({
-      id: existing.id,
-      backnine_id:      summary.backNineId,
-      first_name:       summary.firstName,
-      last_name:        summary.lastName,
-      product_category: summary.productCategory,
-      face_amount:      summary.faceAmount,
-      premium:          summary.premium,
-      backnine_status:  summary.eappStatus,
-      named_step:       summary.namedStep,
-      case_status:      summary.caseStatus,
-      display_status:   displayStatus,
-      raw_payload:       rawPayloadJson,
-    });
+    `).run({ ...params, id: existing.id });
     return { ok: true, outcome: 'updated', application: db.prepare('SELECT * FROM backnine_applications WHERE id = ?').get(existing.id) };
   }
 
   const result = db.prepare(`
     INSERT INTO backnine_applications
-      (backnine_uuid, backnine_id, first_name, last_name, product_category, face_amount, premium,
-       backnine_status, named_step, case_status, display_status, raw_payload, match_status)
+      (backnine_uuid, backnine_id, first_name, last_name, product_name, carrier_name, product_category,
+       face_amount, premium, pay_duration_years, backnine_status, named_step, case_status, display_status,
+       raw_payload, match_status)
     VALUES
-      (@backnine_uuid, @backnine_id, @first_name, @last_name, @product_category, @face_amount, @premium,
-       @backnine_status, @named_step, @case_status, @display_status, @raw_payload, 'needs_review')
-  `).run({
-    backnine_uuid:    summary.backNineUuid,
-    backnine_id:      summary.backNineId,
-    first_name:       summary.firstName,
-    last_name:        summary.lastName,
-    product_category: summary.productCategory,
-    face_amount:      summary.faceAmount,
-    premium:          summary.premium,
-    backnine_status:  summary.eappStatus,
-    named_step:       summary.namedStep,
-    case_status:      summary.caseStatus,
-    display_status:   displayStatus,
-    raw_payload:       rawPayloadJson,
-  });
+      (@backnine_uuid, @backnine_id, @first_name, @last_name, @product_name, @carrier_name, @product_category,
+       @face_amount, @premium, @pay_duration_years, @backnine_status, @named_step, @case_status, @display_status,
+       @raw_payload, 'needs_review')
+  `).run(params);
   return { ok: true, outcome: 'created', application: db.prepare('SELECT * FROM backnine_applications WHERE id = ?').get(result.lastInsertRowid) };
+}
+
+function summaryToRowParams(summary, displayStatus, rawPayloadJson) {
+  return {
+    backnine_uuid:      summary.backNineUuid,
+    backnine_id:        summary.backNineId,
+    first_name:         summary.firstName,
+    last_name:          summary.lastName,
+    product_name:       summary.productName,
+    carrier_name:       summary.carrierName,
+    product_category:   summary.productCategory,
+    face_amount:        summary.faceAmount,
+    premium:            summary.premium,
+    pay_duration_years: summary.payDurationYears,
+    backnine_status:    summary.eappStatus,
+    named_step:         summary.namedStep,
+    case_status:        summary.caseStatus,
+    display_status:     displayStatus,
+    raw_payload:        rawPayloadJson,
+  };
+}
+
+// Re-derives the display/summary columns (product/carrier/face amount/
+// premium/term/status bucket) for every stored application from its own
+// already-saved raw_payload, using whatever the CURRENT extraction logic
+// (crm/lib/backNineWebhook.js's extractConfirmedEappSummary) knows how to
+// read -- lets a field-mapping fix (like the 2026-10-12 one that added
+// product.name/carrier.name/individuals[0].quote.*) apply retroactively to
+// applications already received, without needing BackNine to resend
+// anything. raw_payload itself, contact_id, match_status, matched_at, and
+// matched_by are NEVER touched -- this only recomputes columns that are
+// themselves derived from raw_payload, never the original data or any
+// human decision already made.
+function backfillApplicationFields(db, { extractConfirmedEappSummary }) {
+  if (!tableExists(db, 'backnine_applications')) return { ok: false, reason: 'migration_not_run' };
+
+  const rows = db.prepare('SELECT id, raw_payload FROM backnine_applications').all();
+  let updated = 0;
+  for (const row of rows) {
+    let payload;
+    try { payload = JSON.parse(row.raw_payload); } catch { continue; }
+    const summary = extractConfirmedEappSummary(payload);
+    if (!summary) continue;
+    const displayStatus = computeDisplayStatus(summary);
+    db.prepare(`
+      UPDATE backnine_applications SET
+        product_name       = @product_name,
+        carrier_name       = @carrier_name,
+        product_category   = @product_category,
+        face_amount        = @face_amount,
+        premium            = @premium,
+        pay_duration_years = @pay_duration_years,
+        backnine_status    = @backnine_status,
+        named_step         = @named_step,
+        case_status        = @case_status,
+        display_status     = @display_status
+      WHERE id = @id
+    `).run({
+      id: row.id,
+      product_name:       summary.productName,
+      carrier_name:       summary.carrierName,
+      product_category:   summary.productCategory,
+      face_amount:        summary.faceAmount,
+      premium:            summary.premium,
+      pay_duration_years: summary.payDurationYears,
+      backnine_status:    summary.eappStatus,
+      named_step:         summary.namedStep,
+      case_status:        summary.caseStatus,
+      display_status:     displayStatus,
+    });
+    updated += 1;
+  }
+  return { ok: true, totalRows: rows.length, updated };
+}
+
+// Powers the click-to-open detail view (crm/routes/backNineApplications.js).
+// Returns only the already-extracted, structured columns -- never
+// raw_payload -- so the detail endpoint can never leak more than the
+// summary card already could.
+function getApplicationById(db, applicationId) {
+  if (!tableExists(db, 'backnine_applications')) return null;
+  const row = db.prepare('SELECT * FROM backnine_applications WHERE id = ?').get(applicationId);
+  if (!row) return null;
+  const { raw_payload, ...safe } = row;
+  return safe;
 }
 
 // The one explicit, human-triggered action that ever sets contact_id on a
@@ -151,10 +216,22 @@ function matchApplicationToContact(db, { applicationId, contactId, actor }) {
 // migration-not-run reason as upsertApplicationFromEapp above -- a client
 // page must never break because this one optional feature's migration
 // hasn't been run in a given environment.
+// Every column except raw_payload -- shared by both list functions and
+// getApplicationById above so none of them ever return the complete raw
+// webhook body to the interface, only the already-extracted summary
+// fields (also keeps every reader's column list from silently drifting
+// apart if a column is ever added again).
+const SAFE_COLUMNS = `
+  id, backnine_uuid, backnine_id, contact_id, match_status,
+  first_name, last_name, product_name, carrier_name, product_category,
+  face_amount, premium, pay_duration_years, backnine_status, named_step,
+  case_status, display_status, received_at, updated_at, matched_at, matched_by
+`;
+
 function listApplicationsForContact(db, contactId) {
   if (!tableExists(db, 'backnine_applications')) return [];
   return db.prepare(`
-    SELECT * FROM backnine_applications WHERE contact_id = ? AND match_status = 'matched'
+    SELECT ${SAFE_COLUMNS} FROM backnine_applications WHERE contact_id = ? AND match_status = 'matched'
     ORDER BY received_at DESC
   `).all(contactId);
 }
@@ -163,7 +240,7 @@ function listApplicationsForContact(db, contactId) {
 function listNeedsReviewApplications(db) {
   if (!tableExists(db, 'backnine_applications')) return [];
   return db.prepare(`
-    SELECT * FROM backnine_applications WHERE match_status = 'needs_review'
+    SELECT ${SAFE_COLUMNS} FROM backnine_applications WHERE match_status = 'needs_review'
     ORDER BY received_at DESC
   `).all();
 }
@@ -174,4 +251,6 @@ module.exports = {
   matchApplicationToContact,
   listApplicationsForContact,
   listNeedsReviewApplications,
+  backfillApplicationFields,
+  getApplicationById,
 };

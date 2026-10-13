@@ -818,7 +818,18 @@ async function render() {
   function casesHtml() {
     const legacyBanner = legacyInsuranceBannerHtml();
     if (!detail.contactBrands.length) return legacyBanner + '<div class="empty-state">No company relationship established yet.</div>';
-    return legacyBanner + lifeInsuranceHtml() + annuitiesHtml() + pendingApplicationsHtml() + legacyCasesNeedsReviewHtml();
+    // 2026-10-13 PRODUCTION BUG FIX: legacyCasesNeedsReviewHtml() is part of
+    // the still-pending, not-yet-approved-for-deployment "Needs Review --
+    // Legacy Cases" section (its own function definitions remain below,
+    // untouched -- this feature isn't deleted, just not wired in yet). A
+    // prior isolated commit accidentally shipped a CALL to it here without
+    // its definition ever being part of that commit, so every single
+    // client's Cases tab threw "legacyCasesNeedsReviewHtml is not defined"
+    // and the whole Client Record page went blank (uncaught ReferenceError
+    // during the unguarded HTML-building pass in render(), confirmed via
+    // the browser console). Removed until that section is actually
+    // approved and deployed.
+    return legacyBanner + lifeInsuranceHtml() + annuitiesHtml() + pendingApplicationsHtml();
   }
 
   // 2026-10-12: Pending Applications -- BackNine BOSS applications matched

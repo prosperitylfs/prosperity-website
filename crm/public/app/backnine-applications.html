@@ -5,6 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BackNine Applications — Prosperity CRM</title>
 <link rel="stylesheet" href="app.css">
+<style>
+  /* 2026-10-13: makes the "View Details" link on every BackNine application
+     card clearly look clickable -- styling only, no change to what the
+     button does. Scoped to this page only (.backnine-detail-link isn't
+     used anywhere else), so no other CRM button is affected. */
+  .backnine-detail-link {
+    font-weight: 700;
+    color: var(--accent-dark);
+    font-size: 14px;
+    text-decoration: underline;
+  }
+</style>
 </head>
 <body>
 <div id="app-root"></div>
@@ -48,7 +60,7 @@ async function render() {
         <span class="text-faint">BackNine status: ${CrmApp.escapeHtml(app.backnine_status || '—')}${app.named_step ? ' · ' + CrmApp.escapeHtml(app.named_step) : ''}</span>
       </div>
       <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-        <button class="btn small ghost" data-detail-btn="${app.id}">View Details</button>
+        <button class="btn small ghost backnine-detail-link" data-detail-btn="${app.id}">View Details</button>
         <input class="input" style="max-width:240px;" type="text" placeholder="Search client by name…" data-search-input="${app.id}">
         <button class="btn small" data-search-btn="${app.id}">Search</button>
         <select class="input" style="max-width:260px; display:none;" data-client-select="${app.id}"></select>

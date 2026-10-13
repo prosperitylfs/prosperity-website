@@ -182,7 +182,13 @@ function backfillApplicationFields(db, { extractConfirmedEappSummary }) {
 // summary card already could.
 function getApplicationById(db, applicationId) {
   if (!tableExists(db, 'backnine_applications')) return null;
-  const row = db.prepare('SELECT * FROM backnine_applications WHERE id = ?').get(applicationId);
+  let row;
+  try {
+    row = db.prepare('SELECT * FROM backnine_applications WHERE id = ?').get(applicationId);
+  } catch (err) {
+    console.error('getApplicationById: query failed (migration not fully run against this database?):', err.message);
+    return null;
+  }
   if (!row) return null;
   const { raw_payload, ...safe } = row;
   return safe;
@@ -228,21 +234,46 @@ const SAFE_COLUMNS = `
   case_status, display_status, received_at, updated_at, matched_at, matched_by
 `;
 
+// 2026-10-13 PRODUCTION BUG FIX: calling this unconditionally for every
+// client (getClientDetail does, regardless of whether that client has any
+// BackNine data) means a SELECT naming a column that doesn't exist YET on
+// a given database -- e.g. product_name/carrier_name/pay_duration_years,
+// added by a later migration a production environment may not have run
+// yet -- throws for every single client, not just ones with BackNine
+// applications, breaking the entire Client Record page. tableExists alone
+// only catches the table being completely absent; it says nothing about
+// which columns an EXISTING table actually has. Wrapping the query itself
+// and falling back to [] on failure (same "degrade gracefully, log it,
+// never crash the page" contract as the tableExists check already makes)
+// closes that gap -- confirmed exactly this scenario in production
+// 2026-10-13 (the 3 columns were deployed before the follow-up migration
+// that adds them had been run).
 function listApplicationsForContact(db, contactId) {
   if (!tableExists(db, 'backnine_applications')) return [];
-  return db.prepare(`
-    SELECT ${SAFE_COLUMNS} FROM backnine_applications WHERE contact_id = ? AND match_status = 'matched'
-    ORDER BY received_at DESC
-  `).all(contactId);
+  try {
+    return db.prepare(`
+      SELECT ${SAFE_COLUMNS} FROM backnine_applications WHERE contact_id = ? AND match_status = 'matched'
+      ORDER BY received_at DESC
+    `).all(contactId);
+  } catch (err) {
+    console.error('listApplicationsForContact: query failed (migration not fully run against this database?):', err.message);
+    return [];
+  }
 }
 
 // Used by the manual-matching admin page (crm/public/app/backnine-applications.html).
+// See listApplicationsForContact's own comment for why this is wrapped too.
 function listNeedsReviewApplications(db) {
   if (!tableExists(db, 'backnine_applications')) return [];
-  return db.prepare(`
-    SELECT ${SAFE_COLUMNS} FROM backnine_applications WHERE match_status = 'needs_review'
-    ORDER BY received_at DESC
-  `).all();
+  try {
+    return db.prepare(`
+      SELECT ${SAFE_COLUMNS} FROM backnine_applications WHERE match_status = 'needs_review'
+      ORDER BY received_at DESC
+    `).all();
+  } catch (err) {
+    console.error('listNeedsReviewApplications: query failed (migration not fully run against this database?):', err.message);
+    return [];
+  }
 }
 
 module.exports = {

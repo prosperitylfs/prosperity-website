@@ -254,3 +254,79 @@ test('R. backfillApplicationFields: returns ok:false/migration_not_run rather th
   assert.equal(result.reason, 'migration_not_run');
   freshDb.close();
 });
+
+// 2026-10-13 PRODUCTION REGRESSION: the table existing with an OLDER
+// schema (missing product_name/carrier_name/pay_duration_years, added by
+// a later migration) must never crash the Client Record page for EVERY
+// client -- it broke in exactly this way in production because the
+// follow-up migration hadn't been run yet. These tests build a table that
+// deliberately predates that migration (same CREATE TABLE as the original
+// Phase 1 schema, minus the 3 later columns) to reproduce it precisely.
+function createPreMigrationTable(freshDb) {
+  freshDb.exec(`
+    CREATE TABLE backnine_applications (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      backnine_uuid     TEXT NOT NULL UNIQUE,
+      backnine_id       TEXT,
+      contact_id        INTEGER,
+      match_status      TEXT NOT NULL DEFAULT 'needs_review',
+      first_name        TEXT,
+      last_name         TEXT,
+      product_category  TEXT,
+      face_amount       REAL,
+      premium           REAL,
+      backnine_status   TEXT,
+      named_step        TEXT,
+      case_status       TEXT,
+      display_status    TEXT NOT NULL DEFAULT 'Needs Review',
+      raw_payload       TEXT NOT NULL,
+      received_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+      matched_at        DATETIME,
+      matched_by        TEXT
+    );
+  `);
+  freshDb.prepare(`
+    INSERT INTO backnine_applications (backnine_uuid, backnine_id, contact_id, match_status, raw_payload)
+    VALUES ('pre-migration-uuid', '999', ?, 'matched', '{}')
+  `).run(freshDb.prepare(`INSERT INTO contacts (first_name) VALUES ('Pre Migration')`).run().lastInsertRowid);
+}
+
+test('S. listApplicationsForContact: a table missing the newer columns returns [] instead of crashing every client page', () => {
+  const Database = require('better-sqlite3');
+  const freshDb = new Database(':memory:');
+  freshDb.exec('CREATE TABLE contacts (id INTEGER PRIMARY KEY, first_name TEXT)');
+  createPreMigrationTable(freshDb);
+  const contactId = freshDb.prepare(`SELECT contact_id FROM backnine_applications WHERE backnine_uuid = 'pre-migration-uuid'`).get().contact_id;
+
+  assert.doesNotThrow(() => listApplicationsForContact(freshDb, contactId));
+  assert.deepEqual(listApplicationsForContact(freshDb, contactId), []);
+  freshDb.close();
+});
+
+test('T. listNeedsReviewApplications: same pre-migration table returns [] instead of crashing the admin page', () => {
+  const Database = require('better-sqlite3');
+  const freshDb = new Database(':memory:');
+  freshDb.exec('CREATE TABLE contacts (id INTEGER PRIMARY KEY, first_name TEXT)');
+  createPreMigrationTable(freshDb);
+
+  assert.doesNotThrow(() => listNeedsReviewApplications(freshDb));
+  assert.deepEqual(listNeedsReviewApplications(freshDb), []);
+  freshDb.close();
+});
+
+test('U. getApplicationById: same pre-migration table returns null instead of crashing the detail view', () => {
+  const Database = require('better-sqlite3');
+  const freshDb = new Database(':memory:');
+  freshDb.exec('CREATE TABLE contacts (id INTEGER PRIMARY KEY, first_name TEXT)');
+  createPreMigrationTable(freshDb);
+  const row = freshDb.prepare(`SELECT id FROM backnine_applications WHERE backnine_uuid = 'pre-migration-uuid'`).get();
+
+  assert.doesNotThrow(() => getApplicationById(freshDb, row.id));
+  // SELECT * still works here (unlike the SAFE_COLUMNS-based list queries)
+  // since it never names a specific column -- confirms getApplicationById's
+  // own try/catch is a true belt-and-suspenders guard, not masking a
+  // different, always-triggered failure.
+  assert.ok(getApplicationById(freshDb, row.id));
+  freshDb.close();
+});

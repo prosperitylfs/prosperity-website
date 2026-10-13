@@ -9,6 +9,7 @@ const express = require('express');
 process.env.DB_PATH = ':memory:';
 const db = require('../db/database');
 const { runBackNineMigrations } = require('../db/migrateBackNine');
+const { runMigrations: runBrandsMigrations } = require('../db/migrateBrands');
 const { upsertApplicationFromEapp } = require('../lib/backNineApplications');
 const { extractConfirmedEappSummary } = require('../lib/backNineWebhook');
 const router = require('../routes/backNineApplications');
@@ -16,6 +17,7 @@ const router = require('../routes/backNineApplications');
 let server, baseUrl;
 
 before(() => {
+  runBrandsMigrations(db);
   runBackNineMigrations(db);
   const app = express();
   app.use(express.json());
@@ -84,5 +86,36 @@ test('F. POST :id/match: 400 for a missing/invalid contactId', async () => {
   const res = await fetch(`${baseUrl}/backnine-applications/${created.id}/match`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
   });
+  assert.equal(res.status, 400);
+});
+
+test('G. POST :id/create-lead: creates a lead, links it, and removes the application from needs-review', async () => {
+  const created = createApplication('route-g-uuid', { first_name: 'Route', last_name: 'Lead' });
+
+  const res = await fetch(`${baseUrl}/backnine-applications/${created.id}/create-lead`, { method: 'POST' });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.outcome, 'created');
+  assert.ok(body.contactId);
+
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(body.contactId);
+  assert.equal(contact.lead_source, 'BackNine');
+
+  const listRes = await fetch(`${baseUrl}/backnine-applications/needs-review`);
+  const listBody = await listRes.json();
+  assert.ok(!listBody.applications.some(a => a.id === created.id));
+});
+
+test('H. POST :id/create-lead: idempotent over HTTP -- a second call returns the same contactId, not a new one', async () => {
+  const created = createApplication('route-h-uuid');
+  const first = await (await fetch(`${baseUrl}/backnine-applications/${created.id}/create-lead`, { method: 'POST' })).json();
+  const second = await (await fetch(`${baseUrl}/backnine-applications/${created.id}/create-lead`, { method: 'POST' })).json();
+  assert.equal(first.outcome, 'created');
+  assert.equal(second.outcome, 'existing');
+  assert.equal(first.contactId, second.contactId);
+});
+
+test('I. POST :id/create-lead: 400 for an unknown application id', async () => {
+  const res = await fetch(`${baseUrl}/backnine-applications/999999/create-lead`, { method: 'POST' });
   assert.equal(res.status, 400);
 });

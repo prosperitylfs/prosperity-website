@@ -61,12 +61,15 @@ async function render() {
       </div>
       <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
         <button class="btn small ghost backnine-detail-link" data-detail-btn="${app.id}">View Details</button>
+        <button class="btn small primary" data-create-lead-btn="${app.id}">Create Lead</button>
+        <a class="btn small primary" style="display:none;" data-view-lead-link="${app.id}" href="#">View Lead</a>
         <input class="input" style="max-width:240px;" type="text" placeholder="Search client by name…" data-search-input="${app.id}">
         <button class="btn small" data-search-btn="${app.id}">Search</button>
         <select class="input" style="max-width:260px; display:none;" data-client-select="${app.id}"></select>
         <button class="btn small primary" style="display:none;" data-match-btn="${app.id}">Match to This Client</button>
       </div>
       <div class="text-faint" data-match-status="${app.id}" style="margin-top:6px;"></div>
+      <div class="text-faint" data-lead-status="${app.id}" style="margin-top:6px;"></div>
     </div></div>`;
   }
 
@@ -98,6 +101,25 @@ async function render() {
         const app = applications.find(a => String(a.id) === btn.dataset.detailBtn);
         if (!app) return;
         CrmApp.openModal({ title: 'BackNine Application — Preliminary Quote', bodyHtml: detailModalHtml(app) });
+      });
+    });
+
+    content.querySelectorAll('[data-create-lead-btn]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.dataset.createLeadBtn;
+        const statusEl = content.querySelector(`[data-lead-status="${appId}"]`);
+        btn.disabled = true;
+        try {
+          const result = await CrmApp.postJSON(`/api/app/backnine-applications/${appId}/create-lead`, {});
+          const viewLeadLink = content.querySelector(`[data-view-lead-link="${appId}"]`);
+          viewLeadLink.href = `client.html?id=${result.contactId}`;
+          viewLeadLink.style.display = '';
+          btn.style.display = 'none';
+          statusEl.textContent = result.outcome === 'existing' ? 'A lead already exists for this application.' : 'Lead created.';
+        } catch (e) {
+          statusEl.textContent = 'Could not create lead: ' + e.message;
+          btn.disabled = false;
+        }
       });
     });
 

@@ -14,6 +14,8 @@
 // 'needs_review' until a human explicitly matches it via
 // matchApplicationToContact. This file never attempts to infer a match.
 
+const { dedupeContact, resolveContactBrand, findConflictingActiveBrand, stageUnresolvedIntake } = require('./caseMatching');
+
 function tableExists(db, name) {
   return !!db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
 }
@@ -214,6 +216,105 @@ function matchApplicationToContact(db, { applicationId, contactId, actor }) {
   return db.prepare('SELECT * FROM backnine_applications WHERE id = ?').get(applicationId);
 }
 
+// BackNine is a Prosperity-only product (nothing in this entire
+// integration -- webhooks, config, every real application seen -- has ever
+// referenced Insurance Lady), so unlike crm/lib/clientService.js's
+// createClient, which refuses to guess a brand, a lead created FROM a
+// BackNine application is always filed under Prosperity. findConflictingActiveBrand
+// is still checked (same as createClient) so this can never silently give
+// an already-Insurance-Lady contact a second, conflicting company --
+// preserves company separation even though the brand itself isn't asked.
+const BACKNINE_LEAD_BRAND_SLUG = 'prosperity';
+
+// Builds the one human-readable summary of what BackNine actually sent,
+// stored in the new contact's general_notes (there is no dedicated carrier/
+// product/premium/case-number field on contacts -- see this feature's
+// design notes) -- always states this is a PRELIMINARY QUOTE, never a
+// submitted application or issued policy, exactly like every other place
+// this data is shown (crm/public/app/client.html's Pending Applications
+// card, crm/public/app/backnine-applications.html's detail view).
+function buildLeadNoteFromApplication(application) {
+  const lines = [
+    `BackNine Lead -- PRELIMINARY QUOTE (not a submitted application or issued policy)`,
+    `Case #${application.backnine_id || application.backnine_uuid}`,
+  ];
+  const product = [application.product_name, application.carrier_name ? `(${application.carrier_name})` : null, application.product_category].filter(Boolean).join(' ');
+  if (product) lines.push(`Product: ${product}`);
+  const money = (n) => n == null ? null : '$' + Number(n).toLocaleString();
+  const coverage = [money(application.face_amount) ? `Coverage: ${money(application.face_amount)}` : null, money(application.premium) ? `Premium: ${money(application.premium)}` : null].filter(Boolean).join(' -- ');
+  if (coverage) lines.push(coverage);
+  const status = [application.backnine_status, application.named_step].filter(Boolean).join(' -- ');
+  if (status) lines.push(`Status: ${status}`);
+  return lines.join('\n');
+}
+
+// Creates a new CRM lead (a contacts row, same model every other lead
+// uses -- see crm/lib/clientService.js's createClient, which this mirrors
+// but cannot reuse directly: createClient REQUIRES an email or phone,
+// which most BackNine applications don't have yet -- case #560015's own
+// individuals[0] had both null, consistent with its "Quote - 10% Complete"
+// stage). Idempotent on application.contact_id -- the SAME field
+// matchApplicationToContact itself sets -- so calling this twice for the
+// same application, or calling it after someone already manually matched
+// the application to an existing client, never creates a second lead; it
+// returns the existing link instead.
+//
+// Sets lead_status='New Lead' (crm/config/leadStatuses.js's canonical
+// first pipeline stage) and lead_source='BackNine' -- both are what make
+// the new contact show up on the existing Prospect Pipeline automatically
+// (getProspectPipelineQueue reads contacts.lead_status/relationship_type
+// directly; no case or product link is required). Creates no case, no
+// policy, nothing beyond the contact itself and its brand relationship --
+// the quote/application/policy distinction is preserved by never creating
+// anything that would imply otherwise, and by buildLeadNoteFromApplication's
+// own explicit "PRELIMINARY QUOTE" label.
+function createLeadFromApplication(db, { applicationId, actor }) {
+  if (!actor) throw new Error('createLeadFromApplication: actor is required for the audit trail');
+  const application = db.prepare('SELECT * FROM backnine_applications WHERE id = ?').get(applicationId);
+  if (!application) throw new Error(`createLeadFromApplication: application ${applicationId} does not exist`);
+
+  if (application.contact_id) {
+    return { outcome: 'existing', contactId: application.contact_id };
+  }
+
+  const contact = dedupeContact(db, {
+    email: null, phone: null, phone_e164: null,
+    first_name: application.first_name, last_name: application.last_name,
+  });
+
+  db.prepare(`
+    UPDATE contacts SET
+      lead_status = COALESCE(lead_status, 'New Lead'),
+      lead_type   = COALESCE(lead_type, 'Life Insurance Lead'),
+      lead_source = COALESCE(lead_source, 'BackNine'),
+      general_notes = CASE WHEN general_notes IS NULL OR general_notes = '' THEN @note ELSE general_notes || char(10) || char(10) || @note END,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = @id
+  `).run({ id: contact.id, note: buildLeadNoteFromApplication(application) });
+
+  const brandRow = db.prepare('SELECT id FROM brands WHERE slug = ?').get(BACKNINE_LEAD_BRAND_SLUG);
+  if (brandRow) {
+    const conflict = findConflictingActiveBrand(db, contact.id, brandRow.id);
+    if (conflict) {
+      stageUnresolvedIntake(db, {
+        source: 'backnine_create_lead',
+        rawPayload: { applicationId, backnineUuid: application.backnine_uuid },
+        candidateContactId: contact.id,
+        reason: `Creating a BackNine lead for this contact conflicts with an existing active company assignment under a different brand -- requires deliberate review before any second relationship is created`,
+        reviewType: 'company_conflict',
+        contactBrandId: conflict.id,
+        incomingBrandId: brandRow.id,
+      });
+    } else {
+      resolveContactBrand(db, { contactId: contact.id, brandId: brandRow.id });
+    }
+  }
+
+  matchApplicationToContact(db, { applicationId, contactId: contact.id, actor });
+
+  return { outcome: 'created', contactId: contact.id };
+}
+
 // Used by crm/lib/dashboardQueries.js's getClientDetail to populate the
 // Life & Annuities tab's Pending Applications section -- matched
 // applications only, so an unmatched one never appears on any client's
@@ -280,6 +381,8 @@ module.exports = {
   computeDisplayStatus,
   upsertApplicationFromEapp,
   matchApplicationToContact,
+  createLeadFromApplication,
+  buildLeadNoteFromApplication,
   listApplicationsForContact,
   listNeedsReviewApplications,
   backfillApplicationFields,

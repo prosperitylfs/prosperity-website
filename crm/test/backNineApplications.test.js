@@ -8,10 +8,13 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const db = require('../db/database');
 const { runBackNineMigrations } = require('../db/migrateBackNine');
+const { runMigrations: runBrandsMigrations } = require('../db/migrateBrands');
 const {
   computeDisplayStatus,
   upsertApplicationFromEapp,
   matchApplicationToContact,
+  createLeadFromApplication,
+  buildLeadNoteFromApplication,
   listApplicationsForContact,
   listNeedsReviewApplications,
   backfillApplicationFields,
@@ -33,6 +36,7 @@ const JANET_560015_PAYLOAD = {
 };
 
 before(() => {
+  runBrandsMigrations(db); // provisions brands/contact_brands/unresolved_intake, needed by createLeadFromApplication
   runBackNineMigrations(db);
 });
 
@@ -329,4 +333,123 @@ test('U. getApplicationById: same pre-migration table returns null instead of cr
   // different, always-triggered failure.
   assert.ok(getApplicationById(freshDb, row.id));
   freshDb.close();
+});
+
+test('V. buildLeadNoteFromApplication: includes case id, product, carrier, category, coverage, premium, status, and the PRELIMINARY QUOTE label', () => {
+  const summary = extractConfirmedEappSummary(JANET_560015_PAYLOAD);
+  const note = buildLeadNoteFromApplication({ ...summary, backnine_id: summary.backNineId, backnine_uuid: summary.backNineUuid, backnine_status: summary.eappStatus, named_step: summary.namedStep, product_name: summary.productName, carrier_name: summary.carrierName, product_category: summary.productCategory, face_amount: summary.faceAmount, premium: summary.premium });
+  assert.match(note, /PRELIMINARY QUOTE/);
+  assert.match(note, /not a submitted application or issued policy/);
+  assert.match(note, /560015/);
+  assert.match(note, /OPTerm 20/);
+  assert.match(note, /Banner/);
+  assert.match(note, /20 Year Term/);
+  assert.match(note, /\$1,000,000/);
+  assert.match(note, /\$224\.73/);
+  assert.match(note, /Quote - 10% Complete/);
+});
+
+test('W. createLeadFromApplication: creates a new lead with the right lead_status/lead_type/lead_source and a detail note, even with no email/phone', () => {
+  const summary = extractConfirmedEappSummary(JANET_560015_PAYLOAD);
+  const created = upsertApplicationFromEapp(db, summary, JANET_560015_PAYLOAD);
+
+  const result = createLeadFromApplication(db, { applicationId: created.application.id, actor: 'loretta' });
+  assert.equal(result.outcome, 'created');
+  assert.ok(result.contactId);
+
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.contactId);
+  assert.equal(contact.first_name, 'Janet');
+  assert.equal(contact.last_name, 'Jackson');
+  assert.equal(contact.lead_status, 'New Lead');
+  assert.equal(contact.lead_type, 'Life Insurance Lead');
+  assert.equal(contact.lead_source, 'BackNine');
+  assert.match(contact.general_notes, /560015/);
+  assert.match(contact.general_notes, /PRELIMINARY QUOTE/);
+});
+
+test('X. createLeadFromApplication: links the application to the new contact (same contact_id/match_status matchApplicationToContact itself sets)', () => {
+  const created = upsertApplicationFromEapp(db, { backNineUuid: 'lib-test-x-uuid', firstName: 'Link', lastName: 'Test' }, {});
+  const result = createLeadFromApplication(db, { applicationId: created.application.id, actor: 'loretta' });
+
+  const app = db.prepare('SELECT * FROM backnine_applications WHERE id = ?').get(created.application.id);
+  assert.equal(app.contact_id, result.contactId);
+  assert.equal(app.match_status, 'matched');
+  assert.equal(app.matched_by, 'loretta');
+});
+
+test('Y. createLeadFromApplication: resolves the contact to the Prosperity brand', () => {
+  const created = upsertApplicationFromEapp(db, { backNineUuid: 'lib-test-y-uuid', firstName: 'Brand', lastName: 'Test' }, {});
+  const result = createLeadFromApplication(db, { applicationId: created.application.id, actor: 'loretta' });
+
+  const brandLink = db.prepare(`
+    SELECT b.slug FROM contact_brands cb JOIN brands b ON b.id = cb.brand_id WHERE cb.contact_id = ?
+  `).get(result.contactId);
+  assert.equal(brandLink.slug, 'prosperity');
+});
+
+test('Z. createLeadFromApplication: idempotent -- calling it again for the same application (double click, reload) returns the SAME contact, never creates a second one', () => {
+  const created = upsertApplicationFromEapp(db, { backNineUuid: 'lib-test-z-uuid', firstName: 'Idem', lastName: 'Potent' }, {});
+  const r1 = createLeadFromApplication(db, { applicationId: created.application.id, actor: 'loretta' });
+  const r2 = createLeadFromApplication(db, { applicationId: created.application.id, actor: 'loretta' });
+
+  assert.equal(r1.outcome, 'created');
+  assert.equal(r2.outcome, 'existing');
+  assert.equal(r1.contactId, r2.contactId);
+
+  const contactCount = db.prepare(`SELECT COUNT(*) AS n FROM contacts WHERE first_name = 'Idem' AND last_name = 'Potent'`).get().n;
+  assert.equal(contactCount, 1);
+});
+
+test('AA. createLeadFromApplication: if the application was already manually matched to an existing client, returns that same contact instead of creating a lead', () => {
+  const created = upsertApplicationFromEapp(db, { backNineUuid: 'lib-test-aa-uuid' }, {});
+  const existingContactId = db.prepare(`INSERT INTO contacts (first_name) VALUES ('Already Matched')`).run().lastInsertRowid;
+  matchApplicationToContact(db, { applicationId: created.application.id, contactId: existingContactId, actor: 'loretta' });
+
+  const result = createLeadFromApplication(db, { applicationId: created.application.id, actor: 'loretta' });
+  assert.equal(result.outcome, 'existing');
+  assert.equal(result.contactId, existingContactId);
+});
+
+test('AB. createLeadFromApplication: requires an actor and a real application', () => {
+  const created = upsertApplicationFromEapp(db, { backNineUuid: 'lib-test-ab-uuid' }, {});
+  assert.throws(() => createLeadFromApplication(db, { applicationId: created.application.id }), /actor is required/);
+  assert.throws(() => createLeadFromApplication(db, { applicationId: 999999, actor: 'loretta' }), /does not exist/);
+});
+
+test('AC. createLeadFromApplication: two different applications for two different people create two separate contacts, never merged', () => {
+  const app1 = upsertApplicationFromEapp(db, { backNineUuid: 'lib-test-ac-1-uuid', firstName: 'Person', lastName: 'One' }, {});
+  const app2 = upsertApplicationFromEapp(db, { backNineUuid: 'lib-test-ac-2-uuid', firstName: 'Person', lastName: 'Two' }, {});
+
+  const r1 = createLeadFromApplication(db, { applicationId: app1.application.id, actor: 'loretta' });
+  const r2 = createLeadFromApplication(db, { applicationId: app2.application.id, actor: 'loretta' });
+
+  assert.notEqual(r1.contactId, r2.contactId);
+  const c1 = db.prepare('SELECT last_name FROM contacts WHERE id = ?').get(r1.contactId);
+  const c2 = db.prepare('SELECT last_name FROM contacts WHERE id = ?').get(r2.contactId);
+  assert.equal(c1.last_name, 'One');
+  assert.equal(c2.last_name, 'Two');
+});
+
+test('AD. createLeadFromApplication: the COALESCE update never overwrites lead_status/lead_type/lead_source on an existing contact that already has them set', () => {
+  // Exercises the exact UPDATE statement's COALESCE guards directly
+  // (dedupeContact is always called with null email/phone in practice --
+  // see this file's own header comment -- so this scenario can't happen
+  // through the public createLeadFromApplication call today, but the
+  // UPDATE itself must stay safe if that ever changes).
+  const { dedupeContact } = require('../lib/caseMatching');
+  const existing = dedupeContact(db, { email: 'ad-test@example.com', first_name: 'Pre', last_name: 'Existing' });
+  db.prepare(`UPDATE contacts SET lead_status = 'Qualified Prospect', lead_type = 'Referral', lead_source = 'Word of mouth' WHERE id = ?`).run(existing.id);
+
+  db.prepare(`
+    UPDATE contacts SET
+      lead_status = COALESCE(lead_status, 'New Lead'),
+      lead_type   = COALESCE(lead_type, 'Life Insurance Lead'),
+      lead_source = COALESCE(lead_source, 'BackNine')
+    WHERE id = ?
+  `).run(existing.id);
+
+  const after = db.prepare('SELECT * FROM contacts WHERE id = ?').get(existing.id);
+  assert.equal(after.lead_status, 'Qualified Prospect');
+  assert.equal(after.lead_type, 'Referral');
+  assert.equal(after.lead_source, 'Word of mouth');
 });

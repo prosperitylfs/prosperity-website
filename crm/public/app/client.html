@@ -2575,12 +2575,21 @@ async function render() {
   wirePlanningForm('retirement-planning-form', 'retirement-planning-error', ['hasCurrentAdvisor', 'interestedInRothConversion']);
   wirePlanningForm('annuity-planning-form', 'annuity-planning-error', ['incomeRider']);
 
+  // 2026-10-14: selecting "Appointment" here now creates a REAL appointment
+  // (crm/lib/activityService.js's addActivity, via crm/lib/appointmentService.js),
+  // not just a timeline entry -- see that file's own comment for exactly
+  // why this was broken before. The "Date & time" field above is reused
+  // directly as the appointment's own start time (becomes required only
+  // for this type); Duration and Format are new fields shown only for
+  // this type, matching the Phone/Video/In Person options already used
+  // elsewhere in this app (crm/routes/calcom.js's normalizeLocation).
   function addActivityModal() {
     const ACTIVITY_TYPES = [
       ['note', 'Note'], ['call', 'Phone call'], ['text', 'Text message'], ['email', 'Email'],
       ['appointment', 'Appointment'], ['follow_up', 'Follow-up'], ['document_received', 'Document received'],
       ['policy_update', 'Policy update'], ['general', 'General activity'],
     ];
+    const APPT_LOCATIONS = ['Phone Call', 'Video Call', 'In Person'];
     const caseOptions = activeCases.map(cs => `<option value="${cs.caseId}">${CrmApp.escapeHtml(cs.productName || cs.title || ('Case #' + cs.caseId))}</option>`).join('');
     const dialog = CrmApp.openModal({
       title: 'Add Activity', wide: true,
@@ -2588,9 +2597,13 @@ async function render() {
         <form id="activity-form">
           <div class="form-grid">
             <div class="form-field"><label>Type</label>
-              <select class="input" name="activityType">${ACTIVITY_TYPES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+              <select class="input" name="activityType" id="activity-type-select">${ACTIVITY_TYPES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
             </div>
-            <div class="form-field"><label>Date &amp; time</label><input class="input" name="activityAt" type="datetime-local"></div>
+            <div class="form-field"><label id="activity-at-label">Date &amp; time</label><input class="input" name="activityAt" id="activity-at-input" type="datetime-local"></div>
+            <div class="form-field" id="appt-duration-field" style="display:none;"><label>Duration (minutes)</label><input class="input" name="apptDurationMin" type="number" min="5" step="5" value="60"></div>
+            <div class="form-field" id="appt-location-field" style="display:none;"><label>Appointment type</label>
+              <select class="input" name="apptLocation">${APPT_LOCATIONS.map(l => `<option value="${l}">${l}</option>`).join('')}</select>
+            </div>
             ${caseOptions ? `<div class="form-field full"><label>Related case</label><select class="input" name="caseId"><option value="">None</option>${caseOptions}</select></div>` : ''}
             <div class="form-field full"><label>Summary</label><input class="input" name="summary" placeholder="Short summary"></div>
             <div class="form-field full"><label>Detailed notes</label><textarea class="input" name="details"></textarea></div>
@@ -2606,6 +2619,21 @@ async function render() {
         </form>
       `,
     });
+    const typeSelect = dialog.querySelector('#activity-type-select');
+    const atLabel = dialog.querySelector('#activity-at-label');
+    const atInput = dialog.querySelector('#activity-at-input');
+    const durationField = dialog.querySelector('#appt-duration-field');
+    const locationField = dialog.querySelector('#appt-location-field');
+    function syncApptFields() {
+      const isAppt = typeSelect.value === 'appointment';
+      durationField.style.display = isAppt ? '' : 'none';
+      locationField.style.display = isAppt ? '' : 'none';
+      atInput.required = isAppt;
+      atLabel.textContent = isAppt ? 'Date & time (required — creates the real appointment)' : 'Date & time';
+    }
+    typeSelect.addEventListener('change', syncApptFields);
+    syncApptFields();
+
     dialog.querySelector('#activity-cancel').addEventListener('click', () => dialog.close());
     dialog.querySelector('#activity-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -2614,8 +2642,10 @@ async function render() {
       if (fields.caseId) fields.caseId = Number(fields.caseId);
       if (!fields.activityAt) delete fields.activityAt;
       try {
-        await CrmApp.postJSON('/api/app/activities', 'POST', fields);
-        CrmApp.toast('Activity added.');
+        const result = await CrmApp.postJSON('/api/app/activities', 'POST', fields);
+        CrmApp.toast(result.appointment
+          ? (result.appointmentOutcome === 'existing' ? 'Activity added. An appointment already existed for this exact time.' : 'Activity added and appointment scheduled.')
+          : 'Activity added.');
         dialog.close();
         reloadPage();
       } catch (err) {

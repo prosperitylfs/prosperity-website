@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db/database');
+const { createAppointment } = require('../lib/appointmentService');
 
 const APPT_STATUS_TO_LEAD = {
   'Scheduled':   'Appointment Scheduled',
@@ -91,32 +92,30 @@ router.get('/contact/:id', (req, res) => {
 });
 
 // POST /api/appointments
+//
+// 2026-10-14: now goes through crm/lib/appointmentService.js's
+// createAppointment, the one shared path also used by "Add Activity ->
+// Appointment Scheduled" on the client record -- adds duplicate
+// protection (see that file's own comment) without changing this route's
+// request/response shape for the existing manual "Add Appointment" page.
 router.post('/', (req, res) => {
   const { contact_id, appt_type, appt_datetime, duration_min, status, location, notes } = req.body;
   if (!contact_id)    return res.status(400).json({ error: 'contact_id required' });
   if (!appt_datetime) return res.status(400).json({ error: 'appt_datetime required' });
   if (!appt_type)     return res.status(400).json({ error: 'appt_type required' });
 
-  if (!db.prepare('SELECT id FROM contacts WHERE id = ?').get(contact_id))
-    return res.status(404).json({ error: 'Contact not found' });
+  let result;
+  try {
+    result = createAppointment(db, {
+      contactId: contact_id, apptType: appt_type, apptDatetime: appt_datetime,
+      durationMin: duration_min, status, location, notes,
+    });
+  } catch (err) {
+    if (err.message === 'createAppointment: contact not found') return res.status(404).json({ error: 'Contact not found' });
+    return res.status(400).json({ error: err.message });
+  }
 
-  const finalStatus = status || 'Scheduled';
-  const r = db.prepare(
-    `INSERT INTO appointments (contact_id, appt_type, appt_datetime, duration_min, status, location, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(Number(contact_id), appt_type, appt_datetime,
-        duration_min ? Number(duration_min) : 60,
-        finalStatus, location || null, notes || null);
-
-  db.prepare(
-    `INSERT INTO communications (contact_id, comm_type, direction, subject, body, appointment_id)
-     VALUES (?, 'appointment', 'internal', ?, ?, ?)`
-  ).run(Number(contact_id),
-        `Appointment ${finalStatus}`,
-        `${appt_type} — ${fmtCT(appt_datetime)}`,
-        r.lastInsertRowid);
-
-  res.status(201).json(db.prepare('SELECT * FROM appointments WHERE id = ?').get(r.lastInsertRowid));
+  res.status(result.outcome === 'created' ? 201 : 200).json(result.appointment);
 });
 
 // PATCH /api/appointments/:id

@@ -1336,17 +1336,79 @@ async function render() {
     </div></div>`;
   }
 
+  // 2026-10-14: this tab had no way to create an appointment directly --
+  // the only path was the general-purpose Add Activity modal (fixed
+  // 2026-10-14 to also create a real appointment for its 'appointment'
+  // type), which is easy to miss for someone who just wants to book a
+  // meeting. "+ Add Appointment" here goes through the exact same
+  // canonical path: crm/lib/appointmentService.js's createAppointment via
+  // POST /api/appointments (crm/routes/appointments.js) -- the same
+  // endpoint the standalone Appointments page's own "Add Appointment"
+  // button already uses. There is still only one appointment-creation
+  // system; this is a second, friendlier entry point into it, with the
+  // client already selected. Edit/Reschedule/Cancel mirror the standalone
+  // Appointments page's own existing actions and status conventions
+  // exactly (crm/public/app/appointments.html's apptFormModal).
   function appointmentsHtml() {
-    if (!detail.appointments.length) return '<div class="empty-state">No appointments yet.</div>';
-    return `<div class="card"><div class="card-body no-pad table-scroll">
-      <table class="data-table"><thead><tr><th>Type</th><th>When</th><th>Status</th><th>Location</th></tr></thead>
+    const addBtn = `<div style="margin-bottom:12px;"><button class="btn primary" data-add-appointment>+ Add Appointment</button></div>`;
+    if (!detail.appointments.length) return addBtn + '<div class="empty-state">No appointments yet.</div>';
+    return addBtn + `<div class="card"><div class="card-body no-pad table-scroll">
+      <table class="data-table"><thead><tr><th>Type</th><th>When</th><th>Status</th><th>Location</th><th></th></tr></thead>
       <tbody>${detail.appointments.map(a => `<tr>
         <td>${CrmApp.escapeHtml(a.appt_type)}</td>
         <td>${CrmApp.friendlyDateTime(a.appt_datetime)}</td>
         <td><span class="pill status-${(a.status || '').toLowerCase()}">${CrmApp.escapeHtml(a.status)}</span></td>
         <td>${CrmApp.escapeHtml(a.location || '—')}</td>
+        <td class="field-row-actions">
+          <button class="btn small ghost" data-edit-appointment="${a.id}" data-json='${JSON.stringify(a).replace(/'/g, "&#39;")}'>Edit</button>
+          <button class="btn small ghost" data-reschedule-appointment="${a.id}" data-json='${JSON.stringify(a).replace(/'/g, "&#39;")}'>Reschedule</button>
+          ${a.status !== 'Cancelled' ? `<button class="btn small ghost" data-cancel-appointment="${a.id}">Cancel</button>` : ''}
+        </td>
       </tr>`).join('')}</tbody></table>
     </div></div>`;
+  }
+
+  const APPT_LOCATIONS = ['Phone Call', 'Video Call', 'In Person'];
+
+  function appointmentFormModal({ existing, rescheduleOnly } = {}) {
+    const dialog = CrmApp.openModal({
+      title: rescheduleOnly ? 'Reschedule Appointment' : (existing ? 'Edit Appointment' : 'Add Appointment'),
+      bodyHtml: `
+        <form id="appt-form">
+          <div class="form-grid">
+            ${!rescheduleOnly ? `<div class="form-field full"><label>Title / Type</label><input class="input" name="appt_type" value="${existing ? CrmApp.escapeHtml(existing.appt_type) : ''}" placeholder="e.g. Life Insurance Consultation" required></div>` : ''}
+            <div class="form-field"><label>Date &amp; start time</label><input class="input" name="appt_datetime" type="datetime-local" value="${existing ? existing.appt_datetime.slice(0, 16) : ''}" required></div>
+            ${!rescheduleOnly ? `
+            <div class="form-field"><label>Duration (minutes)</label><input class="input" name="duration_min" type="number" min="5" step="5" value="${existing ? existing.duration_min : 60}"></div>
+            <div class="form-field full"><label>Appointment type</label>
+              <select class="input" name="location">${APPT_LOCATIONS.map(l => `<option value="${l}" ${existing && existing.location === l ? 'selected' : ''}>${l}</option>`).join('')}</select>
+            </div>
+            <div class="form-field full"><label>Notes</label><textarea class="input" name="notes">${existing ? CrmApp.escapeHtml(existing.notes || '') : ''}</textarea></div>` : ''}
+          </div>
+          <div class="form-error" id="appt-form-error"></div>
+          <div class="crmapp-modal-actions">
+            <button type="button" class="btn" id="appt-form-cancel">Cancel</button>
+            <button type="submit" class="btn primary">${rescheduleOnly ? 'Reschedule' : 'Save'}</button>
+          </div>
+        </form>
+      `,
+    });
+    dialog.querySelector('#appt-form-cancel').addEventListener('click', () => dialog.close());
+    dialog.querySelector('#appt-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = Object.fromEntries(new FormData(e.target).entries());
+      if (!existing) fields.contact_id = Number(contactId);
+      if (rescheduleOnly) fields.status = 'Rescheduled';
+      try {
+        if (existing) await CrmApp.postJSON(`/api/appointments/${existing.id}`, 'PATCH', fields);
+        else await CrmApp.postJSON('/api/appointments', 'POST', fields);
+        CrmApp.toast(rescheduleOnly ? 'Appointment rescheduled.' : (existing ? 'Appointment updated.' : 'Appointment added.'));
+        dialog.close();
+        reloadPage();
+      } catch (err) {
+        dialog.querySelector('#appt-form-error').textContent = err.message;
+      }
+    });
   }
 
   // Chronological text thread (Prosperity Revenue MVP, Requirement 4) —
@@ -2261,6 +2323,20 @@ async function render() {
     if (viewCompletedIntakeBtn) {
       const intake = retirementIntakes.find(i => String(i.id) === viewCompletedIntakeBtn.dataset.viewCompletedIntake);
       if (intake) return viewIntakeModal(intake);
+    }
+    if (e.target.closest('[data-add-appointment]')) return appointmentFormModal({});
+    const editApptBtn = e.target.closest('[data-edit-appointment]');
+    if (editApptBtn) return appointmentFormModal({ existing: JSON.parse(editApptBtn.dataset.json) });
+    const rescheduleApptBtn = e.target.closest('[data-reschedule-appointment]');
+    if (rescheduleApptBtn) return appointmentFormModal({ existing: JSON.parse(rescheduleApptBtn.dataset.json), rescheduleOnly: true });
+    const cancelApptBtn = e.target.closest('[data-cancel-appointment]');
+    if (cancelApptBtn) {
+      CrmApp.confirmAction('Cancel this appointment?', { confirmLabel: 'Cancel Appointment', danger: true }).then(async (ok) => {
+        if (!ok) return;
+        await CrmApp.postJSON(`/api/appointments/${cancelApptBtn.dataset.cancelAppointment}`, 'PATCH', { status: 'Cancelled' });
+        CrmApp.toast('Appointment cancelled.');
+        reloadPage();
+      });
     }
   });
 
